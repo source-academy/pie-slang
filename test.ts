@@ -13,7 +13,7 @@ function extendRenaming(r: Renaming, from: string, to: string): Renaming {
 }
 
 // Ctx and Perhaps Types (To be defined more rigorously)
-type Ctx = any; // Placeholder type for context
+type Ctx = { [varName: string]: Core };
 type Src = any; // Placeholder type for source input
 type Core = any; // Placeholder type for core type
 type Perhaps<T> = T | null;
@@ -32,7 +32,10 @@ function freshBinder(ctx: Ctx, expr: Core, name: string): string {
 
 function bindFree(ctx: Ctx, varName: string, expr: Core): Ctx {
     // Extend the context with a new free variable binding
-    return ctx;
+    return {
+      ...ctx,
+      [varName]: expr // Bind the variable name to the type
+  };
 }
 
 function valInCtx(ctx: Ctx, value: Core): Core {
@@ -192,8 +195,5 @@ const makeApp = (B: Expression, C: Expression, Cs: Expression[]): Expression => 
   return ['App', B, C, ...Cs]; // Simplified make application
 };
 
-const bindFree = (ctx: Ctx, z: string, val: Val): Ctx => {
-  return {}; // Creates a new context binding a free variable
-};
 
 // other necessary bindings/helpers as per the original code logic can be implemented here...
