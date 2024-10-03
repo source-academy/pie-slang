@@ -16,7 +16,7 @@
          location->srcloc
          Srcloc)
 
-
+
 ;;; Source locations
 
 (define-type Srcloc (List String Integer Integer Integer Integer))
@@ -33,7 +33,7 @@
 ;;; it should not be a trivial value.
 (define-type Loc Precise-Loc)
 
-
+
 ;;; Keywords
 
 (define-type Pie-Keyword
@@ -50,7 +50,7 @@
      'Either 'left 'right 'ind-Either
      'TODO 'the))
 
-
+
 ;;; Abstract syntax of high-level programs
 
 ;; @ associates a source location with a Pie expression or
@@ -181,7 +181,7 @@
      (List 'TODO Srcloc Core)
      (List Core Core)))
 
-
+
 ;;; Values
 
 ;; In order to type check Pie, it is necessary to find the normal
@@ -321,7 +321,7 @@
 
 (define-predicate Norm? Norm)
 
-
+
 ;;; Error handling
 
 ;; Messages to be shown to the user contain a mix of text (represented
@@ -353,7 +353,7 @@
          [(go p0) (go-on ((p b) ...) e)]
          [(stop where msg) (stop where msg)]))]))
 
-
+
 ;;; Recognizing variable names
 
 ;; This macro causes a name to be defined both for Racket macros and
@@ -394,7 +394,6 @@
 
 
 
-
 ;;; Contexts
 
 ;; A context maps free variable names to binders.
@@ -477,9 +476,11 @@
 (: ctx->env (-> Ctx Env))
 (define (ctx->env Γ)
   (match Γ
+  ;; def case
     [(cons (cons x (def tv v)) Γ-next)
      (cons (cons x v)
            (ctx->env Γ-next))]
+  ;; free case
     [(cons (cons x (free tv)) Γ-next)
      (cons (cons x (NEU tv (N-var x)))
            (ctx->env Γ-next))]
@@ -500,7 +501,6 @@
     [#f (error (format "Variable ~a not in\n\tρ: ~a\n" x ρ))]))
 
 
-
 ;;; Closures
 
 ;; There are two kinds of closures: first-order closures and
@@ -528,7 +528,6 @@
 ;; and NEU.
 (struct HO-CLOS ([proc : (-> Value Value)]) #:transparent)
 
-
 ;;; Finding fresh names
 
 ;; Find a fresh name, using none of those described in a context.
@@ -654,7 +653,7 @@
     [(list (binder where x) t)
      (cons x (occurring-names t))]))
 
-
+
 ;; Local Variables:
 ;; eval: (put 'Π 'racket-indent-function 1)
 ;; eval: (put 'Σ 'racket-indent-function 1)

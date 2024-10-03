@@ -14,7 +14,7 @@
   [location->srcloc (-> Loc Srcloc)]
   [not-for-info (-> Loc Precise-Loc)])
 
-
+
 ;;; Reporting information
 
 ;; The info hook is a procedure to be called by the type checker to
@@ -66,7 +66,7 @@
   (when (location-for-info? where)
     ((pie-info-hook) where what)))
 
-
+
 ;;; Renamings
 
 ;; The Pie elaborator ensures that each entry in Γ has a distinct
@@ -888,7 +888,7 @@
   (check-false (atom-ok? 'at0m))
   (check-false (atom-ok? '🛶)))
 
-
+
 ;; Local Variables:
 ;; eval: (put 'Π 'racket-indent-function 1)
 ;; eval: (put 'Σ 'racket-indent-function 1)
