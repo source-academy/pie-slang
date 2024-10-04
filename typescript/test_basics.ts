@@ -89,3 +89,4 @@ console.log(v)
 
 const t = varType(ctx3, null, Symbol("y"))
 console.log(t)
+

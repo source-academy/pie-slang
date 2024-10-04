@@ -6,8 +6,7 @@ type Srcloc = [Symbol, number, number, number, number];
 type Loc = StxLoc;
 
 /*
-    * Function to create a Location from a syntax object.
-    * The forInfo field is set to true.
+  All built-in Keywords for Pie.
 */
 type PieKeyword =
   | 'U'
@@ -63,8 +62,10 @@ type PieKeyword =
   | 'the';
 
 
-// Define the Src type, which associates
-// a source location with a Pie expression
+/*
+  Define the Src type, which associates a source location with
+  a Pie expression. another name for Src in orginal code is "@".
+*/
 class Src {
   constructor(public loc: Loc, public stx: SrcStx) { }
 }
@@ -90,7 +91,7 @@ function isSrc(input: any): input is Src {
 }
 
 // TypedBinder definition
-type TypedBinder = [Src, BindingSite];
+type TypedBinder = [BindingSite, Src];
 
 /*
     Pie expressions consist of a source location attached by @ to an
@@ -113,7 +114,7 @@ type SrcStx =
   | ['ind-Nat', Src, Src, Src, Src]
   | ['->', Src, Src, Src[]]
   | ['Π', TypedBinder[], Src]
-  | ['λ', TypedBinder[], Src]
+  | ['λ', BindingSite[], Src]
   | ['Σ', TypedBinder[], Src]
   | ['Pair', Src, Src]
   | ['cons', Src, Src]
@@ -438,7 +439,7 @@ type Closure = FO_CLOS | HO_CLOS;
 */
 
 class FO_CLOS {
-    constructor(env: Env, varName: Symbol, expr: Core) { }
+  constructor(env: Env, varName: Symbol, expr: Core) { }
 }
 
 /*
@@ -736,7 +737,18 @@ function isSerializableCtx(ctx: any): ctx is SerializableCtx {
   Variable name recognition is needed in Racket macros in order to
   parse Pie into the Src type, and it is needed in ordinary programs
   in order to implement the type checker.
+
+  Here the codes are largely removed since the macro is not needed in TS.
 */
+
+/*
+  The type of var-name? guarantees that the implementation will
+  always accept symbols that are not Pie keywords, and never accept
+  those that are.
+*/
+function isVarName(symbol: Symbol): boolean {
+  return !(symbol.toString() as PieKeyword);
+}
 
 /*
   ## Error Handling ##
@@ -748,16 +760,16 @@ type Message = Array<string | Core>;
 
 // A successful result named "go"
 class go<T> {
-  constructor(public result: T) {}
+  constructor(public result: T) { }
 }
 
 // A failure result named "stop"
 class stop {
-  constructor(public where: Loc, public message: Message) {}
+  constructor(public where: Loc, public message: Message) { }
 }
 
 // Type to represent a result that can be either a success or a failure
-type perhaps<T> = go<T> | stop;
+type Perhaps<T> = go<T> | stop;
 
 /*
   go-on is very much like let*. The difference is that if any of the
@@ -765,21 +777,20 @@ type perhaps<T> = go<T> | stop;
   expression becomes that first stop. Otherwise, the variables are
   bound to the contents of each go.
 */
-function goOn<T>(bindings: Array<[perhaps<any>, (result: any) => perhaps<any>]>, finalExpression: () => perhaps<T>): perhaps<T> {
-  for (const [binding, next] of bindings) {
-    if (binding instanceof stop) {
-      // If any binding is a Stop, return the Stop immediately
-      return binding;
-    } else if (binding instanceof go) {
-      // Proceed to the next step if binding is Go
-      const result = next(binding.result);
-      if (result instanceof stop) {
-        return result;
-      }
-    }
+// review this function when needed: BUG MAY OCCUR
+function goOn(
+  bindings: Array<[any, Perhaps<any>]>,
+  finalExpr: any 
+): Perhaps<any> {
+  if (bindings.length === 0) {
+    return finalExpr;
   }
-  // Finally evaluate the last expression
-  return finalExpression();
+  const [[ , binding], ...rest] = bindings;
+  if (binding instanceof stop) {
+    return binding;
+  } else {
+    return goOn(rest, finalExpr);
+  }
 }
 
 
@@ -820,6 +831,7 @@ function freshBinder(ctx: Ctx, expr: Src, name: Symbol): Symbol {
   return freshen([...namesOnly(ctx), ...occurringNames(expr)], name);
 }
 
+
 /*
   Find all the names that occur in an expression. For correctness, we
   need only find the free identifiers, but finding the bound
@@ -827,12 +839,28 @@ function freshBinder(ctx: Ctx, expr: Src, name: Symbol): Symbol {
   desugaring expressions are more different from the program as
   written, which can help readability of internals.
 */
+
 function occurringNames(expr: Src): Symbol[] {
   if (Array.isArray(expr.stx)) {
-    if (expr.stx[0] instanceof Src) {
-      const x = expr.stx[0];
-      if (x instanceof Symbol && x instanceof Va)
+    // case of variable
+    if (expr.stx instanceof Symbol) {
+      if (isVarName(expr.stx)) {
+        return [expr.stx];
+      }
+      return [];
     }
+    //case of [Src, Src, Src[]];
+    if (expr.stx[0] instanceof Src) {
+      const f = expr.stx[0] as Src;
+      const arg0 = expr.stx[1] as Src;
+      const args = expr.stx[2] as Src[];
+      return [
+        ...occurringNames(f),
+        ...occurringNames(arg0),
+        ...args.flatMap(occurringNames)
+      ];
+    }
+    // other cases
     switch (expr.stx[0]) {
       case 'quote': return [];
       case 'add1':
@@ -871,13 +899,19 @@ function occurringNames(expr: Src): Symbol[] {
           ...occurringNames(expr.stx[2]),
           ...occurringNames(expr.stx[3])
         ];
+      /*
+(List 'Π (List* Typed-Binder (Listof Typed-Binder)) Src)
+(List 'λ (List* Binding-Site (Listof Binding-Site)) Src)
+(List 'Σ (List* Typed-Binder (Listof Typed-Binder)) Src)
+*/
       case 'λ':
-      //TODO
+        return [...expr.stx[1].map(x => x.varName),...occurringNames(expr.stx[2])];
       case 'Π':
       case 'Σ':
-        ///TODO
-        const binders = expr.stx[1].flatMap((binder: any) => occurringNames(binder[1] as Src));
-        return [...binders, ...occurringNames(expr.stx[2] as Src)];
+        return [
+          ...expr.stx[1].flatMap(x => occurringBinderNames(x)),
+          ...occurringNames(expr.stx[2])
+        ];
       case 'ind-List':
       case 'ind-Nat':
       case 'ind-Either':
@@ -894,50 +928,16 @@ function occurringNames(expr: Src): Symbol[] {
           ...occurringNames(expr.stx[3]),
           ...occurringNames(expr.stx[4]),
           ...occurringNames(expr.stx[5]),
-        ]; 
-      default:
-        return
+        ];
     }
-  } else if (typeof expr.stx === 'symbol') {
-    // If expr.stx is a symbol, return it
-    return [expr.stx];
-  } else if (typeof expr.stx === 'number') {
-    // If expr.stx is a number, return an empty array
-    return [];
   }
-
-  // Default case
   return [];
 }
 
-const ctx0: Ctx = [[Symbol("x"), new Def("NAT", "ZERO")]];
-const result0 = ctxToEnv(ctx0);
-console.log(result0)
-
-const ctx1: Ctx = [[Symbol("y"), new Free("NAT")]];
-const result1 = ctxToEnv(ctx1);
-console.log(result1)
-
-const ctx2: Ctx = [[Symbol("z"), new Claim("NAT")]];
-const result2 = ctxToEnv(ctx2);
-console.log(result2)
-
-const claiml = {};
-const ctx3: Ctx = [
-  [Symbol("x"), new Def("NAT", "ZERO")],
-  [Symbol("y"), new Free("NAT")],
-  [Symbol("z"), new Claim("NAT")],
-];
-var env0 = ctxToEnv(ctx3)
-console.log(env0)
-
-env0 = extendEnv(env0, Symbol("b"), "NAT")
-
-env0 = extendEnv(env0, Symbol("a"), new LAM(Symbol("func"), new FO_CLOS(env0, Symbol("func1"), 'Absurd')))
-
-env0 = extendEnv(env0, Symbol("pi"), new PI(Symbol("pi"), "UNIVERSE", new FO_CLOS(env0, Symbol("pi"), "Absurd")))
-console.log(env0)
-
+function occurringBinderNames(b: TypedBinder): Symbol[] {
+  const [binder, site] = b;
+  return [binder.varName, ...occurringNames(site)];
+}
 
 export {
   Src,

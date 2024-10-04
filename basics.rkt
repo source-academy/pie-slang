@@ -393,7 +393,6 @@
            (eqv? x 'TODO))))
 
 
-
 ;;; Contexts
 
 ;; A context maps free variable names to binders.
@@ -460,7 +459,6 @@
 
 
 
-
 ;;; Run-time environments
 
 ;; A run-time environment associates a value with each variable.
