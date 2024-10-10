@@ -1,4 +1,5 @@
 import { syntaxToLocation, notForInfo, locationToSrcLoc, StxLoc } from './locations';
+import { freshen } from './fresh';
 // Define Srcloc as a tuple type
 type Srcloc = [Symbol, number, number, number, number];
 
@@ -234,10 +235,14 @@ class DELAY_CLOS {
   }
 }
 
-// Box type
-type Box<Type> = {
+class Box<Type> {
   contents: Type;
-};
+
+  constructor(value: Type) {
+    this.contents = value;
+  }
+}
+
 
 class DELAY {
   constructor(public val: Box<DELAY_CLOS | Value>) { }
@@ -963,5 +968,12 @@ export {
   fresh,
   freshBinder,
   N_Var,
+  DELAY,
+  DELAY_CLOS,
+  Box,
+  LAM,
+  NEU,
+  FO_CLOS,
+  HO_CLOS,
 };
 

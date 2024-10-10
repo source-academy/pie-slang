@@ -118,3 +118,5 @@ console.log(freshen([Symbol('r2d'), Symbol('r2d₀'), Symbol('r2d₁')], Symbol(
 
 console.log(freshen([], Symbol('A')).toString()); 
 // Expected: Symbol('A')
+
+export {freshen}
