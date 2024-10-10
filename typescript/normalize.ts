@@ -139,7 +139,13 @@ function getCoreType(expr: Core) : String {
   }
 }
 
-
+function PIType([[argName, argType], ...next]: [Symbol, Value][], ret: Value): PI | Value{
+  if ([argName, argType].length === 0) {
+    return ret;
+  } else {
+    return new PI(argName, argType, new HO_CLOS((argName) => PIType(next, ret)));
+  }
+}
 
 function doAp (rator: Value, rand: Value): Value | undefined {
   const rtFin = now(rator);
@@ -166,13 +172,10 @@ function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | unde
     if (targetFin.type === 'NAT') {
       return new NEU(
         b_t,
-        new N_WhichNat(targetFin.neutral, new Norm(b_t, b),
-         new Norm(
-          new PI(Symbol("n"), "NAT",
-            new HO_CLOS((x) => new PI(b))),s)));
-      // (Π-type ((n b-tv)) b-tv)
-      //(_ ((x:id arg-t) b ...) ret)
-      //(PI 'x arg-t (HO-CLOS (λ (x) (Π-type (b ...) ret))))
+        new N_WhichNat(targetFin.neutral, 
+          new Norm(b_t, b),
+          new Norm(PIType([[Symbol("n"), "NAT"]], b_t), s))
+        );
     }
     return now(b_t);
   }
@@ -193,20 +196,20 @@ function doCar(p: Value): Value | undefined {
   }
 }
 
-function doIterNat(target: Value, bTv: Value, bV: Value, s: Value): Value | undefined {
+function doIterNat(target: Value, bVType: Value, bV: Value, s: Value): Value | undefined {
   const targetNow = now(target);
   if (targetNow === 'ZERO') {
     return bV;
   } else if (targetNow instanceof ADD1) {
     const nMinusOne = targetNow.smaller;
-    return doAp(s, doIterNat(nMinusOne, bTv, bV, s)!);
+    return doAp(s, doIterNat(nMinusOne, bVType, bV, s)!);
   } else if (targetNow instanceof NEU) {
     if (targetNow.type !== 'NAT') {
       return undefined; 
     } 
     const neutral = targetNow.neutral;
-    return NEU(bTv, N_IterNat(neutral, 
-          Norm(bTv, bV), 
+    return NEU(bVType, N_IterNat(neutral, 
+          Norm(bVType, bV), 
           Norm()))
   } else {
     return undefined; 
