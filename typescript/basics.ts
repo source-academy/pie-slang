@@ -202,6 +202,7 @@ type Core =
   | ['right', Core]
   | ['ind-Either', Core, Core, Core, Core]
   | ['TODO', Srcloc, Core]
+  | 'Trivial'
   | [Core, Core];
 
 /*
@@ -444,7 +445,7 @@ type Closure = FO_CLOS | HO_CLOS;
 */
 
 class FO_CLOS {
-  constructor(env: Env, varName: Symbol, expr: Core) { }
+  constructor(public env: Env, public varName: Symbol, public expr: Core) { }
 }
 
 /*
@@ -457,7 +458,7 @@ class FO_CLOS {
 */
 
 class HO_CLOS {
-  proc: (value: Value) => Value;
+  constructor(public proc: (value: Value) => Value){ };
 }
 
 
@@ -684,7 +685,6 @@ function varType(ctx: Ctx, where: Loc, x: Symbol): Value | null {
   }
 
   const [[y, binder], ...ctxNext] = ctx;
-
   if (binder instanceof Claim) {
     return varType(ctxNext, where, x);
   } else if (y.toString === x.toString) {
@@ -952,6 +952,8 @@ export {
   Env,
   Closure,
   Neutral,
+  N_Car,
+  N_IterNat, 
   Norm,
   Ctx,
   Binder,
@@ -972,8 +974,27 @@ export {
   DELAY_CLOS,
   Box,
   LAM,
+  N_Ap,
   NEU,
   FO_CLOS,
   HO_CLOS,
+  ADD1,
+  PI,
+  SIGMA,
+  CONS,
+  QUOTE,
+  LIST_CONS,
+  LIST,
+  EQUAL,
+  SAME,
+  N_Replace,
+  VEC,
+  VEC_CONS,
+  EITHER,
+  LEFT,
+  RIGHT,
+  isVarName,
+  SerializableCtx,
+  N_WhichNat,
 };
 

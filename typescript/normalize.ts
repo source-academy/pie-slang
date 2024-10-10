@@ -3,7 +3,50 @@
   This file implements normalization by evaluation.
 */
 
-import {Env, Core, Value, DELAY, DELAY_CLOS, Box, varVal, LAM, NEU, Closure, FO_CLOS, HO_CLOS, extendEnv} from './basics'
+import {
+  Env,
+  N_Ap,
+  Core, 
+  Value, 
+  DELAY, 
+  DELAY_CLOS, 
+  Norm,
+  Box, 
+  varVal, 
+  ctxToEnv,
+  LAM, 
+  NEU, 
+  N_WhichNat,
+  Closure, 
+  FO_CLOS, 
+  HO_CLOS, 
+  extendEnv,
+  ADD1,
+  PI,
+  Ctx,
+  SIGMA,
+  CONS,
+  QUOTE,
+  LIST_CONS,
+  LIST,
+  EQUAL,
+  SAME,
+  VEC,
+  VEC_CONS,
+  EITHER,
+  LEFT,
+  RIGHT,
+  isVarName,
+  SerializableCtx,
+  N_Car,
+  Free,
+  Def,
+  Claim,
+  N_IterNat,
+  fresh,
+  the,
+  bindFree,
+} from './basics'
 import { locationToSrcLoc } from './locations';
 
 /**
@@ -56,6 +99,7 @@ function undelay(c: DELAY_CLOS): Value {
   return now(valOf(c.env, c.expr));
 }
 
+
 /*
   now demands the _actual_ value represented by a DELAY. If the value
   is a DELAY-CLOS, then it is computed using undelay. If it is
@@ -95,26 +139,85 @@ function getCoreType(expr: Core) : String {
   }
 }
 
-function doAp (rator: Value, rand: Value): Value {
-  const rator_finished = now(rator);
 
-  if (rator instanceof LAM) {
-    return rator.f(rand);
+
+function doAp (rator: Value, rand: Value): Value | undefined {
+  const rtFin = now(rator);
+
+  if (rtFin instanceof LAM) {
+    return valOfClosure(rtFin.body, rand);
   }
-  throw new Error(`do-ap: ${rator} is not a function`);
+  else if (rtFin instanceof NEU) {
+    if (rtFin.type instanceof PI) {
+      return new NEU(
+        valOfClosure(rtFin.type.resultType, rand), 
+        new N_Ap(rtFin.neutral,new Norm(rtFin.type.argType, rand)));
+    }
+  } 
 }
 
-/*
-function valOf(env: Env, expr: Core): Value {
-  if (Array.isArray(expr)) {
-    if (expr instanceof Symbol) {
-      
+function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | undefined{
+  const targetFin = now(target);
+  if (targetFin === 'ZERO') {
+    return b;
+  } else if (targetFin instanceof ADD1) {
+    return doAp(s, new ADD1(targetFin.smaller));
+  } else if (targetFin instanceof NEU) {
+    if (targetFin.type === 'NAT') {
+      return new NEU(
+        b_t,
+        new N_WhichNat(targetFin.neutral, new Norm(b_t, b),
+         new Norm(
+          new PI(Symbol("n"), "NAT",
+            new HO_CLOS((x) => new PI(b))),s)));
+      // (Π-type ((n b-tv)) b-tv)
+      //(_ ((x:id arg-t) b ...) ret)
+      //(PI 'x arg-t (HO-CLOS (λ (x) (Π-type (b ...) ret))))
     }
+    return now(b_t);
   }
+}
+
+function doCar(p: Value): Value | undefined {
+  const nowP: Value = now(p);
+  if (nowP instanceof CONS) {
+    return nowP.car;
+  } else if (nowP instanceof NEU) {
+    const type = nowP.type;
+    const neutral = nowP.neutral; 
+    if (!(neutral instanceof SIGMA)) {
+      return undefined;
+    }
+    const A = neutral.carType;
+    return new NEU(A, new N_Car(neutral));
+  }
+}
+
+function doIterNat(target: Value, bTv: Value, bV: Value, s: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow === 'ZERO') {
+    return bV;
+  } else if (targetNow instanceof ADD1) {
+    const nMinusOne = targetNow.smaller;
+    return doAp(s, doIterNat(nMinusOne, bTv, bV, s)!);
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type !== 'NAT') {
+      return undefined; 
+    } 
+    const neutral = targetNow.neutral;
+    return NEU(bTv, N_IterNat(neutral, 
+          Norm(bTv, bV), 
+          Norm()))
+  } else {
+    return undefined; 
+  }
+}
+
+function valOf(env: Env, expr: Core): Value {
 
   switch (getCoreType(expr)) {
     case 'The':
-      return valOf(env, expr.expr);
+      return valOf(env, expr[2]);
     case 'U':
       return 'UNIVERSE';
     case 'Nat':
@@ -122,12 +225,13 @@ function valOf(env: Env, expr: Core): Value {
     case 'Zero':
       return 'ZERO';
     case 'Add1':
-      return ADD1(later(env, expr.n));
-    case 'Pi':
-      const A_v = later(env, expr.A);
-      return PI(expr.x, A_v, FO_CLOS(env, expr.x, expr.B));
+      return new ADD1(later(env, expr[1]));
+    case 'Π':
+      const arr = expr[1];
+      let A_v = later(env, arr[0][1]);
+      return new PI(arr[0][0], A_v, new FO_CLOS(env, arr[0][0], expr[2]));
     case 'Lambda':
-      return LAM(expr.x, FO_CLOS(env, expr.x, expr.body));
+      return new LAM(expr[1][0], new FO_CLOS(env, expr[1][0], expr[2]));
     case 'WhichNat':
       return doWhichNat(
         later(env, expr.target),
@@ -159,17 +263,18 @@ function valOf(env: Env, expr: Core): Value {
     case 'Atom':
       return 'ATOM';
     case 'Sigma':
-      const A_v_Sigma = later(env, expr.A);
-      return SIGMA(expr.x, A_v_Sigma, FO_CLOS(env, expr.x, expr.D));
+      const pair = expr[1][0];
+      let A_v_Sigma = later(env, pair[1]);
+      return new SIGMA(pair[0], A_v_Sigma, new FO_CLOS(env, pair[0], expr[2]));
     case 'Cons':
-      return CONS(later(env, expr.a), later(env, expr.d));
+      return new CONS(later(env, expr[1]), later(env, expr[2]));
     case 'Car':
       return doCar(later(env, expr.p));
     case 'Cdr':
       return doCdr(later(env, expr.p));
     case 'Quote':
-      if (typeof expr.a === 'symbol') {
-        return QUOTE(expr.a);
+      if (typeof expr[1] === 'symbol') {
+        return new QUOTE(expr[1]);
       }
       break;
     case 'Trivial':
@@ -178,10 +283,10 @@ function valOf(env: Env, expr: Core): Value {
       return 'SOLE';
     case 'Nil':
       return 'NIL';
-    case 'ListCons':
-      return LIST_CONS(later(env, expr.h), later(env, expr.t));
+    case '::':
+      return new LIST_CONS(later(env, expr[1]), later(env, expr[2]));
     case 'List':
-      return LIST(later(env, expr.E));
+      return new LIST(later(env, expr[1]));
     case 'IndList':
       return doIndList(
         later(env, expr.target),
@@ -201,13 +306,13 @@ function valOf(env: Env, expr: Core): Value {
     case 'IndAbsurd':
       return doIndAbsurd(later(env, expr.target), later(env, expr.mot));
     case 'Equal':
-      return EQUAL(
-        later(env, expr.A),
-        later(env, expr.from),
-        later(env, expr.to)
+      return new EQUAL(
+        later(env, expr[1]),
+        later(env, expr[2]),
+        later(env, expr[3])
       );
     case 'Same':
-      return SAME(later(env, expr.e));
+      return new SAME(later(env, expr[1]));
     case 'Replace':
       return doReplace(
         later(env, expr.target),
@@ -231,11 +336,11 @@ function valOf(env: Env, expr: Core): Value {
         later(env, expr.b)
       );
     case 'Vec':
-      return VEC(later(env, expr.E), later(env, expr.len));
+      return new VEC(later(env, expr[1]), later(env, expr[2]));
     case 'VecNil':
       return 'VECNIL';
     case 'VecCons':
-      return VEC_CONS(later(env, expr.h), later(env, expr.t));
+      return new VEC_CONS(later(env, expr[1]), later(env, expr[2]));
     case 'Head':
       return doHead(later(env, expr.es));
     case 'Tail':
@@ -249,11 +354,11 @@ function valOf(env: Env, expr: Core): Value {
         later(env, expr.s)
       );
     case 'Either':
-      return EITHER(later(env, expr.L), later(env, expr.R));
+      return new EITHER(later(env, expr[1]), later(env, expr[2]));
     case 'Left':
-      return LEFT(later(env, expr.l));
+      return new LEFT(later(env, expr[1]));
     case 'Right':
-      return RIGHT(later(env, expr.r));
+      return new RIGHT(later(env, expr[1]));
     case 'IndEither':
       return doIndEither(
         later(env, expr.target),
@@ -265,14 +370,16 @@ function valOf(env: Env, expr: Core): Value {
       return doAp(later(env, expr.rator), later(env, expr.rand));
     case 'TODO':
       return NEU(later(env, expr.type), NTODO(expr.where, later(env, expr.type)));
+    case 'Trivial':
+      return 'TRIVIAL';
     default:
-      if (typeof expr === 'string' && isVarName(expr)) {
-        return varVal(env, expr);
+      if (typeof expr === 'string' && isVarName(Symbol(expr))) {
+        return varVal(env, Symbol(expr));
       }
       throw new Error(`No evaluator for ${expr}`);
   }
 }
-*/
+
 /*
   General-purpose helpers
 
@@ -281,15 +388,51 @@ function valOf(env: Env, expr: Core): Value {
   closures do not have free variables, but are instead just delayed
   computations.
 */
-function ValOfClosure(c: Closure, v: Value): Value {
+function valOfClosure(c: Closure, v: Value): Value {
   if (c instanceof FO_CLOS) {
-    return extendEnv(c.env, c.x, v);
+    return valOf(extendEnv(c.env, c.varName, v), c.expr);
+  } else if (c instanceof HO_CLOS) {
+    return c.proc(v);
   }
+  return v;
 }
 /*
   Find the value of an expression in the environment that
   corresponds to a context.
 */
-(: val-in-ctx (-> Ctx Core Value))
-(define (val-in-ctx Γ e)
-  (val-of (ctx->env Γ) e))
+function  valInCtx(context: Ctx, core: Core) : Value {
+  return valOf(ctxToEnv(context), core);
+}
+
+function read_back_context(context: Ctx) : SerializableCtx {
+  if (context === null) {
+    return context;
+  } else {
+    const [[x, binding], ...rest] = context;
+    if (binding instanceof Free) {
+      const serialfree = [Symbol('free'), read_back_type]
+    } 
+  }
+}
+
+function read_back_type(context: Ctx, value: Value) : Core {
+  if (value instanceof String) {
+    switch (value) {
+      case 'UNIVERSE':
+        return 'U';
+      case 'NAT':
+        return 'Nat';
+      case 'ATOM':
+        return 'Atom';
+      case 'TRIVIAL':
+        return 'Trivial';
+      case 'ABSURD':
+        return 'Absurd';
+  } else if (value instanceof PI) {
+    let A_e = read_back_type(context, value.argType);
+    let x_hat = fresh(context, value.argName);
+    let ex_x_hat = bindFree(context, x_hat, value.argType);
+    
+    
+  }
+} 

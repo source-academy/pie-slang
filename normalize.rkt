@@ -90,8 +90,6 @@
        (syntax/loc pat-stx
         (app now p))])))
 
-
-
 ;;; Helper for constructing nested Π types
 
 (define-syntax (Π-type stx)
