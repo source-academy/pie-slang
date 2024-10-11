@@ -4,22 +4,29 @@
 */
 
 import {
+  N_RecNat,
+  N_Replace,
+  N_Cdr,
+  N_RecList,
+  N_Head,
+  N_Symm,
+  N_Cong,
   Env,
   N_Ap,
-  Core, 
-  Value, 
-  DELAY, 
-  DELAY_CLOS, 
+  Core,
+  Value,
+  DELAY,
+  DELAY_CLOS,
   Norm,
-  Box, 
-  varVal, 
+  Box,
+  varVal,
   ctxToEnv,
-  LAM, 
-  NEU, 
+  LAM,
+  NEU,
   N_WhichNat,
-  Closure, 
-  FO_CLOS, 
-  HO_CLOS, 
+  Closure,
+  FO_CLOS,
+  HO_CLOS,
   extendEnv,
   ADD1,
   PI,
@@ -44,8 +51,11 @@ import {
   Claim,
   N_IterNat,
   fresh,
-  the,
+  N_Trans1,
+  N_Trans2,
+  N_Trans12,
   bindFree,
+  N_Tail,
 } from './basics'
 import { locationToSrcLoc } from './locations';
 
@@ -96,7 +106,7 @@ function later(env: Env, expr: Core): Value {
 // undelay is used to find the value that is contained in a
 // DELAY-CLOS closure by invoking the evaluator.
 function undelay(c: DELAY_CLOS): Value {
-  return now(valOf(c.env, c.expr));
+  return now(valOf(c.env, c.expr)!);
 }
 
 
@@ -123,7 +133,7 @@ function now(v: Value): Value {
   return v;
 }
 
-function getCoreType(expr: Core) : String {
+function getCoreType(expr: Core): String {
   if (expr instanceof String) {
     return expr;
   } else if (expr instanceof Symbol) {
@@ -139,7 +149,8 @@ function getCoreType(expr: Core) : String {
   }
 }
 
-function PIType([[argName, argType], ...next]: [Symbol, Value][], ret: Value): PI | Value{
+// Helper for constructing nested Π types
+function PIType([[argName, argType], ...next]: [Symbol, Value][], ret: Value): PI | Value {
   if ([argName, argType].length === 0) {
     return ret;
   } else {
@@ -147,7 +158,15 @@ function PIType([[argName, argType], ...next]: [Symbol, Value][], ret: Value): P
   }
 }
 
-function doAp (rator: Value, rand: Value): Value | undefined {
+
+/*
+  ## The evaluator ##
+
+  Functions whose names begin with "do-" are helpers that implement
+  the corresponding eliminator.
+*/
+
+function doAp(rator: Value, rand: Value): Value | undefined {
   const rtFin = now(rator);
 
   if (rtFin instanceof LAM) {
@@ -156,13 +175,13 @@ function doAp (rator: Value, rand: Value): Value | undefined {
   else if (rtFin instanceof NEU) {
     if (rtFin.type instanceof PI) {
       return new NEU(
-        valOfClosure(rtFin.type.resultType, rand), 
-        new N_Ap(rtFin.neutral,new Norm(rtFin.type.argType, rand)));
+        valOfClosure(rtFin.type.resultType, rand),
+        new N_Ap(rtFin.neutral, new Norm(rtFin.type.argType, rand)));
     }
-  } 
+  }
 }
 
-function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | undefined{
+function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | undefined {
   const targetFin = now(target);
   if (targetFin === 'ZERO') {
     return b;
@@ -172,12 +191,74 @@ function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | unde
     if (targetFin.type === 'NAT') {
       return new NEU(
         b_t,
-        new N_WhichNat(targetFin.neutral, 
+        new N_WhichNat(targetFin.neutral,
           new Norm(b_t, b),
           new Norm(PIType([[Symbol("n"), "NAT"]], b_t), s))
-        );
+      );
     }
     return now(b_t);
+  }
+}
+
+
+function doIterNat(target: Value, b_t: Value, b: Value, s: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow === 'ZERO') {
+    return b;
+  } else if (targetNow instanceof ADD1) {
+    return doAp(s, doIterNat(targetNow.smaller, b_t, b, s)!);
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type === 'NAT') {
+      return new NEU(
+        b_t,
+        new N_IterNat(targetNow.neutral,
+          new Norm(b_t, b),
+          new Norm(PIType([[Symbol("n"), b_t]], b_t), s))
+      );
+    }
+  }
+}
+
+
+function doRecNat(target: Value, b_t: Value, b: Value, s: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow === 'ZERO') {
+    return b;
+  } else if (targetNow instanceof ADD1) {
+    return doAp(
+      doAp(s, targetNow.smaller)!,
+      doRecNat(targetNow.smaller, b_t, b, s)!
+    );
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type === 'NAT') {
+      return new NEU(
+        b_t,
+        new N_RecNat(targetNow.neutral,
+          new Norm(b_t, b),
+          new Norm(PIType([[Symbol("n-1"), "NAT"],[Symbol("ih"), b_t]], b_t), s))
+      );
+    }
+  }
+}
+
+function doIndNat(target: Value, mot: Value, b: Value, s: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow === 'ZERO') {
+    return b;
+  } else if (targetNow instanceof ADD1) {
+    return doAp(
+      doAp(s, targetNow.smaller)!,
+      doIndNat(targetNow.smaller, mot, b, s)!
+    );
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type === 'NAT') {
+      return new NEU(
+        mot,
+        new N_RecNat(targetNow.neutral,
+          new Norm(mot, b),
+          new Norm(PIType([[Symbol("n-1"), "NAT"],[Symbol("ih"), mot]], mot), s))
+      );
+    }
   }
 }
 
@@ -187,7 +268,7 @@ function doCar(p: Value): Value | undefined {
     return nowP.car;
   } else if (nowP instanceof NEU) {
     const type = nowP.type;
-    const neutral = nowP.neutral; 
+    const neutral = nowP.neutral;
     if (!(neutral instanceof SIGMA)) {
       return undefined;
     }
@@ -196,28 +277,177 @@ function doCar(p: Value): Value | undefined {
   }
 }
 
-function doIterNat(target: Value, bVType: Value, bV: Value, s: Value): Value | undefined {
+function doReplace(target: Value, mot: Value, b: Value): Value | undefined {
   const targetNow = now(target);
-  if (targetNow === 'ZERO') {
-    return bV;
-  } else if (targetNow instanceof ADD1) {
-    const nMinusOne = targetNow.smaller;
-    return doAp(s, doIterNat(nMinusOne, bVType, bV, s)!);
+  if (targetNow instanceof SAME) {
+    return b;
   } else if (targetNow instanceof NEU) {
-    if (targetNow.type !== 'NAT') {
-      return undefined; 
-    } 
-    const neutral = targetNow.neutral;
-    return NEU(bVType, N_IterNat(neutral, 
-          Norm(bVType, bV), 
-          Norm()))
-  } else {
-    return undefined; 
+    if (targetNow.type instanceof EQUAL) {
+      return new NEU(
+        doAp(mot, targetNow.type.to)!,
+        new N_Replace(
+          targetNow.neutral,
+          new Norm(PIType([[Symbol("x"), targetNow.type.type]], "UNIVERSE"), mot),
+          new Norm(doAp(mot, targetNow.type.from)!, b)
+        )
+      );
+    }
   }
 }
 
-function valOf(env: Env, expr: Core): Value {
+function doTrans(target1: Value, target2: Value): Value | undefined {
+  const target1Now = now(target1);
+  const target2Now = now(target2);
+  if (target1Now instanceof SAME && target2Now instanceof SAME) {
+    return new SAME(target1Now.value);
+  } else if (target1Now instanceof SAME && target2Now instanceof NEU) {
+    if (target2Now.type instanceof EQUAL) {
+      return new NEU(
+        new EQUAL(target2Now.type.type, target1Now.value, target2Now.type.to),
+        new N_Trans2(
+          new Norm(
+            new EQUAL(target2Now.type.type, target1Now.value, target1Now.value),
+            new SAME(target1Now.value)
+          ),
+          target2Now.neutral
+        )
+      );
+    }
+  } else if (target1Now instanceof NEU && target2Now instanceof SAME) {
+    if (target1Now.type instanceof EQUAL) {
+      return new NEU(
+        new EQUAL(target1Now.type.type, target1Now.type.from, target2Now.value),
+        new N_Trans1(
+          target1Now.neutral,
+          new Norm(
+            new EQUAL(target1Now.type.type, target2Now.value, target2Now.value),
+            new SAME(target2Now.value)
+          )
+        )
+      );
+    }
+  } else if (target1Now instanceof NEU && target2Now instanceof NEU) {
+    if (target1Now.type instanceof EQUAL && target2Now.type instanceof EQUAL) {
+      return new NEU(
+        new EQUAL(target1Now.type.type, target1Now.type.from, target2Now.type.to),
+        new N_Trans12(
+          target1Now.neutral,
+          target2Now.neutral
+        )
+      );
+    }
+  }
+}
 
+function doCong(target: Value, B: Value, fun: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof SAME) {
+    return new SAME(doAp(fun, targetNow.value)!);
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type instanceof EQUAL) {
+      return new NEU(
+        new EQUAL(B, doAp(fun, targetNow.type.from)!, doAp(fun, targetNow.type.to)!),
+        new N_Cong(
+          targetNow.neutral,
+          new Norm(PIType([[Symbol("x"), targetNow.type.type]], B), fun)
+        )
+      );
+    }
+  }
+}
+
+function doSymm(target: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof SAME) {
+    return new SAME(targetNow.value);
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type instanceof EQUAL) {
+      return new NEU(
+        new EQUAL(targetNow.type.type, targetNow.type.to, targetNow.type.from),
+        new N_Symm(targetNow.neutral)
+      );
+    }
+  }
+}
+
+function doIndEqual(target: Value, mot: Value, base: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof SAME) {
+    return base;
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type instanceof EQUAL) {
+      return new NEU(
+        mot,
+        new N_Replace(
+          targetNow.neutral,
+          new Norm(PIType([[Symbol("x"), targetNow.type.type]], "UNIVERSE"), mot),
+          new Norm(doAp(mot, targetNow.type.from)!, base)
+        )
+      );
+    }
+  }
+}
+
+function doHead(target: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof VEC_CONS) {
+    return targetNow.head;
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type instanceof VEC) {
+      if (targetNow.type.length instanceof ADD1) {
+        return new NEU(
+          targetNow.type.entryType,
+          new N_Head(targetNow.neutral)
+        );
+      }
+    }
+  }
+}
+
+function doTail(target: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof VEC_CONS) {
+    return targetNow.tail;
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type instanceof VEC) {
+      if (targetNow.type.length instanceof ADD1) {
+        return new NEU(
+          new VEC(targetNow.type.entryType, targetNow.type.length.smaller),
+          new N_Tail(targetNow.neutral)
+        );
+      }
+    }
+  }
+}
+
+function indVecStepType(Ev: Value, mot: Value): Value {
+  return PIType(
+    [[Symbol("k"), "NAT"], [Symbol("e"), Ev], [Symbol("es"), new VEC(Ev, Symbol("k"))] , [Symbol("ih"), mot]],
+  )
+}
+
+function doIndVec(len: Value, vec: Value, mot: Value, base: Value, step: Value): Value | undefined {
+  const lenNow = now(len);
+  const vecNow = now(vec);
+  if(lenNow === 'ZERO' && vecNow === 'VECNIL') {  
+    return base;
+  } else if (lenNow instanceof ADD1 && vecNow instanceof VEC_CONS) {
+    return doAp(
+      doAp(
+        doAp(
+          doAp(step, lenNow.smaller)!,
+          vecNow.head
+        )!,
+        doTail(vecNow)!
+      )!,
+      doIndVec(lenNow.smaller, vecNow.tail, mot, base, step)!
+    )!;
+  }
+}
+
+function valOf(env: Env, expr: Core): Value | undefined {
+  return undefined;
+  /*
   switch (getCoreType(expr)) {
     case 'The':
       return valOf(env, expr[2]);
@@ -381,6 +611,7 @@ function valOf(env: Env, expr: Core): Value {
       }
       throw new Error(`No evaluator for ${expr}`);
   }
+  */
 }
 
 /*
@@ -403,22 +634,22 @@ function valOfClosure(c: Closure, v: Value): Value {
   Find the value of an expression in the environment that
   corresponds to a context.
 */
-function  valInCtx(context: Ctx, core: Core) : Value {
+function valInCtx(context: Ctx, core: Core): Value {
   return valOf(ctxToEnv(context), core);
 }
 
-function read_back_context(context: Ctx) : SerializableCtx {
+function read_back_context(context: Ctx): SerializableCtx | undefined{
   if (context === null) {
     return context;
   } else {
     const [[x, binding], ...rest] = context;
     if (binding instanceof Free) {
       const serialfree = [Symbol('free'), read_back_type]
-    } 
+    }
   }
 }
 
-function read_back_type(context: Ctx, value: Value) : Core {
+function read_back_type(context: Ctx, value: Value): Core | undefined{
   if (value instanceof String) {
     switch (value) {
       case 'UNIVERSE':
@@ -431,11 +662,10 @@ function read_back_type(context: Ctx, value: Value) : Core {
         return 'Trivial';
       case 'ABSURD':
         return 'Absurd';
-  } else if (value instanceof PI) {
-    let A_e = read_back_type(context, value.argType);
-    let x_hat = fresh(context, value.argName);
-    let ex_x_hat = bindFree(context, x_hat, value.argType);
-    
-    
-  }
-} 
+    }
+   } else if (value instanceof PI) {
+      let A_e = read_back_type(context, value.argType);
+      let x_hat = fresh(context, value.argName);
+      let ex_x_hat = bindFree(context, x_hat, value.argType);
+    }
+  } 
