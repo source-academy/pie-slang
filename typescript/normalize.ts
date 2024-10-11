@@ -215,6 +215,32 @@ function doIterNat(target: Value, bVType: Value, bV: Value, s: Value): Value | u
         );
   } else {
     return undefined; 
+    
+  }
+}
+
+function indVecStepType(Ev: Value, mot: Value): Value {
+  return PIType(
+    [[Symbol("k"), "NAT"], [Symbol("e"), Ev], [Symbol("es"), new VEC(Ev, Symbol("k"))] , [Symbol("ih"), mot]],
+  )
+}
+
+function doIndVec(len: Value, vec: Value, mot: Value, base: Value, step: Value): Value | undefined {
+  const lenNow = now(len);
+  const vecNow = now(vec);
+  if(lenNow === 'ZERO' && vecNow === 'VECNIL') {  
+    return base;
+  } else if (lenNow instanceof ADD1 && vecNow instanceof VEC_CONS) {
+    return doAp(
+      doAp(
+        doAp(
+          doAp(step, lenNow.smaller)!,
+          vecNow.head
+        )!,
+        doTail(vecNow)!
+      )!,
+      doIndVec(lenNow.smaller, vecNow.tail, mot, base, step)!
+    )!;
   }
 }
 
@@ -484,12 +510,10 @@ function read_back_type(context: Ctx, value: Value) : Core {
         return 'Trivial';
       case 'ABSURD':
         return 'Absurd';
-  } else if (value instanceof PI) {
-    let A_e = read_back_type(context, value.argType);
-    let x_hat = fresh(context, value.argName);
-    let ex_x_hat = bindFree(context, x_hat, value.argType);
-    
-    
-  }
+    }
+   } else if (value instanceof PI) {
+      let A_e = read_back_type(context, value.argType);
+      let x_hat = fresh(context, value.argName);
+      let ex_x_hat = bindFree(context, x_hat, value.argType);
+    }
 } 
-}

@@ -989,6 +989,8 @@ export {
   SAME,
   N_Replace,
   VEC,
+  N_Head,
+  N_Tail,
   VEC_CONS,
   EITHER,
   LEFT,
@@ -998,5 +1000,14 @@ export {
   N_WhichNat,
   N_Cdr,
   N_IndList,
+  N_RecNat,
+  N_IndNat,
+  N_RecList,
+  N_Trans1,
+  N_Trans2,
+  N_Trans12,
+  N_Cong,
+  N_Symm,
+  N_IndEq,
 };
 
