@@ -996,5 +996,7 @@ export {
   isVarName,
   SerializableCtx,
   N_WhichNat,
+  N_Cdr,
+  N_IndList,
 };
 

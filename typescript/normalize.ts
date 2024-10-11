@@ -39,12 +39,13 @@ import {
   isVarName,
   SerializableCtx,
   N_Car,
+  N_Cdr,
+  N_IndList,
   Free,
   Def,
   Claim,
   N_IterNat,
   fresh,
-  the,
   bindFree,
 } from './basics'
 import { locationToSrcLoc } from './locations';
@@ -208,12 +209,64 @@ function doIterNat(target: Value, bVType: Value, bV: Value, s: Value): Value | u
       return undefined; 
     } 
     const neutral = targetNow.neutral;
-    return NEU(bVType, N_IterNat(neutral, 
-          Norm(bVType, bV), 
-          Norm()))
+    return new NEU(bVType, new N_IterNat(neutral, 
+          new Norm(bVType, bV), 
+          new Norm(PIType([[Symbol("n"), "NAT"]], bVType), s))
+        );
   } else {
     return undefined; 
   }
+}
+
+function doCdr(p: Value): Value | undefined {
+  const nowP: Value = now(p);
+  if (nowP instanceof CONS) {
+    return nowP.cdr;
+  } else if (nowP instanceof NEU) {
+    const type = nowP.type;
+    const neutral = nowP.neutral;
+    if (!(neutral instanceof SIGMA)) {
+      return undefined;
+    }
+    return new NEU(valOfClosure(neutral.cdrType, doCar(nowP)!), new N_Cdr(neutral));
+  }
+}
+function doIndList(target: Value, mot: Value, b: Value, s: Value): Value {
+  const targetNow = now(target);
+  if (targetNow === 'NIL') {
+    return b;
+  } else if (targetNow instanceof LIST_CONS) {
+    const h = targetNow.head;
+    const t = targetNow.tail;
+    return doAp(
+      doAp(doAp(s, h)!, t)!,
+      doIndList(t, mot, b, s)
+    )!;
+  } else if (targetNow instanceof NEU) {
+    if (!(targetNow.type instanceof LIST)) {
+      throw new Error("Expected LIST type");
+    }
+    const E = targetNow.type.entryType;
+    const ne = targetNow.neutral;
+    const motTv = PIType([[Symbol("xs"), new LIST(E)]], 'UNIVERSE');
+    return new NEU(
+      doAp(mot, target)!,
+      new N_IndList(
+        ne,
+        new Norm(motTv, mot),
+        new Norm(doAp(mot, 'NIL')!, b),
+        new Norm(
+          PIType([
+            [Symbol("h"), E],
+            [Symbol("t"), new LIST(E)],
+            [Symbol("ih"), doAp(mot, Symbol("t"))!]
+          ], doAp(mot, new LIST_CONS(Symbol("h"), Symbol("t"))!)!),
+          s
+        )
+      )
+    );
+  }
+  throw new Error("Unexpected value in doIndList");
 }
 
 function valOf(env: Env, expr: Core): Value {
@@ -439,3 +492,4 @@ function read_back_type(context: Ctx, value: Value) : Core {
     
   }
 } 
+}
