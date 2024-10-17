@@ -56,6 +56,7 @@ import {
   N_Trans12,
   bindFree,
   N_Tail,
+  MetaMonad,
 } from './basics'
 import { locationToSrcLoc } from './locations';
 
@@ -421,8 +422,11 @@ function doTail(target: Value): Value | undefined {
 }
 
 function indVecStepType(Ev: Value, mot: Value): Value {
+  let k = new MetaMonad<"NAT">(null, Symbol("k"));
+  let es = new VEC(Ev, k);
   return PIType(
-    [[Symbol("k"), "NAT"], [Symbol("e"), Ev], [Symbol("es"), new VEC(Ev, Symbol("k"))] , [Symbol("ih"), mot]],
+    [[k.getName(), "NAT"], [Symbol("e"), Ev], [Symbol("es"), es] , [Symbol("ih"), doAp(doAp(mot, k)!, es)!]],
+    doAp(doAp(mot, new ADD1(k))!, new VEC_CONS(Ev, es))!
   )
 }
 
