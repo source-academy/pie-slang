@@ -374,7 +374,8 @@ type Value =
   | LEFT
   | RIGHT
   | NEU
-  | DELAY;
+  | DELAY
+  | MetaMonad<Value>;
 
 
 /*  
@@ -944,17 +945,9 @@ function occurringBinderNames(b: TypedBinder): Symbol[] {
   return [binder.varName, ...occurringNames(site)];
 }
 
-type MetaVar<T extends Value> = { 
-  value: T | null, 
-  isBound: boolean 
-};
-
-class MetaMonad<T extends Value> {
-  private metaVar: MetaVar<T>;
-
-  constructor(value: T | null = null) {
-      this.metaVar = { value: value, isBound: value !== null };
-  }
+class MetaVar<T extends Value> { 
+  value: T | null;
+  isBound: boolean;
 
   setValue(value: T): void {
     if (!this.metaVar.isBound) {
@@ -964,40 +957,25 @@ class MetaMonad<T extends Value> {
         throw new Error('Cannot set value: metavariable is already bound.');
     }
   }
+};
 
-  // "return" or "pure" in monadic terms
-  static pure<T>(value: T): MetaMonad<T> {
-      return new MetaMonad(value);
+class MetaMonad<T extends Value> {
+  private metaVar: MetaVar<T>;
+  private name: Symbol;
+
+  constructor(value: T | null = null, name: Symbol) {
+      this.metaVar = { value: value, isBound: value !== null };
+      this.name = name;
   }
 
-  // Bind function for chaining
-  bind<U>(f: (value: T) => MetaMonad<U>): MetaMonad<U> {
-      if (this.metaVar.isBound && this.metaVar.value !== null) {
-          return f(this.metaVar.value);
-      } else {
-          return new MetaMonad<U>();
-      }
+  
+
+  getName(): Symbol {
+    return this.name;
   }
 
-  // Unify two metavariables
-  unify(other: MetaMonad<T>): MetaMonad<T> {
-      if (this.metaVar.isBound && other.metaVar.isBound) {
-          if (this.metaVar.value === other.metaVar.value) {
-              return this; // They are already the same
-          } else {
-              throw new Error('Unification failed: values do not match.');
-          }
-      } else if (this.metaVar.isBound) {
-          other.metaVar.value = this.metaVar.value;
-          other.metaVar.isBound = true;
-          return this;
-      } else if (other.metaVar.isBound) {
-          this.metaVar.value = other.metaVar.value;
-          this.metaVar.isBound = true;
-          return other;
-      } else {
-          throw new Error('Unification failed: both are unbound.');
-      }
+  getValue(): T | null {
+    return this.metaVar.value;
   }
 }
 

@@ -264,8 +264,68 @@ function doIndList(target: Value, mot: Value, b: Value, s: Value): Value {
           ], doAp(mot, new LIST_CONS(Symbol("h"), Symbol("t"))!)!),
           s
         )
-      )
-    );
+      );
+    }
+  }
+}
+
+function doHead(target: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof VEC_CONS) {
+    return targetNow.head;
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type instanceof VEC) {
+      if (targetNow.type.length instanceof ADD1) {
+        return new NEU(
+          targetNow.type.entryType,
+          new N_Head(targetNow.neutral)
+        );
+      }
+    }
+  }
+}
+
+function doTail(target: Value): Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof VEC_CONS) {
+    return targetNow.tail;
+  } else if (targetNow instanceof NEU) {
+    if (targetNow.type instanceof VEC) {
+      if (targetNow.type.length instanceof ADD1) {
+        return new NEU(
+          new VEC(targetNow.type.entryType, targetNow.type.length.smaller),
+          new N_Tail(targetNow.neutral)
+        );
+      }
+    }
+  }
+}
+
+function indVecStepType(Ev: Value, mot: Value): Value {
+  let k = new MetaMonad<"NAT">(null, Symbol("k"));
+  let es = new VEC(Ev, k);
+  return PIType(
+    [[k.getName(), "NAT"], [Symbol("e"), Ev], [Symbol("es"), es] , [Symbol("ih"), doAp(doAp(mot, k)!, es)!]],
+    doAp(doAp(mot, new ADD1(k))!, new VEC_CONS(Ev, es))!
+  )
+}
+
+function doIndVec(len: Value, vec: Value, mot: Value, base: Value, step: Value): Value | undefined {
+  const lenNow = now(len);
+  const vecNow = now(vec);
+  if(lenNow === 'ZERO' && vecNow === 'VECNIL') {  
+    return base;
+  } else if (lenNow instanceof ADD1 && vecNow instanceof VEC_CONS) {
+    return doAp(
+      doAp(
+        doAp(
+          doAp(step, lenNow.smaller)!,
+          vecNow.head
+        )!,
+        doTail(vecNow)!
+      )!,
+      doIndVec(lenNow.smaller, vecNow.tail, mot, base, step)!
+    )!;
   }
   throw new Error("Unexpected value in doIndList");
 }
