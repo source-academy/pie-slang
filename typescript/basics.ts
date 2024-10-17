@@ -944,6 +944,63 @@ function occurringBinderNames(b: TypedBinder): Symbol[] {
   return [binder.varName, ...occurringNames(site)];
 }
 
+type MetaVar<T extends Value> = { 
+  value: T | null, 
+  isBound: boolean 
+};
+
+class MetaMonad<T extends Value> {
+  private metaVar: MetaVar<T>;
+
+  constructor(value: T | null = null) {
+      this.metaVar = { value: value, isBound: value !== null };
+  }
+
+  setValue(value: T): void {
+    if (!this.metaVar.isBound) {
+        this.metaVar.value = value;
+        this.metaVar.isBound = true;
+    } else {
+        throw new Error('Cannot set value: metavariable is already bound.');
+    }
+  }
+
+  // "return" or "pure" in monadic terms
+  static pure<T>(value: T): MetaMonad<T> {
+      return new MetaMonad(value);
+  }
+
+  // Bind function for chaining
+  bind<U>(f: (value: T) => MetaMonad<U>): MetaMonad<U> {
+      if (this.metaVar.isBound && this.metaVar.value !== null) {
+          return f(this.metaVar.value);
+      } else {
+          return new MetaMonad<U>();
+      }
+  }
+
+  // Unify two metavariables
+  unify(other: MetaMonad<T>): MetaMonad<T> {
+      if (this.metaVar.isBound && other.metaVar.isBound) {
+          if (this.metaVar.value === other.metaVar.value) {
+              return this; // They are already the same
+          } else {
+              throw new Error('Unification failed: values do not match.');
+          }
+      } else if (this.metaVar.isBound) {
+          other.metaVar.value = this.metaVar.value;
+          other.metaVar.isBound = true;
+          return this;
+      } else if (other.metaVar.isBound) {
+          this.metaVar.value = other.metaVar.value;
+          this.metaVar.isBound = true;
+          return other;
+      } else {
+          throw new Error('Unification failed: both are unbound.');
+      }
+  }
+}
+
 export {
   Src,
   SrcStx,
@@ -1008,5 +1065,6 @@ export {
   N_Cong,
   N_Symm,
   N_IndEq,
+  MetaMonad,
 };
 
