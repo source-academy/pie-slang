@@ -271,7 +271,7 @@ function doIndList(target: Value, mot: Value, b: Value, s: Value): Value {
 }
 
 function valOf(env: Env, expr: Core): Value {
-
+  /*
   switch (getCoreType(expr)) {
     case 'The':
       return valOf(env, expr[2]);
@@ -435,6 +435,7 @@ function valOf(env: Env, expr: Core): Value {
       }
       throw new Error(`No evaluator for ${expr}`);
   }
+  */
 }
 
 /*
