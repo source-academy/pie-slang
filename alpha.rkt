@@ -131,8 +131,8 @@
 
   (define here (location->srcloc (syntax->location #'here)))
   (define there (location->srcloc (syntax->location #'there)))
-  (check-true (α-equiv? `(TODO ,here Nat) `(TODO ,here Nat)))
-  (check-false (α-equiv? `(TODO ,here Nat) `(TODO ,there Nat)))
+  (check-true (α-iv? `(TODO ,here Nat) `(TODO ,here Nat)))
+  (check-false (α-iv? `(TODO ,here Nat) `(TODO ,there Nat)))
 
   (check-false (α-equiv? 'zero 'naught))
 
