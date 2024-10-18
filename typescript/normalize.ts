@@ -689,7 +689,8 @@ function valOf(env: Env, expr: Core): Value | undefined{
       if (expr instanceof Symbol && isVarName(expr)) {
         return varVal(env, expr);
       } else if (expr instanceof Array && expr.length === 2) {
-        return doAp(later(env, expr[0]), later(env, expr[1]));
+        // In this case expr[0] and expr[1] must all be Cores, so casting is safe
+        return doAp(later(env, expr[0] as Core), later(env, expr[1] as Core));
       } else {
         console.error("No evaluator for: ", expr);
       }
