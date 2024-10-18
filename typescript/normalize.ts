@@ -714,8 +714,8 @@ function valOf(env: Env, expr: Core): Value | undefined{
 
 function readBackContext(context: Ctx): SerializableCtx {
 
-  if (context === null) {
-    return context;
+  if (context.length === 0) {
+    return [];
   } else {
     const [[x, binding], ...rest] = context;
     if (binding instanceof Free) {
@@ -730,7 +730,7 @@ function readBackContext(context: Ctx): SerializableCtx {
 }
 
 function valOfCtx(serialCtx: SerializableCtx) : Ctx {
-  if (serialCtx === null) {
+  if (serialCtx.length === 0) {
     return [];
   } else {
     const [[x, b], ...rest] = serialCtx;

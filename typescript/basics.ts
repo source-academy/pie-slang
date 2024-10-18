@@ -204,15 +204,69 @@ type Core =
   | ['TODO', Srcloc, Core]
   | [Core, Core];
 
+// Predicate function to check if an object is Core
 
-function checkCore(obj: any): obj is Core {
-  if (Array.isArray(obj)) {
-    if (obj.length === 2) {
-      return true;
+const isCore = (value: any): value is Core => {
+  if (value === 'U' || value === 'Nat' || value === 'zero' || value === 'Atom' || value === 'nil' || value === 'vecnil' || value === 'Absurd') {
+    return true;
+  }
+
+  if (value instanceof Symbol) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    const [first, ...rest] = value;
+
+    switch (first) {
+      case 'the':
+      case 'which-Nat':
+      case 'iter-Nat':
+      case 'rec-Nat':
+      case 'ind-Nat':
+      case 'rec-List':
+      case 'ind-List':
+      case 'ind-Absurd':
+      case '=':
+      case 'replace':
+      case 'trans':
+      case 'cong':
+      case 'ind-=':
+      case 'Vec':
+      case 'vec::':
+      case 'head':
+      case 'tail':
+      case 'ind-Vec':
+      case 'Either':
+      case 'left':
+      case 'right':
+      case 'ind-Either':
+      case 'TODO':
+        return rest.every(isCore); // Each remaining part must be a Core
+      case 'add1':
+      case 'quote':
+      case 'car':
+      case 'cdr':
+      case 'same':
+      case 'symm':
+        return rest.length === 1 && isCore(rest[0]); // Expect exactly 1 Core argument
+      case 'Π':
+      case 'Σ':
+        return Array.isArray(rest[0]) && rest[0].every(([sym, core]) => (sym instanceof Symbol) && isCore(core)) && isCore(rest[1]);
+      case 'λ':
+        return Array.isArray(rest[0]) && rest[0].every((obj) => (obj instanceof Symbol)) && isCore(rest[1]);
+      case 'cons':
+      case '::':
+      default:
+        // function app 
+        return value.length === 2 && isCore(value[0]) && isCore(value[1]);
     }
   }
+
   return false;
-}
+};
+
+
 /*
     ## Values ##
     
@@ -466,7 +520,7 @@ class FO_CLOS {
 */
 
 class HO_CLOS {
-  constructor(public proc: (value: Value) => Value){ };
+  constructor(public proc: (value: Value) => Value) { };
 }
 
 
@@ -478,7 +532,7 @@ class HO_CLOS {
 
 // Base class for all Neutral types
 class Neutral {
-  constructor(public whichKind: string){ }; // could be used to store the type of the Neutral expression
+  constructor(public whichKind: string) { }; // could be used to store the type of the Neutral expression
 }
 
 // Neutral expression classes
@@ -793,12 +847,12 @@ type Perhaps<T> = go<T> | stop;
 // review this function when needed: BUG MAY OCCUR
 function goOn(
   bindings: Array<[any, Perhaps<any>]>,
-  finalExpr: any 
+  finalExpr: any
 ): Perhaps<any> {
   if (bindings.length === 0) {
     return finalExpr;
   }
-  const [[ , binding], ...rest] = bindings;
+  const [[, binding], ...rest] = bindings;
   if (binding instanceof stop) {
     return binding;
   } else {
@@ -918,7 +972,7 @@ function occurringNames(expr: Src): Symbol[] {
         (List 'Σ (List* Typed-Binder (Listof Typed-Binder)) Src)
       */
       case 'λ':
-        return [...expr.stx[1].map(x => x.varName),...occurringNames(expr.stx[2])];
+        return [...expr.stx[1].map(x => x.varName), ...occurringNames(expr.stx[2])];
       case 'Π':
       case 'Σ':
         return [
@@ -952,7 +1006,7 @@ function occurringBinderNames(b: TypedBinder): Symbol[] {
   return [binder.varName, ...occurringNames(site)];
 }
 
-class MetaVar { 
+class MetaVar {
   constructor(public value: Value | null, public varType: Value, public name: Symbol) { }
 };
 
@@ -965,7 +1019,7 @@ export {
   Closure,
   Neutral,
   N_Car,
-  N_IterNat, 
+  N_IterNat,
   Norm,
   Ctx,
   Binder,
@@ -1029,6 +1083,6 @@ export {
   N_IndEq,
   MetaVar,
   Loc,
-  checkCore,
+  isCore,
 };
 
