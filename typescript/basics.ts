@@ -202,9 +202,17 @@ type Core =
   | ['right', Core]
   | ['ind-Either', Core, Core, Core, Core]
   | ['TODO', Srcloc, Core]
-  | 'Trivial'
   | [Core, Core];
 
+
+function checkCore(obj: any): obj is Core {
+  if (Array.isArray(obj)) {
+    if (obj.length === 2) {
+      return true;
+    }
+  }
+  return false;
+}
 /*
     ## Values ##
     
@@ -375,8 +383,7 @@ type Value =
   | RIGHT
   | NEU
   | DELAY
-  | MetaMonad<Value>;
-
+  | MetaVar
 
 /*  
     ## Run-time Environments ##
@@ -471,161 +478,161 @@ class HO_CLOS {
 
 // Base class for all Neutral types
 class Neutral {
-  kind: string; // could be used to store the type of the Neutral expression
+  constructor(public whichKind: string){ }; // could be used to store the type of the Neutral expression
 }
 
 // Neutral expression classes
 class N_Var extends Neutral {
-  constructor(name: Symbol) {
-    super();
+  constructor(public name: Symbol) {
+    super("N_Var");
   }
 }
 
 class N_TODO extends Neutral {
-  constructor(where: Src, type: Value) {
-    super();
+  constructor(public where: Srcloc, public type: Value) {
+    super("N_TODO");
   }
 }
 
 class N_WhichNat extends Neutral {
-  constructor(target: Neutral, base: Norm, step: Norm) {
-    super();
+  constructor(public target: Neutral, public base: Norm, public step: Norm) {
+    super("N_WhichNat");
   }
 }
 
 class N_IterNat extends Neutral {
-  constructor(target: Neutral, base: Norm, step: Norm) {
-    super();
+  constructor(public target: Neutral, public base: Norm, public step: Norm) {
+    super("N_IterNat");
   }
 }
 
 class N_RecNat extends Neutral {
-  constructor(target: Neutral, base: Norm, step: Norm) {
-    super();
+  constructor(public target: Neutral, public base: Norm, public step: Norm) {
+    super("N_RecNat");
   }
 }
 
 class N_IndNat extends Neutral {
-  constructor(target: Neutral, motive: Norm, base: Norm, step: Norm) {
-    super();
+  constructor(public target: Neutral, public motive: Norm, public base: Norm, public step: Norm) {
+    super("N_IndNat");
   }
 }
 
 class N_Car extends Neutral {
-  constructor(target: Neutral) {
-    super();
+  constructor(public target: Neutral) {
+    super("N_Car");
   }
 }
 
 class N_Cdr extends Neutral {
-  constructor(target: Neutral) {
-    super();
+  constructor(public target: Neutral) {
+    super("N_Cdr");
   }
 }
 
 class N_RecList extends Neutral {
-  constructor(target: Neutral, base: Norm, step: Norm) {
-    super();
+  constructor(public target: Neutral, public base: Norm, public step: Norm) {
+    super("N_RecList");
   }
 }
 
 class N_IndList extends Neutral {
-  constructor(target: Neutral, motive: Norm, base: Norm, step: Norm) {
-    super();
+  constructor(public target: Neutral, public motive: Norm, public base: Norm, public step: Norm) {
+    super("N_IndList");
   }
 }
 
 class N_IndAbsurd extends Neutral {
-  constructor(target: Neutral, motive: Norm) {
-    super();
+  constructor(public target: Neutral, public motive: Norm) {
+    super("N_IndAbsurd");
   }
 }
 
 class N_Replace extends Neutral {
-  constructor(target: Neutral, motive: Norm, base: Norm) {
-    super();
+  constructor(public target: Neutral, public motive: Norm, public base: Norm) {
+    super("N_Replace");
   }
 }
 
 class N_Trans1 extends Neutral {
-  constructor(target1: Neutral, target2: Norm) {
-    super();
+  constructor(public target1: Neutral, public target2: Norm) {
+    super("N_Trans1");
   }
 }
 
 class N_Trans2 extends Neutral {
-  constructor(target1: Norm, target2: Neutral) {
-    super();
+  constructor(public target1: Norm, public target2: Neutral) {
+    super("N_Trans2");
   }
 }
 
 class N_Trans12 extends Neutral {
-  constructor(target1: Neutral, target2: Neutral) {
-    super();
+  constructor(public target1: Neutral, public target2: Neutral) {
+    super("N_Trans12");
   }
 }
 
 class N_Cong extends Neutral {
-  constructor(target: Neutral, func: Norm) {
-    super();
+  constructor(public target: Neutral, public func: Norm) {
+    super("N_Cong");
   }
 }
 
 class N_Symm extends Neutral {
-  constructor(target: Neutral) {
-    super();
+  constructor(public target: Neutral) {
+    super("N_Symm");
   }
 }
 
 class N_IndEq extends Neutral {
-  constructor(target: Neutral, motive: Norm, base: Norm) {
-    super();
+  constructor(public target: Neutral, public motive: Norm, public base: Norm) {
+    super("N_IndEq");
   }
 }
 
 class N_Head extends Neutral {
-  constructor(target: Neutral) {
-    super();
+  constructor(public target: Neutral) {
+    super("N_Head");
   }
 }
 
 class N_Tail extends Neutral {
-  constructor(target: Neutral) {
-    super();
+  constructor(public target: Neutral) {
+    super("N_Tail");
   }
 }
 
 class N_IndVec1 extends Neutral {
-  constructor(target1: Neutral, target2: Norm, motive: Norm,
-    base: Norm, step: Norm) {
-    super();
+  constructor(public target1: Neutral, public target2: Norm, public motive: Norm,
+    public base: Norm, public step: Norm) {
+    super("N_IndVec1");
   }
 }
 
 class N_IndVec2 extends Neutral {
-  constructor(target1: Norm, target2: Neutral, motive: Norm,
-    base: Norm, step: Norm) {
-    super();
+  constructor(public target1: Norm, public target2: Neutral, public motive: Norm,
+    public base: Norm, public step: Norm) {
+    super("N_IndVec2");
   }
 }
 
 class N_IndVec12 extends Neutral {
-  constructor(target1: Neutral, target2: Neutral, motive: Norm,
-    base: Norm, step: Norm) {
-    super();
+  constructor(public target1: Neutral, public target2: Neutral, public motive: Norm,
+    public base: Norm, public step: Norm) {
+    super("N_IndVec12");
   }
 }
 
 class N_IndEither extends Neutral {
-  constructor(target: Neutral, motive: Norm,
-    baseLeft: Norm, baseRight: Norm) {
-    super();
+  constructor(public target: Neutral, public motive: Norm,
+    public baseLeft: Norm, public baseRight: Norm) {
+    super("N_IndEither");
   }
 }
 
 class N_Ap extends Neutral {
-  constructor(rator: Neutral, rand: Norm) {
-    super();
+  constructor(public rator: Neutral, public rand: Norm) {
+    super("N_Ap");
   }
 }
 
@@ -641,7 +648,7 @@ function isNeutral(obj: any): obj is Neutral {
     to it.
 */
 class Norm {
-  constructor(type: Value, value: Value) { }
+  constructor(public type: Value, public value: Value) { }
 }
 
 // Predicate function to check if an object is Norm
@@ -721,7 +728,7 @@ function bindVal(ctx: Ctx, x: Symbol, tv: Value, v: Value): Ctx {
 }
 
 // Serializable context type
-type SerializableCtx = Array<[Symbol, ['free', Value] | ['def', Value, Value] | ['claim', Value]]>;
+type SerializableCtx = Array<[Symbol, ['free', Core] | ['def', Core, Core] | ['claim', Core]]>;
 
 // Predicate to check if something is a serializable context
 function isSerializableCtx(ctx: any): ctx is SerializableCtx {
@@ -906,10 +913,10 @@ function occurringNames(expr: Src): Symbol[] {
           ...occurringNames(expr.stx[3])
         ];
       /*
-(List 'Π (List* Typed-Binder (Listof Typed-Binder)) Src)
-(List 'λ (List* Binding-Site (Listof Binding-Site)) Src)
-(List 'Σ (List* Typed-Binder (Listof Typed-Binder)) Src)
-*/
+        (List 'Π (List* Typed-Binder (Listof Typed-Binder)) Src)
+        (List 'λ (List* Binding-Site (Listof Binding-Site)) Src)
+        (List 'Σ (List* Typed-Binder (Listof Typed-Binder)) Src)
+      */
       case 'λ':
         return [...expr.stx[1].map(x => x.varName),...occurringNames(expr.stx[2])];
       case 'Π':
@@ -945,39 +952,9 @@ function occurringBinderNames(b: TypedBinder): Symbol[] {
   return [binder.varName, ...occurringNames(site)];
 }
 
-class MetaVar<T extends Value> { 
-  value: T | null;
-  isBound: boolean;
-
-  setValue(value: T): void {
-    if (!this.metaVar.isBound) {
-        this.metaVar.value = value;
-        this.metaVar.isBound = true;
-    } else {
-        throw new Error('Cannot set value: metavariable is already bound.');
-    }
-  }
+class MetaVar { 
+  constructor(public value: Value | null, public varType: Value, public name: Symbol) { }
 };
-
-class MetaMonad<T extends Value> {
-  private metaVar: MetaVar<T>;
-  private name: Symbol;
-
-  constructor(value: T | null = null, name: Symbol) {
-      this.metaVar = { value: value, isBound: value !== null };
-      this.name = name;
-  }
-
-  
-
-  getName(): Symbol {
-    return this.name;
-  }
-
-  getValue(): T | null {
-    return this.metaVar.value;
-  }
-}
 
 export {
   Src,
@@ -1011,6 +988,12 @@ export {
   LAM,
   N_Ap,
   NEU,
+  N_IndAbsurd,
+  N_TODO,
+  N_IndEither,
+  N_IndVec1,
+  N_IndVec2,
+  N_IndVec12,
   FO_CLOS,
   HO_CLOS,
   ADD1,
@@ -1044,6 +1027,8 @@ export {
   N_Cong,
   N_Symm,
   N_IndEq,
-  MetaMonad,
+  MetaVar,
+  Loc,
+  checkCore,
 };
 
