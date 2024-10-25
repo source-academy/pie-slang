@@ -1,32 +1,41 @@
 
-interface Syntax {
-    source: string;
-    line: number;
-    column: number;
-    position: number;
-    span: number;
+type Datum = number | Symbol | boolean | undefined | Datum[];
+
+class syntax {
+  public datum: Datum;
+  public source: string;
+  public line: number;
+  public column: number;
+  public position: number;
+  public span: number;
 }
 
-// Define the Location type
-export interface StxLoc {
-    syntax: any; // TODO: figure out the type of syntax
-    forInfo: boolean;
+
+export class location {
+  constructor(
+    public syntax: syntax,
+    public forInfo: boolean
+  ) { };
 }
 
 /*
     * Function to create a Location from a syntax object.
     * The forInfo field is set to true.
 */
-export function syntaxToLocation(syntax: any): StxLoc {
-    return { syntax, forInfo: true };
+export function syntaxToLocation(stx: syntax): location {
+  return new location(stx, true);
 }
 
 /*
     * Function to create a Location from a syntax object.
     * The forInfo field is set to false.
 */
-export function notForInfo(loc: StxLoc): StxLoc {
-    return { syntax: loc.syntax, forInfo: false };
+export function notForInfo(loc: location): location {
+  return new location(loc.syntax, false);
+}
+
+export function isForInfo(loc: location): boolean {
+  return loc.forInfo;
 }
 
 /*
@@ -34,28 +43,15 @@ export function notForInfo(loc: StxLoc): StxLoc {
     * The source location is a tuple of the form:
     *   [source, line, column, position, span]
 */
-export function locationToSrcLoc(loc: StxLoc): [string, number, number, number, number] {
-    const stx = loc.syntax;
-    return [
-        stx.source, // Assume stx has a source property
-        stx.line,   // Assume stx has a line property
-        stx.column, // Assume stx has a column property
-        stx.position, // Assume stx has a position property
-        stx.span,   // Assume stx has a span property
-    ];
+export function locationToSrcLoc(loc: location): [string, number, number, number, number] {
+  const stx = loc.syntax;
+  return [
+    stx.source, 
+    stx.line,
+    stx.column,
+    stx.position,
+    stx.span,
+  ];
 }
 
-// Test cases
-const exampleSyntax = {
-    source: 'example.rkt',
-    line: 10,
-    column: 5,
-    position: 100,
-    span: 20,
-};
 
-const loc = syntaxToLocation(exampleSyntax);
-const notInfoLoc = notForInfo(loc);
-const srcLoc = locationToSrcLoc(loc);
-
-console.log(srcLoc);

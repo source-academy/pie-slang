@@ -712,19 +712,19 @@ function valOf(env: Env, expr: Core): Value | undefined{
   slow if there are values that take a long time to compute.
 */
 
-function readBackContext(context: Ctx): SerializableCtx {
+function readBackContext(context: Ctx): SerializableCtx | undefined {
 
   if (context.length === 0) {
     return [];
   } else {
     const [[x, binding], ...rest] = context;
     if (binding instanceof Free) {
-      return [[x, ['free', readBackType(rest, binding.type)!]], ...readBackContext(rest)];
+      return [[x, ['free', readBackType(rest, binding.type)!]], ...readBackContext(rest)!];
     } else if (binding instanceof Claim) {
-      return [[x, ['claim', readBackType(rest, binding.type)!]], ...readBackContext(rest)];
-    } else {
+      return [[x, ['claim', readBackType(rest, binding.type)!]], ...readBackContext(rest)!];
+    } else if (binding instanceof Def) {
       return [[x, ['def', readBackType(rest, binding.type)!, 
-        readBack(rest, binding.type, binding.value)!]], ...readBackContext(rest)];
+        readBack(rest, binding.type, binding.value)!]], ...readBackContext(rest)!];
     }
   }
 }
@@ -1199,6 +1199,11 @@ function valOfClosure(c: Closure, v: Value): Value | undefined {
 function valInCtx(context: Ctx, core: Core): Value | undefined {
   return valOf(ctxToEnv(context), core);
 }
+
+export {
+  valInCtx,
+  now, readBack, readBackType, readBackNeutral, valOfClosure, valOf, valOfCtx, readBackContext
+};
 
 
 
