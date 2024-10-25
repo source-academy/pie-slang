@@ -85,7 +85,6 @@
 (define (extend-renaming r from to)
   (cons (cons from to) r))
 
-
 ;;; Check the form of judgment Γ ⊢ e type ↝ c
 
 (: is-type (-> Ctx Renaming Src (Perhaps Core)))
@@ -194,7 +193,7 @@
     (begin (send-pie-info (src-loc in) `(is-type ,t))
            (go t))))
 
-
+
 ;;; Check the form of judgment Γ ⊢ e synth ↝ (the c c)
 
 (: synth (-> Ctx Renaming Src (Perhaps (List 'the Core Core))))

@@ -1,10 +1,10 @@
-import { syntaxToLocation, notForInfo, locationToSrcLoc, StxLoc } from './locations';
+import { syntaxToLocation, notForInfo, locationToSrcLoc, location } from './locations';
 import { freshen } from './fresh';
 // Define Srcloc as a tuple type
 type Srcloc = [Symbol, number, number, number, number];
 
 // Define Loc as an alias for PreciseLoc
-type Loc = StxLoc;
+type Loc = location;
 
 /*
   All built-in Keywords for Pie.
@@ -726,19 +726,22 @@ type Ctx = Array<[Symbol, Binder]>;
     later definition with define and records the type that will be
     used.
 */
-class Claim {
-  constructor(public type: Value) { }
+abstract class Binder {
+  abstract type: Value;
 }
 
-class Def {
-  constructor(public type: Value, public value: Value) { }
+class Claim extends Binder {
+  constructor(public type: Value) { super() }
 }
 
-class Free {
-  constructor(public type: Value) { }
+class Def extends Binder {
+  constructor(public type: Value, public value: Value) { super() }
 }
 
-type Binder = Def | Free | Claim;
+class Free extends Binder {
+  constructor(public type: Value) { super() }
+}
+
 
 // Function to find the type of a variable in a context
 function varType(ctx: Ctx, where: Loc, x: Symbol): Value | null {
@@ -825,18 +828,29 @@ function isVarName(symbol: Symbol): boolean {
 */
 type Message = Array<string | Core>;
 
-// A successful result named "go"
-class go<T> {
-  constructor(public result: T) { }
+/*
+  The result of an operation that can fail, such as type checking, is
+  represented using either the stop or the go structures.
+*/
+abstract class Perhaps<T> {
+  abstract isGo(): boolean;
+}
+
+class go<T> extends Perhaps<T> {
+  constructor(public result: T) { super() }
+  isGo(): boolean {
+    return true;
+  }
 }
 
 // A failure result named "stop"
-class stop {
-  constructor(public where: Loc, public message: Message) { }
+class stop extends Perhaps<undefined> {
+  constructor(public where: Loc, public message: Message) { super() }
+  isGo(): boolean {
+    return false;
+  }
 }
 
-// Type to represent a result that can be either a success or a failure
-type Perhaps<T> = go<T> | stop;
 
 /*
   go-on is very much like let*. The difference is that if any of the
@@ -1079,10 +1093,16 @@ export {
   N_Trans2,
   N_Trans12,
   N_Cong,
+  stop,
   N_Symm,
   N_IndEq,
   MetaVar,
   Loc,
   isCore,
+  Perhaps,
+  srcStx,
+  srcLoc,
+  go,
+  goOn,
 };
 
