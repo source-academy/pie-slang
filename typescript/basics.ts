@@ -860,15 +860,15 @@ class stop extends Perhaps<undefined> {
 */
 // review this function when needed: BUG MAY OCCUR
 function goOn(
-  bindings: Array<[any, Perhaps<any>]>,
+  bindings: Array<[Perhaps<any>, Perhaps<any>]>,
   finalExpr: any
 ): Perhaps<any> {
   if (bindings.length === 0) {
     return finalExpr;
   }
-  const [[, binding], ...rest] = bindings;
+  const [[,binding], ...rest] = bindings;
   if (binding instanceof stop) {
-    return binding;
+    throw new Error(`stop found in goOn: ${JSON.stringify(binding)}`);
   } else {
     return goOn(rest, finalExpr);
   }
