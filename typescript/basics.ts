@@ -860,7 +860,7 @@ class stop extends Perhaps<undefined> {
 */
 // review this function when needed: BUG MAY OCCUR
 function goOn(
-  bindings: Array<[Perhaps<any>, Perhaps<any>]>,
+  bindings: Array<[any, Perhaps<any>]>,
   finalExpr: any
 ): Perhaps<any> {
   if (bindings.length === 0) {
