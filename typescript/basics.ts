@@ -860,17 +860,18 @@ class stop extends Perhaps<undefined> {
 */
 // review this function when needed: BUG MAY OCCUR
 function goOn(
-  bindings: Array<[any, Perhaps<any>]>,
+  bindings: Array<[TSMeta, Perhaps<any>]>,
   finalExpr: any
-): Perhaps<any> {
+): stop | any{
   if (bindings.length === 0) {
     return finalExpr;
   }
-  const [[, binding], ...rest] = bindings;
-  if (binding instanceof stop) {
-    return binding;
-  } else {
+  const [[meta, perhaps], ...rest] = bindings;
+  if (perhaps.isGo()) {
+    meta.value = (perhaps as go<any>).result;
     return goOn(rest, finalExpr);
+  } else {
+    return perhaps;
   }
 }
 
@@ -1024,6 +1025,10 @@ class MetaVar {
   constructor(public value: Value | null, public varType: Value, public name: Symbol) { }
 };
 
+class TSMeta {
+  constructor(public value: Core | null, public name: Symbol) { }
+}
+
 export {
   Src,
   SrcStx,
@@ -1104,5 +1109,6 @@ export {
   srcLoc,
   go,
   goOn,
+  TSMeta,
 };
 
