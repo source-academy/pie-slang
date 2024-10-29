@@ -19,6 +19,7 @@ import {
   fresh,
   Claim,
   bindVal,
+  TSMeta,
 } from './basics'
 
 import {
@@ -101,11 +102,12 @@ const isType = (Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> => {
     .with('Nat', () => new go('Nat'))
     .with(['->', P._, P._], ([_, A, B]) => {
       const x = freshBinder(Γ, B, Symbol('x'));
-      const Aout = (isType(Γ, r, A) as go<Core>).result;
-      const Bout = isType(bindFree(Γ, x, valInCtx(Γ, Aout)!), r, B);
+      const Aout = new TSMeta(null, Symbol('Aout'));
+      const Bout = new TSMeta(null, Symbol('Bout'));
       return goOn(
-        [[Aout, Bout]],
-        new go(['Π', [[x, Aout]], Bout])
+        [[Aout, isType(Γ, r, A)],
+        [Bout, isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r, B)],],
+        new go(['Π', [[x, Aout.value!]], Bout.value!])
       );
     })
     .with(['->', P._, P._, P.array()], ([_, A, B, [C, ...arg]]) => {
