@@ -744,7 +744,7 @@ class Free extends Binder {
 
 
 // Function to find the type of a variable in a context
-function varType(ctx: Ctx, where: Loc, x: Symbol): Value | null {
+function varType(ctx: Ctx, where: Loc, x: Symbol): Perhaps<Value> {
   if (ctx.length === 0) {
     throw new Error(`Unknown variable ${x}`);
   }
@@ -753,7 +753,7 @@ function varType(ctx: Ctx, where: Loc, x: Symbol): Value | null {
   if (binder instanceof Claim) {
     return varType(ctxNext, where, x);
   } else if (y.toString === x.toString) {
-    return binderType(binder);
+    return new go(binderType(binder));
   } else {
     return varType(ctxNext, where, x);
   }
@@ -1025,9 +1025,24 @@ class MetaVar {
   constructor(public value: Value | null, public varType: Value, public name: Symbol) { }
 };
 
-class TSMeta {
-  constructor(public value: Core | null, public name: Symbol) { }
+abstract class TSMeta {
+  public value;
+  public name: Symbol;
 }
+
+class TSMetaCore extends TSMeta {
+  constructor(public value: Core | null, public name: Symbol) { 
+    super();
+  }
+}
+
+
+class TSMetaValue extends TSMeta {
+  constructor(public value: Value | null, public name: Symbol) { 
+    super();
+  }
+}
+
 
 export {
   Src,
@@ -1110,5 +1125,7 @@ export {
   go,
   goOn,
   TSMeta,
+  TSMetaValue,
+  TSMetaCore,
 };
 
