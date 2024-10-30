@@ -28,7 +28,11 @@ import {
   varType,
   SIGMA,
   LIST,
-  EQUAL
+  EQUAL,
+  TSMetaVoid,
+  VEC,
+  ADD1,
+  EITHER,
 } from './basics'
 
 import {
@@ -37,9 +41,10 @@ import {
   readBack,
   readBackType,
   valOfClosure,
+  readBackContext,
 } from './normalize'
 import { alphaEquiv } from './alpha'
-import { isForInfo, location, notForInfo } from './locations'
+import { isForInfo, location, locationToSrcLoc, notForInfo } from './locations'
 
 import { match, P } from 'ts-pattern'
 import { isForInStatement } from 'typescript'
@@ -309,13 +314,13 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
 }
 
 
-function check(Γ: Ctx, r: Renaming, input: Src, t: Value): Perhaps<Core> {
+function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
   const out: Perhaps<Core> = match(srcStx(input))
     .with(['λ', P._, P._], ([_, xBinding, b]) => {
       if(xBinding.length === 1) {
         const x = xBinding[0][0];
         const xloc = xBinding[0][1];
-        const nt = now(t);
+        const nt = now(tv);
         if (nt instanceof PI) {
           const y = nt.argName;
           const A = nt.argType;
@@ -336,11 +341,11 @@ function check(Γ: Ctx, r: Renaming, input: Src, t: Value): Perhaps<Core> {
       } else if (xBinding.length > 1) {
         const [x, y, dot, xs] = xBinding;
        return check(Γ, r, new Src(srcLoc(input), ['λ', [x], 
-          new Src(notForInfo(srcLoc(input)), ['λ', [y, dot, xs], b])]), t); 
+          new Src(notForInfo(srcLoc(input)), ['λ', [y, dot, xs], b])]), tv); 
       }
     })
     .with(['cons', P._, P._], ([_, a, d]) => {
-      const nt = now(t);
+      const nt = now(tv);
       if (nt instanceof SIGMA) {
         const x = nt.carName;
         const A = nt.carType;
@@ -350,7 +355,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, t: Value): Perhaps<Core> {
         return goOn(
           [
             [aout, check(Γ, r, a, A)],
-            [dout, check(Γ, r, d, valOfClosure(c, valInCtx(Γ, aout)!)!)],
+            [dout, check(Γ, r, d, valOfClosure(c, valInCtx(Γ, aout.value!)!)!)],
           ],
           new go(['cons', aout.value!, dout.value!])
         );
@@ -359,7 +364,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, t: Value): Perhaps<Core> {
       }
     }) 
     .with(['nil'], () => {
-      const nt = now(t);
+      const nt = now(tv);
       if (nt instanceof LIST) {
         return new go('nil');
       } else {
@@ -367,12 +372,110 @@ function check(Γ: Ctx, r: Renaming, input: Src, t: Value): Perhaps<Core> {
       }
     })
     .with(['same', P._], ([_, c]) => {
-      const result = now(t);
+      const result = now(tv);
       if (result instanceof EQUAL) {
-        
+        const [Av, from, to] = [result.type, result.from, result.to];
+        const cout = new TSMetaCore(null, Symbol('cout'));
+        const v = new TSMetaValue(null, Symbol('v'));
+        const void1 = new TSMetaVoid(null, Symbol('void1'));
+        const void2 = new TSMetaVoid(null, Symbol('void2'));
+        return goOn(
+          [
+            [cout, check(Γ, r, c, Av)],
+            [v, new go(valInCtx(Γ, cout.value!)!)],
+            [void1, convert(Γ, srcLoc(c), Av, from, v.value!)],
+            [void2, convert(Γ, srcLoc(c), Av, to, v.value!)],
+          ],
+          new go(['same', cout.value!])
+        );
       }
     })
     .with(['vecnil'], () => {
+      const result = now(tv);
+      if (result instanceof VEC) {
+        // TODO: Double Check evaluation of !!
+        if (result.length === "ZERO") {
+          return new go('vecnil');
+        } else {
+          return new stop(srcLoc(input), 
+          [`vecnil requires a Vec type with length ZERO, but was used as a: 
+            ${readBack(Γ, "NAT", result.length)}.`]);
+        }
+      } else {
+        return new stop(srcLoc(input), 
+          [`vecnil requires a Vec type, but was used as a: 
+            ${readBackType(Γ, result)} context.`]);
+      }
+    })
+    .with(['vec::', P._, P._], ([_, h, t]) => {
+      const result = now(tv);
+      // TODO: Double Check evaluation of !!
+      if (result instanceof VEC) {
+        if (result.length instanceof ADD1) {
+          const hout = new TSMetaCore(null, Symbol('hout'));
+          const tout = new TSMetaCore(null, Symbol('tout'));
+          return goOn(
+            [
+              [hout, check(Γ, r, h, result.entryType)],
+              [tout, check(Γ, r, t, 
+                new VEC(result.entryType, result.length.smaller))],
+            ],
+            new go(['vec::', hout.value!, tout.value!])
+          );
+        } else {
+          return new stop(srcLoc(input), 
+            [`vec:: requires a Vec type with length ADD1, but was used as a: 
+              ${readBack(Γ, "NAT", result.length)}.`]);
+        }
+      } else {
+        return new stop(srcLoc(input), 
+          [`vec:: requires a Vec type, but was used as a: 
+            ${readBackType(Γ, result)} context.`]);
+      }
+    })
+    .with(['left', P._], ([_, l]) => {
+      const result = now(tv);
+      if (result instanceof EITHER) {
+        const lout = new TSMetaCore(null, Symbol('lout'));
+        return goOn(
+          [[lout, check(Γ, r, l, result.leftType)]],
+          new go(['left', lout.value!])
+        );
+      } else {
+        return new stop(srcLoc(input), 
+          [`left requires an Either type, but was used as a: 
+            ${readBackType(Γ, result)} context.`]);
+      }
+    })
+    .with(['right', P._], ([_, rght]) => {
+      const result = now(tv);
+      if (result instanceof EITHER) {
+        const rout = new TSMetaCore(null, Symbol('rout'));
+        return goOn(
+          [[rout, check(Γ, r, rght, result.rightType)]],
+          new go(['right', rout.value!])
+        );
+      } else {
+        return new stop(srcLoc(input), 
+          [`right requires an Either type, but was used as a: 
+            ${readBackType(Γ, result)} context.`]);
+      }
+    })
+    .with(['TODO'], () => {
+      const ty = readBackType(Γ, tv)!;
+      SendPieInfo(srcLoc(input), ['TODO', readBackContext(Γ)!, ty]);
+      // TODO: translate ann?
+      return new go(["TODO", locationToSrcLoc(srcLoc(input)), ty]);
+    })
+    .otherwise(other => {
+      // TODO:
+    })!;
+  const ok = new TSMetaCore(null, Symbol('ok'));
+  SendPieInfo(srcLoc(input), ['has-type', readBackType(Γ, tv)!]);
+  return goOn(
+    [[ok, out]],
+    ok.value!
+  )
 }
 
 

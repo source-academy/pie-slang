@@ -1043,6 +1043,12 @@ class TSMetaValue extends TSMeta {
   }
 }
 
+class TSMetaVoid extends TSMeta {
+  constructor(public value: any | null, public name: Symbol) { 
+    super();
+  }
+}
+
 
 export {
   Src,
@@ -1127,5 +1133,6 @@ export {
   TSMeta,
   TSMetaValue,
   TSMetaCore,
+  TSMetaVoid,
 };
 
