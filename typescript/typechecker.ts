@@ -584,3 +584,120 @@ function isAlphabetic(char: string): boolean {
 function makeApp(a: Src, b: Src, cs: Src[]): Src {
   return new Src(srcLoc(a), [a, b, cs]);
 }
+
+
+describe('isType', () => {
+  let ctx: Ctx;
+  let loc: location;
+  const emptyRenaming: [] = [];
+
+  beforeEach(() => {
+    ctx = ctx;
+    loc = { 
+      syntax: {
+        datum: Symbol(),
+        source: "0",
+        line: 0,
+        column: 0,
+        span: 0,
+        position: 0
+      }, 
+      forInfo: false 
+    };
+  });
+
+  // Helper to create Src objects
+  const makeSrc = (stx: any): Src => new Src(loc, stx);
+
+  test('validates basic types', () => {
+    // Test U (universe)
+    expect(isType(ctx, emptyRenaming, makeSrc('U'))).toEqual(new go('U'));
+    
+    // Test Nat
+    expect(isType(ctx, emptyRenaming, makeSrc('Nat'))).toEqual(new go('Nat'));
+    
+    // Test Atom
+    expect(isType(ctx, emptyRenaming, makeSrc('Atom'))).toEqual(new go('Atom'));
+  });
+
+  test('validates function types with ->', () => {
+    const arrowType = makeSrc(['->', makeSrc('Nat'), makeSrc('U'), []]);
+    const result = isType(ctx, emptyRenaming, arrowType);
+    expect(result).toBeInstanceOf(go);
+    if (result instanceof go) {
+      expect(result.result[0]).toBe('Π'); 
+    }
+  });
+
+  test('validates Π types', () => {
+    const piType = makeSrc(['Π', [[{
+      loc,
+      varName: Symbol('x')
+    }, makeSrc('Nat')]], makeSrc('U')]);
+    const result = isType(ctx, emptyRenaming, piType);
+    expect(result).toBeInstanceOf(go);
+  });
+
+  test('validates Pair types', () => {
+    const pairType = makeSrc(['Pair', makeSrc('Nat'), makeSrc('U')]);
+    const result = isType(ctx, emptyRenaming, pairType);
+    expect(result).toBeInstanceOf(go);
+    if (result instanceof go) {
+      expect(result.result[0]).toBe('Σ'); 
+    }
+  });
+
+  test('validates List types', () => {
+    const listType = makeSrc(['List', makeSrc('Nat')]);
+    const result = isType(ctx, emptyRenaming, listType);
+    expect(result).toBeInstanceOf(go);
+    if (result instanceof go) {
+      expect(result.result[0]).toBe('List');
+    }
+  });
+
+  test('validates equality types', () => {
+    const eqType = makeSrc(['=', makeSrc('Nat'), makeSrc('zero'), makeSrc('zero')]);
+    const result = isType(ctx, emptyRenaming, eqType);
+    expect(result).toBeInstanceOf(go);
+  });
+
+  test('validates Vec types', () => {
+    const vecType = makeSrc(['Vec', makeSrc('Nat'), makeSrc('zero')]);
+    const result = isType(ctx, emptyRenaming, vecType);
+    expect(result).toBeInstanceOf(go);
+    if (result instanceof go) {
+      expect(result.result[0]).toBe('Vec');
+    }
+  });
+
+  test('validates Either types', () => {
+    const eitherType = makeSrc(['Either', makeSrc('Nat'), makeSrc('U')]);
+    const result = isType(ctx, emptyRenaming, eitherType);
+    expect(result).toBeInstanceOf(go);
+    if (result instanceof go) {
+      expect(result.result[0]).toBe('Either');
+    }
+  });
+
+  test('rejects invalid types', () => {
+    const invalidSymbol = makeSrc(Symbol('invalid'));
+    expect(isType(ctx, emptyRenaming, invalidSymbol)).toBeInstanceOf(stop);
+
+    const invalidStructure = makeSrc(['NotAType', makeSrc('Nat')]);
+    expect(isType(ctx, emptyRenaming, invalidStructure)).toBeInstanceOf(stop);
+  });
+
+  test('validates nested types', () => {
+    const nestedType = makeSrc([
+      'Π', 
+      [[{
+        loc,
+        varName: Symbol('x')
+      }, makeSrc('Nat')]], 
+      makeSrc(['List', makeSrc('U')])
+    ]);
+    const result = isType(ctx, emptyRenaming, nestedType);
+    expect(result).toBeInstanceOf(go);
+  });
+});
