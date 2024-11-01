@@ -115,9 +115,6 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
   const theType: Perhaps<Core> = match(srcStx(input))
     .with('U', () => new go('U'))
     .with('Nat', () => new go('Nat'))
-    .with(['->', P._, P._], ([_, A, B]) => {
-
-    })
     .with(['->', P._, P._, P.array()], ([_, A, B, arr]) => {
       if (arr.length === 0) {
         const x = freshBinder(Γ, B, Symbol('x'));
@@ -125,8 +122,8 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
           [[Aout, isType(Γ, r, A)],
-          [Bout, isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r, B)],],
-          new go(['Π', [[x, Aout.value!]], Bout.value!])
+          [Bout, () => isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r, B)],],
+          () => new go(['Π', [[x, Aout.value!]], Bout.value!])
         );
       } else {
         const [C, ...rest] = arr;
@@ -152,14 +149,14 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         return goOn(
           [
             [Aout, isType(Γ, r, A)],
-            [Aoutv, new go(valInCtx(Γ, Aout.value!)!)],
-            [Bout, isType(bindFree(Γ, y, Aoutv.value!),
+            [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
+            [Bout, () => isType(bindFree(Γ, y, Aoutv.value!),
               extendRenaming(r, bd.varName, y), B)]
           ],
           (() => {
             PieInfoHook(xloc, ['binding-site', Aout.value!]);
             return new go(['Π', [[y, Aout.value!]], Bout.value!])
-          })()
+          })
         
         )
 
@@ -174,15 +171,15 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         return goOn(
           [
             [Aout, isType(Γ, r, A)],
-            [Aoutv, new go(valInCtx(Γ, Aout.value!)!)],
-            [Bout, isType(bindFree(Γ, z, Aoutv.value!),
+            [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
+            [Bout, () => isType(bindFree(Γ, z, Aoutv.value!),
               extendRenaming(r, x, z), 
               new Src(srcLoc(input), ['Π', [[y, A1], ...rest], B]))]
           ],
           (() => {
             PieInfoHook(xloc, ['binding-site', Aout.value!]);
             return new go(['Π', [[z, Aout.value!]], Bout.value!])
-          })()
+          })
         )
       } else {
         return new stop(srcLoc(input), ['Not a type']);
@@ -195,8 +192,8 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       const Dout = new TSMetaCore(null, Symbol('Dout'));
       return goOn(
         [[Aout, isType(Γ, r, A)],
-        [Dout, isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r, D)],],
-        new go(['Σ', [[x, Aout.value!]], Dout.value!])
+        [Dout, () => isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r, D)],],
+        () => new go(['Σ', [[x, Aout.value!]], Dout.value!])
       );
     })
     .with(['Σ', P._, P._], ([_, arr, D]) => {
@@ -210,14 +207,14 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         return goOn(
           [
             [Aout, isType(Γ, r, A)],
-            [Aoutv, new go(valInCtx(Γ, Aout.value!)!)],
-            [Dout, isType(bindFree(Γ, y, Aoutv.value!),
+            [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
+            [Dout, () => isType(bindFree(Γ, y, Aoutv.value!),
               extendRenaming(r, bd.varName, y), D)]
           ],
           (() => {
             PieInfoHook(xloc, ['binding-site', Aout.value!]);
             return new go(['Σ', [[y, Aout.value!]], Dout.value!])
-          })()
+          })
         )
       } else if (arr.length > 1) {
         const [[bd, A], [y, A1], ...rest] = arr;
@@ -230,15 +227,15 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         return goOn(
           [
             [Aout, isType(Γ, r, A)],
-            [Aoutv, new go(valInCtx(Γ, Aout.value!)!)],
-            [Dout, isType(bindFree(Γ, z, Aoutv.value!),
+            [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
+            [Dout, () => isType(bindFree(Γ, z, Aoutv.value!),
               extendRenaming(r, x, z),
               new Src(srcLoc(input), ['Σ', [[y, A1], ...rest], D]))]
           ],
           (() => {
             PieInfoHook(xloc, ['binding-site', Aout.value!]);
             return new go(['Σ', [[z, Aout.value!]], Dout.value!])
-          })()
+          })
         )
       } else {
         return new stop(srcLoc(input), ['Not a type']);
@@ -260,9 +257,9 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       return goOn(
         [
           [Aout, isType(Γ, r, A)],
-          [Av, new go(valInCtx(Γ, Aout.value!)!)],
-          [fromv, check(Γ, r, from, Av.value!)],
-          [tov, check(Γ, r, to, Av.value!)],
+          [Av, () => new go(valInCtx(Γ, Aout.value!)!)],
+          [fromv, () => check(Γ, r, from, Av.value!)],
+          [tov, () => check(Γ, r, to, Av.value!)],
         ],
         new go(['=', Av.value!, fromv.value!, tov.value!])
       );
@@ -275,7 +272,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
           [Eout, isType(Γ, r, E)],
           [lenout, check(Γ, r, len, 'NAT')],
         ],
-        new go(['Vec', Eout.value!, lenout.value!])
+        () => new go(['Vec', Eout.value!, lenout.value!])
       );
     })
     .with(['Either', P._, P._], ([_, L, R]) => {
@@ -286,7 +283,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
           [Lout, isType(Γ, r, L)],
           [Rout, isType(Γ, r, R)],
         ],
-        new go(['Either', Lout.value!, Rout.value!])
+        () => new go(['Either', Lout.value!, Rout.value!])
       );
     })
     .otherwise(other => {
@@ -297,7 +294,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const othertv = new TSMetaValue(null, Symbol('othertv'));
         return goOn(
           [[othertv, varType(Γ, srcLoc(input), other)!]],
-          new stop(srcLoc(input), [`Expected U but got ${othertv.value!}.`])
+          () => new stop(srcLoc(input), [`Expected U but got ${othertv.value!}.`])
         )
       } else {
         return new stop(srcLoc(input), [`Not a type`]);
@@ -309,7 +306,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       (() => {
         SendPieInfo(srcLoc(input), ['is-type', t.value!]);
         return new go(t.value!);
-      })()
+      })
     );
 }
 
@@ -334,7 +331,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
             (() => {
               PieInfoHook(xloc, ['binding-site', readBackType(Γ, A)!]);
               return new go(['λ', [xhat], bout.value!])
-            })())
+            }))
         } else {
           return new stop(xloc, [`Not a function type: ${readBackType(Γ, nt)}.`]);
         }
@@ -355,7 +352,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
         return goOn(
           [
             [aout, check(Γ, r, a, A)],
-            [dout, check(Γ, r, d, valOfClosure(c, valInCtx(Γ, aout.value!)!)!)],
+            [dout, () => check(Γ, r, d, valOfClosure(c, valInCtx(Γ, aout.value!)!)!)],
           ],
           new go(['cons', aout.value!, dout.value!])
         );
@@ -382,11 +379,11 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
         return goOn(
           [
             [cout, check(Γ, r, c, Av)],
-            [v, new go(valInCtx(Γ, cout.value!)!)],
-            [void1, convert(Γ, srcLoc(c), Av, from, v.value!)],
-            [void2, convert(Γ, srcLoc(c), Av, to, v.value!)],
+            [v, () => new go(valInCtx(Γ, cout.value!)!)],
+            [void1, () => convert(Γ, srcLoc(c), Av, from, v.value!)],
+            [void2, () => convert(Γ, srcLoc(c), Av, to, v.value!)],
           ],
-          new go(['same', cout.value!])
+          () => (new go(['same', cout.value!]))
         );
       }
     })
@@ -420,7 +417,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
               [tout, check(Γ, r, t, 
                 new VEC(result.entryType, result.length.smaller))],
             ],
-            new go(['vec::', hout.value!, tout.value!])
+            () => new go(['vec::', hout.value!, tout.value!])
           );
         } else {
           return new stop(srcLoc(input), 
@@ -468,13 +465,14 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       return new go(["TODO", locationToSrcLoc(srcLoc(input)), ty]);
     })
     .otherwise(other => {
-      // TODO:
+      // TODO: this one needs to be added
+      console.log('转载请注明独人13');
     })!;
   const ok = new TSMetaCore(null, Symbol('ok'));
   SendPieInfo(srcLoc(input), ['has-type', readBackType(Γ, tv)!]);
   return goOn(
     [[ok, out]],
-    ok.value!
+    () => ok.value!
   )
 }
 
@@ -587,7 +585,7 @@ function makeApp(a: Src, b: Src, cs: Src[]): Src {
 
 
 describe('isType', () => {
-  let ctx: Ctx;
+  let ctx: Ctx = [];
   let loc: location;
   const emptyRenaming: [] = [];
 
