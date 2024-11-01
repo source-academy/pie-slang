@@ -60,6 +60,7 @@ function later(env: Env, expr: Core): Value {
 // undelay is used to find the value that is contained in a
 // DELAY-CLOS closure by invoking the evaluator.
 function undelay(c: DELAY_CLOS): Value {
+  console.log("undelaying:$" + c.expr + "$");
   return now(valOf(c.env, c.expr)!);
 }
 
@@ -77,7 +78,9 @@ function undelay(c: DELAY_CLOS): Value {
 function now(v: Value): Value {
   if (v instanceof DELAY && v.val instanceof Box) {
     const content = v.val.contents;
+    // console.log("giggity, now: " + content);
     if (content instanceof DELAY_CLOS) {
+    console.log("giggity, undelay: " + content);
       let theValue = undelay(content);
       v.val.contents = theValue;
       return theValue;
@@ -573,8 +576,8 @@ function doIndEither(target: Value, mot: Value, l: Value, r: Value): Value | und
   }
 }
 
-function getCoreType(expr: Core): String {
-  if (expr instanceof String) {
+function getCoreType(expr: Core): string {
+  if (typeof expr === 'string') {
     return expr;
   } else if (expr instanceof Symbol) {
     return expr.toString();
@@ -597,9 +600,9 @@ function valOf(env: Env, expr: Core): Value | undefined{
       return 'UNIVERSE';
     case 'Nat':
       return 'NAT';
-    case 'Zero':
+    case 'zero':
       return 'ZERO';
-    case 'Add1':
+    case 'add1':
       return new ADD1(later(env, expr[1]));
     case 'Π':
       const Pi_A_v = later(env, expr[1][1]);
@@ -685,14 +688,13 @@ function valOf(env: Env, expr: Core): Value | undefined{
       later(env, expr[3]), later(env, expr[4]));
     case 'TODO':
       return new NEU(later(env, expr[2]), new N_TODO(expr[1], later(env, expr[2])));
+    case 'operation':
+      return doAp(later(env, expr[0] as Core), later(env, expr[1] as Core));
     default:
       if (expr instanceof Symbol && isVarName(expr)) {
         return varVal(env, expr);
-      } else if (expr instanceof Array && expr.length === 2) {
-        // In this case expr[0] and expr[1] must all be Cores, so casting is safe
-        return doAp(later(env, expr[0] as Core), later(env, expr[1] as Core));
       } else {
-        console.error("No evaluator for: ", expr);
+        console.error("No evaluator for: ", expr, "of type ", typeof expr);
       }
       
   }
@@ -761,7 +763,7 @@ function valOfCtx(serialCtx: SerializableCtx) : Ctx {
 
 function readBackType(context: Ctx, value: Value): Core| undefined {
   value = now(value);
-  if (value instanceof String) {
+  if (typeof(value) === 'string') {
     switch (value) {
       case 'UNIVERSE':
         return 'U';
@@ -1309,7 +1311,7 @@ describe('Normalization Tests', () => {
   });
 
   test('valOf should evaluate Core expressions', () => {
-    const result = valOf(sampleEnv, mockCore);
+    const result = new ADD1(now((valOf(sampleEnv, mockCore)! as ADD1).smaller));
     expect(result).toEqual(mockValue); // Assuming mockCore evaluates to mockValue
   });
 

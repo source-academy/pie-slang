@@ -860,18 +860,34 @@ class stop extends Perhaps<undefined> {
 */
 // review this function when needed: BUG MAY OCCUR
 function goOn(
-  bindings: Array<[TSMeta, Perhaps<any>]>,
+  bindings: Array<[TSMeta, Perhaps<any> | (() => Perhaps<any>)]>,
   finalExpr: any
 ): stop | any{
   if (bindings.length === 0) {
     return finalExpr;
   }
-  const [[meta, perhaps], ...rest] = bindings;
-  if (perhaps.isGo()) {
-    meta.value = (perhaps as go<any>).result;
-    return goOn(rest, finalExpr);
+  const [[meta, perhapsf], ...rest] = bindings;
+  if(perhapsf instanceof Function) {
+    const perhaps = perhapsf();
+    if (perhaps.isGo()) {
+      meta.value = (perhaps as go<any>).result;
+      if(finalExpr.toString().includes("=>")) {
+        return goOn(rest, finalExpr());
+      }
+      return goOn(rest, finalExpr);
+    } else {
+      return perhaps;
+    }
   } else {
-    return perhaps;
+    if (perhapsf.isGo()) {
+      meta.value = (perhapsf as go<any>).result;
+      if(finalExpr.toString().includes("=>")) {
+        return goOn(rest, finalExpr());
+      }
+      return goOn(rest, finalExpr);
+    } else {
+      return perhapsf;
+    }
   }
 }
 
