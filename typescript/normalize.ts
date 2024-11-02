@@ -1205,7 +1205,7 @@ function valInCtx(context: Ctx, core: Core): Value | undefined {
 
 export {
   valInCtx,
-  now, readBack, readBackType, readBackNeutral, valOfClosure, valOf, valOfCtx, readBackContext, doAp, PIType
+  now, readBack, readBackType, readBackNeutral, valOfClosure, valOf, valOfCtx, readBackContext, doAp, PIType, indVecStepType
 };
 
 
