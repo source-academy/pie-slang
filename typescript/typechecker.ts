@@ -753,6 +753,182 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         }
       );
     })
+    .with(['trans', P._, P._], ([_, p1, p2]) => {
+      const p1_rst = new TSMetaCore(null, Symbol('p1_rst'));
+      const p2_rst = new TSMetaCore(null, Symbol('p2_rst'));
+      return goOn(
+        [
+          [p1_rst, synth(Γ, r, p1)],
+          [p2_rst, synth(Γ, r, p2)],
+        ],
+        () => {
+          const result1 = valInCtx(Γ, p1_rst.value![1])!;
+          const result2 = valInCtx(Γ, p2_rst.value![1])!;
+          if (result1 instanceof EQUAL && result2 instanceof EQUAL) {
+            const [Av, fromv, midv] = [result1.type, result1.from, result1.to];
+            const [Bv, midv2, tov] = [result2.type, result2.from, result2.to];
+            const ph1 = new TSMetaVoid(null, Symbol('ph1'));
+            const ph2 = new TSMetaVoid(null, Symbol('ph2'));
+            return goOn(
+              [
+                [ph1, () => sameType(Γ, srcLoc(e), Av, Bv)],
+                [ph2, () => convert(Γ, srcLoc(e), Av, midv, midv2)!],
+              ],
+              () => new go(['the', 
+                            readBackType(Γ, new EQUAL(Av, fromv, tov)),
+                            ['trans', p1_rst.value![2], p2_rst.value![2]]])
+            )
+          } else {
+            return new stop(srcLoc(e), [`Expcted =, got ${readBackType(Γ, result1)} 
+              and ${readBackType(Γ, result2)}.`]);
+          }
+        });
+    })
+    .with(['cong', P._, P._], ([_, p, f]) => {
+      const p_rst = new TSMetaCore(null, Symbol('p_rst'));
+      const f_rst = new TSMetaCore(null, Symbol('f_rst'));
+      return goOn(
+        [
+          [p_rst, synth(Γ, r, p)],
+          [f_rst, synth(Γ, r, f)],
+        ],
+        () => {
+          const result1 = valInCtx(Γ, p_rst.value![1])!;
+          const result2 = valInCtx(Γ, f_rst.value![1])!;
+          if (result1 instanceof EQUAL) {
+            const [Av, fromv, tov] = [result1.type, result1.from, result1.to];
+            if (result2 instanceof PI) {
+              const [x, Bv, c] = [result2.argName, result2.argType, result2.resultType];
+              const ph = new TSMetaVoid(null, Symbol('ph'));
+              const Cv = new TSMetaValue(null, Symbol('Cv'));
+              const fv = new TSMetaValue(null, Symbol('fv'));
+              return goOn(
+                [
+                  [ph, sameType(Γ, srcLoc(e), Av, Bv)],
+                  [Cv, new go(valOfClosure(c, fromv))],
+                  [fv, () => new go(valInCtx(Γ, f_rst.value![2])!)],
+                ],
+                () => new go(['the',
+                              ['=', 
+                                readBackType(Γ, Cv.value!),
+                                readBack(Γ, Cv.value!, doAp(fv.value!, fromv)!),
+                                readBack(Γ, Cv.value!, doAp(fv.value!, tov)!),
+                              ], 
+                              ['cong', p_rst.value![2], readBackType(Γ, Cv.value!), f_rst.value![2]]
+                            ]))
+            } else {
+              return new stop(srcLoc(e), [`Expected a function type, got ${readBackType(Γ, result2)}.`]);
+            }
+          } else {
+            return new stop(srcLoc(e), [`Expected an = type, got ${readBackType(Γ, result1)}.`]);
+          }
+        }
+      )
+    })
+    .with(['symm', P._], ([_, p]) => {
+      const p_rst = new TSMetaCore(null, Symbol('p_rst'));
+      return goOn(
+        [[p_rst, synth(Γ, r, p)]],
+        () => {
+          const result = valInCtx(Γ, p_rst.value![1])!;
+          if (result instanceof EQUAL) {
+            const [Av, fromv, tov] = [result.type, result.from, result.to];
+            return new go(['the', readBackType(Γ, new EQUAL(Av, tov, fromv)), 
+              ['symm', p_rst.value![2]]]);
+          } else {
+            return new stop(srcLoc(e), [`Expected an = type, got ${readBackType(Γ, result)}.`]);
+          }
+        }
+      );
+    })
+    .with(['ind-=', P._, P._, P._], ([_, tgt, mot, base]) => {
+      const tgt_rst = new TSMetaCore(null, Symbol('tgt_rst'));
+      const motout = new TSMetaCore(null, Symbol('motout'));
+      const motv = new TSMetaValue(null, Symbol('motv'));
+      const baseout = new TSMetaCore(null, Symbol('baseout'));
+      return goOn(
+        [[tgt_rst, synth(Γ, r, tgt)]],
+        () => {
+          const result = valInCtx(Γ, tgt_rst.value![1])!;
+          if (result instanceof EQUAL) {
+            const [Av, fromv, tov] = [result.type, result.from, result.to];
+            const to = new MetaVar(null, Av, Symbol('to'));
+            const p = new MetaVar(null, new EQUAL(Av, fromv, to.value!), Symbol('p'));
+            return goOn([
+              [motout, check(Γ, r, mot, PIType([[to.name, to.varType], 
+                                                  [p.name, p.varType]], 'UNIVERSE'))],
+              [motv, () => new go(valInCtx(Γ, motout.value!)!)],
+              [baseout, () => check(Γ, r, base, 
+                doAp(doAp(motv.value!, fromv)!, new SAME(fromv))!)],
+            ],
+            () => 
+              new go(
+                ['the', motv.value!,
+                  ['ind-=', tgt_rst.value![2], motout.value!, baseout.value!]
+                ]
+              )
+            );
+          } else {
+            return new stop(srcLoc(e), [`Expected evidence of equality, got 
+              ${readBackType(Γ, result)}.`]);
+          }
+        }
+      );
+    })
+    .with(['Vec', P._, P._], ([_, E, len]) => {
+      const Eout = new TSMetaCore(null, Symbol('Eout'));
+      const lenout = new TSMetaCore(null, Symbol('lenout'));
+      return goOn(
+        [[Eout, check(Γ, r, E, 'UNIVERSE')],
+        [lenout, check(Γ, r, len, 'NAT')]],
+        () => new go(['the', 'U', ['Vec', Eout.value!, lenout.value!]])
+      );
+    })
+    .with(['head', P._], ([_, es]) => {
+      const es_rst = new TSMetaCore(null, Symbol('es_rst'));
+      return goOn(
+        [[es_rst, synth(Γ, r, es)]],
+        () => {
+          const result = now(valInCtx(Γ, es_rst.value![1])!);
+          if(result instanceof VEC) {
+            const [Ev, len] = [result.entryType, result.length];
+            //TODO: !!
+            if(len instanceof ADD1) {
+              return new go(['the', readBackType(Γ, Ev), ['head', es_rst.value![2]]]);
+            } else {
+              return new stop(srcLoc(e), [`Expected a Vec with add1 at the top of the length, got: 
+                                                ${readBack(Γ, "NAT", len)}.`]);
+            }
+          } else {
+            return new stop(srcLoc(e), [`Expected a Vec type, got: ${readBackType(Γ, result)}.`]);
+          }
+        }
+      )
+    })
+    .with(['tail', P._], ([_, es]) => {
+      const es_rst = new TSMetaCore(null, Symbol('es_rst'));
+      return goOn(
+        [[es_rst, synth(Γ, r, es)]],
+        () => {
+          const result = now(valInCtx(Γ, es_rst.value![1])!);
+          if(result instanceof VEC) {
+            const [Ev, len] = [result.entryType, result.length];
+            if(len instanceof ADD1) {
+              const len_minus_1 = len.smaller;
+              return new go(['the', ['Vec', readBackType(Γ, Ev)!, 
+                                            readBack(Γ, "NAT", len_minus_1)],
+                            ['tail', es_rst.value![2]]]);
+              
+            } else {
+              return new stop(srcLoc(e), [`Expected a Vec with add1 at the top of the length, got: 
+                                                ${readBack(Γ, "NAT", len)}.`]);
+            }
+          } else {
+            return new stop(srcLoc(e), [`Expected a Vec type, got: ${readBackType(Γ, result)}.`]);
+          }
+        }
+      )
+    })
     .with(['ind-Vec', P._, P._, P._, P._, P._], ([_, len, vec, mot, b, s]) => {
       const lenout = new TSMetaCore(null, Symbol('lenout'));
       const lenv = new TSMetaValue(null, Symbol('lenv'));
