@@ -860,7 +860,7 @@ class stop extends Perhaps<undefined> {
 */
 // review this function when needed: BUG MAY OCCUR
 function goOn(
-  bindings: Array<[TSMeta, Perhaps<any> | (() => Perhaps<any>)]>,
+  bindings: Array<[TSMeta | any, Perhaps<any> | (() => Perhaps<any>)]>,
   finalExpr: any
 ): stop | any{
   if (bindings.length === 0) {

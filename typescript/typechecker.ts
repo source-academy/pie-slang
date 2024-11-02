@@ -33,6 +33,9 @@ import {
   VEC,
   ADD1,
   EITHER,
+  FO_CLOS,
+  HO_CLOS,
+  ctxToEnv,
 } from './basics'
 
 import {
@@ -42,6 +45,7 @@ import {
   readBackType,
   valOfClosure,
   readBackContext,
+  doAp,
 } from './normalize'
 import { alphaEquiv } from './alpha'
 import { isForInfo, location, locationToSrcLoc, notForInfo } from './locations'
@@ -310,6 +314,236 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
     );
 }
 
+// ### Check the form of judgment Γ ⊢ e synth ↝ (the c c)
+function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
+  const theExpr = match(srcStx(e))
+  .with('Nat', () => new go(['the', 'U', 'Nat']))
+  .with('U', () => new stop(srcLoc(e), ["U is a type, but it does not have a type."]))
+  .with(['->', P._, P._, P.array()], ([_, A, B, arr]) => {
+    if (arr.length === 0) {
+      const z = freshBinder(Γ, B, Symbol('x'));
+      const Aout = new TSMetaCore(null, Symbol('Aout'));
+      const Bout = new TSMetaCore(null, Symbol('Bout'));
+      return goOn(
+        [[Aout, check(Γ, r, A, 'UNIVERSE')],
+        [Bout, () => check(bindFree(Γ, z, valInCtx(Γ, Aout.value!)!),
+                          r, B, 'UNIVERSE')],],
+        (() => {new go(['the', 'U', ['Π', [[fresh(Γ, Symbol('x')), 
+                      Aout.value!]], Bout.value!]])})
+      );
+    } else {
+      const [C, ...rest] = arr;
+      const x = freshBinder(Γ, makeApp(B, C, rest), Symbol('x'));
+      const Aout = new TSMetaCore(null, Symbol('Aout'));
+      const tout = new TSMetaCore(null, Symbol('tout'));
+      return goOn(
+        [[Aout, check(Γ, r, A, 'UNIVERSE')],
+        [tout, () => check(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), 
+                          r,
+                          new Src(notForInfo(srcLoc(e)), ['->', B, C, rest]), 
+                          'UNIVERSE')]],
+        (() => new go(['the', 'U', ['Π', [[x, Aout.value!]], tout.value!]])))
+    }
+  })
+  .with(['Π', P._, P._], ([_, arr, B]) => {
+    if (arr.length === 1) {
+      const xhat = fresh(Γ, Symbol('x'));
+      const [bd, A] = arr[0];
+      const xloc = bd.loc;
+      const Aout = new TSMetaCore(null, Symbol('Aout'));
+      const Bout = new TSMetaCore(null, Symbol('Bout'));
+      return goOn(
+        [
+          [Aout, check(Γ, r, A, 'UNIVERSE')],
+          [Bout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!),
+                            extendRenaming(r, bd.varName, xhat), B, 'UNIVERSE')],
+        ],
+        (() => {
+          PieInfoHook(xloc, ['binding-site', Aout.value!]);
+          return new go(['the','U', ['Π', [[xhat, Aout.value!]], Bout.value!]]);
+        })
+      )
+    } else if (arr.length > 1) {
+      const [[bd, A], [y, A1], ...rest] = arr;
+      const xloc = bd.loc;
+      const x = bd.varName;
+      const xhat = fresh(Γ, Symbol('x'));
+      const Aout = new TSMetaCore(null, Symbol('Aout'));
+      const Bout = new TSMetaCore(null, Symbol('Bout'));
+      return goOn(
+        [
+          [Aout, check(Γ, r, A, 'UNIVERSE')],
+          [Bout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!),
+                            extendRenaming(r, x, xhat),
+                            new Src(notForInfo(srcLoc(e)), ['Π', [[y, A1], ...rest], B]), 
+                            'UNIVERSE')],
+        ],
+        (() => {
+          PieInfoHook(xloc, ['binding-site', Aout.value!]);
+          return new go(['the', 'U', ['Π', [[xhat, Aout.value!]], Bout.value!]])
+        })
+      )
+    }
+  })
+  .with('zero', () => new go(['the', 'NAT', 'zero']))
+  .with(['add1', P._], ([_, n]) => {
+    const nout = new TSMetaCore(null, Symbol('nout'));
+    return goOn(
+      [[nout, check(Γ, r, n, 'NAT')]],
+      () => new go(['the', 'NAT', ['add1', nout.value!]])
+    );
+  })
+  .with(['which-Nat', P._, P._, P._], ([_, tgt, b, s]) => {
+    const tgtout = new TSMetaCore(null, Symbol('tgtout'));
+    const bout = new TSMetaCore(null, Symbol('bout'));
+    const btout = new TSMetaCore(null, Symbol('btout'));
+    const sout = new TSMetaCore(null, Symbol('sout'));
+    return goOn([
+      [tgtout, check(Γ, r, tgt, 'NAT')],
+      [['the', btout, bout], synth(Γ, r, b)],
+      [sout, () => check(Γ, r, s, 
+        (() => {
+          const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
+          return new PI(n_minus_1, 'NAT', new FO_CLOS(ctxToEnv(Γ), n_minus_1, btout.value!));
+        })()
+    )],
+    ],
+    () => 
+      new go(
+        ['the', btout.value!,
+          ['which-Nat', tgtout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ]
+      ));
+  })
+  .with(['iter-Nat', P._, P._, P._], ([_, tgt, b, s]) => {
+    const tgtout = new TSMetaCore(null, Symbol('tgtout'));
+    const bout = new TSMetaCore(null, Symbol('bout'));
+    const btout = new TSMetaCore(null, Symbol('btout'));
+    const sout = new TSMetaCore(null, Symbol('sout'));
+    return goOn([
+      [tgtout, check(Γ, r, tgt, 'NAT')],
+      [['the', btout, bout], synth(Γ, r, b)],
+      [sout, () => check(Γ, r, s, 
+        (() => {
+          const old = fresh(Γ, Symbol('old'));
+          return valInCtx(Γ, ['Π', [[old, btout.value!]], btout.value!])!;
+        })()
+    )],
+    ],
+    () => 
+      new go(
+        ['the', btout.value!,
+          ['iter-Nat', tgtout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ]
+      ));
+  })
+  .with(['rec-Nat', P._, P._, P._], ([_, tgt, b, s]) => {
+    const tgtout = new TSMetaCore(null, Symbol('tgtout'));
+    const bout = new TSMetaCore(null, Symbol('bout'));
+    const btout = new TSMetaCore(null, Symbol('btout'));
+    const sout = new TSMetaCore(null, Symbol('sout'));
+    return goOn([
+      [tgtout, check(Γ, r, tgt, 'NAT')],
+      [['the', btout, bout], synth(Γ, r, b)],
+      [sout, () => check(Γ, r, s, 
+        (() => {
+          const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
+          const old = fresh(Γ, Symbol('old'));
+          return valInCtx(Γ, ['Π', [[n_minus_1, 'Nat'], [old, btout.value!]], btout.value!])!;
+        })()
+    )],
+    ],
+    () => 
+      new go(
+        ['the', btout.value!,
+          ['rec-Nat', tgtout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ]
+      ));
+  })
+  .with(['ind-Nat', P._, P._, P._, P._], ([_, tgt, mot, b, s]) => {
+    const tgtout = new TSMetaCore(null, Symbol('tgtout'));
+    const motout = new TSMetaCore(null, Symbol('motout'));
+    const motval = new TSMetaValue(null, Symbol('motval'));
+    const bout = new TSMetaCore(null, Symbol('bout'));
+    const btout = new TSMetaCore(null, Symbol('btout'));
+    const sout = new TSMetaCore(null, Symbol('sout'));
+    return goOn([
+      [tgtout, check(Γ, r, tgt, 'NAT')],
+      [motout, check(Γ, r, mot, new PI(Symbol('n'), 'NAT', new HO_CLOS((n) => 'UNIVERSE')))],
+      [motval, () => new go(valInCtx(Γ, motout.value!)!)],
+      [bout, check(Γ, r, b, () => doAp(motval.value!, 'zero'))],
+      [sout, () => check(Γ, r, s, 
+        (() => {
+          const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
+          const old = fresh(Γ, Symbol('old'));
+          return valInCtx(Γ, ['Π', [[n_minus_1, 'Nat'], [old, btout.value!]], btout.value!])!;
+        })()
+    )],
+    ],
+    () => 
+      new go(
+        ['the', btout.value!,
+          ['ind-Nat', tgtout.value!, motout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ]
+      ));
+  })
+  .with('Atom', () => new go(['the', 'U', 'Atom']))
+  .with(['Pair', P._, P._], ([_, A, D]) => {
+    const a = fresh(Γ, Symbol('a'));
+    const Aout = new TSMetaCore(null, Symbol('Aout'));
+    const Dout = new TSMetaCore(null, Symbol('Dout'));
+    return goOn(
+      [
+        [Aout, check(Γ, r, A, 'UNIVERSE')],
+        [Dout, () => check(bindFree(Γ, a, valInCtx(Γ, Aout.value!)!), r, D, 'UNIVERSE')],
+      ],
+      () => new go(['the', 'U', ['Σ', [[a, Aout.value!]], Dout.value!]])
+    );
+  })
+  .with(['Σ', P._, P._], ([_, arr, D]) => {
+    if (arr.length === 1) {
+      const xhat = fresh(Γ, Symbol('x'));
+      const [bd, A] = arr[0];
+      const xloc = bd.loc;
+      const Aout = new TSMetaCore(null, Symbol('Aout'));
+      const Dout = new TSMetaCore(null, Symbol('Dout'));
+      return goOn(
+        [
+          [Aout, check(Γ, r, A, 'UNIVERSE')],
+          [Dout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!), 
+                            extendRenaming(r, bd.varName, xhat), D, 'UNIVERSE')],
+        ],
+        (() => {
+          PieInfoHook(xloc, ['binding-site', Aout.value!]);
+          return new go(['the', 'U', ['Σ', [[xhat, Aout.value!]], Dout.value!]])
+        })
+      )
+    } else if (arr.length > 1) {
+      const [[bd, A], [y, A1], ...rest] = arr;
+      const xloc = bd.loc;
+      const x = bd.varName;
+      const xhat = fresh(Γ, Symbol('x'));
+      const Aout = new TSMetaCore(null, Symbol('Aout'));
+      const Dout = new TSMetaCore(null, Symbol('Dout'));
+      return goOn(
+        [
+          [Aout, check(Γ, r, A, 'UNIVERSE')],
+          [Dout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!), 
+                            extendRenaming(r, x, xhat), 
+                            new Src(notForInfo(srcLoc(e)), ['Σ', [[y, A1], ...rest], D]), 
+                            'UNIVERSE')],
+        ],
+        (() => {
+          PieInfoHook(xloc, ['binding-site', Aout.value!]);
+          return new go(['the', 'U', ['Σ', [[xhat, Aout.value!]], Dout.value!]])
+        })
+      )
+    }
+  })
+  .with(['car', P._], ([_, p]) => {
+    
+  })
+}
 
 function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
   const out: Perhaps<Core> = match(srcStx(input))
