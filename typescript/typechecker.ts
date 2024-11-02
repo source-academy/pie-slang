@@ -36,6 +36,8 @@ import {
   FO_CLOS,
   HO_CLOS,
   ctxToEnv,
+  MetaVar,
+  LIST_CONS,
 } from './basics'
 
 import {
@@ -46,6 +48,7 @@ import {
   valOfClosure,
   readBackContext,
   doAp,
+  PIType,
 } from './normalize'
 import { alphaEquiv } from './alpha'
 import { isForInfo, location, locationToSrcLoc, notForInfo } from './locations'
@@ -467,19 +470,19 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       [tgtout, check(Γ, r, tgt, 'NAT')],
       [motout, check(Γ, r, mot, new PI(Symbol('n'), 'NAT', new HO_CLOS((n) => 'UNIVERSE')))],
       [motval, () => new go(valInCtx(Γ, motout.value!)!)],
-      [bout, () => check(Γ, r, b, doAp(motval.value!, 'zero'))],
+      [bout, () => check(Γ, r, b, doAp(motval.value!, 'ZERO')!)],
       [sout, () => check(Γ, r, s, 
         (() => {
-          const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
-          const old = fresh(Γ, Symbol('old'));
-          return valInCtx(Γ, ['Π', [[n_minus_1, 'Nat'], [old, btout.value!]], btout.value!])!;
+          const n_minus_1 = new MetaVar(null, 'NAT' , Symbol('n_minus_1'));
+          const ih = new MetaVar(null, doAp(motval, n_minus_1)!, Symbol('ih'));
+          return PIType([[n_minus_1.name, n_minus_1.varType], [ih.name, ih.varType]], doAp(motval, new ADD1(n_minus_1))!)!;
         })()
     )],
     ],
     () => 
       new go(
-        ['the', btout.value!,
-          ['ind-Nat', tgtout.value!, motout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ['the', [motout.value!, tgtout.value!,],
+          ['ind-Nat', tgtout.value!, motout.value!, bout.value!, sout.value!]
         ]
       ));
   })
@@ -566,6 +569,63 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       }
     )
   })
+  .with(['quote', P._], ([_, a]) => {
+    if(atomOk(a)) {
+      return new go(['the', 'Atom', ['quote', a]]);
+    } else return new stop(srcLoc(e), ['Atoms consist of letters and hyphens.']);
+  })
+  .with(['Trivial'], (_) => new go(['the', 'U', 'Trivial'])) 
+  .with(['sole'], (_) => new go(['the', 'Trivial', 'sole']))
+  .with(['ind-List', P._, P._, P._, P._], ([_, tgt, mot, b, s]) => {
+    const themeta = new TSMetaCore(null, Symbol('themeta'));
+    const motout = new TSMetaCore(null, Symbol('motout'));
+    const motval = new TSMetaValue(null, Symbol('motval'));
+    const bout = new TSMetaCore(null, Symbol('bout'));
+    const sout = new TSMetaCore(null, Symbol('sout'));
+    return goOn(
+      [
+        [themeta, synth(Γ, r, tgt)],
+      ],
+      () => {
+        const mtc = valInCtx(Γ, themeta.value![1])!;
+        if(mtc instanceof LIST) {
+          const E = mtc.entryType;
+          const e = new MetaVar(null, E, Symbol('e'));
+          const es = new MetaVar(null, new LIST(E), Symbol('es'));
+          const ih = new MetaVar(null, doAp(motval.value!, es)!, Symbol('ih'));
+          return goOn([
+            [
+              motout, 
+              check(Γ, r, mot, 
+                new PI(Symbol('xs'), new LIST(E), new FO_CLOS(ctxToEnv(Γ) , Symbol('xs'), 'U')))
+            ],
+            [motval, () => new go(valInCtx(Γ, motout.value!)!)],
+            [bout, () => check(Γ, r, b, doAp(motval.value!, 'NIL')!)],
+            [sout, () => check(Γ, r, s, 
+              PIType([
+                [e.name, e.varType],
+                [es.name, es.varType],
+                [ih.name, ih.varType],
+              ],
+              doAp(motval.value!, new LIST_CONS(e.value!, es.value!))!
+            )
+            )],
+          ],
+          () => 
+            new go(
+              ['the', [motout.value!, themeta.value![2]],
+                ['ind-List', themeta.value![2], motout.value!, bout.value!, sout.value!]
+              ]
+            )
+          );
+        } else {
+          return new stop(srcLoc(e), [`Not a List: ${readBackType(Γ, mtc)}.`]);
+        }
+      }
+    );
+  })
+  .otherwise(other => new go(['the', 'U', 'Trivial']));
+  return theExpr;
 }
 
 function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {

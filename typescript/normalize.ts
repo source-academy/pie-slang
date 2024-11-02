@@ -98,6 +98,7 @@ function PIType([[argName, argType], ...next]: [Symbol, Value][], ret: Value): P
   }
 }
 
+
 function doAp(rator: Value, rand: Value): Value | undefined {
   const rtFin = now(rator);
 
@@ -1204,7 +1205,7 @@ function valInCtx(context: Ctx, core: Core): Value | undefined {
 
 export {
   valInCtx,
-  now, readBack, readBackType, readBackNeutral, valOfClosure, valOf, valOfCtx, readBackContext
+  now, readBack, readBackType, readBackNeutral, valOfClosure, valOf, valOfCtx, readBackContext, doAp, PIType
 };
 
 
