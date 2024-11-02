@@ -862,34 +862,68 @@ class stop extends Perhaps<undefined> {
 function goOn(
   bindings: Array<[TSMeta | any, Perhaps<any> | (() => Perhaps<any>)]>,
   finalExpr: any
-): stop | any{
+): stop | any {
   if (bindings.length === 0) {
     return finalExpr;
   }
   const [[meta, perhapsf], ...rest] = bindings;
-  if(perhapsf instanceof Function) {
-    const perhaps = perhapsf();
-    if (perhaps.isGo()) {
-      meta.value = (perhaps as go<any>).result;
-      if(finalExpr.toString().includes("=>")) {
-        return goOn(rest, finalExpr());
+  // if (Array.isArray(meta)) {
+  //   if (meta[0] === 'the' && meta[1] instanceof TSMeta
+  //     && meta[2] instanceof TSMeta) {
+  //     const meta1 = meta[1] as TSMeta;
+  //     const meta2 = meta[2] as TSMeta;
+  //     if (perhapsf instanceof Function) {
+  //       const perhaps = perhapsf();
+  //       if (perhaps.isGo()) {
+  //         meta1.value = (perhaps as go<any>).result[1];
+  //         meta2.value = (perhaps as go<any>).result[2];
+  //         if (finalExpr.toString().includes("=>")) {
+  //           return goOn(rest, finalExpr());
+  //         }
+  //         return goOn(rest, finalExpr);
+  //       } else {
+  //         return perhaps;
+  //       }
+  //     } else {
+  //       if (perhapsf.isGo()) {
+  //         meta1.value = (perhapsf as go<any>).result[1];
+  //         meta2.value = (perhapsf as go<any>).result[2];
+  //         if (finalExpr.toString().includes("=>")) {
+  //           return goOn(rest, finalExpr());
+  //         }
+  //         return goOn(rest, finalExpr);
+  //       } else {
+  //         return perhapsf;
+  //       }
+  //     }
+  //   }
+  // } else {
+    if (perhapsf instanceof Function) {
+      const perhaps = perhapsf();
+      if (perhaps.isGo()) {
+        meta.value = (perhaps as go<any>).result;
+        if (finalExpr.toString().includes("=>")) {
+          return goOn(rest, finalExpr());
+        }
+        return goOn(rest, finalExpr);
+      } else {
+        return perhaps;
       }
-      return goOn(rest, finalExpr);
     } else {
-      return perhaps;
-    }
-  } else {
-    if (perhapsf.isGo()) {
-      meta.value = (perhapsf as go<any>).result;
-      if(finalExpr.toString().includes("=>")) {
-        return goOn(rest, finalExpr());
+      if (perhapsf.isGo()) {
+        meta.value = (perhapsf as go<any>).result;
+        if (finalExpr.toString().includes("=>")) {
+          return goOn(rest, finalExpr());
+        }
+        return goOn(rest, finalExpr);
+      } else {
+        return perhapsf;
       }
-      return goOn(rest, finalExpr);
-    } else {
-      return perhapsf;
     }
-  }
+  // }
 }
+
+
 
 
 /*
@@ -1047,20 +1081,20 @@ abstract class TSMeta {
 }
 
 class TSMetaCore extends TSMeta {
-  constructor(public value: Core | null, public name: Symbol) { 
+  constructor(public value: Core | null, public name: Symbol) {
     super();
   }
 }
 
 
 class TSMetaValue extends TSMeta {
-  constructor(public value: Value | null, public name: Symbol) { 
+  constructor(public value: Value | null, public name: Symbol) {
     super();
   }
 }
 
 class TSMetaVoid extends TSMeta {
-  constructor(public value: any | null, public name: Symbol) { 
+  constructor(public value: any | null, public name: Symbol) {
     super();
   }
 }

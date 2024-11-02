@@ -395,68 +395,65 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
   })
   .with(['which-Nat', P._, P._, P._], ([_, tgt, b, s]) => {
     const tgtout = new TSMetaCore(null, Symbol('tgtout'));
-    const bout = new TSMetaCore(null, Symbol('bout'));
-    const btout = new TSMetaCore(null, Symbol('btout'));
+    const b_rst = new TSMetaCore(null, Symbol('b_rst'));
     const sout = new TSMetaCore(null, Symbol('sout'));
     return goOn([
       [tgtout, check(Γ, r, tgt, 'NAT')],
-      [['the', btout, bout], synth(Γ, r, b)],
+      [b_rst, synth(Γ, r, b)],
       [sout, () => check(Γ, r, s, 
         (() => {
           const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
-          return new PI(n_minus_1, 'NAT', new FO_CLOS(ctxToEnv(Γ), n_minus_1, btout.value!));
+          return new PI(n_minus_1, 'NAT', new FO_CLOS(ctxToEnv(Γ), n_minus_1, b_rst.value![1]));
         })()
     )],
     ],
     () => 
       new go(
-        ['the', btout.value!,
-          ['which-Nat', tgtout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ['the', b_rst.value![1],
+          ['which-Nat', tgtout.value!, ['the', b_rst.value![1], b_rst.value![2]], sout.value!]
         ]
       ));
   })
   .with(['iter-Nat', P._, P._, P._], ([_, tgt, b, s]) => {
     const tgtout = new TSMetaCore(null, Symbol('tgtout'));
-    const bout = new TSMetaCore(null, Symbol('bout'));
-    const btout = new TSMetaCore(null, Symbol('btout'));
+    const b_rst = new TSMetaCore(null, Symbol('b_rst'));
     const sout = new TSMetaCore(null, Symbol('sout'));
     return goOn([
       [tgtout, check(Γ, r, tgt, 'NAT')],
-      [['the', btout, bout], synth(Γ, r, b)],
+      [b_rst, synth(Γ, r, b)],
       [sout, () => check(Γ, r, s, 
         (() => {
           const old = fresh(Γ, Symbol('old'));
-          return valInCtx(Γ, ['Π', [[old, btout.value!]], btout.value!])!;
+          return valInCtx(Γ, ['Π', [[old, b_rst.value![1]]], b_rst.value![1]])!;
         })()
     )],
     ],
     () => 
       new go(
-        ['the', btout.value!,
-          ['iter-Nat', tgtout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ['the', b_rst.value![1],
+          ['iter-Nat', tgtout.value!, ['the', b_rst.value![1], b_rst.value![2]], sout.value!]
         ]
       ));
   })
   .with(['rec-Nat', P._, P._, P._], ([_, tgt, b, s]) => {
     const tgtout = new TSMetaCore(null, Symbol('tgtout'));
-    const bout = new TSMetaCore(null, Symbol('bout'));
-    const btout = new TSMetaCore(null, Symbol('btout'));
+    const b_rst = new TSMetaCore(null, Symbol('b_rst'));
     const sout = new TSMetaCore(null, Symbol('sout'));
     return goOn([
       [tgtout, check(Γ, r, tgt, 'NAT')],
-      [['the', btout, bout], synth(Γ, r, b)],
+      [b_rst, synth(Γ, r, b)],
       [sout, () => check(Γ, r, s, 
         (() => {
           const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
           const old = fresh(Γ, Symbol('old'));
-          return valInCtx(Γ, ['Π', [[n_minus_1, 'Nat'], [old, btout.value!]], btout.value!])!;
+          return valInCtx(Γ, ['Π', [[n_minus_1, 'Nat']], [ 'Π', [[old, b_rst.value![1]]], b_rst.value![1]]])!;
         })()
     )],
     ],
     () => 
       new go(
-        ['the', btout.value!,
-          ['rec-Nat', tgtout.value!, ['the', btout.value!, bout.value!], sout.value!]
+        ['the', b_rst.value![1],
+          ['rec-Nat', tgtout.value!, ['the', b_rst.value![1], b_rst.value![2]], sout.value!]
         ]
       ));
   })
@@ -465,13 +462,12 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     const motout = new TSMetaCore(null, Symbol('motout'));
     const motval = new TSMetaValue(null, Symbol('motval'));
     const bout = new TSMetaCore(null, Symbol('bout'));
-    const btout = new TSMetaCore(null, Symbol('btout'));
     const sout = new TSMetaCore(null, Symbol('sout'));
     return goOn([
       [tgtout, check(Γ, r, tgt, 'NAT')],
       [motout, check(Γ, r, mot, new PI(Symbol('n'), 'NAT', new HO_CLOS((n) => 'UNIVERSE')))],
       [motval, () => new go(valInCtx(Γ, motout.value!)!)],
-      [bout, check(Γ, r, b, () => doAp(motval.value!, 'zero'))],
+      [bout, () => check(Γ, r, b, doAp(motval.value!, 'zero'))],
       [sout, () => check(Γ, r, s, 
         (() => {
           const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
@@ -541,7 +537,34 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     }
   })
   .with(['car', P._], ([_, p]) => {
-    
+    const p_rst = new TSMetaCore(null, Symbol('p_rst'));
+    return goOn(
+      [[p_rst, synth(Γ, r, p)]],
+      () => {
+        const val = valInCtx(Γ, p_rst.value![1])!;
+        if (val instanceof SIGMA) {
+          const [x, A, clos] = [val.carName, val.carType, val.cdrType];
+          return new go(['the', readBackType(Γ, A), ['car', p_rst.value![2]]]);
+        } else {
+          return new stop(srcLoc(e), [`car requires a Pair type, but was used as a: ${readBackType(Γ, val)}.`]);
+        }
+      }
+    )
+  })
+  .with(['cdr', P._], ([_, p]) => {
+    const p_rst = new TSMetaCore(null, Symbol('p_rst'));
+    return goOn(
+      [[p_rst, synth(Γ, r, p)]],
+      () => {
+        const result = valInCtx(Γ, p_rst.value![1])!;
+        if (result instanceof SIGMA) {
+          const [x, A, clos] = [result.carName, result.carType, result.cdrType];
+          return new go(['the', valOfClosure(clos, new NEU(A, new N_Var(x)))!, ['cdr', p_rst.value![2]]]);
+        } else {
+          return new stop(srcLoc(e), [`cdr requires a Pair type, but was used as a: ${readBackType(Γ, result)}.`]);
+        }
+      }
+    )
   })
 }
 
