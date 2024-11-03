@@ -1044,6 +1044,51 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         () => new go(['the', tout.value!, eout.value!])
       );
     })
+    .with([P._, P._, P.array()], ([rator, rand, last]) => {
+      if (rand instanceof Src && Array.isArray(last)) {
+        if (last.length === 0) {
+          if (rator instanceof Src) {
+            const therator = new TSMetaCore(null, Symbol('therator'));
+            return goOn(
+              [[therator, synth(Γ, r, rator)]],
+              () => {
+                const result = valInCtx(Γ, therator.value![1])!;
+                if (result instanceof PI) {
+                  const [x, A, c] = [result.argName, result.argType, result.resultType];
+                  const randout = new TSMetaCore(null, Symbol('randout'));
+                  return goOn(
+                    [[randout, check(Γ, r, rand, A)]],
+                    () => new go(['the', readBackType(Γ, valOfClosure(c, valInCtx(Γ, randout.value!)!)!), [therator.value![2], randout.value!]])
+                  );
+                } else {
+                  return new stop(srcLoc(e), [`Not a function type: ${readBackType(Γ, result)}.`]);
+                }
+              }
+            );
+          }
+        } else {
+          if (last.every(item => item instanceof Src)) {
+            const appmeta = new TSMetaCore(null, Symbol('appmeta'));
+            return goOn(
+              [[appmeta, synth(Γ, r, new Src(srcLoc(e), [rator, rand, ...last]))]],
+              () => {
+                const result = valInCtx(Γ, appmeta.value![1])!;
+                if (result instanceof PI) {
+                  const [x, A, c] = [result.argName, result.argType, result.resultType];
+                  const randout = new TSMetaCore(null, Symbol('randout'));
+                  return goOn(
+                    [[randout, check(Γ, r, rand, A)]],
+                    () => new go(['the', readBackType(Γ, valOfClosure(c, valInCtx(Γ, randout.value!)!)!), [appmeta.value![2], randout.value!]])
+                  );
+                } else {
+                  return new stop(srcLoc(e), [`Not a function type: ${readBackType(Γ, result)}.`]);
+                }
+              }
+            );
+          }
+        }
+      }
+    })
     .otherwise(other => new go(['the', 'U', 'Trivial']));
   return theExpr;
 }
