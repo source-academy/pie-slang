@@ -38,12 +38,9 @@ import {
   ctxToEnv,
   MetaVar,
   LIST_CONS,
-<<<<<<< HEAD
   SAME,
-=======
   LEFT,
   RIGHT,
->>>>>>> 33fb28c2c5b8ee8b8271a900cb8263695ba1bf38
 } from './basics'
 
 import {
@@ -1070,7 +1067,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
           if (last.every(item => item instanceof Src)) {
             const appmeta = new TSMetaCore(null, Symbol('appmeta'));
             return goOn(
-              [[appmeta, synth(Γ, r, new Src(srcLoc(e), [rator, rand, ...last]))]],
+              [[appmeta, synth(Γ, r, new Src(srcLoc(e), [rator, rand, last]))]],
               () => {
                 const result = valInCtx(Γ, appmeta.value![1])!;
                 if (result instanceof PI) {
@@ -1089,8 +1086,42 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         }
       }
     })
-    .otherwise(other => new go(['the', 'U', 'Trivial']));
-  return theExpr;
+    .otherwise(x => {
+      if(x instanceof Symbol && isVarName(x)) {
+        const realx = rename(r, x);
+        const xtv = new TSMetaValue(null, Symbol('xtv'));
+        return goOn(
+          [[xtv, varType(Γ, srcLoc(e), realx)]],
+          () => {
+            const result = Γ.find(([key, value]) => key === realx);
+            if(result instanceof Array && result[1] instanceof Def) {
+              SendPieInfo(srcLoc(e), 'definition');
+            } else {
+              return new go(['the', readBackType(Γ, xtv.value!), realx]);
+            }
+          })
+      } else if(typeof(x) === 'number') {
+        if (x === 0) {
+          return new go(['the', 'NAT', 'ZERO']);
+        } else if (x > 0) {
+          const n_minus1_out = new TSMetaCore(null, Symbol('n_minus1_out'));
+          return goOn(
+            [[n_minus1_out, check(Γ, r, new Src(srcLoc(e), x - 1), 'NAT')]],
+            () => new go(['the', 'NAT', ['ADD1', n_minus1_out.value!]])
+          )
+        }
+      } else {
+        return new stop(srcLoc(e), [`Can't determine a type: ${x}.`]);
+      }
+    })!;
+  const result = new TSMetaCore(null, Symbol('result'));
+  return goOn(
+    [[result, theExpr]],
+    () => {
+      SendPieInfo(srcLoc(e), ['has-type', result.value![1]]);
+      return theExpr;
+    }
+  );
 }
 
 
