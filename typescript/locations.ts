@@ -2,12 +2,14 @@
 // type Datum = number | Symbol | boolean | undefined | Datum[];
 type Datum = Symbol;
 export class Syntax {
-  public datum: Datum;
-  public source: Symbol;
-  public line: number;
-  public column: number;
-  public position: number;
-  public span: number;
+  public constructor(
+    public datum: Datum,
+    public source: Symbol,
+    public line: number,
+    public column: number,
+    public position: number,
+    public span: number
+  ) { }
 }
 
 
