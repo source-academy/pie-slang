@@ -64,7 +64,7 @@ const ctx1: Ctx = [[Symbol("y"), new Free("NAT")]];
 const result1 = ctxToEnv(ctx1);
 console.log(result1)
 
-const ctx2: Ctx = [[Symbol("z"), new Claim("NAT")]];
+/* const ctx2: Ctx = [[Symbol("z"), new Claim("NAT")]];
 const result2 = ctxToEnv(ctx2);
 console.log(result2)
 
@@ -89,4 +89,4 @@ console.log(v)
 
 const t = varType(ctx3, null, Symbol("y"))
 console.log(t)
-
+ */

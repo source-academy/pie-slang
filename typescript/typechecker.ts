@@ -55,7 +55,7 @@ import {
   PIType,
 } from './normalize'
 import { alphaEquiv } from './alpha'
-import { isForInfo, location, locationToSrcLoc, notForInfo } from './locations'
+import { isForInfo, Location, locationToSrcLoc, notForInfo } from './locations'
 
 import { match, P } from 'ts-pattern'
 import { isForInStatement } from 'typescript'
@@ -1400,7 +1400,7 @@ function makeApp(a: Src, b: Src, cs: Src[]): Src {
 
 describe('isType', () => {
   let ctx: Ctx = [];
-  let loc: location;
+  let loc: Location;
   const emptyRenaming: [] = [];
 
   beforeEach(() => {
@@ -1408,7 +1408,7 @@ describe('isType', () => {
     loc = {
       syntax: {
         datum: Symbol(),
-        source: "0",
+        source: Symbol('0'),
         line: 0,
         column: 0,
         span: 0,
@@ -1513,3 +1513,5 @@ describe('isType', () => {
     expect(result).toBeInstanceOf(go);
   });
 });
+
+export {isType, synth, check, sameType, convert, addClaim, addDef, makeApp, atomOk, allOkAtom, isAlphabetic};

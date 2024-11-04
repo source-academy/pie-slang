@@ -1,10 +1,10 @@
-import { syntaxToLocation, notForInfo, locationToSrcLoc, location } from './locations';
+import { syntaxToLocation, notForInfo, locationToSrcLoc, Location } from './locations';
 import { freshen } from './fresh';
 // Define Srcloc as a tuple type
 type Srcloc = [Symbol, number, number, number, number];
 
 // Define Loc as an alias for PreciseLoc
-type Loc = location;
+type Loc = Location;
 
 /*
   All built-in Keywords for Pie.
@@ -860,18 +860,18 @@ class stop extends Perhaps<undefined> {
 */
 // review this function when needed: BUG MAY OCCUR
 function goOn(
-  bindings: Array<[TSMeta | any, Perhaps<any> | (() => Perhaps<any>)]>,
+  bindings: Array<[TSMeta, Perhaps<any> | (() => Perhaps<any>)]>,
   finalExpr: any
-): stop | any {
+): stop | any{
   if (bindings.length === 0) {
     return finalExpr;
   }
   const [[meta, perhapsf], ...rest] = bindings;
-  if (perhapsf instanceof Function) {
+  if(perhapsf instanceof Function) {
     const perhaps = perhapsf();
     if (perhaps.isGo()) {
       meta.value = (perhaps as go<any>).result;
-      if (finalExpr.toString().includes("=>")) {
+      if(finalExpr.toString().includes("=>")) {
         return goOn(rest, finalExpr());
       }
       return goOn(rest, finalExpr);
@@ -881,7 +881,7 @@ function goOn(
   } else {
     if (perhapsf.isGo()) {
       meta.value = (perhapsf as go<any>).result;
-      if (finalExpr.toString().includes("=>")) {
+      if(finalExpr.toString().includes("=>")) {
         return goOn(rest, finalExpr());
       }
       return goOn(rest, finalExpr);
@@ -889,10 +889,7 @@ function goOn(
       return perhapsf;
     }
   }
-  // }
 }
-
-
 
 
 /*
@@ -1050,20 +1047,20 @@ abstract class TSMeta {
 }
 
 class TSMetaCore extends TSMeta {
-  constructor(public value: Core | null, public name: Symbol) {
+  constructor(public value: Core | null, public name: Symbol) { 
     super();
   }
 }
 
 
 class TSMetaValue extends TSMeta {
-  constructor(public value: Value | null, public name: Symbol) {
+  constructor(public value: Value | null, public name: Symbol) { 
     super();
   }
 }
 
 class TSMetaVoid extends TSMeta {
-  constructor(public value: any | null, public name: Symbol) {
+  constructor(public value: any | null, public name: Symbol) { 
     super();
   }
 }
@@ -1153,5 +1150,7 @@ export {
   TSMetaValue,
   TSMetaCore,
   TSMetaVoid,
+  Srcloc,
+  BindingSite,
 };
 

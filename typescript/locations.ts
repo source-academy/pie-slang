@@ -1,9 +1,9 @@
 
-type Datum = number | Symbol | boolean | undefined | Datum[];
-
-class syntax {
+// type Datum = number | Symbol | boolean | undefined | Datum[];
+type Datum = Symbol;
+export class Syntax {
   public datum: Datum;
-  public source: string;
+  public source: Symbol;
   public line: number;
   public column: number;
   public position: number;
@@ -11,9 +11,9 @@ class syntax {
 }
 
 
-export class location {
+export class Location {
   constructor(
-    public syntax: syntax,
+    public syntax: Syntax,
     public forInfo: boolean
   ) { };
 }
@@ -22,19 +22,19 @@ export class location {
     * Function to create a Location from a syntax object.
     * The forInfo field is set to true.
 */
-export function syntaxToLocation(stx: syntax): location {
-  return new location(stx, true);
+export function syntaxToLocation(stx: Syntax): Location {
+  return new Location(stx, true);
 }
 
 /*
     * Function to create a Location from a syntax object.
     * The forInfo field is set to false.
 */
-export function notForInfo(loc: location): location {
-  return new location(loc.syntax, false);
+export function notForInfo(loc: Location): Location {
+  return new Location(loc.syntax, false);
 }
 
-export function isForInfo(loc: location): boolean {
+export function isForInfo(loc: Location): boolean {
   return loc.forInfo;
 }
 
@@ -43,7 +43,7 @@ export function isForInfo(loc: location): boolean {
     * The source location is a tuple of the form:
     *   [source, line, column, position, span]
 */
-export function locationToSrcLoc(loc: location): [string, number, number, number, number] {
+export function locationToSrcLoc(loc: Location): [Symbol, number, number, number, number] {
   const stx = loc.syntax;
   return [
     stx.source, 

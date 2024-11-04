@@ -26,8 +26,10 @@
     [(stop _ m)
      (check-equal? m msg-wanted)]))
 
+;;;;
 (check-equal? (val-of (ctx->env init-ctx) '(the Nat zero)) 'ZERO)
 
+;;;;
 (check-equal?
  (rep init-ctx
       (parse-pie #'(the (-> Nat Nat)
@@ -36,10 +38,12 @@
  (go '(the (Π ((x Nat)) Nat)
            (λ (my-var) my-var))))
 
+;;;;
 (check-equal?
  (rep init-ctx (parse-pie #'(the (-> Nat Nat Nat) (lambda (x x) x))))
  (go '(the (Π ((x Nat)) (Π ((x₁ Nat)) Nat)) (λ (x) (λ (x₁) x₁)))))
 
+;;;;
 (check-equal?
  (rep init-ctx (parse-pie #'(the (-> Nat Nat) (λ (z) z))))
  (go '(the (Π ((x Nat)) Nat) (λ (z) z))))
