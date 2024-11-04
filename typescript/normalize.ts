@@ -76,9 +76,11 @@ function undelay(c: DELAY_CLOS): Value {
   evaluation steps be carried out.
 */
 function now(v: Value): Value {
+  console.log("李老八3.5", v);
   if (v instanceof DELAY && v.val instanceof Box) {
     const content = v.val.contents;
     if (content instanceof DELAY_CLOS) {
+      console.log('李老八4', content);
       let theValue = undelay(content);
       v.val.contents = theValue;
       return theValue;
@@ -592,6 +594,7 @@ function getCoreType(expr: Core): string {
 }
 
 function valOf(env: Env, expr: Core): Value | undefined{
+  console.log("李老八5 ", expr);
   switch (getCoreType(expr)) {
     case 'the':
       return valOf(env, expr[2]);
@@ -1212,7 +1215,7 @@ export {
 
 
 
-
+/* 
 // Sample mock objects and environment setup
 const mockSymbol = Symbol('x'); // Replace with actual Symbol
 const mockValue = new ADD1('ZERO'); // Mock Value for testing
@@ -1339,3 +1342,4 @@ describe('Normalization Tests', () => {
 });
 
 
+ */
