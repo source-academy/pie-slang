@@ -143,9 +143,9 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const tout = new TSMetaCore(null, Symbol('tout'));
         return goOn(
           [[Aout, isType(Γ, r, A)],
-          [tout, isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r,
+          [tout, () => isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r,
             new Src(srcLoc(input), ['->', B, C, rest]))]],
-          new go(['Π', [[x, Aout.value!]], tout.value!])
+            () => new go(['Π', [[x, Aout.value!]], tout.value!])
         )
       }
     })
@@ -1036,7 +1036,10 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       return goOn(
         [
           [tout, isType(Γ, r, t)],
-          [eout, () => check(Γ, r, e, valInCtx(Γ, tout.value!)!)],
+          [eout, () => {
+            console.log(tout.value!)
+            return check(Γ, r, e, valInCtx(Γ, tout.value!)!)
+          }],
         ],
         () => new go(['the', tout.value!, eout.value!])
       );
@@ -1133,6 +1136,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
         const xloc = xBinding[0][1];
         const nt = now(tv);
         if (nt instanceof PI) {
+          console.log(nt);
           const y = nt.argName;
           const A = nt.argType;
           const c = nt.resultType;
