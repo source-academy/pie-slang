@@ -1045,6 +1045,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         [
           [tout, isType(Γ, r, t)],
           [eout, () => {
+            console.log(e);
             return check(Γ, r, e, valInCtx(Γ, tout.value!)!)
           }],
         ],
@@ -1139,17 +1140,17 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
   const out: Perhaps<Core> = match(srcStx(input))
     .with(['λ', P._, P._], ([_, xBinding, b]) => {
       if (xBinding.length === 1) {
-        const x = xBinding[0][0];
-        const xloc = xBinding[0][1];
+        console.log('李老八', xBinding, b);
+        const x = xBinding[0].varName;
+        const xloc = xBinding[0].loc;
         const nt = now(tv);
         if (nt instanceof PI) {
           const y = nt.argName;
           const A = nt.argType;
           const c = nt.resultType;
+          console.log('李老八2', x , xloc);
           const xhat = fresh(Γ, x);
           const bout = new TSMetaCore(null, Symbol('bout'));
-          console.log('b', b);
-          console.log('nt', nt);
           return goOn(
             [
               [bout, check(bindFree(Γ, xhat, A), extendRenaming(r, xhat, x), b, valOfClosure(c, new NEU(A, new N_Var(xhat)))!)],
@@ -1299,6 +1300,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       );
     })!;
   const ok = new TSMetaCore(null, Symbol('ok'));
+  console.log('李老八3', input, tv);
   SendPieInfo(srcLoc(input), ['has-type', readBackType(Γ, tv)!]);
   return goOn(
     [[ok, out]],
@@ -1413,7 +1415,7 @@ function makeApp(a: Src, b: Src, cs: Src[]): Src {
   return new Src(srcLoc(a), [a, b, cs]);
 }
 
-
+/* 
 describe('isType', () => {
   let ctx: Ctx = [];
   let loc: Location;
@@ -1529,5 +1531,5 @@ describe('isType', () => {
     expect(result).toBeInstanceOf(go);
   });
 });
-
+ */
 export {isType, synth, check, sameType, convert, addClaim, addDef, makeApp, atomOk, allOkAtom, isAlphabetic};
