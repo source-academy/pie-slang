@@ -125,7 +125,9 @@ function extendRenaming(r: Renaming, from: Symbol, to: Symbol): Renaming {
 function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
   const theType: Perhaps<Core> = match(srcStx(input))
     .with('U', () => new go('U'))
-    .with('Nat', () => new go('Nat'))
+    .with('Nat', () => {
+      return new go('Nat');
+    })
     .with(['->', P._, P._, P.array()], ([_, A, B, arr]) => {
       if (arr.length === 0) {
         const x = freshBinder(Γ, B, Symbol('x'));
@@ -133,8 +135,14 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
           [[Aout, isType(Γ, r, A)],
-          [Bout, () => isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r, B)],],
-          () => new go(['Π', [[x, Aout.value!]], Bout.value!])
+          [Bout, () => {
+            const bf = bindFree(Γ, x, valInCtx(Γ, Aout.value!)!);
+            return isType(bf, r, B)
+          }],],
+          () => {
+            console.log('地上足球');
+            return new go(['Π', [[x, Aout.value!]], Bout.value!]);
+          }
         );
       } else {
         const [C, ...rest] = arr;
@@ -1037,7 +1045,6 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         [
           [tout, isType(Γ, r, t)],
           [eout, () => {
-            console.log(tout.value!)
             return check(Γ, r, e, valInCtx(Γ, tout.value!)!)
           }],
         ],
@@ -1114,7 +1121,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
           )
         }
       } else {
-        return new stop(srcLoc(e), [`Can't determine a type: ${x}.`]);
+        return new stop(srcLoc(e), [`Can't determine a type: ${x.toString()}.`]);
       }
     })!;
   const result = new TSMetaCore(null, Symbol('result'));
@@ -1136,12 +1143,13 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
         const xloc = xBinding[0][1];
         const nt = now(tv);
         if (nt instanceof PI) {
-          console.log(nt);
           const y = nt.argName;
           const A = nt.argType;
           const c = nt.resultType;
           const xhat = fresh(Γ, x);
           const bout = new TSMetaCore(null, Symbol('bout'));
+          console.log('b', b);
+          console.log('nt', nt);
           return goOn(
             [
               [bout, check(bindFree(Γ, xhat, A), extendRenaming(r, xhat, x), b, valOfClosure(c, new NEU(A, new N_Var(xhat)))!)],
@@ -1283,8 +1291,12 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       return new go(["TODO", locationToSrcLoc(srcLoc(input)), ty]);
     })
     .otherwise(other => {
-      // TODO: this one needs to be added
-      console.log('转载请注明独人13');
+      const thet = new TSMetaCore(null, Symbol('thet'));
+      const ph = new TSMetaVoid(null, Symbol('ph'));
+      return goOn(
+        [[thet, synth(Γ, r, input)], [ph, () => sameType(Γ, srcLoc(input), thet.value![1], tv)]],
+        () => new go(thet.value![2])
+      );
     })!;
   const ok = new TSMetaCore(null, Symbol('ok'));
   SendPieInfo(srcLoc(input), ['has-type', readBackType(Γ, tv)!]);

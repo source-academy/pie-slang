@@ -18,7 +18,7 @@ import {
 } from './rep';
 
 import { Location, Syntax } from './locations';
-const nl = new Location(new Syntax(), false);
+const nl = new Location(new Syntax(), true);
 
 describe("valOf", () => {
   it("should return ZERO", () => {
@@ -46,7 +46,7 @@ describe ("lambda(var) var", () => {
   })
   
   it("case lambda(z) => z", () => {
-    const src = new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), new Src(nl, ['λ', [new BindingSite(nl, Symbol('z'))], new Src(nl, Symbol('z'))])]);
+    const src = new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), new Src(nl, ['λ', [new BindingSite(nl, Symbol('z'))], new Src(nl, Symbol('z1'))])]);
     const actual = new go(['the', ['Π', ['z', 'Nat'], 'Nat', 'z']])
     expect(rep(initCtx, src)).toEqual(actual);  
   })

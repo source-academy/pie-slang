@@ -864,6 +864,9 @@ function goOn(
   finalExpr: any
 ): stop | any{
   if (bindings.length === 0) {
+    if(finalExpr instanceof Function) {
+      return finalExpr();
+    }
     return finalExpr;
   }
   const [[meta, perhapsf], ...rest] = bindings;
@@ -871,9 +874,7 @@ function goOn(
     const perhaps = perhapsf();
     if (perhaps.isGo()) {
       meta.value = (perhaps as go<any>).result;
-      if(finalExpr.toString().includes("=>")) {
-        return goOn(rest, finalExpr());
-      }
+      console.log("meta", meta.value);
       return goOn(rest, finalExpr);
     } else {
       return perhaps;
@@ -881,9 +882,6 @@ function goOn(
   } else {
     if (perhapsf.isGo()) {
       meta.value = (perhapsf as go<any>).result;
-      if(finalExpr.toString().includes("=>")) {
-        return goOn(rest, finalExpr());
-      }
       return goOn(rest, finalExpr);
     } else {
       return perhapsf;
