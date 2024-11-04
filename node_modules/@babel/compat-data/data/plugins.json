@@ -5,7 +5,16 @@
     "edge": "126",
     "firefox": "129",
     "safari": "17.4",
+    "node": "23",
     "ios": "17.4",
+    "electron": "31.0"
+  },
+  "transform-regexp-modifiers": {
+    "chrome": "125",
+    "opera": "111",
+    "edge": "125",
+    "firefox": "132",
+    "node": "23",
     "electron": "31.0"
   },
   "transform-unicode-sets-regex": {
