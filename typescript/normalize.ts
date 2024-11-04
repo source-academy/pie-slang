@@ -78,9 +78,7 @@ function undelay(c: DELAY_CLOS): Value {
 function now(v: Value): Value {
   if (v instanceof DELAY && v.val instanceof Box) {
     const content = v.val.contents;
-    // console.log("giggity, now: " + content);
     if (content instanceof DELAY_CLOS) {
-    console.log("giggity, undelay: " + content);
       let theValue = undelay(content);
       v.val.contents = theValue;
       return theValue;

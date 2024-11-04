@@ -18,7 +18,7 @@ import {
 } from './rep';
 
 import { Location, Syntax } from './locations';
-const nl = new Location(new Syntax(), true);
+const nl =  null !// new Location(new Syntax(Symbol('a'), Symbol('b'), 0,0,0,0), true);
 
 describe("valOf", () => {
   it("should return ZERO", () => {

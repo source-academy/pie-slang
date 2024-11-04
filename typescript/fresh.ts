@@ -27,7 +27,7 @@ const subscriptReplacements: Record<string, string> = {
   
   // Main freshen function
   function freshen(used: Symbol[], x: Symbol): Symbol {
-    if (used.includes(x)) {
+    if (used.map(sym => sym.toString()).includes(x.toString())) {
       const split = splitName(x);
       return freshenAux(used, split);
     }
