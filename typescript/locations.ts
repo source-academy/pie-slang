@@ -2,7 +2,7 @@
 // type Datum = number | Symbol | boolean | undefined | Datum[];
 type Datum = Symbol;
 export class Syntax {
-  public constructor(
+  constructor(
     public datum: Datum,
     public source: Symbol,
     public line: number,
