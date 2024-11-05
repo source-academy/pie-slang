@@ -21,7 +21,7 @@ function findBinding(x: Symbol, b: Bindings): [Symbol, number] | undefined {
 }
 
 function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: Core, e2: Core): boolean {
-  if (e1 instanceof Symbol && e2 instanceof Symbol) {
+  if (typeof e1 === 'symbol' && typeof e2 === 'symbol') {
     if (isVarName(e1) && isVarName(e2)) {
       const xBinding = findBinding(e1 as Symbol, b1);
       const yBinding = findBinding(e2 as Symbol, b2);
@@ -55,7 +55,7 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: Core, e2: Co
       return e1[1] === 'Absurd' && e2[1] === 'Absurd';
     } else if (e1.length === 2 && e2.length === 2) {
       // all other cases of pairs
-      if (e1[0] instanceof Symbol && e2[0] instanceof Symbol) {
+      if (typeof e1[0] === 'symbol' && typeof e2[0] === 'symbol') {
         const kw1 = e1[0].toString(); 
         const kw2 = e2[0].toString();
         if(!(kw1 === 'λ' || kw1 === 'Π' || kw1 === 'Σ' || kw1 === 'TODO') &&

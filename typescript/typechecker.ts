@@ -309,7 +309,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       const result = check(Γ, r, new Src(srcLoc(input), other), 'UNIVERSE');
       if (result instanceof go) {
         return result;
-      } else if ((other instanceof Symbol) && (isVarName(other))) {
+      } else if ((typeof other === 'symbol') && (isVarName(other))) {
         const othertv = new TSMetaValue(null, Symbol('othertv'));
         return goOn(
           [[othertv, varType(Γ, srcLoc(input), other)!]],
@@ -1098,7 +1098,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       }
     })
     .otherwise(x => {
-      if(x instanceof Symbol && isVarName(x)) {
+      if(typeof x === 'symbol' && isVarName(x)) {
+        console.log('李老八6', x);
         const realx = rename(r, x);
         const xtv = new TSMetaValue(null, Symbol('xtv'));
         return goOn(
@@ -1150,12 +1151,24 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           const c = nt.resultType;
           console.log('李老八2', x , xloc);
           const xhat = fresh(Γ, x);
+          console.log('李老八2.1', xhat);
           const bout = new TSMetaCore(null, Symbol('bout'));
+          console.log('李老八2.1.1', check(
+            bindFree(Γ, xhat, A),
+            extendRenaming(r, x, xhat), 
+            b,
+            valOfClosure(c, new NEU(A, new N_Var(xhat)))!));
           return goOn(
             [
-              [bout, check(bindFree(Γ, xhat, A), extendRenaming(r, xhat, x), b, valOfClosure(c, new NEU(A, new N_Var(xhat)))!)],
+              [bout, check(
+                bindFree(Γ, xhat, A),
+                extendRenaming(r, x, xhat), 
+                b,
+                valOfClosure(c, new NEU(A, new N_Var(xhat)))!)
+              ],
             ],
             (() => {
+              console.log('李老八2.2', bout);
               PieInfoHook(xloc, ['binding-site', readBackType(Γ, A)!]);
               return new go(['λ', [xhat], bout.value!])
             }))
@@ -1294,9 +1307,13 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
     .otherwise(other => {
       const thet = new TSMetaCore(null, Symbol('thet'));
       const ph = new TSMetaVoid(null, Symbol('ph'));
+      console.log('李老八symbol', input, synth(Γ, r, input));
       return goOn(
-        [[thet, synth(Γ, r, input)], [ph, () => sameType(Γ, srcLoc(input), thet.value![1], tv)]],
-        () => new go(thet.value![2])
+        [[thet, synth(Γ, r, input)], [ph, () => {console.log(sameType(Γ, srcLoc(input), thet.value![1], tv)); return sameType(Γ, srcLoc(input), thet.value![1], tv)}]],
+        () => {
+          console.log('李老八symbol2', thet, ph);
+          new go(thet.value![2])
+        }
       );
     })!;
   const ok = new TSMetaCore(null, Symbol('ok'));

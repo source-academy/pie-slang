@@ -1655,3 +1655,5 @@
                               (lambda (x) (left x)))))
            Nat Trivial (left 2))))
  (go '(the (Either Trivial Nat) (right (add1 (add1 zero))))))
+
+(parse-pie #'(the (-> Nat Nat) (λ (z) z)))
