@@ -1150,7 +1150,12 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           const c = nt.resultType;
           const xhat = fresh(Γ, x);
           const bout = new TSMetaCore(null, Symbol('bout'));
-          console.log('李老八2.1.1');
+
+          console.log('李老八2.1.1', '\nGAMMA:', Γ, '\nR:', r, '\nA:', A, '\nB:', b, '\nC:', c, '\nX:', x, '\nXHAT:', xhat);
+          console.log('李老八2.1.2', bindFree(Γ, xhat, A),
+          extendRenaming(r, x, xhat), 
+          b,
+          valOfClosure(c, new NEU(A, new N_Var(xhat)))!);
           return goOn(
             [
               [bout, () => check(
@@ -1310,14 +1315,14 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           }]
         ],
         () => {
-          
+          console.log('李老八symbol2', thet);
           new go(thet.value![2])
         }
       );
     })!;
   const ok = new TSMetaCore(null, Symbol('ok'));
-  console.log('李老八3', input, tv);
   SendPieInfo(srcLoc(input), ['has-type', readBackType(Γ, tv)!]);
+  console.log('李老八3', out);
   return goOn(
     [[ok, out]],
     () => ok.value!
