@@ -54,6 +54,7 @@ import { locationToSrcLoc } from './locations';
 */
 
 function later(env: Env, expr: Core): Value {
+  console.log("李老八3.1", expr);
   return new DELAY(new Box(new DELAY_CLOS(env, expr)));
 }
 
@@ -594,7 +595,7 @@ function getCoreType(expr: Core): string {
 }
 
 function valOf(env: Env, expr: Core): Value | undefined{
-  console.log("李老八5 ", expr);
+  console.log("李老八5 ", expr, env);
   switch (getCoreType(expr)) {
     case 'the':
       return valOf(env, expr[2]);
@@ -607,7 +608,7 @@ function valOf(env: Env, expr: Core): Value | undefined{
     case 'add1':
       return new ADD1(later(env, expr[1]));
     case 'Π':
-      const Pi_A_v = later(env, expr[1][1]);
+      const Pi_A_v = later(env, expr[1][0][1]);
       return new PI(expr[1][0], Pi_A_v, new FO_CLOS(env, expr[1][0], expr[2]))
     case 'λ':
       return new LAM(expr[1][0], new FO_CLOS(env, expr[1][0], expr[2]));

@@ -22,9 +22,13 @@ function findBinding(x: Symbol, b: Bindings): [Symbol, number] | undefined {
 
 function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: Core, e2: Core): boolean {
   if (typeof e1 === 'symbol' && typeof e2 === 'symbol') {
-    if (isVarName(e1) && isVarName(e2)) {
-      const xBinding = findBinding(e1 as Symbol, b1);
-      const yBinding = findBinding(e2 as Symbol, b2);
+    return e1.toString() === e2.toString();
+  } else if (typeof e1 === 'string' && typeof e2 === 'string') {
+    const e1s = Symbol(e1);
+    const e2s = Symbol(e2);
+    if (isVarName(e1s) && isVarName(e2s)) {
+      const xBinding = findBinding(e1s as Symbol, b1);
+      const yBinding = findBinding(e2s as Symbol, b2);
       if (xBinding && yBinding) {
         // Both variables are bound, so we compare their levels
         return xBinding[1] === yBinding[1];
@@ -35,9 +39,9 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: Core, e2: Co
         // One variable is bound and the other is free
         return false;
       }
-    } else if (!isVarName(e1) && !isVarName(e2)) {
+    } else if (!isVarName(e1s) && !isVarName(e2s)) {
       // Constructor equality (e.g., 'U' === 'U')
-      return e1.toString() === e2.toString();
+      return e1 === e2;
     } else return false;
   } else if (Array.isArray(e1) && Array.isArray(e2)) {
     
