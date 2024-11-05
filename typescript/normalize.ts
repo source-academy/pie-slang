@@ -54,7 +54,6 @@ import { locationToSrcLoc } from './locations';
 */
 
 function later(env: Env, expr: Core): Value {
-  console.log("李老八3.1", expr);
   return new DELAY(new Box(new DELAY_CLOS(env, expr)));
 }
 
@@ -77,11 +76,9 @@ function undelay(c: DELAY_CLOS): Value {
   evaluation steps be carried out.
 */
 function now(v: Value): Value {
-  console.log("李老八3.5", v);
   if (v instanceof DELAY && v.val instanceof Box) {
     const content = v.val.contents;
     if (content instanceof DELAY_CLOS) {
-      console.log('李老八4', content);
       let theValue = undelay(content);
       v.val.contents = theValue;
       return theValue;
@@ -595,7 +592,6 @@ function getCoreType(expr: Core): string {
 }
 
 function valOf(env: Env, expr: Core): Value | undefined{
-  console.log("李老八5 ", expr, env);
   switch (getCoreType(expr)) {
     case 'the':
       return valOf(env, expr[2]);
