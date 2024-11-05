@@ -140,7 +140,6 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
             return isType(bf, r, B)
           }],],
           () => {
-            console.log('地上足球');
             return new go(['Π', [[x, Aout.value!]], Bout.value!]);
           }
         );
@@ -1149,18 +1148,12 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           const y = nt.argName;
           const A = nt.argType;
           const c = nt.resultType;
-          console.log('李老八2', x , xloc);
           const xhat = fresh(Γ, x);
-          console.log('李老八2.1', xhat);
           const bout = new TSMetaCore(null, Symbol('bout'));
-          console.log('李老八2.1.1', check(
-            bindFree(Γ, xhat, A),
-            extendRenaming(r, x, xhat), 
-            b,
-            valOfClosure(c, new NEU(A, new N_Var(xhat)))!));
+          console.log('李老八2.1.1');
           return goOn(
             [
-              [bout, check(
+              [bout, () => check(
                 bindFree(Γ, xhat, A),
                 extendRenaming(r, x, xhat), 
                 b,
@@ -1309,9 +1302,15 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       const ph = new TSMetaVoid(null, Symbol('ph'));
       console.log('李老八symbol', input, synth(Γ, r, input));
       return goOn(
-        [[thet, synth(Γ, r, input)], [ph, () => {console.log(sameType(Γ, srcLoc(input), thet.value![1], tv)); return sameType(Γ, srcLoc(input), thet.value![1], tv)}]],
+        [
+          [thet, synth(Γ, r, input)], 
+          [ph, () => {
+            console.log(sameType(Γ, srcLoc(input), valInCtx(Γ, thet.value![1])!, tv));
+            return sameType(Γ, srcLoc(input), valInCtx(Γ, thet.value![1])!, tv);
+          }]
+        ],
         () => {
-          console.log('李老八symbol2', thet, ph);
+          
           new go(thet.value![2])
         }
       );
@@ -1328,8 +1327,10 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
 
 // ### Check the form of judgment Γ ⊢ c ≡ c type
 function sameType(Γ: Ctx, where: Loc, given: Value, expected: Value): Perhaps<void> {
+  console.log('李老八6.9', given, expected);
   const givenE = readBackType(Γ, given)!;
   const expectedE = readBackType(Γ, expected)!;
+  console.log('李老八7', givenE, expectedE);
   if (alphaEquiv(givenE, expectedE)) {
     return new go(undefined);
   } else {

@@ -874,7 +874,6 @@ function goOn(
     const perhaps = perhapsf();
     if (perhaps.isGo()) {
       meta.value = (perhaps as go<any>).result;
-      console.log("meta", meta.value);
       return goOn(rest, finalExpr);
     } else {
       return perhaps;
