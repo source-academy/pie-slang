@@ -580,7 +580,7 @@ function doIndEither(target: Value, mot: Value, l: Value, r: Value): Value | und
 function getCoreType(expr: Core): string {
   if (typeof expr === 'string') {
     return expr;
-  } else if (expr instanceof Symbol) {
+  } else if (typeof expr === 'symbol') {
     return expr.toString();
   } else {
     // if expr[0] is not a string then it must be 
@@ -631,7 +631,7 @@ function valOf(env: Env, expr: Core): Value | undefined{
     case "cdr":
       return doCdr(later(env, expr[1]));
     case 'quote':
-      if (expr[1] instanceof Symbol) {
+      if (typeof expr[1] === 'symbol') {
         return new QUOTE(expr[1]);
       }
     case 'Trivial': 
@@ -693,7 +693,7 @@ function valOf(env: Env, expr: Core): Value | undefined{
     case 'operation':
       return doAp(later(env, expr[0] as Core), later(env, expr[1] as Core));
     default:
-      if (expr instanceof Symbol && isVarName(expr)) {
+      if (typeof expr === 'symbol' && isVarName(expr)) {
         return varVal(env, expr);
       } else {
         console.error("No evaluator for: ", expr, "of type ", typeof expr);

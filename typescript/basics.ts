@@ -9,60 +9,59 @@ type Loc = Location;
 /*
   All built-in Keywords for Pie.
 */
-type PieKeyword =
-  | 'U'
-  | 'Nat'
-  | 'zero'
-  | 'add1'
-  | 'which-Nat'
-  | 'iter-Nat'
-  | 'rec-Nat'
-  | 'ind-Nat'
-  | '->'
-  | '→'
-  | 'Π'
-  | 'λ'
-  | 'Pi'
-  | '∏'
-  | 'lambda'
-  | 'quote'
-  | 'Atom'
-  | 'car'
-  | 'cdr'
-  | 'cons'
-  | 'Σ'
-  | 'Sigma'
-  | 'Pair'
-  | 'Trivial'
-  | 'sole'
-  | 'List'
-  | '::'
-  | 'nil'
-  | 'rec-List'
-  | 'ind-List'
-  | 'Absurd'
-  | 'ind-Absurd'
-  | '='
-  | 'same'
-  | 'replace'
-  | 'trans'
-  | 'cong'
-  | 'symm'
-  | 'ind-='
-  | 'Vec'
-  | 'vecnil'
-  | 'vec::'
-  | 'head'
-  | 'tail'
-  | 'ind-Vec'
-  | 'Either'
-  | 'left'
-  | 'right'
-  | 'ind-Either'
-  | 'TODO'
-  | 'the';
-
-
+enum PieKeyword {
+  'U' = 'U'
+  ,'Nat' = 'Nat'
+  ,'zero' ='zero'
+  ,'add1' = 'add1'
+  ,'which-Nat' = 'which-Nat'
+  ,'iter-Nat' = 'iter-Nat'
+  ,'rec-Nat' = 'rec-Nat'
+  ,'ind-Nat' = 'ind-Nat'
+  ,'->' = '->'
+  ,'→' = '→'
+  ,'Π' = 'Π'
+  ,'λ' = 'λ'
+  ,'Pi' = 'Pi'
+  ,'∏' = '∏'
+  ,'lambda' = 'lambda'
+  ,'quote' = 'quote'
+  ,'Atom' = 'Atom'
+  ,'car' = 'car' 
+  ,'cdr'= 'cdr'
+  ,'cons' = 'cons'
+  ,'Σ' = 'Σ'
+  ,'Sigma' = 'Sigma'
+  ,'Pair' = 'Pair'
+  ,'Trivial' = 'Trivial'
+  ,'sole' = 'sole'
+  ,'List' = 'List'
+  ,'::' = '::'
+  ,'nil' = 'nil'
+  ,'rec-List' = 'rec-List'
+  ,'ind-List' = 'ind-List'
+  ,'Absurd' = 'Absurd'
+  ,'ind-Absurd' = 'ind-Absurd'
+  ,'=' = '='
+  ,'same' = 'same'
+  ,'replace' = 'replace'
+  ,'trans' = 'trans'
+  ,'cong' = 'cong'
+  ,'symm' = 'symm'
+  ,'ind-=' = 'ind-=' 
+  ,'Vec' = 'Vec'
+  ,'vecnil' = 'vecnil'
+  ,'vec::' = 'vec::'
+  ,'head' = 'head'
+  ,'tail' = 'tail'
+  ,'ind-Vec' = 'ind-Vec'
+  ,'Either' = 'Either'
+  ,'left' = 'left'
+  ,'right' = 'right'
+  ,'ind-Either' = 'ind-Either'
+  ,'TODO' = 'TODO'
+  ,'the' = 'the'
+}
 /*
   Define the Src type, which associates a source location with
   a Pie expression. another name for Src in orginal code is "@".
@@ -88,7 +87,7 @@ function srcStx(src: Src): SrcStx {
 
 // Type guard to check if the input is a Src instance
 function isSrc(input: any): input is Src {
-  return input instanceof Src;
+  return (input instanceof Src);
 }
 
 // TypedBinder definition
@@ -211,7 +210,7 @@ const isCore = (value: any): value is Core => {
     return true;
   }
 
-  if (value instanceof Symbol) {
+  if (typeof value === 'symbol') {
     return true;
   }
 
@@ -252,9 +251,9 @@ const isCore = (value: any): value is Core => {
         return rest.length === 1 && isCore(rest[0]); // Expect exactly 1 Core argument
       case 'Π':
       case 'Σ':
-        return Array.isArray(rest[0]) && rest[0].every(([sym, core]) => (sym instanceof Symbol) && isCore(core)) && isCore(rest[1]);
+        return Array.isArray(rest[0]) && rest[0].every(([sym, core]) => (typeof sym === 'symbol') && isCore(core)) && isCore(rest[1]);
       case 'λ':
-        return Array.isArray(rest[0]) && rest[0].every((obj) => (obj instanceof Symbol)) && isCore(rest[1]);
+        return Array.isArray(rest[0]) && rest[0].every((obj) => (typeof obj === 'symbol')) && isCore(rest[1]);
       case 'cons':
       case '::':
       default:
@@ -817,7 +816,8 @@ function isSerializableCtx(ctx: any): ctx is SerializableCtx {
   those that are.
 */
 function isVarName(symbol: Symbol): boolean {
-  return !(symbol.toString() as PieKeyword);
+  const symbolStr = symbol.toString().slice(7, -1); // Remove 'Symbol(' and ')'
+  return PieKeyword[symbolStr] === undefined;
 }
 
 /*
@@ -939,7 +939,7 @@ function freshBinder(ctx: Ctx, expr: Src, name: Symbol): Symbol {
 function occurringNames(expr: Src): Symbol[] {
   if (Array.isArray(expr.stx)) {
     // case of variable
-    if (expr.stx instanceof Symbol) {
+    if (typeof expr.stx === 'symbol') {
       if (isVarName(expr.stx)) {
         return [expr.stx];
       }
