@@ -24,10 +24,12 @@ const subscriptReplacements: Record<string, string> = {
     "₈": "8",
     "₉": "9"
   };
-  
+  function symbolDescription(sym: Symbol): string {
+    return sym.description || '';
+  } 
   // Main freshen function
   function freshen(used: Symbol[], x: Symbol): Symbol {
-    if (used.map(sym => sym.toString()).includes(x.toString())) {
+    if (used.some(sym => symbolDescription(sym) === symbolDescription(x))) {
       const split = splitName(x);
       return freshenAux(used, split);
     }
