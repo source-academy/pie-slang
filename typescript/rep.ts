@@ -67,14 +67,12 @@ function typeOrExpr(Γ: Ctx, e: Src): Perhaps<Ctx> {
   const result = rep(Γ, e);
   if (result instanceof go) {
     (() => {
-      console.log(result.result);
       return new go(Γ);
     })() as Perhaps<Ctx>;
   } else {
     const norm = normType(Γ, e);
     if (norm instanceof go) {
       (() => {
-        console.log(norm.result);
         return new go(Γ);
       })() as Perhaps<Ctx>;
     } else {

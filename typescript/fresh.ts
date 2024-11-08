@@ -105,7 +105,7 @@ function isSubscriptDigit(c: string): boolean {
 }
 
 // Test cases with Symbols
-
+/* 
 console.log(freshen([Symbol('x')], Symbol('x')).toString()); 
 // Expected: Symbol('x₁')
 
@@ -120,5 +120,5 @@ console.log(freshen([Symbol('r2d'), Symbol('r2d₀'), Symbol('r2d₁')], Symbol(
 
 console.log(freshen([], Symbol('A')).toString()); 
 // Expected: Symbol('A')
-
+ */
 export {freshen}
