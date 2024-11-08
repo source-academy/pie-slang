@@ -60,7 +60,6 @@ function later(env: Env, expr: Core): Value {
 // undelay is used to find the value that is contained in a
 // DELAY-CLOS closure by invoking the evaluator.
 function undelay(c: DELAY_CLOS): Value {
-  console.log("undelaying:$" + c.expr + "$");
   return now(valOf(c.env, c.expr)!);
 }
 

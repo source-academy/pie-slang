@@ -864,7 +864,6 @@ function goOn(
   finalExpr: any
 ): stop | any{
   if (bindings.length === 0) {
-    console.log('ininininininiininini');
     if(finalExpr instanceof Function) {
       return finalExpr();
     }
