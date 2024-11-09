@@ -604,7 +604,7 @@ function valOf(env: Env, expr: Core): Value | undefined{
       return new ADD1(later(env, expr[1]));
     case 'Π':
       const Pi_A_v = later(env, expr[1][0][1]);
-      return new PI(expr[1][0], Pi_A_v, new FO_CLOS(env, expr[1][0], expr[2]))
+      return new PI(expr[1][0][0], Pi_A_v, new FO_CLOS(env, expr[1][0], expr[2]))
     case 'λ':
       return new LAM(expr[1][0], new FO_CLOS(env, expr[1][0], expr[2]));
     case 'Which-Nat':
@@ -775,10 +775,10 @@ function readBackType(context: Ctx, value: Value): Core| undefined {
         return 'Absurd';
     }
   } else if (value instanceof PI) {
-
     let A_e = readBackType(context, value.argType)!;
     let x_hat = fresh(context, value.argName);
     let ex_x_hat = bindFree(context, x_hat, value.argType);
+
     return ['Π', [[x_hat, A_e]], readBackType(ex_x_hat,
       valOfClosure(value.resultType, new NEU(value.argType, new N_Var(x_hat)))!)!];
 
@@ -836,11 +836,14 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
 
     let y;
     if (value instanceof LAM) {
-      y = value.body;
+      y = value.argName;
     } else {
       y = type.argType;
     }
     const x_hat = fresh(ctx, y);
+    console.log("bindfree", bindFree(ctx, x_hat, y));
+    console.log("valOfClosure", valOfClosure(type.resultType, new NEU(type.argType, new N_Var(x_hat))));
+    console.log("doAp", doAp(value, new NEU(type.argType, new N_Var(x_hat))));
     return ['λ', [x_hat], readBack(bindFree(ctx, x_hat, y),
       valOfClosure(type.resultType, new NEU(type.argType, new N_Var(x_hat)))!,
       doAp(value, new NEU(type.argType, new N_Var(x_hat)))!)!];
@@ -1197,6 +1200,7 @@ function valOfClosure(c: Closure, v: Value): Value | undefined {
   corresponds to a context.
 */
 function valInCtx(context: Ctx, core: Core): Value | undefined {
+
   return valOf(ctxToEnv(context), core);
 }
 
