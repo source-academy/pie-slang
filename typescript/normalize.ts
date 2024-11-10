@@ -87,11 +87,13 @@ function now(v: Value): Value {
   return v;
 }
 
-function PIType([[argName, argType], ...next]: [Symbol, Value][], ret: Value): PI | Value {
-  if ([argName, argType].length === 0) {
+function PIType(arglist: [Symbol, Value][], ret: Value): PI | Value {
+
+  if (arglist.length === 0) {
     return ret;
   } else {
-    return new PI(argName, argType, new HO_CLOS((argName) => PIType(next, ret)));
+    const [argName, argType] = arglist[0];
+    return new PI(argName, argType, new HO_CLOS((x) => PIType(arglist.slice(1), ret)));
   }
 }
 
@@ -116,15 +118,18 @@ function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | unde
   if (targetFin === 'ZERO') {
     return b;
   } else if (targetFin instanceof ADD1) {
-    return doAp(s, new ADD1(targetFin.smaller));
+    console.log("targetFin", targetFin.smaller);
+    return doAp(s, targetFin.smaller);
   } else if (targetFin instanceof NEU) {
     if (targetFin.type === 'NAT') {
       const n = new MetaVar(null, "NAT", Symbol("n"));
       return new NEU(
         b_t,
-        new N_WhichNat(targetFin.neutral,
+        new N_WhichNat(
+          targetFin.neutral,
           new Norm(b_t, b),
-          new Norm(PIType([[n.name, n.varType]], b_t), s))
+          new Norm(PIType([[n.name, n.varType]], b_t), s)
+        )
       );
     }
     return now(b_t);
@@ -607,13 +612,13 @@ function valOf(env: Env, expr: Core): Value | undefined {
       return new PI(expr[1][0][0], Pi_A_v, new FO_CLOS(env, expr[1][0], expr[2]))
     case 'λ':
       return new LAM(expr[1][0], new FO_CLOS(env, expr[1][0], expr[2]));
-    case 'Which-Nat':
+    case 'which-Nat':
       return doWhichNat(later(env, expr[1]), later(env, expr[2][1]), later(env, expr[2][2]), later(env, expr[3]));
-    case 'Iter-Nat':
+    case 'iter-Nat':
       return doIterNat(later(env, expr[1]), later(env, expr[2][1]), later(env, expr[2][2]), later(env, expr[3]));
-    case 'Rec-Nat':
+    case 'rec-Nat':
       return doRecNat(later(env, expr[1]), later(env, expr[2][1]), later(env, expr[2][2]), later(env, expr[3]));
-    case 'Ind-Nat':
+    case 'ind-Nat':
       return doIndNat(later(env, expr[1]), later(env, expr[2]), later(env, expr[3]), later(env, expr[4]));
     case "Atom":
       return "ATOM";

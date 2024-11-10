@@ -405,12 +405,12 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         )
       }
     })
-    .with('zero', () => new go(['the', 'NAT', 'zero']))
+    .with('zero', () => new go(['the', 'Nat', 'zero']))
     .with(['add1', P._], ([_, n]) => {
       const nout = new TSMetaCore(null, Symbol('nout'));
       return goOn(
         [[nout, check(Γ, r, n, 'NAT')]],
-        () => new go(['the', 'NAT', ['add1', nout.value!]])
+        () => new go(['the', 'Nat', ['add1', nout.value!]])
       );
     })
     .with(['which-Nat', P._, P._, P._], ([_, tgt, b, s]) => {
@@ -1116,12 +1116,12 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
           })
       } else if (typeof (x) === 'number') {
         if (x === 0) {
-          return new go(['the', 'NAT', 'ZERO']);
+          return new go(['the', 'Nat', 'zero']);
         } else if (x > 0) {
           const n_minus1_out = new TSMetaCore(null, Symbol('n_minus1_out'));
           return goOn(
             [[n_minus1_out, check(Γ, r, new Src(srcLoc(e), x - 1), 'NAT')]],
-            () => new go(['the', 'NAT', ['ADD1', n_minus1_out.value!]])
+            () => new go(['the', 'Nat', ['add1', n_minus1_out.value!]])
           )
         }
       } else {

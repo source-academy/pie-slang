@@ -1,5 +1,5 @@
 import {
-  Src, 
+  Src,
   SrcStx,
   initCtx,
   ctxToEnv,
@@ -12,14 +12,48 @@ import {
   valOf,
   PIType,
 } from './normalize';
-import {} from './typechecker';
+import { } from './typechecker';
 
 import {
   rep
 } from './rep';
 
 import { Location, Syntax } from './locations';
-const nl = new Location(new Syntax(Symbol('a'), Symbol('b'), 0,0,0,0), true);
+import { SchemeLexer } from './transpiler/lexer/scheme-lexer';
+import { SchemeParser } from './transpiler/parser/scheme-parser';
+import { Token } from "./transpiler/types/tokens/token";
+import { Atomic, Expression, Extended } from "./transpiler/types/nodes/scheme-node-types";
+
+describe("just test", () => {
+  it("nah", () => {
+    const input = '(the (-> Nat Nat) (λ (z) z))';
+
+    // Create a new lexer instance
+    const lexer = new SchemeLexer(input);
+
+    // Tokenize the input
+    let tokens: Token[] = [];
+    try {
+      tokens = lexer.scanTokens();
+      console.log('Tokens:', tokens);
+    } catch (error) {
+      console.error('Error tokenizing input:', error);
+    }
+
+    const parser = new SchemeParser('', tokens);
+
+    // Parse the tokens
+    try {
+      const ast: Expression[] = parser.parse();
+      console.log('Parsed AST:', JSON.stringify(ast, null, 2));
+    } catch (error) {
+      console.error('Error parsing tokens:', error);
+    }
+    expect('ZERO').toEqual('ZERO');
+  });
+});
+
+const nl = new Location(new Syntax(Symbol('a'), Symbol('b'), 0, 0, 0, 0), true);
 
 declare global {
   namespace jest {
@@ -63,8 +97,8 @@ describe("valOf", () => {
 
 describe("lambda(var) var", () => {
   it("should return a pie expression", () => {
-    const result = rep(initCtx, new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), 
-  new Src(nl, ['λ', [new BindingSite(nl, Symbol('myVar'))], new Src(nl, Symbol('x'))])]));
+    const result = rep(initCtx, new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]),
+      new Src(nl, ['λ', [new BindingSite(nl, Symbol('myVar'))], new Src(nl, Symbol('x'))])]));
     const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], 'Nat'], ['λ', [Symbol('myVar')], Symbol('myVar')]]);
     expect(result).toEqualWithSymbols(actual);
   });
@@ -72,16 +106,16 @@ describe("lambda(var) var", () => {
   it("case lambda(z) => z", () => {
     const z = Symbol('z');  // Create single instance
     const x = Symbol('x');
-    
+
     const src = new Src(nl, [
-      'the', 
-      new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), 
+      'the',
+      new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]),
       new Src(nl, ['λ', [new BindingSite(nl, z)], new Src(nl, z)])
     ]);
 
     const actual = new go([
-      'the', 
-      ['Π', [[x, 'Nat']], 'Nat'], 
+      'the',
+      ['Π', [[x, 'Nat']], 'Nat'],
       ['λ', [z], z]
     ]);
 
@@ -89,23 +123,88 @@ describe("lambda(var) var", () => {
   });
 
   it("case lambda(x x) => x", () => {
-    const src = new Src(nl, ['the', 
-                            new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]), 
-                            new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('x'))], 
-                                              new Src(nl, Symbol('x'))])]);
+    const src = new Src(nl, ['the',
+      new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]),
+      new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('x'))],
+        new Src(nl, Symbol('x'))])]);
     const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('x₁'), 'Nat']], 'Nat']], ['λ', [Symbol('x')], ['λ', [Symbol('x₁')], Symbol('x₁')]]]);
-    expect(rep(initCtx,src)).toEqualWithSymbols(actual);       
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });
-  it("case which-nat", () => {
+  it("case which-nat1", () => {
     // (@ #<location> (list 'which-Nat (@ #<location> 1) (@ #<location> 2) (@ #<location> (list 'λ (list (binder #<location> 'x)) (@ #<location> 'x)))))
     const src = new Src(nl, [
-      'which-Nat', 
+      'which-Nat',
       new Src(nl, 1),
       new Src(nl, 2),
       new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, Symbol('x'))])]
     );
     const actual = new go(['the', 'Nat', 'zero']);
-    console.log(rep(initCtx, src));
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  });
+  it("case which-nat2", () => {
+    // (@ #<location> (list 'which-Nat (@ #<location> 0) (@ #<location> 2) (@ #<location> (list 'λ (list (binder #<location> 'x)) (@ #<location> 'x)))))
+    const src = new Src(nl, [
+      'which-Nat',
+      new Src(nl, 0),
+      new Src(nl, 2),
+      new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, Symbol('x'))])]
+    );
+    const actual = new go(['the', 'Nat', ['add1', ['add1', 'zero']]]);
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  });
+  /*
+  (@
+ #<location>
+ (list
+  'the
+  (@ #<location> (list '-> (@ #<location> 'Nat) (@ #<location> 'Nat) (@ #<location> 'Nat)))
+  (@
+   #<location>
+   (list
+    'λ
+    (list (binder #<location> 'x) (binder #<location> 'y))
+    (@
+     #<location>
+     (list
+      'ind-Nat
+      (@ #<location> 'x)
+      (@ #<location> (list 'λ (list (binder #<location> 'x)) (@ #<location> 'Nat)))
+      (@ #<location> 'y)
+      (@ #<location> (list 'λ (list (binder #<location> 'n-1) (binder #<location> 'ih)) (@ #<location> (list 'add1 (@ #<location> 'ih)))))))))))
+  */
+  it("case ind-nat1", () => {
+    const src = new Src(nl,
+      [
+        'the',
+        new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]),
+        new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('y'))],
+          new Src(nl, ['ind-Nat',
+            new Src(nl, Symbol('x')),
+            new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, 'Nat')]),
+            new Src(nl, Symbol('y')),
+            new Src(nl, ['λ', [new BindingSite(nl, Symbol('n-1')), new BindingSite(nl, Symbol('ih'))], new Src(nl, ['add1', new Src(nl, Symbol('ih'))])])
+          ])
+        ])
+      ]
+    );
+    const actual = new go(
+      [
+        'the',
+        ['Π', [[Symbol('x'), 'Nat'], [Symbol('x₁'), 'Nat']], 'Nat'],
+        ['λ',
+          [Symbol('x')],
+          ['λ',
+            [Symbol('y')],
+            ['ind-Nat',
+              Symbol('x'),
+              ['λ', [Symbol('x₁')], 'Nat'],
+              Symbol('y'),
+              ['λ', [Symbol('n-1')], ['λ', [Symbol('ih')], ['add1', 'ih']]]
+            ]
+          ]
+        ]
+      ]
+    );
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });
 });
