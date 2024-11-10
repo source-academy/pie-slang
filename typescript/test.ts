@@ -95,7 +95,17 @@ describe("lambda(var) var", () => {
                                               new Src(nl, Symbol('x'))])]);
     const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('x₁'), 'Nat']], 'Nat']], ['λ', [Symbol('x')], ['λ', [Symbol('x₁')], Symbol('x₁')]]]);
     expect(rep(initCtx,src)).toEqualWithSymbols(actual);       
-  })
-
-  
+  });
+  it("case which-nat", () => {
+    // (@ #<location> (list 'which-Nat (@ #<location> 1) (@ #<location> 2) (@ #<location> (list 'λ (list (binder #<location> 'x)) (@ #<location> 'x)))))
+    const src = new Src(nl, [
+      'which-Nat', 
+      new Src(nl, 1),
+      new Src(nl, 2),
+      new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, Symbol('x'))])]
+    );
+    const actual = new go(['the', 'Nat', 'zero']);
+    console.log(rep(initCtx, src));
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  });
 });
