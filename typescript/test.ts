@@ -7,6 +7,7 @@ import {
   MetaVar,
   go,
 } from './basics';
+import 'jest';
 import {
   valOf,
   PIType,
@@ -27,29 +28,72 @@ describe("valOf", () => {
   });
 });
 
+declare global {
+  namespace jest {
+    interface Matchers<R> {
+      toEqualWithSymbols(expected: any): R;
+    }
+  }
+}
 
-describe ("lambda(var) var", () => {
-  // it("should return a pie expression", () => {
-  //   const result = rep(initCtx, new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), 
-  // new Src(nl, ['λ', [new BindingSite(nl, Symbol('myVar'))], new Src(nl, Symbol('x'))])]));
-  //   const actual = new go(['the', ['Π', ['x', 'Nat'], 'Nat'], ['λ', 'myVar', 'myVar']]);
-  //   expect(result).toEqual(actual);
-  // });
+expect.extend({
+  toEqualWithSymbols(received, expected) {
+    const pass = this.equals(received, expected, [
+      (a, b) => {
+        if (typeof a === 'symbol' && typeof b === 'symbol') {
+          return a.description === b.description;
+        }
+        return undefined; // Use default equality check
+      }
+    ]);
 
-  // it("case lambda(x x) => x", () => {
-  //   const src = new Src(nl, ['the', 
-  //                           new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]), 
-  //                           new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('x'))], 
-  //                                             new Src(nl, Symbol('x'))])]);
-  //   const actual = new go(['the', ['Π', ['x', 'Nat'], ['Π', ['x1', 'Nat'], 'Nat']], ['λ', 'x', ['λ', 'x1', 'x1']]]);
-  //   expect(rep(initCtx,src)).toEqual(actual);       
-  // })
-  
-  it("case lambda(z) => z", () => {
-    const src = new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), new Src(nl, ['λ', [new BindingSite(nl, Symbol('z'))], new Src(nl, Symbol('z1'))])]);
-    // console.log('test result', JSON.stringify(rep(initCtx, src), null, 2));
-    const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], 'Nat'], ['λ', [Symbol('z')], Symbol('z')]]);
-    expect(rep(initCtx, src)).toEqual(actual);  
-  })
+    if (pass) {
+      return {
+        message: () => `expected ${received} not to equal ${expected}`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => `expected ${received} to equal ${expected}`,
+        pass: false,
+      };
+    }
+  }
 });
 
+describe("lambda(var) var", () => {
+  it("should return a pie expression", () => {
+    const result = rep(initCtx, new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), 
+  new Src(nl, ['λ', [new BindingSite(nl, Symbol('myVar'))], new Src(nl, Symbol('x'))])]));
+    const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], 'Nat'], ['λ', [Symbol('myVar')], Symbol('myVar')]]);
+    expect(result).toEqualWithSymbols(actual);
+  });
+
+  it("case lambda(x x) => x", () => {
+    const src = new Src(nl, ['the', 
+                            new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]), 
+                            new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('x'))], 
+                                              new Src(nl, Symbol('x'))])]);
+    const actual = new go(['the', ['Π', ['x', 'Nat'], ['Π', ['x1', 'Nat'], 'Nat']], ['λ', 'x', ['λ', 'x1', 'x1']]]);
+    expect(rep(initCtx,src)).toEqualWithSymbols(actual);       
+  })
+
+  it("case lambda(z) => z", () => {
+    const z = Symbol('z');  // Create single instance
+    const x = Symbol('x');
+    
+    const src = new Src(nl, [
+      'the', 
+      new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]), 
+      new Src(nl, ['λ', [new BindingSite(nl, z)], new Src(nl, z)])
+    ]);
+
+    const actual = new go([
+      'the', 
+      ['Π', [[x, 'Nat']], 'Nat'], 
+      ['λ', [z], z]
+    ]);
+
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  });
+});

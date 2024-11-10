@@ -7,7 +7,7 @@ import { P } from 'ts-pattern';
 import {
   Env, N_Ap, Core, Value, DELAY, DELAY_CLOS, Norm, Box, varVal, ctxToEnv, LAM, NEU, N_RecNat, N_IndAbsurd, N_WhichNat,
   N_IndEither, N_IndVec1, N_IndVec2, N_IndVec12, N_Cong, N_IndNat, N_Trans1, N_Trans2, N_Trans12, Closure, FO_CLOS, HO_CLOS,
-  extendEnv, N_RecList, ADD1, PI, Ctx, SIGMA, CONS, QUOTE, LIST_CONS, LIST, EQUAL, SAME, VEC, VEC_CONS, EITHER, LEFT, RIGHT, 
+  extendEnv, N_RecList, ADD1, PI, Ctx, SIGMA, CONS, QUOTE, LIST_CONS, LIST, EQUAL, SAME, VEC, VEC_CONS, EITHER, LEFT, RIGHT,
   isVarName, SerializableCtx, N_Car, N_Cdr, N_IndList, N_Replace, Free, Def, Claim, N_IterNat, fresh, N_IndEq, bindFree,
   MetaVar, N_Head, N_Tail, N_Var, N_Symm, Neutral, N_TODO,
 } from './basics'
@@ -554,7 +554,7 @@ function doIndEither(target: Value, mot: Value, l: Value, r: Value): Value | und
   } else if (targetNow instanceof NEU) {
     if (targetNow.type instanceof EITHER) {
       const x = new MetaVar(
-        null, 
+        null,
         new EITHER(targetNow.type.leftType, targetNow.type.rightType),
         Symbol("x")
       );
@@ -590,7 +590,7 @@ function getCoreType(expr: Core): string {
   }
 }
 
-function valOf(env: Env, expr: Core): Value | undefined{
+function valOf(env: Env, expr: Core): Value | undefined {
   switch (getCoreType(expr)) {
     case 'the':
       return valOf(env, expr[2]);
@@ -630,11 +630,11 @@ function valOf(env: Env, expr: Core): Value | undefined{
       if (typeof expr[1] === 'symbol') {
         return new QUOTE(expr[1]);
       }
-    case 'Trivial': 
+    case 'Trivial':
       return 'TRIVIAL';
-    case 'sole': 
+    case 'sole':
       return 'SOLE';
-    case 'nil': 
+    case 'nil':
       return 'NIL';
     case '::':
       return new LIST_CONS(later(env, expr[1]), later(env, expr[2]));
@@ -642,7 +642,7 @@ function valOf(env: Env, expr: Core): Value | undefined{
       return new LIST(later(env, expr[1]));
     case 'ind-List':
       return doIndList(later(env, expr[1]), later(env, expr[2]), later(env, expr[3]), later(env, expr[4]));
-    case 'rec-List':      
+    case 'rec-List':
       return doRecList(later(env, expr[1]), later(env, expr[2][1]), later(env, expr[2][2]), later(env, expr[3]));
     case 'Absurd':
       return 'ABSURD';
@@ -673,8 +673,8 @@ function valOf(env: Env, expr: Core): Value | undefined{
     case 'tail':
       return doTail(later(env, expr[1]));
     case 'ind-Vec':
-      return doIndVec(later(env, expr[1]), later(env, expr[2]), 
-      later(env, expr[3]), later(env, expr[4]), later(env, expr[5]));
+      return doIndVec(later(env, expr[1]), later(env, expr[2]),
+        later(env, expr[3]), later(env, expr[4]), later(env, expr[5]));
     case 'Either':
       return new EITHER(later(env, expr[1]), later(env, expr[2]));
     case 'left':
@@ -682,8 +682,8 @@ function valOf(env: Env, expr: Core): Value | undefined{
     case 'right':
       return new RIGHT(later(env, expr[1]));
     case 'ind-Either':
-      return doIndEither(later(env, expr[1]), later(env, expr[2]), 
-      later(env, expr[3]), later(env, expr[4]));
+      return doIndEither(later(env, expr[1]), later(env, expr[2]),
+        later(env, expr[3]), later(env, expr[4]));
     case 'TODO':
       return new NEU(later(env, expr[2]), new N_TODO(expr[1], later(env, expr[2])));
     case 'operation':
@@ -694,7 +694,7 @@ function valOf(env: Env, expr: Core): Value | undefined{
       } else {
         console.error("No evaluator for: ", expr, "of type ", typeof expr);
       }
-      
+
   }
 }
 
@@ -723,13 +723,13 @@ function readBackContext(context: Ctx): SerializableCtx | undefined {
     } else if (binding instanceof Claim) {
       return [[x, ['claim', readBackType(rest, binding.type)!]], ...readBackContext(rest)!];
     } else if (binding instanceof Def) {
-      return [[x, ['def', readBackType(rest, binding.type)!, 
+      return [[x, ['def', readBackType(rest, binding.type)!,
         readBack(rest, binding.type, binding.value)!]], ...readBackContext(rest)!];
     }
   }
 }
 
-function valOfCtx(serialCtx: SerializableCtx) : Ctx {
+function valOfCtx(serialCtx: SerializableCtx): Ctx {
   if (serialCtx.length === 0) {
     return [];
   } else {
@@ -749,7 +749,7 @@ function valOfCtx(serialCtx: SerializableCtx) : Ctx {
     }
     return [[x, binder], ...ctx];
   }
-} 
+}
 
 /*
   ### Normalization ###
@@ -759,9 +759,9 @@ function valOfCtx(serialCtx: SerializableCtx) : Ctx {
   α-equiv?.
 */
 
-function readBackType(context: Ctx, value: Value): Core| undefined {
+function readBackType(context: Ctx, value: Value): Core | undefined {
   value = now(value);
-  if (typeof(value) === 'string') {
+  if (typeof (value) === 'string') {
     switch (value) {
       case 'UNIVERSE':
         return 'U';
@@ -806,7 +806,7 @@ function readBackType(context: Ctx, value: Value): Core| undefined {
 
   } else if (value instanceof EITHER) {
 
-    return ['Either', readBackType(context, value.leftType)!, 
+    return ['Either', readBackType(context, value.leftType)!,
       readBackType(context, value.rightType)!];
 
   } else if (value instanceof NEU) {
@@ -824,13 +824,13 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
 
     return readBackType(ctx, value);
 
-  } else if (type === 'NAT') {
+  } else if (type === 'NAT' && value === 'ZERO') {
+    
+    return 'zero';
 
-    if (value === 'ZERO') {
-      return 'zero';
-    } else if (value instanceof ADD1) {
-      return ['add1', readBack(ctx, 'NAT', value.smaller)!];
-    }
+  } else if (value instanceof ADD1) {
+    
+    return ['add1', readBack(ctx, 'NAT', value.smaller)!];
 
   } else if (type instanceof PI) {
 
@@ -841,9 +841,6 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
       y = type.argType;
     }
     const x_hat = fresh(ctx, y);
-    console.log("bindfree", bindFree(ctx, x_hat, y));
-    console.log("valOfClosure", valOfClosure(type.resultType, new NEU(type.argType, new N_Var(x_hat))));
-    console.log("doAp", doAp(value, new NEU(type.argType, new N_Var(x_hat))));
     return ['λ', [x_hat], readBack(bindFree(ctx, x_hat, y),
       valOfClosure(type.resultType, new NEU(type.argType, new N_Var(x_hat)))!,
       doAp(value, new NEU(type.argType, new N_Var(x_hat)))!)!];
@@ -864,14 +861,14 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
 
     return Symbol('sole');
 
-  } else if (type instanceof LIST) {
+  } else if (type instanceof LIST && value === 'NIL') {
 
-    if (value === 'NIL') {
-      return 'nil';
-    } else if (value instanceof LIST_CONS) {
-      return ['::', readBack(ctx, type.entryType, value.head)!,
-        readBack(ctx, new LIST(type.entryType), value.tail)!];
-    }
+    return 'nil';
+
+  } else if (type instanceof LIST && value instanceof LIST_CONS) {
+
+    return ['::', readBack(ctx, type.entryType, value.head)!,
+      readBack(ctx, new LIST(type.entryType), value.tail)!];
 
   } else if (type === "ABSURD") {
 
@@ -885,25 +882,23 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
       return ['same', readBack(ctx, type.type, value.value)!];
     }
 
-  } else if (type instanceof VEC) {
+  } else if (type instanceof VEC && type.length == 'ZERO') {
+    
+    return 'vecnil';
 
-    if (type.length == 'ZERO') {
-      return 'vecnil';
-    } else if (type.length instanceof ADD1
-      && value instanceof VEC_CONS) {
+  } else if (type instanceof VEC && type.length instanceof ADD1
+    && value instanceof VEC_CONS) {
 
-      return ['vec::', readBack(ctx, type.entryType, value.head)!,
-        readBack(ctx, new VEC(type.entryType, type.length.smaller), value.tail)!];
+    return ['vec::', readBack(ctx, type.entryType, value.head)!,
+      readBack(ctx, new VEC(type.entryType, type.length.smaller), value.tail)!];
 
-    }
+  } else if (type instanceof EITHER && value instanceof LEFT) {
 
-  } else if (type instanceof EITHER) {
+    return ['left', readBack(ctx, type.leftType, value.value)!];
 
-    if (value instanceof LEFT) {
-      return ['left', readBack(ctx, type.leftType, value.value)!];
-    } else if (value instanceof RIGHT) {
-      return ['right', readBack(ctx, type.rightType, value.value)!];
-    }
+  } else if (type instanceof EITHER && value instanceof RIGHT) {
+
+    return ['right', readBack(ctx, type.rightType, value.value)!];
 
   } else if (value instanceof NEU) {
     return readBackNeutral(ctx, value.neutral)!;
@@ -1011,8 +1006,8 @@ function readBackNeutral(context: Ctx, neutral: Neutral): Core | undefined {
 
     case 'N_IndAbsurd': {
       const { target: tgt, motive: mot } = neutral as N_IndAbsurd;
-      const {type: ttv, value: tv} = mot;
-      
+      const { type: ttv, value: tv } = mot;
+
       return [
         'ind-Absurd',
         ['the', 'Absurd', readBackNeutral(context, tgt)!],
@@ -1040,7 +1035,7 @@ function readBackNeutral(context: Ctx, neutral: Neutral): Core | undefined {
 
     case 'N_Trans1': {
       const { target1: ne, target2: t2 } = neutral as N_Trans1;
-      const {type: t, value: v} = t2;
+      const { type: t, value: v } = t2;
       return ['trans', readBackNeutral(context, ne)!, readBack(context, t, v)!];
     }
 
@@ -1053,7 +1048,7 @@ function readBackNeutral(context: Ctx, neutral: Neutral): Core | undefined {
     case 'N_Cong': {
       const { target: ne, func: f } = neutral as N_Cong;
       const { type: type, value: v } = f;
-      const { argName: n, argType: av, resultType: c} = type as PI;
+      const { argName: n, argType: av, resultType: c } = type as PI;
       return [
         'cong',
         readBackNeutral(context, ne)!,
@@ -1141,7 +1136,7 @@ function readBackNeutral(context: Ctx, neutral: Neutral): Core | undefined {
     }
 
     case 'N_IndEither': {
-      const { target: tgt, motive : mot, baseLeft : l, baseRight : r } = neutral as N_IndEither;
+      const { target: tgt, motive: mot, baseLeft: l, baseRight: r } = neutral as N_IndEither;
       const { type: mot_t, value: mot_v } = mot;
       const { type: lTv, value: lV } = l;
       const { type: rTv, value: rV } = r;
@@ -1170,7 +1165,7 @@ function readBackNeutral(context: Ctx, neutral: Neutral): Core | undefined {
     }
 
     case 'N_TODO': {
-      const { where : whrer, type : type} = neutral as N_TODO;
+      const { where: whrer, type: type } = neutral as N_TODO;
       return ['TODO', whrer, readBackType(context, type)!];
     }
     default:
