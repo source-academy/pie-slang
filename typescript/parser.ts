@@ -3,6 +3,11 @@ import { BindingSite, Srcloc, Loc, Src, TypedBinder } from './basics';
 import { Syntax, syntaxToLocation } from './locations';
 import { match, P } from 'ts-pattern';
 
+import { SchemeLexer } from './transpiler/lexer/scheme-lexer';
+import { SchemeParser } from './transpiler/parser/scheme-parser';
+import { Token } from "./transpiler/types/tokens/token";
+import { Atomic, Expression, Extended,  } from "./transpiler/types/nodes/scheme-node-types";
+
 function syntaxToSrcLoc(syntax: Syntax): Loc {
   return syntaxToLocation(syntax);
 }
@@ -209,4 +214,13 @@ function makeNatLiteral(loc: Syntax, n: number): Src {
 
 function makeTODO(loc: Syntax): Src {
   return new Src(syntaxToSrcLoc(loc), 'TODO');
+}
+
+function parsePie(stx:string): Src {
+  const lexer = new SchemeLexer(stx);
+  const parser = new SchemeParser('', lexer.scanTokens());
+  const ast : Extended.List[] = parser.parse() as Extended.List[];
+  const pieAST = match(ast[0].elements.values)
+    .with
+
 }
