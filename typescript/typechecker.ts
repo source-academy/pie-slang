@@ -355,11 +355,11 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
           [
             [Aout, check(Γ, r, A, 'UNIVERSE')],
             [tout, () => check(
-                bindFree(Γ, z, valInCtx(Γ, Aout.value!)!),
-                r,
-                new Src(notForInfo(srcLoc(e)), ['->', B, C, rest]),
-                'UNIVERSE'
-              )
+              bindFree(Γ, z, valInCtx(Γ, Aout.value!)!),
+              r,
+              new Src(notForInfo(srcLoc(e)), ['->', B, C, rest]),
+              'UNIVERSE'
+            )
             ]
           ],
           (() => new go(['the', 'U', ['Π', [[z, Aout.value!]], tout.value!]])))
@@ -1143,6 +1143,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
   const out: Perhaps<Core> = match(srcStx(input))
     .with(['λ', P._, P._], ([_, xBinding, b]) => {
       if (xBinding.length === 1) {
+        console.log('xBinding', xBinding);
         const x = xBinding[0].varName;
         const xloc = xBinding[0].loc;
         const nt = now(tv);
@@ -1152,7 +1153,6 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           const c = nt.resultType;
           const xhat = fresh(Γ, x);
           const bout = new TSMetaCore(null, Symbol('bout'));
-
           return goOn(
             [
               [bout, () => check(
@@ -1170,9 +1170,17 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           return new stop(xloc, [`Not a function type: ${readBackType(Γ, nt)}.`]);
         }
       } else if (xBinding.length > 1) {
-        const [x, y, dot, xs] = xBinding;
-        return check(Γ, r, new Src(srcLoc(input), ['λ', [x],
-          new Src(notForInfo(srcLoc(input)), ['λ', [y, dot, xs], b])]), tv);
+        const x = xBinding[0];
+        const xs = xBinding.slice(1);
+        return check(Γ, r, 
+          new Src(srcLoc(input), 
+            [
+              'λ', [x],
+              new Src(
+                notForInfo(srcLoc(input)),
+                ['λ', xs, b]
+              )
+            ]), tv);
       }
     })
     .with(['cons', P._, P._], ([_, a, d]) => {

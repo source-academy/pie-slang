@@ -825,11 +825,11 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
     return readBackType(ctx, value);
 
   } else if (type === 'NAT' && value === 'ZERO') {
-    
+
     return 'zero';
 
   } else if (value instanceof ADD1) {
-    
+
     return ['add1', readBack(ctx, 'NAT', value.smaller)!];
 
   } else if (type instanceof PI) {
@@ -883,7 +883,7 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
     }
 
   } else if (type instanceof VEC && type.length == 'ZERO') {
-    
+
     return 'vecnil';
 
   } else if (type instanceof VEC && type.length instanceof ADD1
