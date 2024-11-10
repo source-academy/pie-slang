@@ -1143,7 +1143,6 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
   const out: Perhaps<Core> = match(srcStx(input))
     .with(['λ', P._, P._], ([_, xBinding, b]) => {
       if (xBinding.length === 1) {
-        console.log('xBinding', xBinding);
         const x = xBinding[0].varName;
         const xloc = xBinding[0].loc;
         const nt = now(tv);

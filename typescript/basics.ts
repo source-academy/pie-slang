@@ -1149,5 +1149,6 @@ export {
   TSMetaVoid,
   Srcloc,
   BindingSite,
+  TypedBinder,
 };
 
