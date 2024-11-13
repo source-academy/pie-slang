@@ -370,6 +370,138 @@ function parseElements(element: Element) : Src{
   .with('Atom', () => {return makeAtom(locToSyntax(Symbol('Atom'), (element as Extended.List).location));})
   .with('Trivial', () => {return makeTrivial(locToSyntax(Symbol('Trivial'), (element as Extended.List).location));})
   .with('sole', () => {return makeSole(locToSyntax(Symbol('sole'), (element as Extended.List).location));})
+  .with('List', () => {
+    let elements = (element as Extended.List).elements;
+    return makeList(locToSyntax(Symbol('List'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element));
+  })
+  .with('nil', () => {
+    return makeNil(locToSyntax(Symbol('nil'), (element as Extended.List).location));
+  })
+  .with('::', () => {
+    let elements = (element as Extended.List).elements;
+    return makeConsColons(locToSyntax(Symbol('::'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('ind-List', () => {
+    let elements = (element as Extended.List).elements;
+    return makeIndList(locToSyntax(Symbol('ind-List'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[3] as Element), parseElements(elements[4] as Element));
+  })
+  .with('rec-List', () => {
+    let elements = (element as Extended.List).elements;
+    return makeRecList(locToSyntax(Symbol('rec-List'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[3] as Element));
+  })
+  .with('Absurd', () => {
+    return makeAbsurd(locToSyntax(Symbol('Absurd'), (element as Extended.List).location));
+  })
+  .with('ind-Absurd', () => {
+    let elements = (element as Extended.List).elements;
+    return makeIndAbsurd(locToSyntax(Symbol('ind-Absurd'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('=', () => {
+    let elements = (element as Extended.List).elements;
+    return makeEq(locToSyntax(Symbol('='), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[3] as Element));
+  })
+  .with('same', () => {
+    let elements = (element as Extended.List).elements;
+    return makeSame(locToSyntax(Symbol('same'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element));
+  })
+  .with('replace', () => {
+    let elements = (element as Extended.List).elements;
+    return makeReplace(locToSyntax(Symbol('replace'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[3] as Element));
+  })
+  .with('trans', () => {
+    let elements = (element as Extended.List).elements;
+    return makeTrans(locToSyntax(Symbol('trans'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('cong', () => {
+    let elements = (element as Extended.List).elements;
+    return makeCong(locToSyntax(Symbol('cong'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('ind-=', () => {
+    let elements = (element as Extended.List).elements;
+    return makeIndEq(locToSyntax(Symbol('ind-='), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[3] as Element));
+  })
+  .with('symm', () => {
+    let elements = (element as Extended.List).elements;
+    return makeSymm(locToSyntax(Symbol('symm'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element));
+  })
+  .with('Vec', () => {
+    let elements = (element as Extended.List).elements;
+    return makeVec(locToSyntax(Symbol('Vec'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('vecnil', () => {
+    return makeVecNil(locToSyntax(Symbol('vecnil'), (element as Extended.List).location));
+  })
+  .with('vec::', () => {
+    let elements = (element as Extended.List).elements;
+    return makeVecCons(locToSyntax(Symbol('vec::'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('head', () => {
+    let elements = (element as Extended.List).elements;
+    return makeHead(locToSyntax(Symbol('head'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element));
+  })
+  .with('tail', () => {
+    let elements = (element as Extended.List).elements;
+    return makeTail(locToSyntax(Symbol('tail'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element));
+  })
+  .with('ind-Vec', () => {
+    let elements = (element as Extended.List).elements;
+    return makeIndVec(locToSyntax(Symbol('ind-Vec'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[3] as Element), parseElements(elements[4] as Element), 
+      parseElements(elements[5] as Element));
+  })
+  .with('Either', () => {
+    let elements = (element as Extended.List).elements;
+    return makeEither(locToSyntax(Symbol('Either'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('left', () => {
+    let elements = (element as Extended.List).elements;
+    return makeLeft(locToSyntax(Symbol('left'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element));
+  })
+  .with('right', () => {
+    let elements = (element as Extended.List).elements;
+    return makeRight(locToSyntax(Symbol('right'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element));
+  })
+  .with('ind-Either', () => {
+    let elements = (element as Extended.List).elements;
+    return makeIndEither(locToSyntax(Symbol('ind-Either'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[3] as Element), parseElements(elements[4] as Element));
+  })
+  .with('TODO', () => {
+    return makeTODO(locToSyntax(Symbol('TODO'), (element as Extended.List).location));
+  })
+  // TODO: function application not sure
+  .with('function application', () => {
+    let elements = (element as Extended.List).elements;
+    return makeAp(locToSyntax(Symbol('function application'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      elements.slice(3).map((x: Expression) => parseElements(x as Element)));
+  })
   .otherwise(() => {
     const val = getValue(element);
     console.log('val', typeof val);
