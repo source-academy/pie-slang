@@ -48,10 +48,12 @@
  (rep init-ctx (parse-pie #'(the (-> Nat Nat) (λ (z) z))))
  (go '(the (Π ((x Nat)) Nat) (λ (z) z))))
 
+;;;;
 (check-equal?
  (rep init-ctx (parse-pie #'(which-Nat 1 2 (lambda (x) x))))
  (go '(the Nat zero)))
 
+;;;;
 (check-equal?
  (rep init-ctx (parse-pie #'(which-Nat 0 2 (lambda (x) x))))
  (go '(the Nat (add1 (add1 zero)))))
@@ -102,6 +104,7 @@
                                  (lambda (n-1 ih)
                                    (add1 ih)))))
               (go '(the Nat (add1 (add1 (add1 zero))))))
+;;;;
 (check-equal? (rep init-ctx (parse-pie
                             #'(the (-> Nat Nat Nat)
                                  (lambda (x y)
@@ -1656,4 +1659,11 @@
            Nat Trivial (left 2))))
  (go '(the (Either Trivial Nat) (right (add1 (add1 zero))))))
 
-(parse-pie #'(the (-> Nat Nat) (λ (z) z)))
+(parse-pie
+                            #'(the (-> Nat Nat Nat)
+                                 (lambda (x y)
+                                   (ind-Nat x
+                                            (lambda (x) Nat)
+                                            y
+                                            (lambda (n-1 ih)
+                                              (add1 ih))))))
