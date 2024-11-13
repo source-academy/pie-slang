@@ -29,7 +29,7 @@ import {parsePie} from './parser';
 
 describe("just test", () => {
   it("nah", () => {
-    const input = '(the (-> Nat Nat) (λ (z) z))'
+    const input = '(which-Nat 1 2 (lambda (x) x))'
     // const input = '(λ (z) z)';
     console.log(util.inspect(parsePie(input), false, null, true /* enable colors */));
   });
@@ -79,10 +79,11 @@ describe("valOf", () => {
 
 describe("lambda(var) var", () => {
   it("should return a pie expression", () => {
-    const result = rep(initCtx, new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]),
-      new Src(nl, ['λ', [new BindingSite(nl, Symbol('myVar'))], new Src(nl, Symbol('x'))])]));
+    // const result = rep(initCtx, new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]),
+    //   new Src(nl, ['λ', [new BindingSite(nl, Symbol('myVar'))], new Src(nl, Symbol('x'))])]));
+    const result = parsePie('(the (-> Nat Nat) (λ (myVar) myVar))');
     const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], 'Nat'], ['λ', [Symbol('myVar')], Symbol('myVar')]]);
-    expect(result).toEqualWithSymbols(actual);
+    expect(rep(initCtx, result)).toEqualWithSymbols(actual);
   });
 
   it("case lambda(z) => z", () => {
@@ -101,32 +102,35 @@ describe("lambda(var) var", () => {
   });
 
   it("case lambda(x x) => x", () => {
-    const src = new Src(nl, ['the',
-      new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]),
-      new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('x'))],
-        new Src(nl, Symbol('x'))])]);
+    // const src = new Src(nl, ['the',
+    //   new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]),
+    //   new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('x'))],
+    //     new Src(nl, Symbol('x'))])]);
+    const src = parsePie('(the (-> Nat Nat Nat) (λ (x x) x))');
     const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('x₁'), 'Nat']], 'Nat']], ['λ', [Symbol('x')], ['λ', [Symbol('x₁')], Symbol('x₁')]]]);
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });
   it("case which-nat1", () => {
     // (@ #<location> (list 'which-Nat (@ #<location> 1) (@ #<location> 2) (@ #<location> (list 'λ (list (binder #<location> 'x)) (@ #<location> 'x)))))
-    const src = new Src(nl, [
-      'which-Nat',
-      new Src(nl, 1),
-      new Src(nl, 2),
-      new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, Symbol('x'))])]
-    );
+    // const src = new Src(nl, [
+    //   'which-Nat',
+    //   new Src(nl, 1),
+    //   new Src(nl, 2),
+    //   new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, Symbol('x'))])]
+    // );
+    const src = parsePie('(which-Nat 1 2 (lambda (x) x))');
     const actual = new go(['the', 'Nat', 'zero']);
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });
   it("case which-nat2", () => {
     // (@ #<location> (list 'which-Nat (@ #<location> 0) (@ #<location> 2) (@ #<location> (list 'λ (list (binder #<location> 'x)) (@ #<location> 'x)))))
-    const src = new Src(nl, [
-      'which-Nat',
-      new Src(nl, 0),
-      new Src(nl, 2),
-      new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, Symbol('x'))])]
-    );
+    // const src = new Src(nl, [
+    //   'which-Nat',
+    //   new Src(nl, 0),
+    //   new Src(nl, 2),
+    //   new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, Symbol('x'))])]
+    // );
+    const src = parsePie('(which-Nat 0 2 (lambda (x) x))');
     const actual = new go(['the', 'Nat', ['add1', ['add1', 'zero']]]);
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });

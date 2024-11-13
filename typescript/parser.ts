@@ -233,7 +233,7 @@ function getValue(element: Element): string | Symbol | number{
     const arr = element.elements as Array<Element>;
     return getValue(arr[0]);
   } else if (element instanceof Atomic.NumericLiteral) {
-    return element.value as unknown as number;
+    return Number(element.value);
   } else {
     throw new Error('Expected Symbol, but got' + element);
   }
@@ -243,6 +243,7 @@ export function parsePie(stx: string): Src {
   const lexer = new SchemeLexer(stx);
   const parser = new SchemeParser('', lexer.scanTokens());
   const ast : Extended.List[] = parser.parse() as Extended.List[];
+  console.log('originalAST', ast);
   const result = parseElements(ast[0]);
   return result;
 }
@@ -371,6 +372,7 @@ function parseElements(element: Element) : Src{
   .with('sole', () => {return makeSole(locToSyntax(Symbol('sole'), (element as Extended.List).location));})
   .otherwise(() => {
     const val = getValue(element);
+    console.log('val', typeof val);
     if(typeof val === 'number') {
       return makeNatLiteral(locToSyntax(Symbol('a'), (element as Extended.List).location), val);
     } else if (typeof val === 'symbol') {
