@@ -23,11 +23,12 @@ import { SchemeLexer } from './transpiler/lexer/scheme-lexer';
 import { SchemeParser } from './transpiler/parser/scheme-parser';
 import { Token } from "./transpiler/types/tokens/token";
 import { Atomic, Expression, Extended } from "./transpiler/types/nodes/scheme-node-types";
+import {parsePie} from './parser';
 
 describe("just test", () => {
   it("nah", () => {
-    const input = '(the (-> Nat Nat) (λ (z) z))';
-
+    // const input = '(the (-> Nat Nat) (λ (z) z))'
+    const input = '(the Nat Nat)';
     // Create a new lexer instance
     const lexer = new SchemeLexer(input);
 
@@ -35,7 +36,6 @@ describe("just test", () => {
     let tokens: Token[] = [];
     try {
       tokens = lexer.scanTokens();
-      console.log('Tokens:', tokens);
     } catch (error) {
       console.error('Error tokenizing input:', error);
     }
@@ -49,6 +49,7 @@ describe("just test", () => {
     } catch (error) {
       console.error('Error parsing tokens:', error);
     }
+    parsePie(input);
     expect('ZERO').toEqual('ZERO');
   });
 });
