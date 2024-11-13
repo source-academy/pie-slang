@@ -18,6 +18,8 @@ import {
   rep
 } from './rep';
 
+import * as util from 'util';
+
 import { Location, Syntax } from './locations';
 import { SchemeLexer } from './transpiler/lexer/scheme-lexer';
 import { SchemeParser } from './transpiler/parser/scheme-parser';
@@ -27,34 +29,13 @@ import {parsePie} from './parser';
 
 describe("just test", () => {
   it("nah", () => {
-    // const input = '(the (-> Nat Nat) (λ (z) z))'
-    const input = '(the Nat Nat)';
-    // Create a new lexer instance
-    const lexer = new SchemeLexer(input);
-
-    // Tokenize the input
-    let tokens: Token[] = [];
-    try {
-      tokens = lexer.scanTokens();
-    } catch (error) {
-      console.error('Error tokenizing input:', error);
-    }
-
-    const parser = new SchemeParser('', tokens);
-
-    // Parse the tokens
-    try {
-      const ast: Expression[] = parser.parse();
-      console.log('Parsed AST:', JSON.stringify(ast, null, 2));
-    } catch (error) {
-      console.error('Error parsing tokens:', error);
-    }
-    parsePie(input);
-    expect('ZERO').toEqual('ZERO');
+    const input = '(the (-> Nat Nat) (λ (z) z))'
+    // const input = '(λ (z) z)';
+    console.log(util.inspect(parsePie(input), false, null, true /* enable colors */));
   });
 });
 
-const nl = new Location(new Syntax(Symbol('a'), Symbol('b'), 0, 0, 0, 0), true);
+const nl = new Location(new Syntax(Symbol('a'), 0, 0,), true);
 
 declare global {
   namespace jest {
@@ -108,11 +89,7 @@ describe("lambda(var) var", () => {
     const z = Symbol('z');  // Create single instance
     const x = Symbol('x');
 
-    const src = new Src(nl, [
-      'the',
-      new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]),
-      new Src(nl, ['λ', [new BindingSite(nl, z)], new Src(nl, z)])
-    ]);
+    const src = parsePie('(the (-> Nat Nat) (λ (z) z))');
 
     const actual = new go([
       'the',

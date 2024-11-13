@@ -118,7 +118,6 @@ function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | unde
   if (targetFin === 'ZERO') {
     return b;
   } else if (targetFin instanceof ADD1) {
-    console.log("targetFin", targetFin.smaller);
     return doAp(s, targetFin.smaller);
   } else if (targetFin instanceof NEU) {
     if (targetFin.type === 'NAT') {

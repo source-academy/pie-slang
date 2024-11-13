@@ -3,12 +3,9 @@
 type Datum = Symbol;
 export class Syntax {
   constructor(
-    public datum: Datum,
-    public source: Symbol,
+    public source: Symbol | number,
     public line: number,
     public column: number,
-    public position: number,
-    public span: number
   ) { }
 }
 
@@ -45,14 +42,12 @@ export function isForInfo(loc: Location): boolean {
     * The source location is a tuple of the form:
     *   [source, line, column, position, span]
 */
-export function locationToSrcLoc(loc: Location): [Symbol, number, number, number, number] {
+export function locationToSrcLoc(loc: Location): [Symbol | number, number, number] {
   const stx = loc.syntax;
   return [
     stx.source, 
     stx.line,
     stx.column,
-    stx.position,
-    stx.span,
   ];
 }
 

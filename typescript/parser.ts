@@ -1,20 +1,19 @@
-import { Type } from 'typescript';
-import { BindingSite, Srcloc, Loc, Src, TypedBinder } from './basics';
+import { isNumericLiteral, Type } from 'typescript';
+import { BindingSite, Srcloc, Loc, Src, TypedBinder, isVarName } from './basics';
 import { Syntax, syntaxToLocation } from './locations';
 import { match, P } from 'ts-pattern';
 
 import { SchemeLexer } from './transpiler/lexer/scheme-lexer';
 import { SchemeParser } from './transpiler/parser/scheme-parser';
-import { Token } from "./transpiler/types/tokens/token";
-import { Atomic, Expression, Extended,  } from "./transpiler/types/nodes/scheme-node-types";
-import { cons } from './stdlib/base';
+import { Atomic, Expression, Extended } from "./transpiler/types/nodes/scheme-node-types";
+import { Location } from './transpiler/types/location';
 
 function syntaxToSrcLoc(syntax: Syntax): Loc {
   return syntaxToLocation(syntax);
 }
 
 function bindingSite(id: Syntax) {
-  return new BindingSite(syntaxToSrcLoc(id), id.datum);
+  return new BindingSite(syntaxToSrcLoc(id), id.source as Symbol);
 }
 
 function makeU(loc: Syntax) {
@@ -222,21 +221,25 @@ function makeTODO(loc: Syntax): Src {
 // }
 
 
-const dummySyntax = new Syntax(Symbol('a'), Symbol('b'), 0, 0, 0, 0);
-type Element = Extended.List | Atomic.Symbol;
+type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
 
-function getValue(element: Element): string {
+function getValue(element: Element): string | Symbol | number{
   if (element instanceof Atomic.Symbol) {
+    if(isVarName(Symbol(element.value))) {
+      return Symbol(element.value);
+    }
     return element.value;
   } else if (element instanceof Extended.List) {
     const arr = element.elements as Array<Element>;
     return getValue(arr[0]);
+  } else if (element instanceof Atomic.NumericLiteral) {
+    return element.value as unknown as number;
   } else {
     throw new Error('Expected Symbol, but got' + element);
   }
 }
 
-export function parsePie(stx:string): Src {
+export function parsePie(stx: string): Src {
   const lexer = new SchemeLexer(stx);
   const parser = new SchemeParser('', lexer.scanTokens());
   const ast : Extended.List[] = parser.parse() as Extended.List[];
@@ -244,27 +247,72 @@ export function parsePie(stx:string): Src {
   return result;
 }
 
+function locToSyntax(src: Symbol, loc: Location): Syntax {
+  return new Syntax(src, loc.start.line, loc.end.column);
+}
+function elementToSyntax(element: Element, loc: Location): Syntax {
+  const val = getValue(element);
+  if(typeof val === 'number') {
+    return new Syntax(val, loc.start.line, loc.end.column);
+  } else if (typeof val === 'symbol') {
+    return new Syntax(val, loc.start.line, loc.end.column);
+  } 
+  return new Syntax(Symbol(getValue(element) as string), loc.start.line, loc.end.column);
+}
+
 function parseElements(element: Element) : Src{
-  console.log('element', element);
-  console.log('value', getValue(element));
   const result = match(getValue(element))
   .with('the', () => {
-    let elementS = (element as Extended.List).elements;
-    return makeThe(dummySyntax, parseElements(elementS[1] as Element), 
-                   parseElements(elementS[2] as Element));
+    let elements = (element as Extended.List).elements;
+    let loc = (element as Extended.List).location;
+    return makeThe(locToSyntax(Symbol('the'), loc), parseElements(elements[1] as Element), 
+                   parseElements(elements[2] as Element));
   })
   .with('Nat', () => {
-    return makeNat(dummySyntax);
+    return makeNat(locToSyntax(Symbol('Nat'), (element as Extended.List).location));
   })
-  // .with('λ', () => {
-  //   let elements = (element as Extended.List).elements;
-  //   let xs = elements[1] as Extended.List;
-  //   let body = elements[2] as Extended.List;
-  //   return makeLambda(dummySyntax, xs.elements.map((x: Element) => bindingSite(x as Syntax)), 
-  //                     parseElements(body));
-  // })
+  .with('->', () => {
+    let elements = (element as Extended.List).elements;
+    let A = parseElements(elements[1] as Element);
+    let B = parseElements(elements[2] as Element);
+    let C = elements.slice(3).map((x: Expression) => parseElements(x as Element));
+    return makeArrow(locToSyntax(Symbol('->'), (element as Extended.List).location), [A, B, C]);
+  })
+  .with('→', () => {
+    let elements = (element as Extended.List).elements;
+    let A = parseElements(elements[1] as Element);
+    let B = parseElements(elements[2] as Element);
+    let C = elements.slice(3).map((x: Expression) => parseElements(x as Element));
+    return makeArrow(locToSyntax(Symbol('->'), (element as Extended.List).location), [A, B, C]);
+  })
+  .with('zero', () => {
+    return makeZero(locToSyntax(Symbol('zero'), (element as Extended.List).location));
+  })
+  .with('add1', () => {
+    let elements = (element as Extended.List).elements;
+    return makeAdd1(locToSyntax(Symbol('zero'), (element as Extended.List).location), parseElements(elements[1] as Element));
+  })
+  .with('λ', () => {
+    let elements = (element as Extended.List).elements;
+    let args = elements[1] as Extended.List;
+    let body = elements[2] as Element;
+    return makeLambda(
+      locToSyntax(Symbol('λ'), (element as Extended.List).location),
+      args.elements.map(
+        (x: Expression) => 
+          bindingSite(elementToSyntax(x as Element, (element as Extended.List).location))),
+      parseElements(body)
+    );                parseElements(body)
+  })
   .otherwise(() => {
-    return makeTODO(dummySyntax);
+    const val = getValue(element);
+    if(typeof val === 'number') {
+      return makeNatLiteral(locToSyntax(Symbol('a'), (element as Extended.List).location), val);
+    } else if (typeof val === 'symbol') {
+      return makeVarRef(locToSyntax(val, (element as Extended.List).location), val);
+    } else {
+      return makeTODO(locToSyntax(Symbol('TODO'), (element as Extended.List).location));
+    }
   });
   return result;
 }
