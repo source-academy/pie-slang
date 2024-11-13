@@ -302,8 +302,73 @@ function parseElements(element: Element) : Src{
         (x: Expression) => 
           bindingSite(elementToSyntax(x as Element, (element as Extended.List).location))),
       parseElements(body)
-    );                parseElements(body)
+    );                
   })
+  .with('lambda', () => {
+    return parseElements(new Extended.List(
+      (element as Extended.List).location,
+      [
+        new Atomic.Symbol((element as Extended.List).location, 'λ'),
+        ...((element as Extended.List).elements.slice(1))
+      ]
+    ));         
+  })
+  .with('Π', () => {
+    let elements = (element as Extended.List).elements;
+    let args = elements[1] as Extended.List;
+    let body = elements[2] as Element;
+    return makePi(
+      locToSyntax(Symbol('Π'), (element as Extended.List).location),
+      makeTypedBinders(
+        [bindingSite(args.elements[0][0]), parsePie(args.elements[0][1])],
+        args.elements.slice(1).map(
+          (x: Expression) => 
+            [bindingSite(x[0]), parsePie(x[1])]
+        )
+      ),
+      parseElements(body)
+    );                
+  })
+  .with('which-Nat', () => {
+    let elements = (element as Extended.List).elements;
+    return makeWhichNat(
+      locToSyntax(Symbol('which-Nat'), (element as Extended.List).location),
+      parseElements(elements[1] as Element),
+      parseElements(elements[2] as Element),
+      parseElements(elements[3] as Element)
+    );
+  })
+  .with('iter-Nat', () => {
+    let elements = (element as Extended.List).elements;
+    return makeIterNat(
+      locToSyntax(Symbol('iter-Nat'), (element as Extended.List).location),
+      parseElements(elements[1] as Element),
+      parseElements(elements[2] as Element),
+      parseElements(elements[3] as Element)
+    );
+  })
+  .with('rec-Nat', () => {
+    let elements = (element as Extended.List).elements;
+    return makeRecNat(
+      locToSyntax(Symbol('rec-Nat'), (element as Extended.List).location),
+      parseElements(elements[1] as Element),
+      parseElements(elements[2] as Element),
+      parseElements(elements[3] as Element)
+    );
+  })
+  .with('ind-Nat', () => {
+    let elements = (element as Extended.List).elements;
+    return makeIndNat(
+      locToSyntax(Symbol('ind-Nat'), (element as Extended.List).location),
+      parseElements(elements[1] as Element),
+      parseElements(elements[2] as Element),
+      parseElements(elements[3] as Element),
+      parseElements(elements[4] as Element)
+    );
+  })
+  .with('Atom', () => {return makeAtom(locToSyntax(Symbol('Atom'), (element as Extended.List).location));})
+  .with('Trivial', () => {return makeTrivial(locToSyntax(Symbol('Trivial'), (element as Extended.List).location));})
+  .with('sole', () => {return makeSole(locToSyntax(Symbol('sole'), (element as Extended.List).location));})
   .otherwise(() => {
     const val = getValue(element);
     if(typeof val === 'number') {
