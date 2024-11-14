@@ -772,7 +772,7 @@ const initCtx: Ctx = [];
 
 // Function to bind a free variable in a context
 function bindFree(ctx: Ctx, x: Symbol, tv: Value): Ctx {
-  if (ctx.some(([symbol]) => symbol.toString() === x.toString())) {
+  if (ctx.some(([name, _]) => name.toString() === x.toString())) {
     throw new Error(`${x.toString()} is already bound in ${JSON.stringify(ctx)}`);
   }
   return [[x, new Free(tv)], ...ctx];

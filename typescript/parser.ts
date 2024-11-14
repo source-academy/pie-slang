@@ -408,7 +408,8 @@ function parseElements(element: Element) : Src{
   .with('rec-List', () => {
     let elements = (element as Extended.List).elements;
     return makeRecList(locToSyntax(Symbol('rec-List'), (element as Extended.List).location), 
-      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[1] as Element),
+      parseElements(elements[2] as Element), 
       parseElements(elements[3] as Element));
   })
   .with('Absurd', () => {
