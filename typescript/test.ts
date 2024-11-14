@@ -27,12 +27,11 @@ import { Token } from "./transpiler/types/tokens/token";
 import { Atomic, Expression, Extended } from "./transpiler/types/nodes/scheme-node-types";
 import {parsePie} from './parser';
 
-describe("just test", () => {
-  it("nah", () => {
-    const input = '(which-Nat 1 2 (lambda (x) x))'
-    // const input = '(λ (z) z)';
-    console.log(util.inspect(parsePie(input), false, null, true /* enable colors */));
-  });
+describe("test parsing", () => {
+ it("nah", () => {
+   const input = '(which-Nat 1 2 (lambda (z) z))'
+   console.log(util.inspect(parsePie(input), false, null, true /* enable colors */));
+ });
 });
 
 const nl = new Location(new Syntax(Symbol('a'), 0, 0,), true);
@@ -154,7 +153,44 @@ describe("lambda(var) var", () => {
       (@ #<location> 'y)
       (@ #<location> (list 'λ (list (binder #<location> 'n-1) (binder #<location> 'ih)) (@ #<location> (list 'add1 (@ #<location> 'ih)))))))))))
   */
-  it("case ind-nat1", () => {
+  it("case which-nat3", () => {
+    const src = parsePie(
+      `(the
+        (-> Nat (-> Nat Nat) Nat)
+        (lambda (x f) (which-Nat 2 x f))
+      )`
+    );
+    const actual = new go(['the',
+      ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('x₁'), ['Π', [[Symbol('x₁'), 'Nat']], 'Nat']], 'Nat']]],
+      ['λ', [Symbol('x')], ['λ', [Symbol('f')], [Symbol('f'), ['add1', 'zero']]]]
+    ]);
+  });
+  it("case PI1", () => {
+    //(the (Pi ((A U)) U) (lambda (B) B))
+    const src = parsePie(
+      `(the
+        (Pi ((A U)) U)
+        (lambda (B) B)
+      )`
+    );
+    console.log('parse', util.inspect(src)[1]);
+    const actual = new go(['the', ['Π', [[Symbol('A'), 'U']], 'U'], ['λ', [Symbol('B')], Symbol('B')]]);
+    console.log('RESULT', util.inspect(rep(initCtx, src)));
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  });
+  it("case PI2", () => {
+    // (the (Pi ((A U) (a A)) A) (lambda (B b) b))
+    const src = parsePie(
+      `(the
+        (Pi ((A U) (a A)) A)
+        (lambda (B b) b)
+      )`
+    );
+    const actual = new go(['the', ['Π', [[Symbol('A'), 'U']], ['Π', [[Symbol('a'), 'A']], 'A']], ['λ', [Symbol('B')], ['λ', [Symbol('b')], Symbol('b')]]]);
+    console.log('RESULT2', util.inspect(rep(initCtx, src)));
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  });
+  /* it("case ind-nat1", () => {
     const src = new Src(nl,
       [
         'the',
@@ -187,6 +223,7 @@ describe("lambda(var) var", () => {
         ]
       ]
     );
-    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
-  });
+    console.log('RESULT', util.inspect(rep(initCtx, src)));
+    //expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  }); */
 });

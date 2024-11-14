@@ -88,7 +88,6 @@ function now(v: Value): Value {
 }
 
 function PIType(arglist: [Symbol, Value][], ret: Value): PI | Value {
-
   if (arglist.length === 0) {
     return ret;
   } else {
@@ -1199,7 +1198,6 @@ function valOfClosure(c: Closure, v: Value): Value | undefined {
   corresponds to a context.
 */
 function valInCtx(context: Ctx, core: Core): Value | undefined {
-
   return valOf(ctxToEnv(context), core);
 }
 
