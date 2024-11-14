@@ -314,21 +314,37 @@ function parseElements(element: Element) : Src{
       ]
     ));         
   })
-  .with('Π', () => {
+  //FIXME: Pi ∏ Π
+  .with('Pi', () => {
     let elements = (element as Extended.List).elements;
     let args = elements[1] as Extended.List;
     let body = elements[2] as Element;
+    
+    // Get first binding pair
+    let firstPair = args.elements[0] as Extended.List;
+    let x0 = firstPair.elements[0] as Element;
+    let A0 = firstPair.elements[1] as Element;
+    
+    // Process remaining binding pairs
+    let remainingPairs = args.elements.slice(1) as Extended.List[];
+    let processedPairs = remainingPairs.map(pair => {
+        let x = pair.elements[0] as Element;
+        let A = pair.elements[1] as Element;
+        return [
+            bindingSite(elementToSyntax(x, pair.location)),
+            parseElements(A)
+        ];
+    });
+
     return makePi(
-      locToSyntax(Symbol('Π'), (element as Extended.List).location),
-      makeTypedBinders(
-        [bindingSite(args.elements[0][0]), parsePie(args.elements[0][1])],
-        args.elements.slice(1).map(
-          (x: Expression) => 
-            [bindingSite(x[0]), parsePie(x[1])]
-        )
-      ),
-      parseElements(body)
-    );                
+        locToSyntax(Symbol('Π'), (element as Extended.List).location),
+        makeTypedBinders(
+            [bindingSite(elementToSyntax(x0, firstPair.location)), 
+             parseElements(A0)],
+            processedPairs as TypedBinder[]
+        ),
+        parseElements(body)
+    );
   })
   .with('which-Nat', () => {
     let elements = (element as Extended.List).elements;
@@ -504,7 +520,6 @@ function parseElements(element: Element) : Src{
   })
   .otherwise(() => {
     const val = getValue(element);
-    console.log('val', typeof val);
     if(typeof val === 'number') {
       return makeNatLiteral(locToSyntax(Symbol('a'), (element as Extended.List).location), val);
     } else if (typeof val === 'symbol') {
