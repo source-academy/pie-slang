@@ -243,7 +243,6 @@ export function parsePie(stx: string): Src {
   const lexer = new SchemeLexer(stx);
   const parser = new SchemeParser('', lexer.scanTokens());
   const ast : Extended.List[] = parser.parse() as Extended.List[];
-  console.log('originalAST', ast);
   const result = parseElements(ast[0]);
   return result;
 }
@@ -315,6 +314,24 @@ function parseElements(element: Element) : Src{
     ));         
   })
   //FIXME: Pi ∏ Π
+  .with('Π', () => {
+    return parseElements(new Extended.List(
+      (element as Extended.List).location,
+      [
+        new Atomic.Symbol((element as Extended.List).location, 'Pi'),
+        ...((element as Extended.List).elements.slice(1))
+      ]
+    )); 
+  })
+  .with('∏', () => {
+    return parseElements(new Extended.List(
+      (element as Extended.List).location,
+      [
+        new Atomic.Symbol((element as Extended.List).location, 'Pi'),
+        ...((element as Extended.List).elements.slice(1))
+      ]
+    )); 
+  })
   .with('Pi', () => {
     let elements = (element as Extended.List).elements;
     let args = elements[1] as Extended.List;
@@ -335,7 +352,6 @@ function parseElements(element: Element) : Src{
             parseElements(A)
         ];
     });
-
     return makePi(
         locToSyntax(Symbol('Π'), (element as Extended.List).location),
         makeTypedBinders(
@@ -408,7 +424,8 @@ function parseElements(element: Element) : Src{
   .with('rec-List', () => {
     let elements = (element as Extended.List).elements;
     return makeRecList(locToSyntax(Symbol('rec-List'), (element as Extended.List).location), 
-      parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
+      parseElements(elements[1] as Element),
+      parseElements(elements[2] as Element), 
       parseElements(elements[3] as Element));
   })
   .with('Absurd', () => {
