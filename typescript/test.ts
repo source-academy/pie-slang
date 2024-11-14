@@ -173,6 +173,7 @@ describe("lambda(var) var", () => {
         (lambda (B) B)
       )`
     );
+    console.log('parse', util.inspect(src)[1]);
     const actual = new go(['the', ['Π', [[Symbol('A'), 'U']], 'U'], ['λ', [Symbol('B')], Symbol('B')]]);
     console.log('RESULT', util.inspect(rep(initCtx, src)));
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
