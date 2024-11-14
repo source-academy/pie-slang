@@ -168,14 +168,15 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
           [
             [Aout, isType(Γ, r, A)],
             [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
-            [Bout, () => isType(bindFree(Γ, y, Aoutv.value!),
-              extendRenaming(r, bd.varName, y), B)]
+            [Bout, () => isType(
+              bindFree(Γ, y, Aoutv.value!),
+              extendRenaming(r, bd.varName, y), B)
+            ]
           ],
           (() => {
             PieInfoHook(xloc, ['binding-site', Aout.value!]);
             return new go(['Π', [[y, Aout.value!]], Bout.value!])
           })
-
         )
 
       } else if (arr.length > 1) {
@@ -190,17 +191,19 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
           [
             [Aout, isType(Γ, r, A)],
             [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
-            [Bout, () => isType(bindFree(Γ, z, Aoutv.value!),
-              extendRenaming(r, x, z),
-              new Src(srcLoc(input), ['Π', [[y, A1], ...rest], B]))]
+            [Bout, () => 
+              isType(
+                bindFree(Γ, z, Aoutv.value!),
+                extendRenaming(r, x, z),
+                new Src(srcLoc(input), ['Π', [[y, A1], ...rest], B])
+              )
+            ]
           ],
           (() => {
             PieInfoHook(xloc, ['binding-site', Aout.value!]);
             return new go(['Π', [[z, Aout.value!]], Bout.value!])
           })
         )
-      } else {
-        return new stop(srcLoc(input), ['Not a type']);
       }
     })
     .with('Atom', () => new go('Atom'))
@@ -255,8 +258,6 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
             return new go(['Σ', [[z, Aout.value!]], Dout.value!])
           })
         )
-      } else {
-        return new stop(srcLoc(input), ['Not a type']);
       }
     })
     .with(['List', P._], ([_, E]) => {
@@ -315,6 +316,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
           () => new stop(srcLoc(input), [`Expected U but got ${othertv.value!}.`])
         )
       } else {
+        console.log('Not a type', srcStx(input));
         return new stop(srcLoc(input), [`Not a type`]);
       }
     }
@@ -330,6 +332,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
 
 // ### Check the form of judgment Γ ⊢ e synth ↝ (the c c)
 function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
+  console.log('synth', srcStx(e));
   const theExpr = match(srcStx(e))
     .with('Nat', () => new go(['the', 'U', 'Nat']))
     .with('U', () => new stop(srcLoc(e), ["U is a type, but it does not have a type."]))
@@ -488,17 +491,19 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         [motout, check(Γ, r, mot, new PI(Symbol('n'), 'NAT', new HO_CLOS((n) => 'UNIVERSE')))],
         [motval, () => new go(valInCtx(Γ, motout.value!)!)],
         [bout, () => check(Γ, r, b, doAp(motval.value!, 'ZERO')!)],
-        [sout, () => check(Γ, r, s,
-          (() => {
-            const n_minus_1 = new MetaVar(null, 'NAT', Symbol('n_minus_1'));
-            const ih = new MetaVar(null, doAp(motval, n_minus_1)!, Symbol('ih'));
-            return PIType([
+        [sout, () => {
+          const n_minus_1 = new MetaVar(null, 'NAT', Symbol('n_minus_1'));
+          const ih = new MetaVar(null, doAp(motval.value!, 'NAT')!, Symbol('ih'));
+          console.log(n_minus_1, ih);
+          return check(Γ, r, s,
+            PIType([
               [n_minus_1.name, n_minus_1.varType],
               [ih.name, ih.varType]
             ],
-              doAp(motval, new ADD1(n_minus_1))!)!;
-          })()
-        )],
+              doAp(motval, new ADD1(n_minus_1))!)!
+          )
+        }
+        ],
       ],
         () =>
           new go(
@@ -1101,13 +1106,16 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       }
     })
     .otherwise(x => {
+      console.log(x);
       if (typeof x === 'symbol' && isVarName(x)) {
+        console.log('isVarName操');
         const realx = rename(r, x);
         const xtv = new TSMetaValue(null, Symbol('xtv'));
         return goOn(
           [[xtv, varType(Γ, srcLoc(e), realx)]],
           () => {
-            const result = Γ.find(([key, value]) => key === realx);
+            const result = Γ.find(([key, value]) => key.toString() === realx.toString());
+            console.log('曹大笔', result);
             if (result instanceof Array && result[1] instanceof Def) {
               SendPieInfo(srcLoc(e), 'definition');
             } else {
@@ -1140,6 +1148,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
 
 
 function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
+  console.log('check', input, tv);
   const out: Perhaps<Core> = match(srcStx(input))
     .with(['λ', P._, P._], ([_, xBinding, b]) => {
       if (xBinding.length === 1) {
@@ -1155,10 +1164,11 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           return goOn(
             [
               [bout, () => check(
-                bindFree(Γ, xhat, A),
-                extendRenaming(r, x, xhat),
-                b,
-                valOfClosure(c, new NEU(A, new N_Var(xhat)))!)
+                  bindFree(Γ, xhat, A),
+                  extendRenaming(r, x, xhat),
+                  b,
+                  valOfClosure(c, new NEU(A, new N_Var(xhat)))!
+                )
               ],
             ],
             (() => {
@@ -1171,21 +1181,23 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       } else if (xBinding.length > 1) {
         const x = xBinding[0];
         const xs = xBinding.slice(1);
-        return check(Γ, r, 
-          new Src(srcLoc(input), 
+        return check(Γ, r,
+          new Src(srcLoc(input),
             [
               'λ', [x],
               new Src(
                 notForInfo(srcLoc(input)),
                 ['λ', xs, b]
               )
-            ]), tv);
+            ]
+          ),
+          tv
+        );
       }
     })
     .with(['cons', P._, P._], ([_, a, d]) => {
       const nt = now(tv);
       if (nt instanceof SIGMA) {
-        const x = nt.carName;
         const A = nt.carType;
         const c = nt.cdrType;
         const aout = new TSMetaCore(null, Symbol('aout'));
@@ -1312,6 +1324,8 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
         [
           [thet, synth(Γ, r, input)],
           [ph, () => {
+            console.log('fuck1', synth(Γ, r, input), thet.value);
+            console.log('fuck', valInCtx(Γ, thet.value![1])!, tv);
             return sameType(Γ, srcLoc(input), valInCtx(Γ, thet.value![1])!, tv);
           }]
         ],
@@ -1333,6 +1347,8 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
 function sameType(Γ: Ctx, where: Loc, given: Value, expected: Value): Perhaps<void> {
   const givenE = readBackType(Γ, given)!;
   const expectedE = readBackType(Γ, expected)!;
+  console.log('insameType', given, expected);
+  console.log('insameType', givenE, expectedE);
   if (alphaEquiv(givenE, expectedE)) {
     return new go(undefined);
   } else {
