@@ -279,7 +279,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
           [fromv, () => check(Γ, r, from, Av.value!)],
           [tov, () => check(Γ, r, to, Av.value!)],
         ],
-        new go(['=', Av.value!, fromv.value!, tov.value!])
+        () => new go(['=', Av.value!, fromv.value!, tov.value!])
       );
     })
     .with(['Vec', P._, P._], ([_, E, len]) => {
@@ -1100,6 +1100,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         }
       }
     })
+    
     .otherwise(x => {
       if (typeof x === 'symbol' && isVarName(x)) {
         const realx = rename(r, x);
