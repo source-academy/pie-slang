@@ -23,7 +23,7 @@ import {
 
 function rep(Γ: Ctx, e: Src): Perhaps<Core> {
   const outmeta = new TSMetaCore(null, Symbol('outmeta'));
-  return goOn([[outmeta, synth(Γ, [], e)]],
+  return goOn([[outmeta, () => synth(Γ, [], e)]],
     () => {
       const tv = valInCtx(Γ, outmeta.value![1])!;
       const v = valInCtx(Γ, outmeta.value![2])!;
@@ -35,7 +35,7 @@ function rep(Γ: Ctx, e: Src): Perhaps<Core> {
 function normType(Γ: Ctx, src: Src): Perhaps<Core> {
   const eout = new TSMetaCore(null, Symbol('eout'));
   return goOn(
-    [[eout, isType(Γ, [], src)]],
+    [[eout, () => isType(Γ, [], src)]],
     () => {
       return new go(readBackType(Γ, valInCtx(Γ, eout.value!)!));
     }
@@ -45,7 +45,7 @@ function normType(Γ: Ctx, src: Src): Perhaps<Core> {
 function norm(Γ: Ctx, src: Src): Perhaps<Core> {
   const theeout = new TSMetaCore(null, Symbol('theeout'));
   const result = goOn(
-    [[theeout, synth(Γ, [], src)]],
+    [[theeout, () => synth(Γ, [], src)]],
     () => {
       const tv = valInCtx(Γ, theeout.value![1])!;
       const v = valInCtx(Γ, theeout.value![2])!;
@@ -90,7 +90,7 @@ function checkSame(Γ: Ctx, loc: Loc, t: Src, a: Src, b: Src): Perhaps<void> {
   const bv = new TSMetaValue(null, Symbol('bv'));
   return goOn(
     [
-      [tout, isType(Γ, [], t)],
+      [tout, () => isType(Γ, [], t)],
       [tv, () => new go(valInCtx(Γ, tout.value!))],
       [aout, () => check(Γ, [], a, tv.value!)],
       [bout, () => check(Γ, [], b, tv.value!)],

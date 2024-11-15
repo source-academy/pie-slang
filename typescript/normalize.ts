@@ -773,11 +773,12 @@ function readBackType(context: Ctx, value: Value): Core | undefined {
       case 'ATOM':
         return 'Atom';
       case 'TRIVIAL':
-        return Symbol('sole');
+        return 'Trivial';
       case 'ABSURD':
         return 'Absurd';
     }
   } else if (value instanceof PI) {
+    
     let A_e = readBackType(context, value.argType)!;
     let x_hat = fresh(context, value.argName);
     let ex_x_hat = bindFree(context, x_hat, value.argType);
@@ -1168,8 +1169,8 @@ function readBackNeutral(context: Ctx, neutral: Neutral): Core | undefined {
     }
 
     case 'N_TODO': {
-      const { where: whrer, type: type } = neutral as N_TODO;
-      return ['TODO', whrer, readBackType(context, type)!];
+      const { where: where, type: type } = neutral as N_TODO;
+      return ['TODO', where, readBackType(context, type)!];
     }
     default:
       return undefined;
