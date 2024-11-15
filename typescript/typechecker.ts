@@ -134,7 +134,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Aout = new TSMetaCore(null, Symbol('Aout'));
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
-          [[Aout, isType(Γ, r, A)],
+          [[Aout, () => isType(Γ, r, A)],
           [Bout, () => {
             const bf = bindFree(Γ, x, valInCtx(Γ, Aout.value!)!);
             return isType(bf, r, B)
@@ -149,7 +149,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Aout = new TSMetaCore(null, Symbol('Aout'));
         const tout = new TSMetaCore(null, Symbol('tout'));
         return goOn(
-          [[Aout, isType(Γ, r, A)],
+          [[Aout, () => isType(Γ, r, A)],
           [tout, () => isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r,
             new Src(srcLoc(input), ['->', B, C, rest]))]],
           () => new go(['Π', [[x, Aout.value!]], tout.value!])
@@ -166,7 +166,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
           [
-            [Aout, isType(Γ, r, A)],
+            [Aout, () => isType(Γ, r, A)],
             [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
             [Bout, () => isType(
               bindFree(Γ, y, Aoutv.value!),
@@ -189,7 +189,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
           [
-            [Aout, isType(Γ, r, A)],
+            [Aout, () => isType(Γ, r, A)],
             [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
             [Bout, () => 
               isType(
@@ -212,7 +212,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       const Aout = new TSMetaCore(null, Symbol('Aout'));
       const Dout = new TSMetaCore(null, Symbol('Dout'));
       return goOn(
-        [[Aout, isType(Γ, r, A)],
+        [[Aout, () => isType(Γ, r, A)],
         [Dout, () => isType(bindFree(Γ, x, valInCtx(Γ, Aout.value!)!), r, D)],],
         () => new go(['Σ', [[x, Aout.value!]], Dout.value!])
       );
@@ -227,7 +227,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Dout = new TSMetaCore(null, Symbol('Dout'));
         return goOn(
           [
-            [Aout, isType(Γ, r, A)],
+            [Aout, () => isType(Γ, r, A)],
             [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
             [Dout, () => isType(bindFree(Γ, y, Aoutv.value!),
               extendRenaming(r, bd.varName, y), D)]
@@ -247,7 +247,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         const Dout = new TSMetaCore(null, Symbol('Dout'));
         return goOn(
           [
-            [Aout, isType(Γ, r, A)],
+            [Aout, () => isType(Γ, r, A)],
             [Aoutv, () => new go(valInCtx(Γ, Aout.value!)!)],
             [Dout, () => isType(bindFree(Γ, z, Aoutv.value!),
               extendRenaming(r, x, z),
@@ -263,8 +263,8 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
     .with(['List', P._], ([_, E]) => {
       const Eout = new TSMetaCore(null, Symbol('Eout'));
       return goOn(
-        [[Eout, isType(Γ, r, E)]],
-        new go(['List', Eout.value!])
+        [[Eout, () => isType(Γ, r, E)]],
+        () => new go(['List', Eout.value!])
       );
     })
     .with('Absurd', () => new go('Absurd'))
@@ -275,12 +275,12 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       const tov = new TSMetaValue(null, Symbol('tov'));
       return goOn(
         [
-          [Aout, isType(Γ, r, A)],
+          [Aout, () => isType(Γ, r, A)],
           [Av, () => new go(valInCtx(Γ, Aout.value!)!)],
           [fromv, () => check(Γ, r, from, Av.value!)],
           [tov, () => check(Γ, r, to, Av.value!)],
         ],
-        new go(['=', Av.value!, fromv.value!, tov.value!])
+        () => new go(['=', Av.value!, fromv.value!, tov.value!])
       );
     })
     .with(['Vec', P._, P._], ([_, E, len]) => {
@@ -288,8 +288,8 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       const lenout = new TSMetaCore(null, Symbol('lenout'));
       return goOn(
         [
-          [Eout, isType(Γ, r, E)],
-          [lenout, check(Γ, r, len, 'NAT')],
+          [Eout, () => isType(Γ, r, E)],
+          [lenout, () => check(Γ, r, len, 'NAT')],
         ],
         () => new go(['Vec', Eout.value!, lenout.value!])
       );
@@ -299,8 +299,8 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       const Rout = new TSMetaCore(null, Symbol('Rout'));
       return goOn(
         [
-          [Lout, isType(Γ, r, L)],
-          [Rout, isType(Γ, r, R)],
+          [Lout, () => isType(Γ, r, L)],
+          [Rout, () => isType(Γ, r, R)],
         ],
         () => new go(['Either', Lout.value!, Rout.value!])
       );
@@ -312,7 +312,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       } else if ((typeof other === 'symbol') && (isVarName(other))) {
         const othertv = new TSMetaValue(null, Symbol('othertv'));
         return goOn(
-          [[othertv, varType(Γ, srcLoc(input), other)!]],
+          [[othertv, () => varType(Γ, srcLoc(input), other)!]],
           () => new stop(srcLoc(input), [`Expected U but got ${othertv.value!}.`])
         )
       } else {
@@ -321,7 +321,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
     }
     )!;
   const t = new TSMetaCore(null, Symbol('t'));
-  return goOn([[t, theType]],
+  return goOn([[t, () => theType]],
     (() => {
       SendPieInfo(srcLoc(input), ['is-type', t.value!]);
       return new go(t.value!);
@@ -340,7 +340,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const Aout = new TSMetaCore(null, Symbol('Aout'));
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
-          [[Aout, check(Γ, r, A, 'UNIVERSE')],
+          [[Aout, () => check(Γ, r, A, 'UNIVERSE')],
           [Bout, () => check(bindFree(Γ, z, valInCtx(Γ, Aout.value!)!),
             r, B, 'UNIVERSE')],],
           (() => {
@@ -354,7 +354,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const tout = new TSMetaCore(null, Symbol('tout'));
         return goOn(
           [
-            [Aout, check(Γ, r, A, 'UNIVERSE')],
+            [Aout, () => check(Γ, r, A, 'UNIVERSE')],
             [tout, () => check(
               bindFree(Γ, z, valInCtx(Γ, Aout.value!)!),
               r,
@@ -375,7 +375,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
           [
-            [Aout, check(Γ, r, A, 'UNIVERSE')],
+            [Aout, () => check(Γ, r, A, 'UNIVERSE')],
             [Bout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!),
               extendRenaming(r, bd.varName, xhat), B, 'UNIVERSE')],
           ],
@@ -393,7 +393,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const Bout = new TSMetaCore(null, Symbol('Bout'));
         return goOn(
           [
-            [Aout, check(Γ, r, A, 'UNIVERSE')],
+            [Aout, () => check(Γ, r, A, 'UNIVERSE')],
             [Bout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!),
               extendRenaming(r, x, xhat),
               new Src(notForInfo(srcLoc(e)), ['Π', [[y, A1], ...rest], B]),
@@ -410,7 +410,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     .with(['add1', P._], ([_, n]) => {
       const nout = new TSMetaCore(null, Symbol('nout'));
       return goOn(
-        [[nout, check(Γ, r, n, 'NAT')]],
+        [[nout, () => check(Γ, r, n, 'NAT')]],
         () => new go(['the', 'Nat', ['add1', nout.value!]])
       );
     })
@@ -419,8 +419,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const b_rst = new TSMetaCore(null, Symbol('b_rst'));
       const sout = new TSMetaCore(null, Symbol('sout'));
       return goOn([
-        [tgtout, check(Γ, r, tgt, 'NAT')],
-        [b_rst, synth(Γ, r, b)],
+        [tgtout, () => check(Γ, r, tgt, 'NAT')],
+        [b_rst, () => synth(Γ, r, b)],
         [sout, () => check(Γ, r, s,
           (() => {
             const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
@@ -440,8 +440,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const b_rst = new TSMetaCore(null, Symbol('b_rst'));
       const sout = new TSMetaCore(null, Symbol('sout'));
       return goOn([
-        [tgtout, check(Γ, r, tgt, 'NAT')],
-        [b_rst, synth(Γ, r, b)],
+        [tgtout, () => check(Γ, r, tgt, 'NAT')],
+        [b_rst, () => synth(Γ, r, b)],
         [sout, () => check(Γ, r, s,
           (() => {
             const old = fresh(Γ, Symbol('old'));
@@ -461,8 +461,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const b_rst = new TSMetaCore(null, Symbol('b_rst'));
       const sout = new TSMetaCore(null, Symbol('sout'));
       return goOn([
-        [tgtout, check(Γ, r, tgt, 'NAT')],
-        [b_rst, synth(Γ, r, b)],
+        [tgtout, () => check(Γ, r, tgt, 'NAT')],
+        [b_rst, () => synth(Γ, r, b)],
         [sout, () => check(Γ, r, s,
           (() => {
             const n_minus_1 = fresh(Γ, Symbol('n_minus_1'));
@@ -485,8 +485,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const bout = new TSMetaCore(null, Symbol('bout'));
       const sout = new TSMetaCore(null, Symbol('sout'));
       return goOn([
-        [tgtout, check(Γ, r, tgt, 'NAT')],
-        [motout, check(Γ, r, mot, new PI(Symbol('n'), 'NAT', new HO_CLOS((n) => 'UNIVERSE')))],
+        [tgtout, () => check(Γ, r, tgt, 'NAT')],
+        [motout, () => check(Γ, r, mot, new PI(Symbol('n'), 'NAT', new HO_CLOS((n) => 'UNIVERSE')))],
         [motval, () => new go(valInCtx(Γ, motout.value!)!)],
         [bout, () => check(Γ, r, b, doAp(motval.value!, 'ZERO')!)],
         [sout, () => {
@@ -516,7 +516,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const Dout = new TSMetaCore(null, Symbol('Dout'));
       return goOn(
         [
-          [Aout, check(Γ, r, A, 'UNIVERSE')],
+          [Aout, () => check(Γ, r, A, 'UNIVERSE')],
           [Dout, () => check(bindFree(Γ, a, valInCtx(Γ, Aout.value!)!), r, D, 'UNIVERSE')],
         ],
         () => new go(['the', 'U', ['Σ', [[a, Aout.value!]], Dout.value!]])
@@ -532,7 +532,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const Dout = new TSMetaCore(null, Symbol('Dout'));
         return goOn(
           [
-            [Aout, check(Γ, r, A, 'UNIVERSE')],
+            [Aout, () => check(Γ, r, A, 'UNIVERSE')],
             [Dout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!),
               extendRenaming(r, bd.varName, xhat), D, 'UNIVERSE')],
           ],
@@ -550,7 +550,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const Dout = new TSMetaCore(null, Symbol('Dout'));
         return goOn(
           [
-            [Aout, check(Γ, r, A, 'UNIVERSE')],
+            [Aout, () => check(Γ, r, A, 'UNIVERSE')],
             [Dout, () => check(bindFree(Γ, xhat, valInCtx(Γ, Aout.value!)!),
               extendRenaming(r, x, xhat),
               new Src(notForInfo(srcLoc(e)), ['Σ', [[y, A1], ...rest], D]),
@@ -566,7 +566,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     .with(['car', P._], ([_, p]) => {
       const p_rst = new TSMetaCore(null, Symbol('p_rst'));
       return goOn(
-        [[p_rst, synth(Γ, r, p)]],
+        [[p_rst, () => synth(Γ, r, p)]],
         () => {
           const val = valInCtx(Γ, p_rst.value![1])!;
           if (val instanceof SIGMA) {
@@ -581,7 +581,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     .with(['cdr', P._], ([_, p]) => {
       const p_rst = new TSMetaCore(null, Symbol('p_rst'));
       return goOn(
-        [[p_rst, synth(Γ, r, p)]],
+        [[p_rst, () => synth(Γ, r, p)]],
         () => {
           const result = valInCtx(Γ, p_rst.value![1])!;
           if (result instanceof SIGMA) {
@@ -608,7 +608,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const sout = new TSMetaCore(null, Symbol('sout'));
       return goOn(
         [
-          [themeta, synth(Γ, r, tgt)],
+          [themeta, () => synth(Γ, r, tgt)],
         ],
         (() => {
           const mtc = valInCtx(Γ, themeta.value![1])!;
@@ -620,7 +620,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
             return goOn([
               [
                 motout,
-                check(Γ, r, mot,
+                () => check(Γ, r, mot,
                   new PI(Symbol('xs'), new LIST(E), new FO_CLOS(ctxToEnv(Γ), Symbol('xs'), 'U')))
               ],
               [motval, () => new go(valInCtx(Γ, motout.value!)!)],
@@ -653,7 +653,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const tgtout = new TSMetaCore(null, Symbol('tgtout'));
       const themeta = new TSMetaCore(null, Symbol('themeta'));
       return goOn(
-        [[themeta, synth(Γ, r, tgt)]],
+        [[themeta, () => synth(Γ, r, tgt)]],
         (() => {
           const mtc = valInCtx(Γ, themeta.value![1])!;
           if (mtc instanceof LIST) {
@@ -665,7 +665,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
             const es = new MetaVar(null, new LIST(E), Symbol('es'));
             const ih = new MetaVar(null, btval, Symbol('ih'));
             return goOn([
-              [themeta_2, synth(Γ, r, b)],
+              [themeta_2, () => synth(Γ, r, b)],
               [btval, () => new go(valInCtx(Γ, themeta_2.value![1])!)],
               [sout,
                 () => check(Γ, r, s,
@@ -692,7 +692,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     .with(['List', P._], ([_, E]) => {
       const Eout = new TSMetaCore(null, Symbol('Eout'));
       return goOn(
-        [[Eout, check(Γ, r, E, 'UNIVERSE')]],
+        [[Eout, () => check(Γ, r, E, 'UNIVERSE')]],
         () => new go(['the', 'U', ['List', Eout.value!]])
       );
     })
@@ -701,7 +701,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const esout = new TSMetaCore(null, Symbol('esout'));
       return goOn(
         [
-          [e_rst, synth(Γ, r, e)],
+          [e_rst, () => synth(Γ, r, e)],
           [esout, () => check(Γ, r, es, valInCtx(Γ, ['List', e_rst.value![1]])!)]
         ],
         () => new go(['the', ['List', e_rst.value![1]], ['::', e_rst.value!, esout.value!]])
@@ -712,8 +712,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const tgtout = new TSMetaCore(null, Symbol('tgtout'));
       const motout = new TSMetaCore(null, Symbol('motout'));
       return goOn([
-        [tgtout, check(Γ, r, tgt, 'ABSURD')],
-        [motout, check(Γ, r, mot, 'UNIVERSE')],
+        [tgtout, () => check(Γ, r, tgt, 'ABSURD')],
+        [motout, () => check(Γ, r, mot, 'UNIVERSE')],
       ],
         () =>
           new go(
@@ -729,7 +729,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const to_out = new TSMetaCore(null, Symbol('tov'));
       return goOn(
         [
-          [Aout, check(Γ, r, A, 'UNIVERSE')],
+          [Aout, () => check(Γ, r, A, 'UNIVERSE')],
           [Av, () => new go(valInCtx(Γ, Aout.value!)!)],
           [from_out, () => check(Γ, r, from, Av.value!)],
           [to_out, () => check(Γ, r, to, Av.value!)],
@@ -743,7 +743,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const motout = new TSMetaCore(null, Symbol('motout'));
       const bout = new TSMetaCore(null, Symbol('bout'));
       return goOn(
-        [[tgt_rst, synth(Γ, r, tgt)]],
+        [[tgt_rst, () => synth(Γ, r, tgt)]],
         () => {
           const result = valInCtx(Γ, tgt_rst.value![1])!;
           if (result instanceof EQUAL) {
@@ -751,7 +751,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
             const x = new MetaVar(null, Av, Symbol('x'));
             return goOn(
               [
-                [motout, check(Γ, r, mot, PIType([[x.name, x.varType]], 'UNIVERSE'))],
+                [motout, () => check(Γ, r, mot, PIType([[x.name, x.varType]], 'UNIVERSE'))],
                 [bout, () => check(Γ, r, b, doAp(valInCtx(Γ, motout.value!)!, fromv)!)],
               ],
               () => new go(['the',
@@ -769,8 +769,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const p2_rst = new TSMetaCore(null, Symbol('p2_rst'));
       return goOn(
         [
-          [p1_rst, synth(Γ, r, p1)],
-          [p2_rst, synth(Γ, r, p2)],
+          [p1_rst, () => synth(Γ, r, p1)],
+          [p2_rst, () => synth(Γ, r, p2)],
         ],
         () => {
           const result1 = valInCtx(Γ, p1_rst.value![1])!;
@@ -800,8 +800,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const f_rst = new TSMetaCore(null, Symbol('f_rst'));
       return goOn(
         [
-          [p_rst, synth(Γ, r, p)],
-          [f_rst, synth(Γ, r, f)],
+          [p_rst, () => synth(Γ, r, p)],
+          [f_rst, () => synth(Γ, r, f)],
         ],
         () => {
           const result1 = valInCtx(Γ, p_rst.value![1])!;
@@ -815,8 +815,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
               const fv = new TSMetaValue(null, Symbol('fv'));
               return goOn(
                 [
-                  [ph, sameType(Γ, srcLoc(e), Av, Bv)],
-                  [Cv, new go(valOfClosure(c, fromv))],
+                  [ph, () => sameType(Γ, srcLoc(e), Av, Bv)],
+                  [Cv, () => new go(valOfClosure(c, fromv))],
                   [fv, () => new go(valInCtx(Γ, f_rst.value![2])!)],
                 ],
                 () => new go(['the',
@@ -839,7 +839,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     .with(['symm', P._], ([_, p]) => {
       const p_rst = new TSMetaCore(null, Symbol('p_rst'));
       return goOn(
-        [[p_rst, synth(Γ, r, p)]],
+        [[p_rst, () => synth(Γ, r, p)]],
         () => {
           const result = valInCtx(Γ, p_rst.value![1])!;
           if (result instanceof EQUAL) {
@@ -858,7 +858,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const motv = new TSMetaValue(null, Symbol('motv'));
       const baseout = new TSMetaCore(null, Symbol('baseout'));
       return goOn(
-        [[tgt_rst, synth(Γ, r, tgt)]],
+        [[tgt_rst, () => synth(Γ, r, tgt)]],
         () => {
           const result = valInCtx(Γ, tgt_rst.value![1])!;
           if (result instanceof EQUAL) {
@@ -866,7 +866,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
             const to = new MetaVar(null, Av, Symbol('to'));
             const p = new MetaVar(null, new EQUAL(Av, fromv, to.value!), Symbol('p'));
             return goOn([
-              [motout, check(Γ, r, mot, PIType([[to.name, to.varType],
+              [motout, () => check(Γ, r, mot, PIType([[to.name, to.varType],
               [p.name, p.varType]], 'UNIVERSE'))],
               [motv, () => new go(valInCtx(Γ, motout.value!)!)],
               [baseout, () => check(Γ, r, base,
@@ -890,15 +890,15 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const Eout = new TSMetaCore(null, Symbol('Eout'));
       const lenout = new TSMetaCore(null, Symbol('lenout'));
       return goOn(
-        [[Eout, check(Γ, r, E, 'UNIVERSE')],
-        [lenout, check(Γ, r, len, 'NAT')]],
+        [[Eout, () => check(Γ, r, E, 'UNIVERSE')],
+        [lenout, () => check(Γ, r, len, 'NAT')]],
         () => new go(['the', 'U', ['Vec', Eout.value!, lenout.value!]])
       );
     })
     .with(['head', P._], ([_, es]) => {
       const es_rst = new TSMetaCore(null, Symbol('es_rst'));
       return goOn(
-        [[es_rst, synth(Γ, r, es)]],
+        [[es_rst, () => synth(Γ, r, es)]],
         () => {
           const result = now(valInCtx(Γ, es_rst.value![1])!);
           if (result instanceof VEC) {
@@ -919,7 +919,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     .with(['tail', P._], ([_, es]) => {
       const es_rst = new TSMetaCore(null, Symbol('es_rst'));
       return goOn(
-        [[es_rst, synth(Γ, r, es)]],
+        [[es_rst, () => synth(Γ, r, es)]],
         () => {
           const result = now(valInCtx(Γ, es_rst.value![1])!);
           if (result instanceof VEC) {
@@ -946,9 +946,9 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const themeta = new TSMetaCore(null, Symbol('themeta'));
       return goOn(
         [
-          [lenout, check(Γ, r, len, 'NAT')],
+          [lenout, () => check(Γ, r, len, 'NAT')],
           [lenv, () => new go(valInCtx(Γ, lenout.value!)!)],
-          [themeta, synth(Γ, r, vec)],
+          [themeta, () => synth(Γ, r, vec)],
         ],
         () => {
           const k = new MetaVar(null, 'NAT', Symbol('k'));
@@ -968,7 +968,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
                 [new TSMetaCore(null, Symbol('_')),
                 () => convert(Γ, srcLoc(vec), 'NAT', lenv.value!, len2v)
                 ],
-                [motout, check(Γ, r, mot,
+                [motout, () => check(Γ, r, mot,
                   PIType([[k.name, k.varType], [es.name, es.varType]], 'UNIVERSE'))
                 ],
                 [motval, () => new go(valInCtx(Γ, motout.value!)!)],
@@ -1001,8 +1001,8 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const Rout = new TSMetaCore(null, Symbol('Rout'));
       return goOn(
         [
-          [Lout, check(Γ, r, L, 'UNIVERSE')],
-          [Rout, check(Γ, r, R, 'UNIVERSE')],
+          [Lout, () => check(Γ, r, L, 'UNIVERSE')],
+          [Rout, () => check(Γ, r, R, 'UNIVERSE')],
         ],
         () => new go(['the', 'U', ['Either', Lout.value!, Rout.value!]])
       );
@@ -1014,7 +1014,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const lout = new TSMetaCore(null, Symbol('lout'));
       const rout = new TSMetaCore(null, Symbol('rout'));
       return goOn(
-        [[themeta, synth(Γ, r, tgt)]],
+        [[themeta, () => synth(Γ, r, tgt)]],
         () => {
           const mtc = valInCtx(Γ, themeta.value![1])!;
           if (mtc instanceof EITHER) {
@@ -1025,7 +1025,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
             const x3 = new MetaVar(null, new EITHER(Lv, Rv), Symbol('x3'));
             return goOn(
               [
-                [motout, check(Γ, r, mot, PIType([[x3.name, x3.varType]], 'UNIVERSE'))],
+                [motout, () => check(Γ, r, mot, PIType([[x3.name, x3.varType]], 'UNIVERSE'))],
                 [motval, () => new go(valInCtx(Γ, motout.value!)!)],
                 [lout, () => check(Γ, r, L, PIType([[x1.name, x1.varType]], doAp(motval.value!, new LEFT(x1))!))],
                 [rout, () => check(Γ, r, R, PIType([[x2.name, x2.varType]], doAp(motval.value!, new RIGHT(x2))!))],
@@ -1049,7 +1049,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
       const eout = new TSMetaCore(null, Symbol('eout'));
       return goOn(
         [
-          [tout, isType(Γ, r, t)],
+          [tout, () => isType(Γ, r, t)],
           [eout, () => {
             return check(Γ, r, e, valInCtx(Γ, tout.value!)!)
           }],
@@ -1063,14 +1063,14 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
           if (rator instanceof Src) {
             const therator = new TSMetaCore(null, Symbol('therator'));
             return goOn(
-              [[therator, synth(Γ, r, rator)]],
+              [[therator, () => synth(Γ, r, rator)]],
               () => {
                 const result = valInCtx(Γ, therator.value![1])!;
                 if (result instanceof PI) {
                   const [x, A, c] = [result.argName, result.argType, result.resultType];
                   const randout = new TSMetaCore(null, Symbol('randout'));
                   return goOn(
-                    [[randout, check(Γ, r, rand, A)]],
+                    [[randout, () => check(Γ, r, rand, A)]],
                     () => new go(['the', readBackType(Γ, valOfClosure(c, valInCtx(Γ, randout.value!)!)!), [therator.value![2], randout.value!]])
                   );
                 } else {
@@ -1083,14 +1083,14 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
           if (last.every(item => item instanceof Src)) {
             const appmeta = new TSMetaCore(null, Symbol('appmeta'));
             return goOn(
-              [[appmeta, synth(Γ, r, new Src(srcLoc(e), [rator, rand, last]))]],
+              [[appmeta, () => synth(Γ, r, new Src(srcLoc(e), [rator, rand, last]))]],
               () => {
                 const result = valInCtx(Γ, appmeta.value![1])!;
                 if (result instanceof PI) {
                   const [x, A, c] = [result.argName, result.argType, result.resultType];
                   const randout = new TSMetaCore(null, Symbol('randout'));
                   return goOn(
-                    [[randout, check(Γ, r, rand, A)]],
+                    [[randout, () => check(Γ, r, rand, A)]],
                     () => new go(['the', readBackType(Γ, valOfClosure(c, valInCtx(Γ, randout.value!)!)!), [appmeta.value![2], randout.value!]])
                   );
                 } else {
@@ -1107,12 +1107,13 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const realx = rename(r, x);
         const xtv = new TSMetaValue(null, Symbol('xtv'));
         return goOn(
-          [[xtv, varType(Γ, srcLoc(e), realx)]],
+          [[xtv, () => varType(Γ, srcLoc(e), realx)]],
           () => {
             const result = Γ.find(([key, value]) => key.toString() === realx.toString());
             if (result instanceof Array && result[1] instanceof Def) {
               SendPieInfo(srcLoc(e), 'definition');
             } else {
+              console.log('888',[xtv.value, readBackType(Γ, xtv.value!), realx]);
               return new go(['the', readBackType(Γ, xtv.value!), realx]);
             }
           })
@@ -1122,7 +1123,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         } else if (x > 0) {
           const n_minus1_out = new TSMetaCore(null, Symbol('n_minus1_out'));
           return goOn(
-            [[n_minus1_out, check(Γ, r, new Src(srcLoc(e), x - 1), 'NAT')]],
+            [[n_minus1_out, () => check(Γ, r, new Src(srcLoc(e), x - 1), 'NAT')]],
             () => new go(['the', 'Nat', ['add1', n_minus1_out.value!]])
           )
         }
@@ -1132,7 +1133,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
     })!;
   const result = new TSMetaCore(null, Symbol('result'));
   return goOn(
-    [[result, theExpr]],
+    [[result, () => theExpr]],
     () => {
       SendPieInfo(srcLoc(e), ['has-type', result.value![1]]);
       return theExpr;
@@ -1197,10 +1198,10 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
         const dout = new TSMetaCore(null, Symbol('dout'));
         return goOn(
           [
-            [aout, check(Γ, r, a, A)],
+            [aout, () => check(Γ, r, a, A)],
             [dout, () => check(Γ, r, d, valOfClosure(c, valInCtx(Γ, aout.value!)!)!)],
           ],
-          new go(['cons', aout.value!, dout.value!])
+          () => new go(['cons', aout.value!, dout.value!])
         );
       } else {
         return new stop(srcLoc(input), [`cons requires a Pair or Σ type, but was used as a: ${readBackType(Γ, nt)}.`]);
@@ -1224,7 +1225,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
         const void2 = new TSMetaVoid(null, Symbol('void2'));
         return goOn(
           [
-            [cout, check(Γ, r, c, Av)],
+            [cout, () => check(Γ, r, c, Av)],
             [v, () => new go(valInCtx(Γ, cout.value!)!)],
             [void1, () => convert(Γ, srcLoc(c), Av, from, v.value!)],
             [void2, () => convert(Γ, srcLoc(c), Av, to, v.value!)],
@@ -1259,9 +1260,9 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
           const tout = new TSMetaCore(null, Symbol('tout'));
           return goOn(
             [
-              [hout, check(Γ, r, h, result.entryType)],
-              [tout, check(Γ, r, t,
-                new VEC(result.entryType, result.length.smaller))],
+              [hout, () => check(Γ, r, h, result.entryType)],
+              [tout, () => check(Γ, r, t,
+                new VEC(result.entryType, (result.length as ADD1).smaller))],
             ],
             () => new go(['vec::', hout.value!, tout.value!])
           );
@@ -1281,8 +1282,8 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       if (result instanceof EITHER) {
         const lout = new TSMetaCore(null, Symbol('lout'));
         return goOn(
-          [[lout, check(Γ, r, l, result.leftType)]],
-          new go(['left', lout.value!])
+          [[lout, () => check(Γ, r, l, result.leftType)]],
+          () => new go(['left', lout.value!])
         );
       } else {
         return new stop(srcLoc(input),
@@ -1295,8 +1296,8 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       if (result instanceof EITHER) {
         const rout = new TSMetaCore(null, Symbol('rout'));
         return goOn(
-          [[rout, check(Γ, r, rght, result.rightType)]],
-          new go(['right', rout.value!])
+          [[rout, () => check(Γ, r, rght, result.rightType)]],
+          () => new go(['right', rout.value!])
         );
       } else {
         return new stop(srcLoc(input),
@@ -1310,13 +1311,15 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
       // TODO: translate ann?
       return new go(["TODO", locationToSrcLoc(srcLoc(input)), ty]);
     })
-    .otherwise(other => {
+    .otherwise(_ => {
       const thet = new TSMetaCore(null, Symbol('thet'));
       const ph = new TSMetaVoid(null, Symbol('ph'));
+      console.log('checkSYBOL', r, input);
       return goOn(
         [
-          [thet, synth(Γ, r, input)],
+          [thet, () => synth(Γ, r, input)],
           [ph, () => {
+            console.log('ph', thet.value);
             return sameType(Γ, srcLoc(input), valInCtx(Γ, thet.value![1])!, tv);
           }]
         ],
@@ -1328,7 +1331,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
   const ok = new TSMetaCore(null, Symbol('ok'));
   SendPieInfo(srcLoc(input), ['has-type', readBackType(Γ, tv)!]);
   return goOn(
-    [[ok, out]],
+    [[ok, () => out]],
     () => new go(ok.value!)
   )
 }
@@ -1341,7 +1344,8 @@ function sameType(Γ: Ctx, where: Loc, given: Value, expected: Value): Perhaps<v
   if (alphaEquiv(givenE, expectedE)) {
     return new go(undefined);
   } else {
-    return new stop(where, [`Expected ${readBackType(Γ, expected)} but given ${readBackType(Γ, given)}.`]);
+    console.log('fuck', readBackType(Γ, given), given, expected)
+    return new stop(where, [`Expected ${expectedE.toString()} but given ${givenE.toString()}.`]);
   }
 }
 
@@ -1386,8 +1390,8 @@ function addClaim(Γ: Ctx, f: Symbol, floc: Loc, ty: Src): Perhaps<Ctx> {
   const tyout = new TSMetaCore(null, Symbol('tyout'));
   const meta_ = new TSMetaValue(null, Symbol('meta_'));
   return goOn(
-    [[meta_, notUsed(Γ, floc, f)], [tyout, isType(Γ, [], ty)]],
-    new go([[f, new Claim(valInCtx(Γ, tyout.value!)!)], ...Γ]));
+    [[meta_, () => notUsed(Γ, floc, f)], [tyout, () => isType(Γ, [], ty)]],
+    () => new go([[f, new Claim(valInCtx(Γ, tyout.value!)!)], ...Γ]));
 }
 
 function removeClaim(x: Symbol, Γ: Ctx): Ctx {
@@ -1407,8 +1411,8 @@ function addDef(Γ: Ctx, f: Symbol, floc: Loc, expr: Src): Perhaps<Ctx> {
   const tv = new TSMetaValue(null, Symbol('tv'));
   const exprout = new TSMetaCore(null, Symbol('exprout'));
   return goOn(
-    [[tv, getClaim(Γ, floc, f)], [exprout, check(Γ, [], expr, tv.value!)]],
-    new go(
+    [[tv, () => getClaim(Γ, floc, f)], [exprout, () => check(Γ, [], expr, tv.value!)]],
+    () => new go(
       bindVal(removeClaim(f, Γ),
         f,
         tv.value!,

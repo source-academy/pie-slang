@@ -11,56 +11,56 @@ type Loc = Location;
 */
 enum PieKeyword {
   'U' = 'U'
-  ,'Nat' = 'Nat'
-  ,'zero' ='zero'
-  ,'add1' = 'add1'
-  ,'which-Nat' = 'which-Nat'
-  ,'iter-Nat' = 'iter-Nat'
-  ,'rec-Nat' = 'rec-Nat'
-  ,'ind-Nat' = 'ind-Nat'
-  ,'->' = '->'
-  ,'→' = '→'
-  ,'Π' = 'Π'
-  ,'λ' = 'λ'
-  ,'Pi' = 'Pi'
-  ,'∏' = '∏'
-  ,'lambda' = 'lambda'
-  ,'quote' = 'quote'
-  ,'Atom' = 'Atom'
-  ,'car' = 'car' 
-  ,'cdr'= 'cdr'
-  ,'cons' = 'cons'
-  ,'Σ' = 'Σ'
-  ,'Sigma' = 'Sigma'
-  ,'Pair' = 'Pair'
-  ,'Trivial' = 'Trivial'
-  ,'sole' = 'sole'
-  ,'List' = 'List'
-  ,'::' = '::'
-  ,'nil' = 'nil'
-  ,'rec-List' = 'rec-List'
-  ,'ind-List' = 'ind-List'
-  ,'Absurd' = 'Absurd'
-  ,'ind-Absurd' = 'ind-Absurd'
-  ,'=' = '='
-  ,'same' = 'same'
-  ,'replace' = 'replace'
-  ,'trans' = 'trans'
-  ,'cong' = 'cong'
-  ,'symm' = 'symm'
-  ,'ind-=' = 'ind-=' 
-  ,'Vec' = 'Vec'
-  ,'vecnil' = 'vecnil'
-  ,'vec::' = 'vec::'
-  ,'head' = 'head'
-  ,'tail' = 'tail'
-  ,'ind-Vec' = 'ind-Vec'
-  ,'Either' = 'Either'
-  ,'left' = 'left'
-  ,'right' = 'right'
-  ,'ind-Either' = 'ind-Either'
-  ,'TODO' = 'TODO'
-  ,'the' = 'the'
+  , 'Nat' = 'Nat'
+  , 'zero' = 'zero'
+  , 'add1' = 'add1'
+  , 'which-Nat' = 'which-Nat'
+  , 'iter-Nat' = 'iter-Nat'
+  , 'rec-Nat' = 'rec-Nat'
+  , 'ind-Nat' = 'ind-Nat'
+  , '->' = '->'
+  , '→' = '→'
+  , 'Π' = 'Π'
+  , 'λ' = 'λ'
+  , 'Pi' = 'Pi'
+  , '∏' = '∏'
+  , 'lambda' = 'lambda'
+  , 'quote' = 'quote'
+  , 'Atom' = 'Atom'
+  , 'car' = 'car'
+  , 'cdr' = 'cdr'
+  , 'cons' = 'cons'
+  , 'Σ' = 'Σ'
+  , 'Sigma' = 'Sigma'
+  , 'Pair' = 'Pair'
+  , 'Trivial' = 'Trivial'
+  , 'sole' = 'sole'
+  , 'List' = 'List'
+  , '::' = '::'
+  , 'nil' = 'nil'
+  , 'rec-List' = 'rec-List'
+  , 'ind-List' = 'ind-List'
+  , 'Absurd' = 'Absurd'
+  , 'ind-Absurd' = 'ind-Absurd'
+  , '=' = '='
+  , 'same' = 'same'
+  , 'replace' = 'replace'
+  , 'trans' = 'trans'
+  , 'cong' = 'cong'
+  , 'symm' = 'symm'
+  , 'ind-=' = 'ind-='
+  , 'Vec' = 'Vec'
+  , 'vecnil' = 'vecnil'
+  , 'vec::' = 'vec::'
+  , 'head' = 'head'
+  , 'tail' = 'tail'
+  , 'ind-Vec' = 'ind-Vec'
+  , 'Either' = 'Either'
+  , 'left' = 'left'
+  , 'right' = 'right'
+  , 'ind-Either' = 'ind-Either'
+  , 'TODO' = 'TODO'
+  , 'the' = 'the'
 }
 /*
   Define the Src type, which associates a source location with
@@ -182,6 +182,7 @@ type Core =
   | ['rec-List', Core, ['the', Core, Core], Core]
   | ['ind-List', Core, Core, Core, Core]
   | 'Absurd'
+  | 'Trivial'
   | ['ind-Absurd', Core, Core]
   | ['=', Core, Core, Core]
   | ['same', Core]
@@ -860,32 +861,21 @@ class stop extends Perhaps<undefined> {
 */
 // review this function when needed: BUG MAY OCCUR
 function goOn(
-  bindings: Array<[TSMeta, Perhaps<any> | (() => Perhaps<any>)]>,
-  finalExpr: any
-): stop | any{
+  bindings: Array<[TSMeta, (() => Perhaps<any>)]>,
+  finalExpr: () => any
+): stop | any {
   if (bindings.length === 0) {
-    if(finalExpr instanceof Function) {
-      return finalExpr();
-    }
-    return finalExpr;
+    return finalExpr();
   }
   const [[meta, perhapsf], ...rest] = bindings;
-  if(perhapsf instanceof Function) {
-    const perhaps = perhapsf();
-    if (perhaps.isGo()) {
-      meta.value = (perhaps as go<any>).result;
-      return goOn(rest, finalExpr);
-    } else {
-      return perhaps;
-    }
+  const perhaps = perhapsf();
+  if (perhaps.isGo()) {
+    meta.value = (perhaps as go<any>).result;
+    return goOn(rest, finalExpr);
   } else {
-    if (perhapsf.isGo()) {
-      meta.value = (perhapsf as go<any>).result;
-      return goOn(rest, finalExpr);
-    } else {
-      return perhapsf;
-    }
+    return perhaps;
   }
+
 }
 
 
@@ -1044,20 +1034,20 @@ abstract class TSMeta {
 }
 
 class TSMetaCore extends TSMeta {
-  constructor(public value: Core | null, public name: Symbol) { 
+  constructor(public value: Core | null, public name: Symbol) {
     super();
   }
 }
 
 
 class TSMetaValue extends TSMeta {
-  constructor(public value: Value | null, public name: Symbol) { 
+  constructor(public value: Value | null, public name: Symbol) {
     super();
   }
 }
 
 class TSMetaVoid extends TSMeta {
-  constructor(public value: any | null, public name: Symbol) { 
+  constructor(public value: any | null, public name: Symbol) {
     super();
   }
 }
