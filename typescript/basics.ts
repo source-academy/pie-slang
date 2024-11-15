@@ -458,6 +458,7 @@ function ctxToEnv(ctx: Ctx): Env {
   if (binding instanceof Def) {
     return [[x, binding.value], ...ctxToEnv(ctxNext)];
   } else if (binding instanceof Free) {
+    console.log('x', x);
     return [[x, new NEU(binding.type, new N_Var(x))], ...ctxToEnv(ctxNext)];
   } else { // for claiml
     return ctxToEnv(ctxNext);
@@ -471,7 +472,8 @@ function extendEnv(env: Env, x: Symbol, v: Value): Env {
 
 // Lookup the value of a variable in an environment (var-val)
 function varVal(env: Env, x: Symbol): Value {
-  const found = env.find(([y]) => y.toString === x.toString);
+  console.log(env);
+  const found = env.find(([y]) => y.description === x.description );
   if (found) {
     const [, v] = found;
     return v;
@@ -751,7 +753,7 @@ function varType(ctx: Ctx, where: Loc, x: Symbol): Perhaps<Value> {
   const [[y, binder], ...ctxNext] = ctx;
   if (binder instanceof Claim) {
     return varType(ctxNext, where, x);
-  } else if (y.toString === x.toString) {
+  } else if (y.toString() === x.toString()) {
     return new go(binderType(binder));
   } else {
     return varType(ctxNext, where, x);

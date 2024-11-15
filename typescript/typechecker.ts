@@ -157,6 +157,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
       }
     })
     .with(['Π', P._, P._], ([_, arr, B]) => {
+      
       if (arr.length === 1) {
         const [bd, A] = arr[0];
         const y = fresh(Γ, bd.varName);
@@ -280,7 +281,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
           [fromv, () => check(Γ, r, from, Av.value!)],
           [tov, () => check(Γ, r, to, Av.value!)],
         ],
-        () => new go(['=', Av.value!, fromv.value!, tov.value!])
+        () => new go(['=', Aout.value!, fromv.value!, tov.value!])
       );
     })
     .with(['Vec', P._, P._], ([_, E, len]) => {
