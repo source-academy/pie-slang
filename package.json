@@ -1,0 +1,28 @@
+{
+  "name": "pie-slang",
+  "version": "1.0.0",
+  "description": "Implementation of Pie, following The Little Typer",
+  "author": "CrazyVerseTech",
+  "license": "ISC",
+  "dependencies": {
+    "ts-pattern": "^5.3.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/highlight": "^7.25.9",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-typescript": "^7.26.0",
+    "@types/estree": "^1.0.6",
+    "@types/jest": "^29.5.14",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "resolve-cwd": "^3.0.0",
+    "to-fast-properties": "^4.0.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.3"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "type": "module"
+}
