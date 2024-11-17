@@ -262,6 +262,9 @@ function elementToSyntax(element: Element, loc: Location): Syntax {
 
 function parseElements(element: Element) : Src{
   const result = match(getValue(element))
+  .with('U', () => {
+    return makeU(locToSyntax(Symbol('U'), (element as Extended.List).location));
+  })
   .with('the', () => {
     let elements = (element as Extended.List).elements;
     let loc = (element as Extended.List).location;

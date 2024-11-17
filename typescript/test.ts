@@ -173,9 +173,7 @@ describe("lambda(var) var", () => {
         (lambda (B) B)
       )`
     );
-    console.log('parse', util.inspect(src)[1]);
     const actual = new go(['the', ['Π', [[Symbol('A'), 'U']], 'U'], ['λ', [Symbol('B')], Symbol('B')]]);
-    console.log('RESULT', util.inspect(rep(initCtx, src)));
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });
   it("case PI2", () => {
@@ -186,7 +184,7 @@ describe("lambda(var) var", () => {
         (lambda (B b) b)
       )`
     );
-    const actual = new go(['the', ['Π', [[Symbol('A'), 'U']], ['Π', [[Symbol('a'), 'A']], 'A']], ['λ', [Symbol('B')], ['λ', [Symbol('b')], Symbol('b')]]]);
+    const actual = new go(['the', ['Π', [[Symbol('A'), 'U']], ['Π', [[Symbol('a'), Symbol('A')]], Symbol('A')]], ['λ', [Symbol('B')], ['λ', [Symbol('b')], Symbol('b')]]]);
     console.log('RESULT2', util.inspect(rep(initCtx, src)));
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });
