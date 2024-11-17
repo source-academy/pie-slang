@@ -1,4 +1,9 @@
 {
+  "name": "pie-slang",
+  "version": "1.0.0",
+  "description": "Implementation of Pie, following The Little Typer",
+  "author": "CrazyVerseTech",
+  "license": "ISC",
   "dependencies": {
     "ts-pattern": "^5.3.1"
   },

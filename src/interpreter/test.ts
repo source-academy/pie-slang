@@ -21,10 +21,6 @@ import {
 import * as util from 'util';
 
 import { Location, Syntax } from './locations';
-import { SchemeLexer } from './transpiler/lexer/scheme-lexer';
-import { SchemeParser } from './transpiler/parser/scheme-parser';
-import { Token } from "./transpiler/types/tokens/token";
-import { Atomic, Expression, Extended } from "./transpiler/types/nodes/scheme-node-types";
 import {parsePie} from './parser';
 
 describe("test parsing", () => {

@@ -3,10 +3,10 @@ import { BindingSite, Srcloc, Loc, Src, TypedBinder, isVarName } from './basics'
 import { Syntax, syntaxToLocation } from './locations';
 import { match, P } from 'ts-pattern';
 
-import { SchemeLexer } from './transpiler/lexer/scheme-lexer';
-import { SchemeParser } from './transpiler/parser/scheme-parser';
-import { Atomic, Expression, Extended } from "./transpiler/types/nodes/scheme-node-types";
-import { Location } from './transpiler/types/location';
+import { SchemeLexer } from './../transpiler/lexer/scheme-lexer';
+import { SchemeParser } from './../transpiler/parser/scheme-parser';
+import { Atomic, Expression, Extended } from "./../transpiler/types/nodes/scheme-node-types";
+import { Location } from './../transpiler/types/location';
 
 function syntaxToSrcLoc(syntax: Syntax): Loc {
   return syntaxToLocation(syntax);
