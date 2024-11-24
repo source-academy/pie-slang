@@ -459,7 +459,6 @@ function ctxToEnv(ctx: Ctx): Env {
   if (binding instanceof Def) {
     return [[x, binding.value], ...ctxToEnv(ctxNext)];
   } else if (binding instanceof Free) {
-    console.log('x', x);
     return [[x, new NEU(binding.type, new N_Var(x))], ...ctxToEnv(ctxNext)];
   } else { // for claiml
     return ctxToEnv(ctxNext);
@@ -473,13 +472,12 @@ function extendEnv(env: Env, x: Symbol, v: Value): Env {
 
 // Lookup the value of a variable in an environment (var-val)
 function varVal(env: Env, x: Symbol): Value {
-  console.log(env);
   const found = env.find(([y]) => y.description === x.description );
   if (found) {
     const [, v] = found;
     return v;
   } else {
-    throw new Error(`Variable ${x} not in env: ${JSON.stringify(env)}`);
+    throw new Error(`Variable ${x.description} not in env: ${JSON.stringify(env)}`);
   }
 }
 
@@ -877,7 +875,6 @@ function goOn(
   } else {
     return perhaps;
   }
-
 }
 
 

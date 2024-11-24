@@ -9,12 +9,14 @@ import {
   Loc,
   TSMetaValue,
 } from './basics';
+
 import {
   synth,
   isType,
   check,
   convert,
 } from './typechecker';
+
 import {
   readBack,
   readBackType,

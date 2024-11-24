@@ -104,21 +104,5 @@ function isSubscriptDigit(c: string): boolean {
     return Object.keys(nonSubscripts).includes(c);
 }
 
-// Test cases with Symbols
-/* 
-console.log(freshen([Symbol('x')], Symbol('x')).toString()); 
-// Expected: Symbol('x₁')
 
-console.log(freshen([Symbol('x'), Symbol('x₁'), Symbol('x₂')], Symbol('x')).toString()); 
-// Expected: Symbol('x₃')
-
-console.log(freshen([Symbol('x₁')], Symbol('x₁')).toString()); 
-// Expected: Symbol('x₂')
-
-console.log(freshen([Symbol('r2d'), Symbol('r2d₀'), Symbol('r2d₁')], Symbol('r2d')).toString()); 
-// Expected: Symbol('r2d₂')
-
-console.log(freshen([], Symbol('A')).toString()); 
-// Expected: Symbol('A')
- */
 export {freshen}

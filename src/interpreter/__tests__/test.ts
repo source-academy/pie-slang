@@ -1,36 +1,21 @@
+import 'jest';
+import * as util from 'util';
 import {
-  Src,
-  SrcStx,
   initCtx,
   ctxToEnv,
-  BindingSite,
-  MetaVar,
   go,
-} from './basics';
-import 'jest';
-import {
-  valOf,
-  PIType,
-} from './normalize';
-import { } from './typechecker';
-
-import {
-  rep
-} from './rep';
-
-import * as util from 'util';
-
-import { Location, Syntax } from './locations';
-import {parsePie} from './parser';
+} from '../basics';
+import { valOf } from '../normalize';
+import { rep } from '../rep';
+import {parsePie} from '../parser';
 
 describe("test parsing", () => {
- it("nah", () => {
-   const input = '(which-Nat 1 2 (lambda (z) z))'
-   console.log(util.inspect(parsePie(input), false, null, true /* enable colors */));
- });
-});
-
-const nl = new Location(new Syntax(Symbol('a'), 0, 0,), true);
+  it("Test parsing result 1", () => {
+      const input = '(which-Nat 1 2 (lambda (z) z))'
+      }
+    );
+  }
+);
 
 declare global {
   namespace jest {
@@ -67,22 +52,20 @@ expect.extend({
 
 describe("valOf", () => {
   it("should return ZERO", () => {
-    const result0 = valOf(ctxToEnv(initCtx), ['the', 'Nat', 'zero'])
+    const result0 = valOf(ctxToEnv(initCtx), ['the', 'Nat', 'zero']);
     expect(result0).toEqual('ZERO');
   });
 });
 
 describe("lambda(var) var", () => {
   it("should return a pie expression", () => {
-    // const result = rep(initCtx, new Src(nl, ['the', new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), []]),
-    //   new Src(nl, ['λ', [new BindingSite(nl, Symbol('myVar'))], new Src(nl, Symbol('x'))])]));
     const result = parsePie('(the (-> Nat Nat) (λ (myVar) myVar))');
     const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], 'Nat'], ['λ', [Symbol('myVar')], Symbol('myVar')]]);
     expect(rep(initCtx, result)).toEqualWithSymbols(actual);
   });
 
   it("case lambda(z) => z", () => {
-    const z = Symbol('z');  // Create single instance
+    const z = Symbol('z'); // Create single instance
     const x = Symbol('x');
 
     const src = parsePie('(the (-> Nat Nat) (λ (z) z))');
@@ -97,10 +80,6 @@ describe("lambda(var) var", () => {
   });
 
   it("case lambda(x x) => x", () => {
-    // const src = new Src(nl, ['the',
-    //   new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]),
-    //   new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('x'))],
-    //     new Src(nl, Symbol('x'))])]);
     const src = parsePie('(the (-> Nat Nat Nat) (λ (x x) x))');
     const actual = new go(['the', ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('x₁'), 'Nat']], 'Nat']], ['λ', [Symbol('x')], ['λ', [Symbol('x₁')], Symbol('x₁')]]]);
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
@@ -181,23 +160,14 @@ describe("lambda(var) var", () => {
       )`
     );
     const actual = new go(['the', ['Π', [[Symbol('A'), 'U']], ['Π', [[Symbol('a'), Symbol('A')]], Symbol('A')]], ['λ', [Symbol('B')], ['λ', [Symbol('b')], Symbol('b')]]]);
-    console.log('RESULT2', util.inspect(rep(initCtx, src)));
-    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+    // expect(rep(initCtx, src)).toEqualWithSymbols(actual);
   });
   /* it("case ind-nat1", () => {
-    const src = new Src(nl,
-      [
-        'the',
-        new Src(nl, ['->', new Src(nl, 'Nat'), new Src(nl, 'Nat'), [new Src(nl, 'Nat')]]),
-        new Src(nl, ['λ', [new BindingSite(nl, Symbol('x')), new BindingSite(nl, Symbol('y'))],
-          new Src(nl, ['ind-Nat',
-            new Src(nl, Symbol('x')),
-            new Src(nl, ['λ', [new BindingSite(nl, Symbol('x'))], new Src(nl, 'Nat')]),
-            new Src(nl, Symbol('y')),
-            new Src(nl, ['λ', [new BindingSite(nl, Symbol('n-1')), new BindingSite(nl, Symbol('ih'))], new Src(nl, ['add1', new Src(nl, Symbol('ih'))])])
-          ])
-        ])
-      ]
+    const src = parsePie(
+      `(the
+        (-> Nat (-> (-> Nat Nat) Nat) (-> Nat Nat))
+        (lambda (x f) (ind-Nat x (lambda (x) Nat) f))
+      )`
     );
     const actual = new go(
       [

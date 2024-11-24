@@ -216,11 +216,6 @@ function makeTODO(loc: Syntax): Src {
   return new Src(syntaxToSrcLoc(loc), 'TODO');
 }
 
-// function getElements(ast: Extended.List[]) {
-//   return ast[0];
-// }
-
-
 type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
 
 function getValue(element: Element): string | Symbol | number{
@@ -316,7 +311,7 @@ function parseElements(element: Element) : Src{
       ]
     ));         
   })
-  //FIXME: Pi ∏ Π
+  
   .with('Π', () => {
     return parseElements(new Extended.List(
       (element as Extended.List).location,
@@ -549,4 +544,8 @@ function parseElements(element: Element) : Src{
     }
   });
   return result;
+}
+
+function parsePieDeclaration(stx: string) {
+  
 }

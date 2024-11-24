@@ -1,12 +1,11 @@
-import { Core, isCore, isVarName} from './basics';
-
+import { Core, isCore, isVarName } from './basics';
 
 // α-equiv? public interface
 export function alphaEquiv(e1: Core, e2: Core): boolean {
   return alphaEquivAux(0, [], [], e1, e2);
 }
 
-/-------------------------------------------------------------------------------------------/
+//-------------------------------------------------------------------------------------------//
 
 // ### Helpers ###
 
@@ -17,12 +16,12 @@ function bind(b: Bindings, x: Symbol, lvl: number): Bindings {
 }
 
 function findBinding(x: Symbol, b: Bindings): [Symbol, number] | undefined {
-  return b.find(([name, _]) => x.toString() === name.toString());
+  return b.find(([name, _]) => x.description === name.description);
 }
 
 function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: Core, e2: Core): boolean {
   if (typeof e1 === 'symbol' && typeof e2 === 'symbol') {
-    return e1.toString() === e2.toString();
+    return e1.description === e2.description;
   } else if (typeof e1 === 'string' && typeof e2 === 'string') {
     const e1s = Symbol(e1);
     const e2s = Symbol(e2);
@@ -54,7 +53,7 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: Core, e2: Co
       return alphaEquivAux(lvl, b1, b2, e1[1][1], e2[1][1]) &&
         alphaEquivAux(lvl + 1, bind(b1, e1[1][0][0], lvl), bind(b2, e2[1][0][0], lvl), e1[2], e2[2]);
     } else if (e1[0] === 'λ' && e2[0] === 'λ') {
-      return alphaEquivAux(lvl + 1, bind(b1, e1[1][1], lvl), bind(b2, e2[1][1], lvl), e1[2], e2[2]);
+      return alphaEquivAux(lvl + 1, bind(b1, e1[1][0], lvl), bind(b2, e2[1][0], lvl), e1[2], e2[2]);
     } else if (e1[0] === 'the' && e2[0] === 'the') {
       return e1[1] === 'Absurd' && e2[1] === 'Absurd';
     } else if (e1.length === 2 && e2.length === 2) {
@@ -91,15 +90,3 @@ function alphaEquivAuxList(lvl: number, b1: Bindings, b2: Bindings, args1: Core[
 
 // Unit tests (using Jest or similar testing framework)
 import { test, expect } from '@jest/globals';
-// NEED TO BE REWRITTEN
-/*
-test('alphaEquiv basic tests', () => {
-  expect(alphaEquiv(['λ', 'x', 'x'], ['λ', 'x', 'x'])).toBe(true);
-  expect(alphaEquiv(['λ', 'x', 'x'], ['λ', 'y', 'y'])).toBe(true);
-  expect(alphaEquiv(['λ', 'x', ['λ', 'y', 'x']], ['λ', 'x', ['λ', 'y', 'x']])).toBe(true);
-  expect(alphaEquiv(['λ', 'x', ['λ', 'y', 'x']], ['λ', 'y', ['λ', 'z', 'y']])).toBe(true);
-  expect(alphaEquiv(['λ', 'x', ['λ', 'y', 'x']], ['λ', 'y', ['λ', 'z', 'z']])).toBe(false);
-  expect(alphaEquiv(['f', 'x'], ['f', 'x'])).toBe(true);
-  expect(alphaEquiv(['f', 'x'], ['g', 'x'])).toBe(false);
-});
-*/
