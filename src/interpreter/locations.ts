@@ -1,3 +1,4 @@
+import { Element } from "./parser";
 
 // type Datum = number | Symbol | boolean | undefined | Datum[];
 type Datum = Symbol;

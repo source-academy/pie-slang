@@ -7,11 +7,12 @@ import {
 } from '../basics';
 import { valOf } from '../normalize';
 import { rep } from '../rep';
-import {parsePie} from '../parser';
+import {parsePie, syntaxParse} from '../parser';
 
 describe("test parsing", () => {
   it("Test parsing result 1", () => {
-      const input = '(which-Nat 1 2 (lambda (z) z))'
+      const input = '(claim x (-> Nat Nat))';
+      console.log(util.inspect(syntaxParse(input), false, null, true));
       }
     );
   }

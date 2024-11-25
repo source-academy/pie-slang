@@ -216,7 +216,7 @@ function makeTODO(loc: Syntax): Src {
   return new Src(syntaxToSrcLoc(loc), 'TODO');
 }
 
-type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
+export type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
 
 function getValue(element: Element): string | Symbol | number{
   if (element instanceof Atomic.Symbol) {
@@ -234,10 +234,15 @@ function getValue(element: Element): string | Symbol | number{
   }
 }
 
-export function parsePie(stx: string): Src {
+export function syntaxParse(stx: string): Extended.List[] {
   const lexer = new SchemeLexer(stx);
   const parser = new SchemeParser('', lexer.scanTokens());
   const ast : Extended.List[] = parser.parse() as Extended.List[];
+  return ast;
+}
+
+export function parsePie(stx: string): Src {
+  const ast = syntaxParse(stx);
   const result = parseElements(ast[0]);
   return result;
 }
@@ -533,6 +538,13 @@ function parseElements(element: Element) : Src{
       parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
       elements.slice(3).map((x: Expression) => parseElements(x as Element)));
   })
+  // Declaration checking
+  .with(
+    'claim', () => {
+      let [_, x, type] = (element as Extended.List).elements;
+      return ['claim', syntaxToDatum(x), , parseElements(type as Element)];
+    }
+  )
   .otherwise(() => {
     const val = getValue(element);
     if(typeof val === 'number') {
@@ -546,6 +558,5 @@ function parseElements(element: Element) : Src{
   return result;
 }
 
-function parsePieDeclaration(stx: string) {
-  
-}
+
+
