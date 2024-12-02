@@ -1,7 +1,7 @@
 import { Element } from "./parser";
 
 // type Datum = number | Symbol | boolean | undefined | Datum[];
-type Datum = Symbol;
+export type Datum = Symbol;
 export class Syntax {
   constructor(
     public source: Symbol | number,

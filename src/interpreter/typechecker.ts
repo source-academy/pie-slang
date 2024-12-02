@@ -332,6 +332,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
 
 // ### Check the form of judgment Γ ⊢ e synth ↝ (the c c)
 function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
+  console.log('input', srcStx(e));
   const theExpr = match(srcStx(e))
     .with('Nat', () => new go(['the', 'U', 'Nat']))
     .with('U', () => new stop(srcLoc(e), ["U is a type, but it does not have a type."]))
@@ -340,11 +341,14 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const z = freshBinder(Γ, B, Symbol('x'));
         const Aout = new TSMetaCore(null, Symbol('Aout'));
         const Bout = new TSMetaCore(null, Symbol('Bout'));
+        console.log('context', Γ);
+        console.log('synth -> if', A, B, arr);
         return goOn(
           [[Aout, () => check(Γ, r, A, 'UNIVERSE')],
           [Bout, () => check(bindFree(Γ, z, valInCtx(Γ, Aout.value!)!),
             r, B, 'UNIVERSE')],],
           (() => {
+            console.log('synth -> if -> go', Aout.value!, Bout.value!);
             new go(['the', 'U', ['Π', [[z, Aout.value!]], Bout.value!]])
           })
         );
@@ -353,6 +357,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
         const z = freshBinder(Γ, makeApp(B, C, rest), Symbol('x'));
         const Aout = new TSMetaCore(null, Symbol('Aout'));
         const tout = new TSMetaCore(null, Symbol('tout'));
+        console.log('synth -> else', A, B, arr);
         return goOn(
           [
             [Aout, () => check(Γ, r, A, 'UNIVERSE')],
@@ -364,7 +369,10 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
             )
             ]
           ],
-          (() => new go(['the', 'U', ['Π', [[z, Aout.value!]], tout.value!]])))
+          (() => {
+            console.log('synth -> else -> go', Aout.value!, tout.value!);
+            new go(['the', 'U', ['Π', [[z, Aout.value!]], tout.value!]])
+          }))
       }
     })
     .with(['Π', P._, P._], ([_, arr, B]) => {
@@ -1144,6 +1152,7 @@ function synth(Γ: Ctx, r: Renaming, e: Src): Perhaps<['the', Core, Core]> {
 
 
 function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
+  console.log('check', input, tv);
   const out: Perhaps<Core> = match(srcStx(input))
     .with(['λ', P._, P._], ([_, xBinding, b]) => {
       if (xBinding.length === 1) {
@@ -1315,6 +1324,7 @@ function check(Γ: Ctx, r: Renaming, input: Src, tv: Value): Perhaps<Core> {
     .otherwise(_ => {
       const thet = new TSMetaCore(null, Symbol('thet'));
       const ph = new TSMetaVoid(null, Symbol('ph'));
+      console.log('synth cnm: ', Γ, r, input )
       return goOn(
         [
           [thet, () => synth(Γ, r, input)],

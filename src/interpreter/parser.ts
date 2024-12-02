@@ -1,6 +1,6 @@
 import { isNumericLiteral, Type } from 'typescript';
 import { BindingSite, Srcloc, Loc, Src, TypedBinder, isVarName } from './basics';
-import { Syntax, syntaxToLocation } from './locations';
+import { Syntax, syntaxToLocation, Datum} from './locations';
 import { match, P } from 'ts-pattern';
 
 import { SchemeLexer } from './../transpiler/lexer/scheme-lexer';
@@ -10,6 +10,10 @@ import { Location } from './../transpiler/types/location';
 
 function syntaxToSrcLoc(syntax: Syntax): Loc {
   return syntaxToLocation(syntax);
+}
+
+function syntaxToDatum(syntax: Syntax): Symbol| number {
+  return syntax.source;
 }
 
 function bindingSite(id: Syntax) {
@@ -538,13 +542,6 @@ function parseElements(element: Element) : Src{
       parseElements(elements[1] as Element), parseElements(elements[2] as Element), 
       elements.slice(3).map((x: Expression) => parseElements(x as Element)));
   })
-  // Declaration checking
-  .with(
-    'claim', () => {
-      let [_, x, type] = (element as Extended.List).elements;
-      return ['claim', syntaxToDatum(x), , parseElements(type as Element)];
-    }
-  )
   .otherwise(() => {
     const val = getValue(element);
     if(typeof val === 'number') {
@@ -554,6 +551,25 @@ function parseElements(element: Element) : Src{
     } else {
       return makeTODO(locToSyntax(Symbol('TODO'), (element as Extended.List).location));
     }
+  });
+  return result;
+}
+
+export function parsePieDecl(element: Element) {
+  const result = match(getValue(element))
+  .with('claim', () => {
+    let [_, x, type] = (element as Extended.List).elements;
+    return ['claim', getValue(x as Element) as Datum, x.location,  parseElements(type as Element)];
+  })
+  .with('definition', () => {
+    let [_, x, e] = (element as Extended.List).elements;
+    return ['definition', getValue(x as Element) as Datum, x.location, parseElements(e as Element)];
+  })
+  .with('expression', () => {
+    return ['expression', parseElements(element)];
+  })
+  .otherwise(() => {
+    return ['TODO', getValue(element)];
   });
   return result;
 }
