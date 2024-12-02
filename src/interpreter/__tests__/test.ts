@@ -197,12 +197,13 @@ expect.extend({
 describe("demo", () => {
 
   it("Pie demo", () => {
-    const src = parsePie('(-> Nat Nat Nat Nat)');
+    const src = parsePie('(-> Nat Nat Nat Nat Nat)');
     const actual = new go(['the', 'U', ['Π', [[Symbol('x'), 'Nat']], 
                                          ['Π', [[Symbol('x₁'), 'Nat']], 
                                            ['Π', [[Symbol('x₂'), 'Nat']], 
                                              ['Π', [[Symbol('x₃'), 'Nat']], 
                                                   'Nat']]]]]);
+    console.log('result', util.inspect(rep(initCtx, src), false, null, true));
     expect(rep(initCtx, src)).toEqualWithSymbols(actual);
                                                   
     });
