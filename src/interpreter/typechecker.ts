@@ -261,6 +261,7 @@ function isType(Γ: Ctx, r: Renaming, input: Src): Perhaps<Core> {
         )
       }
     })
+    .with('Trivial', () => new go('Trivial'))
     .with(['List', P._], ([_, E]) => {
       const Eout = new TSMetaCore(null, Symbol('Eout'));
       return goOn(

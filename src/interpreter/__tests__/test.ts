@@ -208,19 +208,19 @@ describe("demo", () => {
                                                   
     });
 
-  // it("should return a pie expression", () => {
-  //   const src = parsePie(
-  //                       `(the (-> Trivial
-  //                                        (Pair Trivial Trivial))
-  //                                    (lambda (x)
-  //                                      (cons x x)))`
-  //                                      );
-  //   const actual = new go(
-  //       ['the', ['Π', [['x', 'Trivial']], 
-  //       ['Σ', [['x₁', 'Trivial']], 'Trivial']], 
-  //       ['λ', ['x'],['cons', 'sole', 'sole']]]);
-  //     console.log('wcnm', util.inspect(rep(initCtx, src)));
-  //   expect(rep(initCtx, src)).toEqualWithSymbols(actual);
-  // });
+  it("Sigma demo", () => {
+    const src = parsePie(
+                        `(the (-> Trivial
+                                         (Pair Trivial Trivial))
+                                     (lambda (x)
+                                       (cons x x)))`
+                                       );
+    const actual = new go(
+        ['the', ['Π', [[Symbol('x'), 'Trivial']], 
+        ['Σ', [[Symbol('x₁'), 'Trivial']], 'Trivial']], 
+        ['λ', [Symbol('x')],['cons', Symbol('sole'), Symbol('sole')]]]);
+    console.log('wcnm', util.inspect(rep(initCtx, src), false, null, true));
+    expect(rep(initCtx, src)).toEqualWithSymbols(actual);
+  });
 
 });

@@ -369,6 +369,16 @@ function parseElements(element: Element) : Src{
         parseElements(body)
     );
   })
+  .with('Pair', () => {
+    let elements = (element as Extended.List).elements;
+    return makePair(locToSyntax(Symbol('Pair'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
+  .with('cons', () => {
+    let elements = (element as Extended.List).elements;
+    return makeCons(locToSyntax(Symbol('cons'), (element as Extended.List).location), 
+      parseElements(elements[1] as Element), parseElements(elements[2] as Element));
+  })
   .with('which-Nat', () => {
     let elements = (element as Extended.List).elements;
     return makeWhichNat(

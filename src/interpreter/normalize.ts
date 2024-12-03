@@ -622,8 +622,8 @@ function valOf(env: Env, expr: Core): Value | undefined {
     case "Atom":
       return "ATOM";
     case "Σ":
-      const Sigma_A_v = later(env, expr[1][1]);
-      return new SIGMA(expr[1][0], Sigma_A_v, new FO_CLOS(env, expr[1][0], expr[2]));
+      const Sigma_A_v = later(env, expr[1][0][1]);
+      return new SIGMA(expr[1][0][0], Sigma_A_v, new FO_CLOS(env, expr[1][0], expr[2]));
     case "cons":
       return new CONS(later(env, expr[1]), later(env, expr[2]));
     case "car":
@@ -864,7 +864,7 @@ function readBack(ctx: Ctx, type: Value, value: Value): Core | undefined {
     }
 
   } else if (type === "TRIVIAL") {
-
+// TODO: why Symbol(sole)?
     return Symbol('sole');
 
   } else if (type instanceof LIST && value === 'NIL') {
