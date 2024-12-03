@@ -1,4 +1,3 @@
-import { isNumericLiteral, Type } from 'typescript';
 import { BindingSite, Srcloc, Loc, Src, TypedBinder, isVarName } from './basics';
 import { Syntax, syntaxToLocation, Datum} from './locations';
 import { match, P } from 'ts-pattern';
