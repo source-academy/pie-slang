@@ -1,6 +1,3 @@
-import { Element } from "./parser";
-
-// type Datum = number | Symbol | boolean | undefined | Datum[];
 export type Datum = Symbol;
 export class Syntax {
   constructor(

@@ -79,7 +79,6 @@ function numberToSubscriptString(n: number): Symbol {
     return Symbol(subscriptStr);
 }
 
-
 // Replaces subscript digits with regular digits
 function subscriptToNumber(str: string): number {
     const replaced = str.split("").map(char => nonSubscripts[char] || char).join("");
