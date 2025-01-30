@@ -1,5 +1,6 @@
 import { syntaxToLocation, notForInfo, locationToSrcLoc, Location } from './locations';
 import { freshen } from './fresh';
+
 // Define Srcloc as a tuple type
 type Srcloc = [Symbol, number, number];
 
