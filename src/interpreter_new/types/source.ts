@@ -1,107 +1,19 @@
-import {Location} from './locations';
-import { SourceSyntaxVisitor } from './visitors/basics_visitors';
+import { Location } from './../locations';
+import { SourceSyntaxVisitor} from './../visitors/basics_visitors';
+import { SiteBinder, TypedBinder } from './utils';
 
-function isPieKeywords(str : string) : boolean {
-  return str === 'U' ? true : 
-    str === 'Nat' ? true :
-    str === 'zero' ? true :
-    str === 'add1' ? true :
-    str === 'which-Nat' ? true :
-    str === 'iter-Nat' ? true :
-    str === 'rec-Nat' ? true :
-    str === 'ind-Nat' ? true :
-    str === '->' ? true :
-    str === '→' ? true :
-    str === 'Π' ? true :
-    str === 'λ' ? true :
-    str === 'Pi' ? true :
-    str === '∏' ? true :
-    str === 'lambda' ? true :
-    str === 'quote' ? true :
-    str === 'Atom' ? true :
-    str === 'car' ? true :
-    str === 'cdr' ? true :
-    str === 'cons' ? true :
-    str === 'Σ' ? true :
-    str === 'Sigma' ? true :
-    str === 'Pair' ? true :
-    str === 'Trivial' ? true :
-    str === 'sole' ? true :
-    str === 'List' ? true :
-    str === '::' ? true :
-    str === 'nil' ? true :
-    str === 'rec-List' ? true :
-    str === 'ind-List' ? true :
-    str === 'Absurd' ? true :
-    str === 'ind-Absurd' ? true :
-    str === '=' ? true :
-    str === 'same' ? true :
-    str === 'replace' ? true :
-    str === 'trans' ? true :
-    str === 'cong' ? true :
-    str === 'symm' ? true :
-    str === 'ind-=' ? true :
-    str === 'Vec' ? true :
-    str === 'vecnil' ? true :
-    str === 'vec::' ? true :
-    str === 'head' ? true :
-    str === 'tail' ? true :
-    str === 'ind-Vec' ? true :
-    str === 'Either' ? true :
-    str === 'left' ? true :
-    str === 'right' ? true :
-    str === 'ind-Either' ? true :
-    str === 'TODO' ? true :
-    str === 'the' ? true :
-    false;
-}
-
-/*
-  Define the Source type, which associates a source location with
-  a Pie expression. Another name for Src in orginal code is "@".
-*/
-class Source {
+export class Source {
   constructor(
     public location: Location,
     public syntax: SourceSyntax,
   ) { }
 }
 
-// Define a function to check if an object is a Source.
-function isSource(obj: any): obj is Source {
-  return obj instanceof Source;
-}
-
-// A SiteBinder is a variable name and its location, substitute BindingSite in original code.
-
-class SiteBinder {
-  constructor(
-    public varName: string,
-    public location: Location,
-  ) { }
-}
-
-// Define TypedBinder, which is a SiteBinder associated with a expression in Pie.
-
-class TypedBinder {
-  constructor(
-    public binder: SiteBinder,
-    public type: Source,
-  ) {}
-}
-
-/*  
-    SourceSyntax is the kinds of expressions in Pie.
-    Pie expressions consist of a source location attached by @ to an
-    S-expression that follows the structure defined in The Little
-    Typer. Each sub-expression also has a source location, so they are
-    Src rather than Src-Stx.
-*/
 abstract class SourceSyntax {
   public abstract accept(visitor: SourceSyntaxVisitor) : void; 
 }
 
-class SS_The extends SourceSyntax {
+export class SS_The extends SourceSyntax {
 
   // ['the', Source, Source]
   constructor(
@@ -116,7 +28,7 @@ class SS_The extends SourceSyntax {
   }
 }
 
-class SS_U {
+export class SS_U {
   // ['U']
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
@@ -124,7 +36,7 @@ class SS_U {
   }
 }
 
-class SS_Nat {
+export class SS_Nat {
   // ['Nat']
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
@@ -132,7 +44,7 @@ class SS_Nat {
   }
 }
 
-class SS_Zero {
+export class SS_Zero {
   // ['zero']
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
@@ -140,7 +52,7 @@ class SS_Zero {
   }
 }
 
-class SS_Name {
+export class SS_Name {
   // [string]
   constructor(
     public name: string,
@@ -150,16 +62,14 @@ class SS_Name {
   }
 }
 
-class SS_Atom {
-  // ['Atom']
+export class SS_Atom {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitAtom(this);
   }
 }
 
-class SS_Quote {
-  // ['quote', Source]
+export class SS_Quote {
   constructor(
     public name: string,
   ) { }
@@ -168,8 +78,8 @@ class SS_Quote {
   }
 }
 
-class SS_Add1 {
-  // ['add1', Source]
+// Natural number operations
+export class SS_Add1 {
   constructor(
     public base: Source,
   ) { }
@@ -178,8 +88,7 @@ class SS_Add1 {
   }
 }
 
-class SS_WhichNat {
-  // ['which-Nat', Source, Source, Source]
+export class SS_WhichNat {
   constructor(
     public target: Source,
     public base: Source,
@@ -190,8 +99,7 @@ class SS_WhichNat {
   }
 }
 
-class SS_IterNat {
-  // ['iter-Nat', Source, Source, Source]
+export class SS_IterNat {
   constructor(
     public target: Source,
     public base: Source,
@@ -202,8 +110,7 @@ class SS_IterNat {
   }
 }
 
-class SS_RecNat {
-  // ['rec-Nat', Source, Source, Source]
+export class SS_RecNat {
   constructor(
     public target: Source,
     public base: Source,
@@ -214,8 +121,7 @@ class SS_RecNat {
   }
 }
 
-class SS_IndNat {
-  // ['ind-Nat', Source, Source, Source]
+export class SS_IndNat {
   constructor(
     public target: Source,
     public motive: Source,
@@ -227,139 +133,110 @@ class SS_IndNat {
   }
 }
 
-class SS_Arrow {
-  // ['->', Source, Source, Source[]]
-  // a function type expression has at least 2 Sources as input type and output type
-  // and could have more Sources as the input types, which are contained in the final array of Sources
+// Function types and operations
+export class SS_Arrow {
   constructor(
     public arg1: Source,
     public arg2: Source,
     public args: Source[],
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitArrow(this);
   }
 }
 
-class SS_Pi {
-  // ['PI', TypedBinder[], Source]
-  // a dependent function type expression has a list of TypedBinders as input types
+export class SS_Pi {
   constructor(
     public binders: TypedBinder[],
     public body: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitPi(this);
   }
 }
 
-class SS_Lambda {
-  // ['lambda', SiteBinder[], Source]
-  // a lambda expression has a list of SiteBinders as input types
+export class SS_Lambda {
   constructor(
     public binders: SiteBinder[],
     public body: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitLambda(this);
   }
 }
 
-class SS_Sigma {
-  // ['Sigma', TypedBinder[], Source]
-  // a dependent pair type expression has a list of TypedBinders as input types
+// Product types and operations
+export class SS_Sigma {
   constructor(
     public binders: TypedBinder[],
     public body: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitSigma(this);
   }
 }
 
-class SS_Pair {
-  // ['Pair', Source, Source]
+export class SS_Pair {
   constructor(
     public first: Source,
     public second: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitPair(this);
   }
 }
 
-class SS_Cons {
-  // ['cons', Source, Source]
+export class SS_Cons {
   constructor(
     public first: Source,
     public second: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitCons(this);
   }
 }
 
-/*
-  In computer programming, CAR (car) /kɑːr/ ⓘ and CDR (cdr) (/ˈkʌdər/ ⓘ or /ˈkʊdər/ ⓘ) 
-  are primitive operations on cons cells (or "non-atomic S-expressions") introduced in the
-  Lisp programming language. A cons cell is composed of two pointers; the car operation
-  extracts the first pointer, and the cdr operation extracts the second.
-  Thus, the expression (car (cons x y)) evaluates to x, and (cdr (cons x y)) evaluates to y.
-*/
-class SS_Car {
-  // ['car', Source]
+export class SS_Car {
   constructor(
     public pair: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitCar(this);
   }
 }
 
-class SS_Cdr {
-  // ['cdr', Source]
+export class SS_Cdr {
   constructor(
     public pair: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitCdr(this);
   }
 }
 
-class SS_Trivial {
-  // ['Trivial']
+// Basic constructors
+export class SS_Trivial {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitTrivial(this);
   }
 }
 
-class SS_Sole {
-  // ['sole']
+export class SS_Sole {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitSole(this);
   }
 }
 
-class SS_Nil {
-  // ['nil']
+export class SS_Nil {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitNil(this);
   }
 }
 
-class SS_Number {
-  // [number]
+export class SS_Number {
   constructor(
     public value: number,
   ) { }
@@ -368,210 +245,177 @@ class SS_Number {
   }
 }
 
-class SS_ConsList {
-  // ['::', Source, Source]
+// List operations
+export class SS_ConsList {
   constructor(
     public x: Source,
     public xs: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitConsList(this);
   }
 }
 
-class SS_RecList {
-  // ['rec-List', Source, Source, Source, Source]
+export class SS_RecList {
   constructor(
     public target: Source,
     public base: Source,
     public step: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitRecList(this);
   }
 }
 
-class SS_IndList {
-  // ['ind-List', Source, Source, Source, Source]
+export class SS_IndList {
   constructor(
     public target: Source,
     public motive: Source,
     public base: Source,
     public step: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitIndList(this);
   }
 }
 
-class SS_Absurd {
-  // ['Absurd']
+// Absurd and its operations
+export class SS_Absurd {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitAbsurd(this);
   }
 }
 
-class SS_IndAbsurd {
-  // ['ind-Absurd', Source]
-  // ind-Absurd, has neither bases nor steps because there are no Absurd values.
+export class SS_IndAbsurd {
   constructor(
     public target: Source,
     public motive: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitIndAbsurd(this);
   }
 }
 
-class SS_Equal {
-  // ['=', Source, Source, Source]
+// Equality types and operations
+export class SS_Equal {
   constructor(
     public type: Source,
     public left: Source,
     public right: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitEqual(this);
   }
 }
 
-class SS_Same {
-  // ['same', Source]
+export class SS_Same {
   constructor(
     public type: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitSame(this);
   }
 }
 
-class SS_Replace {
-  // ['replace', Source, Source, Source]
+export class SS_Replace {
   constructor(
     public target: Source,
     public motive: Source,
     public base: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitReplace(this);
   }
 }
 
-class SS_Trans {
-  // ['trans', Source, Source]
-  // transitivity of equality
+export class SS_Trans {
   constructor(
     public left: Source,
     public right: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitTrans(this);
   }
 }
 
-class SS_Cong {
-  // ['cong', Source, Source]
+export class SS_Cong {
   constructor(
     public from: Source,
     public to: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitCong(this);
   }
 }
 
-class SS_Symm {
-  // ['symm', Source]
-  // symmetry of equality
+export class SS_Symm {
   constructor(
     public equality: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitSymm(this);
   }
 }
 
-class SS_IndEqual {
-  // ['ind-=', Source, Source, Source]
+export class SS_IndEqual {
   constructor(
     public from: Source,
     public to: Source,
     public base: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitIndEqual(this);
   }
 }
 
-class SS_Vec {
-  // ['Vec', Source, Source]
+// Vector types and operations
+export class SS_Vec {
   constructor(
     public type: Source,
     public length: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitVec(this);
   }
 }
 
-class SS_VecNil {
-  // ['vecnil']
+export class SS_VecNil {
   constructor() { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitVecNil(this);
   }
 }
 
-class SS_VecCons {
-  // ['vec::', Source, Source]
+export class SS_VecCons {
   constructor(
     public x: Source,
     public xs: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitVecCons(this);
   }
 }
 
-class SS_Head {
-  // ['head', Source]
+export class SS_Head {
   constructor(
     public vec: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitHead(this);
   }
 }
 
-class SS_Tail {
-  // ['tail', Source]
+export class SS_Tail {
   constructor(
     public vec: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitTail(this);
   }
 }
 
-class SS_IndVec {
-  // ['ind-Vec', Source, Source, Source, Source, Source]
+export class SS_IndVec {
   constructor(
     public length: Source,
     public target: Source,
@@ -579,135 +423,68 @@ class SS_IndVec {
     public base: Source,
     public step: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitIndVec(this);
   }
 }
 
-class SS_Either {
-  // ['Either', Source, Source]
+// Either type and operations
+export class SS_Either {
   constructor(
     public left: Source,
     public right: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitEither(this);
   }
 }
 
-class SS_Left {
-  // ['left', Source]
+export class SS_Left {
   constructor(
     public value: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitLeft(this);
   }
 }
 
-class SS_Right {
-  // ['right', Source]
+export class SS_Right {
   constructor(
     public value: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitRight(this);
   }
 }
 
-class SS_IndEither {
-  // ['ind-Either', Source, Source, Source, Source]
+export class SS_IndEither {
   constructor(
     public target: Source,
     public motive: Source,
     public baseLeft: Source,
     public baseRight: Source,
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitIndEither(this);
   }
 }
 
-class SS_TODO {
-  // ['TODO']
+// Utility
+export class SS_TODO {
   constructor() { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitTODO(this);
   }
 }
 
-class SS_Application {
-  // [Source, Source, Source[]]
+// Application
+export class SS_Application {
   constructor(
     public func: Source,
     public arg: Source,
     public args: Source[],
   ) { }
-
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitApplication(this);
   }
-}
-
-export {
-  Source,
-  isSource,
-  SiteBinder,
-  TypedBinder,
-  SourceSyntax,
-  SS_The,
-  SS_U,
-  SS_Nat,
-  SS_Zero,
-  SS_Name,
-  SS_Atom,
-  SS_Quote,
-  SS_Add1,
-  SS_WhichNat,
-  SS_IterNat,
-  SS_RecNat,
-  SS_IndNat,
-  SS_Arrow,
-  SS_Pi,
-  SS_Lambda,
-  SS_Sigma,
-  SS_Pair,
-  SS_Cons,
-  SS_Car,
-  SS_Cdr,
-  SS_Trivial,
-  SS_Sole,
-  SS_Nil,
-  SS_Number,
-  SS_ConsList,
-  SS_RecList,
-  SS_IndList,
-  SS_Absurd,
-  SS_IndAbsurd,
-  SS_Equal,
-  SS_Same,
-  SS_Replace,
-  SS_Trans,
-  SS_Cong,
-  SS_Symm,
-  SS_IndEqual,
-  SS_Vec,
-  SS_VecNil,
-  SS_VecCons,
-  SS_Head,
-  SS_Tail,
-  SS_IndVec,
-  SS_Either,
-  SS_Left,
-  SS_Right,
-  SS_IndEither,
-  SS_TODO,
-  SS_Application,
-  isPieKeywords
 }

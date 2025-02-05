@@ -719,14 +719,6 @@ function isNorm(obj: any): obj is Norm {
 
 type Ctx = Array<[Symbol, Binder]>;
 
-/*
-    There are three kinds of binders: a free binder represents a free
-    variable, that was bound in some larger context by λ, Π, or Σ. A
-    def binder represents a name bound by define. A claim binder
-    doesn't actually bind a name; however, it reserves the name for
-    later definition with define and records the type that will be
-    used.
-*/
 abstract class Binder {
   abstract type: Value;
 }

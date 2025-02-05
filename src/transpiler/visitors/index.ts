@@ -3,7 +3,7 @@
  */
 
 export { Visitor } from "./visitor";
-export { Transpiler } from "./transpiler";
+// export { Transpiler } from "./transpiler";
 export { Simplifier } from "./simplifier";
 export { Redefiner } from "./redefiner";
 export { Printer } from "./printer";
