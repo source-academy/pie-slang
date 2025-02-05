@@ -1,257 +1,184 @@
-import { ValueVisitor } from "../visitors/basics_visitors";
+import { Core } from "./core";
+import { Environment } from "./environment";
+import { Neutral } from "./neutral";
+import { Closure } from "./utils";
 
-// Abstract base class for all values
-export abstract class Value {
-  abstract accept<R>(visitor: ValueVisitor<R>): R;
-}
+/*
+    ## Values ##
+    
+    In order to type check Pie, it is necessary to find the normal
+    forms of expressions and compare them with each other. The normal
+    form of an expression is determined by its type - types that have
+    η-rules (such as Π, Σ, Trivial, and Absurd) impose requirements on
+    the normal form. For instance, every normal function has λ at the
+    top, and every normal pair has cons at the top.
 
-// Singleton values
-export class UniverseValue extends Value {
-  private static instance: UniverseValue;
-  
-  private constructor() { super(); }
-  
-  static getInstance(): UniverseValue {
-    if (!UniverseValue.instance) {
-      UniverseValue.instance = new UniverseValue();
-    }
-    return UniverseValue.instance;
-  }
+    Finding normal forms has two steps: first, programs are evaluated,
+    much as they are with the Scheme interpreter at the end of The
+    Little Schemer. Then, these values are "read back" into the syntax
+    of their normal forms. This happens in normalize.rkt. This file
+    defines the values that expressions can have. Structures or symbols
+    that represent values are written with prefix V_.
 
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitUniverse();
-  }
-}
+    Laziness is implemented by allowing values to be a closure that
+    does not bind a variable. It is described in normalize.rkt (search
+    for "Call-by-need").
+*/
 
-export class NatValue extends Value {
-  private static instance: NatValue;
-  
-  private constructor() { super(); }
-  
-  static getInstance(): NatValue {
-    if (!NatValue.instance) {
-      NatValue.instance = new NatValue();
-    }
-    return NatValue.instance;
-  }
+export abstract class Value { }
 
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitNat();
+export class DelayClosure {
+  env: Environment;
+  expr: Core;
+
+  constructor(env: Environment, expr: Core) {
+    this.env = env;
+    this.expr = expr;
   }
 }
 
-// Complex values
-export class Add1Value extends Value {
-  constructor(public smaller: Value) {
-    super();
-  }
+export class Box<Type> {
+  contents: Type;
 
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitAdd1(this);
+  constructor(value: Type) {
+    this.contents = value;
   }
 }
 
-export class QuoteValue extends Value {
-  constructor(public name: Symbol) {
-    super();
-  }
 
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitQuote(this);
-  }
+export class V_Delay extends Value {
+  constructor(public val: Box<DelayClosure | Value>) { super() }
 }
 
-export class PiValue extends Value {
+export class V_Quote extends Value {
+  constructor(public name: string) { super() }
+}
+
+export class V_Add1 extends Value {
+  constructor(public smaller: Value) { super() }
+}
+
+export class V_Pi extends Value {
   constructor(
     public argName: Symbol,
     public argType: Value,
     public resultType: Closure
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitPi(this);
-  }
+  ) { super() }
 }
 
-export class LamValue extends Value {
+export class V_Lambda extends Value {
   constructor(
     public argName: Symbol,
     public body: Closure
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitLam(this);
-  }
+  ) { super() }
 }
 
-export class SigmaValue extends Value {
+export class V_Sigma extends Value {
   constructor(
     public carName: Symbol,
     public carType: Value,
     public cdrType: Closure
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitSigma(this);
-  }
+  ) { super() }
 }
 
-export class ConsValue extends Value {
+export class V_Cons extends Value {
   constructor(
     public car: Value,
     public cdr: Value
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitCons(this);
-  }
+  ) { super() }
 }
 
-export class ListValue extends Value {
-  constructor(public entryType: Value) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitList(this);
-  }
-}
-
-export class ListConsValue extends Value {
+export class V_ListCons extends Value {
   constructor(
     public head: Value,
     public tail: Value
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitListCons(this);
-  }
+  ) { super() }
 }
 
-export class EqualValue extends Value {
+export class V_List extends Value {
+  constructor(public entryType: Value) { super() }
+}
+
+export class V_Equal extends Value {
   constructor(
     public type: Value,
     public from: Value,
     public to: Value
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitEqual(this);
-  }
+  ) { super() }
 }
 
-export class SameValue extends Value {
-  constructor(public value: Value) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitSame(this);
-  }
+export class V_Same extends Value {
+  constructor(public value: Value) { super() }
 }
 
-export class VecValue extends Value {
+export class V_Vec extends Value {
   constructor(
     public entryType: Value,
     public length: Value
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitVec(this);
-  }
+  ) { super() }
 }
 
-export class VecConsValue extends Value {
+export class V_VecCons extends Value {
   constructor(
     public head: Value,
     public tail: Value
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitVecCons(this);
-  }
+  ) { super() }
 }
 
-export class EitherValue extends Value {
+export class V_Either extends Value {
   constructor(
     public leftType: Value,
     public rightType: Value
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitEither(this);
-  }
+  ) { super() }
 }
 
-export class LeftValue extends Value {
-  constructor(public value: Value) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitLeft(this);
-  }
+export class V_Left extends Value {
+  constructor(public value: Value) { super() }
 }
 
-export class RightValue extends Value {
-  constructor(public value: Value) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitRight(this);
-  }
+export class V_Right extends Value {
+  constructor(public value: Value) { super() }
 }
 
-export class NeuValue extends Value {
+export class V_Neutral extends Value {
   constructor(
     public type: Value,
     public neutral: Neutral
-  ) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitNeu(this);
-  }
+  ) { super() }
 }
 
-export class DelayValue extends Value {
-  constructor(public val: Box<DELAY_CLOS | Value>) {
-    super();
-  }
-
-  accept<R>(visitor: ValueVisitor<R>): R {
-    return visitor.visitDelay(this);
-  }
+export class V_Universe extends Value {
+  constructor() { super() }
 }
 
-// Helper types
-export class Box<Type> {
-  constructor(public contents: Type) {}
+export class V_Nat extends Value {
+  constructor() { super() }
 }
 
-export class DELAY_CLOS {
-  constructor(
-    public env: Env,
-    public expr: Core
-  ) {}
+export class V_Zero extends Value {
+  constructor() { super() }
+}
+
+export class V_Atom extends Value {
+  constructor() { super() }
+}
+
+export class V_Trivial extends Value {
+  constructor() { super() }
+}
+
+export class V_Sole extends Value {
+  constructor() { super() }
+}
+
+export class V_Nil extends Value {
+  constructor() { super() }
+}
+
+export class V_Absurd extends Value {
+  constructor() { super() }
+}
+
+export class V_VecNil extends Value {
+  constructor() { super() }
 }

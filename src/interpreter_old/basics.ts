@@ -717,8 +717,15 @@ function isNorm(obj: any): obj is Norm {
     A context maps free variable names to binders.
 */
 
-type Ctx = Array<[Symbol, Binder]>;
+// TODO 
+type Ctx = Map<string, Binder>;
 
+// There are three kinds of binders: a free binder represents a free
+// variable, that was bound in some larger context by λ, Π, or Σ. A
+// def binder represents a name bound by define. A claim binder
+// doesn't actually bind a name; however, it reserves the name for
+// later definition with define and records the type that will be
+// used.
 abstract class Binder {
   abstract type: Value;
 }
@@ -736,30 +743,38 @@ class Free extends Binder {
 }
 
 
-// Function to find the type of a variable in a context
-function varType(ctx: Ctx, where: Loc, x: Symbol): Perhaps<Value> {
-  if (ctx.length === 0) {
+// To find the type of a variable in a context, find the closest
+// non-claim binder and extract its type.
+
+function varType(ctx: Ctx, where: Loc, x: string): Perhaps<Value> {
+  if (ctx.size === 0) {
     throw new Error(`Unknown variable ${x}`);
   }
-
-  const [[y, binder], ...ctxNext] = ctx;
+  for (const [y, binder] of ctx.entries()) {
+    if (binder instanceof Claim) {
+      continue;
+    } else if (x === y) {
+      return new go(binder.type);
+    }
+  }
+  /* const [[y, binder], ...ctxNext] = ctx;
   if (binder instanceof Claim) {
-    return varType(ctxNext, where, x);
+    return varType(new Map(ctxNext), where, x);
   } else if (y.toString() === x.toString()) {
     return new go(binderType(binder));
   } else {
     return varType(ctxNext, where, x);
-  }
+  } */
 }
 
-// Function to extract the type from a binder
+/* // Function to extract the type from a binder
 function binderType(binder: Binder): Value {
   if (binder instanceof Claim || binder instanceof Def
     || binder instanceof Free) {
     return binder.type;
   }
   throw new Error('Invalid binder type');
-}
+} */
 
 // The starting context is empty
 const initCtx: Ctx = [];
@@ -777,17 +792,13 @@ function bindVal(ctx: Ctx, x: Symbol, tv: Value, v: Value): Ctx {
   return [[x, new Def(tv, v)], ...ctx];
 }
 
-// Serializable context type
+// For informationa bout serializable contexts, see the comments in
+// normalize.rkt.
 type SerializableCtx = Array<[Symbol, ['free', Core] | ['def', Core, Core] | ['claim', Core]]>;
 
 // Predicate to check if something is a serializable context
 function isSerializableCtx(ctx: any): ctx is SerializableCtx {
-  return Array.isArray(ctx) && ctx.every(item =>
-    Array.isArray(item) &&
-    typeof item[0] === 'string' &&
-    Array.isArray(item[1]) &&
-    ['free', 'def', 'claim'].includes(item[1][0])
-  );
+  return typeof ctx === 'SerializableCtx';
 }
 
 /*

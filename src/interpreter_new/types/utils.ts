@@ -1,7 +1,20 @@
-import {Source} from "./source"
+import { Source } from "./source"
 import { Core } from "./core"
 import { Location } from "../locations";
 import { Value } from "./value";
+import { Environment } from "./environment";
+
+// 
+
+export class SourceLocation {
+  constructor(
+    public location: string,
+    public a: number,
+    public b: number,
+    public c: number,
+    public d: number,
+  ) { }
+}
 
 // A SiteBinder is a variable name and its location, substitute BindingSite in original code.
 
@@ -76,9 +89,6 @@ export function isPieKeywords(str : string) : boolean {
     false;
 }
 
-// export type Ctx = Map<string, Core>;
-type Ctx = Array<[String, Binder]>;
-
 type Message = Array<String | Core>;
 
 export abstract class Perhaps<T> {
@@ -100,53 +110,51 @@ export class stop extends Perhaps<undefined> {
   }
 }
 
-export type Renaming = [symbol: String, renamed: String][];
+/*
+  ### Closures ### 
 
-export function rename(r: Renaming, x: String): String {
-  const pair = r.find(([symbol]) => symbol.valueOf() === x.valueOf());
-  return pair ? pair[1] : x;
+  There are two kinds of closures: first-order closures and
+  higher-order closures. They are used for different purposes in
+  Pie. It would be possible to have only one representation, but they
+  are good for different things, so both are included. See
+  val-of-closure in normalize.rkt for how to find the value of a
+  closure, given the value for its free variable.
+*/
+
+
+export abstract class Closure { }
+
+/*
+  First-order closures, which are a pair of an environment an an
+  expression whose free variables are given values by the
+  environment, are used for most closures in Pie. They are easier to
+  debug, because their contents are visible rather than being part of
+  a compiled Racket function. On the other hand, they are more
+  difficult to construct out of values, because it would be necessary
+  to first read the values back into Core Pie syntax.
+*/
+
+class FirstOrderClosure extends Closure {
+  constructor(
+    public env: Environment,
+    public varName: string,
+    public expr: Core
+  ) { super() }
 }
 
-export function extendRenaming(r: Renaming, from: String, to: String): Renaming {
-  return [[from, to], ...r];
-}
+/*
+  Higher-order closures re-used Racket's built-in notion of
+  closure. They are more convenient when constructing closures from
+  existing values, which happens both during type checking, where
+  these values are used for things like the type of a step, and
+  during evaluation, where they are used as type annotations on THE
+  and NEU.
+*/
 
-const initCtx: Ctx = [];
-
-
-function bindFree(ctx: Ctx, x: String, tv: Value): Ctx {
-  if (ctx.some(([name, _]) => name.valueOf() === x.valueOf())) {
-    throw new Error(`${x.toString()} is already bound in ${JSON.stringify(ctx)}`);
-  }
-  return [[x, new Free(tv)], ...ctx];
-}
-
-abstract class Binder {
-  abstract type: Value;
-}
-
-class Claim extends Binder {
-  constructor(public type: Value) { super() }
-}
-
-class Def extends Binder {
-  constructor(public type: Value, public value: Value) { super() }
-}
-
-class Free extends Binder {
-  constructor(public type: Value) { super() }
-}
-
-type Env = Array<[String, Value]>;
-
-type Closure = FO_CLOS | HO_CLOS;
-
-class FO_CLOS {
-  constructor(public env: Env, public varName: Symbol, public expr: Core) { }
-}
-
-class HO_CLOS {
-  constructor(public proc: (value: Value) => Value) { };
+class HigherOrderClosure extends Closure {
+  constructor(
+    public proc: (value: Value) => Value
+  ) { super() };
 }
 
 
