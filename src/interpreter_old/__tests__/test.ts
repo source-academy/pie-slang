@@ -18,17 +18,13 @@ const redefiner = Redefiner.create();
 describe("test parsing", () => {
   it("Test parsing result 1", () => {
       const input = `
-      (claim step-length
-  (-> Nat (List Nat) Nat
-    Nat))
+      (claim step-length (-> Nat (List Nat) Nat Nat))
     
       (define step-length
      (lambda (e es length)
      (add1 length)))`;
       console.log(util.inspect(
-        transpiler.transpile(
-          redefiner.redefine(
-            simplifier.simplify(syntaxParse(input).map(x => x.accept(new Redefiner))))), false, null, true));
+        syntaxParse(input).map(x => x.accept(new Transpiler)), false, null, true));
       }
     );
   }
