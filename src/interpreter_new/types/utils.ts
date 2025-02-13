@@ -176,7 +176,7 @@ class HigherOrderClosure extends Closure {
   always accept symbols that are not Pie keywords, and never accept
   those that are.
 */
-export public isVarName()
+
 
 
 
