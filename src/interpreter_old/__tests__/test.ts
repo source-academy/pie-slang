@@ -9,6 +9,11 @@ import {
 import { valOf } from '../normalize';
 import { rep } from '../rep';
 import {parsePie, syntaxParse} from '../parser';
+import { Transpiler } from '../../transpiler/visitors/transpiler';
+
+const transpiler = Transpiler.create();
+const simplifier = Simplifier.create();
+const redefiner = Redefiner.create();
 
 describe("test parsing", () => {
   it("Test parsing result 1", () => {
@@ -20,7 +25,10 @@ describe("test parsing", () => {
       (define step-length
      (lambda (e es length)
      (add1 length)))`;
-      console.log(util.inspect(syntaxParse(input).map(x => x.accept(new Redefiner)), false, null, true));
+      console.log(util.inspect(
+        transpiler.transpile(
+          redefiner.redefine(
+            simplifier.simplify(syntaxParse(input).map(x => x.accept(new Redefiner))))), false, null, true));
       }
     );
   }
