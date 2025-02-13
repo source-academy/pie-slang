@@ -1,10 +1,11 @@
-import { CoreVisitor } from "../visitors/basics_visitors";
+import { Environment } from './environment';
+import * as V from "./value";
 
 export abstract class Core {
-  public abstract accept(visitor: CoreVisitor): void;
+  public abstract valOf(env: Environment, expression: Core): V.Value;
 }
 
-export class C_The extends Core {
+export class The extends Core {
   constructor(
     public type: Core,
     public expr: Core
@@ -12,42 +13,45 @@ export class C_The extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitThe(this);
+  public valOf(env: Environment, expression: Core): V.Value {
+    return this.valOf(env, this.expr);
   }
 }
 
-export class C_U extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitU(this);
+export class U extends Core {
+
+  public valOf(env: Environment, expression: Core): V.Value {
+    return new V.Universe();
   }
 }
 
-export class C_Nat extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitNat(this);
+export class Nat extends Core {
+
+  public valOf(env: Environment, expression: Core): V.Value {
+    return new V.Nat();
   }
 }
 
-export class C_Zero extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitZero(this);
+export class Zero extends Core {
+
+  public valOf(env: Environment, expression: Core): V.Value {
+    return new V.Zero();
   }
 }
 
-export class C_Symbol extends Core {
+export class VarName extends Core {
   constructor(
-    public name: Symbol
+    public name: string
   ) {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitSymbol(this);
+  public valOf(env: Environment, expression: Core): V.Value {
+    if(isV)
   }
 }
 
-export class C_Add1 extends Core {
+export class Add1 extends Core {
   constructor(
     public n: Core
   ) {
@@ -57,12 +61,15 @@ export class C_Add1 extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitAdd1(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_WhichNat extends Core {
+export class WhichNat extends Core {
   constructor(
     public target: Core,
-    public base: C_The,
+    public base: The,
     public step: Core
   ) {
     super();
@@ -71,12 +78,15 @@ export class C_WhichNat extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitWhichNat(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_IterNat extends Core {
+export class IterNat extends Core {
   constructor(
     public target: Core,
-    public base: C_The,
+    public base: The,
     public step: Core
   ) {
     super();
@@ -85,12 +95,15 @@ export class C_IterNat extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitIterNat(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_RecNat extends Core {
+export class RecNat extends Core {
   constructor(
     public target: Core,
-    public base: C_The,
+    public base: The,
     public step: Core
   ) {
     super();
@@ -99,9 +112,12 @@ export class C_RecNat extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitRecNat(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_IndNat extends Core {
+export class IndNat extends Core {
   constructor(
     public target: Core,
     public motive: Core,
@@ -114,9 +130,12 @@ export class C_IndNat extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitIndNat(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Pi extends Core {
+export class Pi extends Core {
   constructor(
     public bindings: Array<[Symbol, Core]>,
     public body: Core
@@ -127,9 +146,12 @@ export class C_Pi extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitPi(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Lambda extends Core {
+export class Lambda extends Core {
   constructor(
     public params: Array<Symbol>,
     public body: Core
@@ -140,15 +162,21 @@ export class C_Lambda extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitLambda(this);
   }
-}
-
-export class C_Atom extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitAtom(this);
+  public valOf(env: Environment, expression: Core): V.Value {
+    
   }
 }
 
-export class C_Quote extends Core {
+export class Atom extends Core {
+  accept(visitor: CoreVisitor) {
+    visitor.visitAtom(this);
+  }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
+}
+
+export class Quote extends Core {
   constructor(
     public sym: Symbol
   ) {
@@ -158,9 +186,12 @@ export class C_Quote extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitQuote(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Sigma extends Core {
+export class Sigma extends Core {
   constructor(
     public bindings: Array<[Symbol, Core]>,
     public body: Core
@@ -171,9 +202,12 @@ export class C_Sigma extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitSigma(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Cons extends Core {
+export class Cons extends Core {
   constructor(
     public first: Core,
     public second: Core
@@ -184,9 +218,12 @@ export class C_Cons extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitCons(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Car extends Core {
+export class Car extends Core {
   constructor(
     public pair: Core
   ) {
@@ -196,9 +233,12 @@ export class C_Car extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitCar(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Cdr extends Core {
+export class Cdr extends Core {
   constructor(
     public pair: Core
   ) {
@@ -208,9 +248,12 @@ export class C_Cdr extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitCdr(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_ConsList extends Core {
+export class ConsList extends Core {
   constructor(
     public head: Core,
     public tail: Core
@@ -221,15 +264,21 @@ export class C_ConsList extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitConsList(this);
   }
-}
-
-export class C_Nil extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitNil(this);
+  public valOf(env: Environment, expression: Core): V.Value {
+    
   }
 }
 
-export class C_List extends Core {
+export class Nil extends Core {
+  accept(visitor: CoreVisitor) {
+    visitor.visitNil(this);
+  }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
+}
+
+export class List extends Core {
   constructor(
     public elemType: Core
   ) {
@@ -239,12 +288,15 @@ export class C_List extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitList(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_RecList extends Core {
+export class RecList extends Core {
   constructor(
     public target: Core,
-    public base: C_The,
+    public base: The,
     public step: Core
   ) {
     super();
@@ -253,9 +305,12 @@ export class C_RecList extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitRecList(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_IndList extends Core {
+export class IndList extends Core {
   constructor(
     public target: Core,
     public motive: Core,
@@ -268,21 +323,30 @@ export class C_IndList extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitIndList(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Absurd extends Core {
+export class Absurd extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitAbsurd(this);
   }
-}
-
-export class C_Trivial extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitTrivial(this);
+  public valOf(env: Environment, expression: Core): V.Value {
+    
   }
 }
 
-export class C_IndAbsurd extends Core {
+export class Trivial extends Core {
+  accept(visitor: CoreVisitor) {
+    visitor.visitTrivial(this);
+  }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
+}
+
+export class IndAbsurd extends Core {
   constructor(
     public target: Core,
     public motive: Core
@@ -293,9 +357,12 @@ export class C_IndAbsurd extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitIndAbsurd(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Equal extends Core {
+export class Equal extends Core {
   constructor(
     public type: Core,
     public left: Core,
@@ -307,9 +374,12 @@ export class C_Equal extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitEqual(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Same extends Core {
+export class Same extends Core {
   constructor(
     public expr: Core
   ) {
@@ -319,9 +389,12 @@ export class C_Same extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitSame(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Replace extends Core {
+export class Replace extends Core {
   constructor(
     public target: Core,
     public motive: Core,
@@ -333,9 +406,12 @@ export class C_Replace extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitReplace(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Trans extends Core {
+export class Trans extends Core {
   constructor(
     public left: Core,
     public right: Core
@@ -346,9 +422,12 @@ export class C_Trans extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitTrans(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Cong extends Core {
+export class Cong extends Core {
   constructor(
     public fn: Core,
     public left: Core,
@@ -360,9 +439,12 @@ export class C_Cong extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitCong(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Symm extends Core {
+export class Symm extends Core {
   constructor(
     public equality: Core
   ) {
@@ -372,9 +454,12 @@ export class C_Symm extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitSymm(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_IndEqual extends Core {
+export class IndEqual extends Core {
   constructor(
     public target: Core,
     public motive: Core,
@@ -386,9 +471,12 @@ export class C_IndEqual extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitIndEqual(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Vec extends Core {
+export class Vec extends Core {
   constructor(
     public elemType: Core,
     public length: Core
@@ -399,9 +487,12 @@ export class C_Vec extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitVec(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_VecCons extends Core {
+export class VecCons extends Core {
   constructor(
     public head: Core,
     public tail: Core
@@ -412,15 +503,21 @@ export class C_VecCons extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitVecCons(this);
   }
-}
-
-export class C_VecNil extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitVecNil(this);
+  public valOf(env: Environment, expression: Core): V.Value {
+    
   }
 }
 
-export class C_Head extends Core {
+export class VecNil extends Core {
+  accept(visitor: CoreVisitor) {
+    visitor.visitVecNil(this);
+  }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
+}
+
+export class Head extends Core {
   constructor(
     public vec: Core
   ) {
@@ -430,9 +527,12 @@ export class C_Head extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitHead(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Tail extends Core {
+export class Tail extends Core {
   constructor(
     public vec: Core
   ) {
@@ -442,9 +542,12 @@ export class C_Tail extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitTail(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_IndVec extends Core {
+export class IndVec extends Core {
   constructor(
     public length: Core,
     public target: Core,
@@ -458,9 +561,12 @@ export class C_IndVec extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitIndVec(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Either extends Core {
+export class Either extends Core {
   constructor(
     public left: Core,
     public right: Core
@@ -471,9 +577,12 @@ export class C_Either extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitEither(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Left extends Core {
+export class Left extends Core {
   constructor(
     public value: Core
   ) {
@@ -483,9 +592,12 @@ export class C_Left extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitLeft(this);
   }
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Right extends Core {
+export class Right extends Core {
   constructor(
     public value: Core
   ) {
@@ -495,9 +607,13 @@ export class C_Right extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitRight(this);
   }
+
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_IndEither extends Core {
+export class IndEither extends Core {
   constructor(
     public target: Core,
     public motive: Core,
@@ -510,9 +626,13 @@ export class C_IndEither extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitIndEither(this);
   }
+
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_TODO extends Core {
+export class TODO extends Core {
   constructor(
     public loc: Location,
     public type: Core
@@ -523,9 +643,13 @@ export class C_TODO extends Core {
   accept(visitor: CoreVisitor) {
     visitor.visitTODO(this);
   }
+
+  public valOf(env: Environment, expression: Core): V.Value {
+    
+  }
 }
 
-export class C_Application extends Core {
+export class Application extends Core {
   constructor(
     public fn: Core,
     public arg: Core
@@ -535,5 +659,9 @@ export class C_Application extends Core {
 
   accept(visitor: CoreVisitor) {
     visitor.visitApplication(this);
+  }
+
+  public valOf(env: Environment, expression: Core): V.Value {
+    
   }
 }

@@ -5,139 +5,12 @@
 
 import util from 'util';
 import { P } from 'ts-pattern';
-import {
-  Core,
-  C_U,
-  C_Nat,
-  C_Zero,
-  C_Symbol,
-  C_Atom,
-  C_Trivial,
-  C_Absurd,
-  C_The,
-  C_Add1,
-  C_WhichNat,
-  C_IterNat,
-  C_RecNat,
-  C_IndNat,
-  C_Pi,
-  C_Lambda,
-  C_Application,
-  C_Quote,
-  C_Sigma,
-  C_Cons,
-  C_Car,
-  C_Cdr,
-  C_List,
-  C_ConsList,
-  C_Nil,
-  C_RecList,
-  C_IndList,
-  C_IndAbsurd,
-  C_Equal,
-  C_Same,
-  C_Replace,
-  C_Trans,
-  C_Cong,
-  C_Symm,
-  C_IndV_Equal,
-  C_Vec,
-  C_VecCons,
-  C_VecNil,
-  C_Head,
-  C_Tail,
-  C_IndV_Vec,
-  C_Either,
-  C_Left,
-  C_Right,
-  C_IndEither,
-  C_TODO,
-} from "./types/core";
+import * as C from './types/core'
+import * as S from "./types/source"
 
-import {
-  SS_The,
-  SS_U,
-  SS_Nat,
-  SS_Zero,
-  SS_Name,
-  SS_Atom,
-  SS_Quote,
-  SS_Add1,
-  SS_WhichNat,
-  SS_IterNat,
-  SS_RecNat,
-  SS_IndNat,
-  SS_Arrow,
-  SS_Pi,
-  SS_Lambda,
-  SS_Sigma,
-  SS_Pair,
-  SS_Cons,
-  SS_Car,
-  SS_Cdr,
-  SS_Trivial,
-  SS_Sole,
-  SS_Nil,
-  SS_Number,
-  SS_ConsList,
-  SS_RecList,
-  SS_IndList,
-  SS_Absurd,
-  SS_IndAbsurd,
-  SS_Equal,
-  SS_Same,
-  SS_Replace,
-  SS_Trans,
-  SS_Cong,
-  SS_Symm,
-  SS_IndV_Equal,
-  SS_Vec,
-  SS_VecNil,
-  SS_VecCons,
-  SS_Head,
-  SS_Tail,
-  SS_IndV_Vec,
-  SS_Either,
-  SS_Left,
-  SS_Right,
-  SS_IndEither,
-  SS_TODO,
-  SS_Application,
-
-} from "./types/source"
-
-import {
-  Value,
-  DelayClosure,
-  Box,
-  V_Delay,
-  V_Quote,
-  V_Add1,
-  V_Pi,
-  V_Lambda,
-  V_Sigma,
-  V_Cons,
-  V_ListCons,
-  V_List,
-  V_Equal,
-  V_Same,
-  V_Vec,
-  V_VecCons,
-  V_Either,
-  V_Left,
-  V_Right,
-  V_Neutral,
-  V_Universe,
-  V_Nat,
-  V_Zero,
-  V_Atom,
-  V_Trivial,
-  V_Sole,
-  V_Nil,
-  V_Absurd,
-  V_VecNil
-} from "./types/value"
+import * as V from "./types/value"
 import { locationToSrcLoc } from './locations';
+import { Environment } from './types/environment';
 
 /**
  *   ## Call-by-need evaluation ##
@@ -179,13 +52,13 @@ import { locationToSrcLoc } from './locations';
   that contains a DELAY-CLOS closure.
 */
 
-function later(env: Env, expr: Core): Value {
-  return new V_Delay(new Box(new DelayClosure(env, expr)));
+function later(env: Environment, expr: C.Core): V.Value {
+  return new V.V_Delay(new Box(new DelayClosure(env, expr)));
 }
 
 // undelay is used to find the value that is contained in a
 // DELAY-CLOS closure by invoking the evaluator.
-function undelay(c: DelayClosure): Value {
+function undelay(c: V.DelayClosure): V.Value {
   return now(valOf(c.env, c.expr)!);
 }
 
@@ -200,7 +73,7 @@ function undelay(c: DelayClosure): Value {
   form it has, because those situations require that the delayed
   evaluation steps be carried out.
 */
-function now(v: Value): Value {
+function now(v: V.Value): Value {
   if (v instanceof V_Delay && v.val instanceof Box) {
     const content = v.val.contents;
     if (content instanceof DelayClosure) {
@@ -213,7 +86,7 @@ function now(v: Value): Value {
   return v;
 }
 
-function PIType(arglist: [Symbol, Value][], ret: Value): V_Pi | Value {
+function PIType(arglist: [Symbol, Value.Value][], ret: Value.Value): Value.V_Pi | Value.Value {
   if (arglist.length === 0) {
     return ret;
   } else {
@@ -223,13 +96,13 @@ function PIType(arglist: [Symbol, Value][], ret: Value): V_Pi | Value {
 }
 
 
-function doAp(rator: Value, rand: Value): Value | undefined {
+function doAp(rator: Value.Value, rand: Value.Value): Value.Value | undefined {
   const rtFin = now(rator);
 
-  if (rtFin instanceof V_Lambda) {
+  if (rtFin instanceof Value.V_Lambda) {
     return valOfClosure(rtFin.body, rand);
   }
-  else if (rtFin instanceof V_Neutral) {
+  else if (rtFin instanceof Value.V_Neutral) {
     if (rtFin.type instanceof V_Pi) {
       return new V_Neutral(
         valOfClosure(rtFin.type.resultType, rand)!,

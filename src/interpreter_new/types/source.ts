@@ -13,7 +13,7 @@ abstract class SourceSyntax {
   public abstract accept(visitor: SourceSyntaxVisitor) : void; 
 }
 
-export class SS_The extends SourceSyntax {
+export class The extends SourceSyntax {
 
   // ['the', Source, Source]
   constructor(
@@ -28,7 +28,7 @@ export class SS_The extends SourceSyntax {
   }
 }
 
-export class SS_U {
+export class U {
   // ['U']
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
@@ -36,7 +36,7 @@ export class SS_U {
   }
 }
 
-export class SS_Nat {
+export class Nat {
   // ['Nat']
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
@@ -44,7 +44,7 @@ export class SS_Nat {
   }
 }
 
-export class SS_Zero {
+export class Zero {
   // ['zero']
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
@@ -52,7 +52,7 @@ export class SS_Zero {
   }
 }
 
-export class SS_Name {
+export class Name {
   // [string]
   constructor(
     public name: string,
@@ -62,14 +62,14 @@ export class SS_Name {
   }
 }
 
-export class SS_Atom {
+export class Atom {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitAtom(this);
   }
 }
 
-export class SS_Quote {
+export class Quote {
   constructor(
     public name: string,
   ) { }
@@ -79,7 +79,7 @@ export class SS_Quote {
 }
 
 // Natural number operations
-export class SS_Add1 {
+export class Add1 {
   constructor(
     public base: Source,
   ) { }
@@ -88,7 +88,7 @@ export class SS_Add1 {
   }
 }
 
-export class SS_WhichNat {
+export class WhichNat {
   constructor(
     public target: Source,
     public base: Source,
@@ -99,7 +99,7 @@ export class SS_WhichNat {
   }
 }
 
-export class SS_IterNat {
+export class IterNat {
   constructor(
     public target: Source,
     public base: Source,
@@ -110,7 +110,7 @@ export class SS_IterNat {
   }
 }
 
-export class SS_RecNat {
+export class RecNat {
   constructor(
     public target: Source,
     public base: Source,
@@ -121,7 +121,7 @@ export class SS_RecNat {
   }
 }
 
-export class SS_IndNat {
+export class IndNat {
   constructor(
     public target: Source,
     public motive: Source,
@@ -134,7 +134,7 @@ export class SS_IndNat {
 }
 
 // Function types and operations
-export class SS_Arrow {
+export class Arrow {
   constructor(
     public arg1: Source,
     public arg2: Source,
@@ -145,7 +145,7 @@ export class SS_Arrow {
   }
 }
 
-export class SS_Pi {
+export class Pi {
   constructor(
     public binders: TypedBinder[],
     public body: Source,
@@ -155,7 +155,7 @@ export class SS_Pi {
   }
 }
 
-export class SS_Lambda {
+export class Lambda {
   constructor(
     public binders: SiteBinder[],
     public body: Source,
@@ -166,7 +166,7 @@ export class SS_Lambda {
 }
 
 // Product types and operations
-export class SS_Sigma {
+export class Sigma {
   constructor(
     public binders: TypedBinder[],
     public body: Source,
@@ -176,7 +176,7 @@ export class SS_Sigma {
   }
 }
 
-export class SS_Pair {
+export class Pair {
   constructor(
     public first: Source,
     public second: Source,
@@ -186,7 +186,7 @@ export class SS_Pair {
   }
 }
 
-export class SS_Cons {
+export class Cons {
   constructor(
     public first: Source,
     public second: Source,
@@ -196,7 +196,7 @@ export class SS_Cons {
   }
 }
 
-export class SS_Car {
+export class Car {
   constructor(
     public pair: Source,
   ) { }
@@ -205,7 +205,7 @@ export class SS_Car {
   }
 }
 
-export class SS_Cdr {
+export class Cdr {
   constructor(
     public pair: Source,
   ) { }
@@ -215,28 +215,28 @@ export class SS_Cdr {
 }
 
 // Basic constructors
-export class SS_Trivial {
+export class Trivial {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitTrivial(this);
   }
 }
 
-export class SS_Sole {
+export class Sole {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitSole(this);
   }
 }
 
-export class SS_Nil {
+export class Nil {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitNil(this);
   }
 }
 
-export class SS_Number {
+export class Number {
   constructor(
     public value: number,
   ) { }
@@ -246,7 +246,7 @@ export class SS_Number {
 }
 
 // List operations
-export class SS_ConsList {
+export class ConsList {
   constructor(
     public x: Source,
     public xs: Source,
@@ -256,7 +256,7 @@ export class SS_ConsList {
   }
 }
 
-export class SS_RecList {
+export class RecList {
   constructor(
     public target: Source,
     public base: Source,
@@ -267,7 +267,7 @@ export class SS_RecList {
   }
 }
 
-export class SS_IndList {
+export class IndList {
   constructor(
     public target: Source,
     public motive: Source,
@@ -280,14 +280,14 @@ export class SS_IndList {
 }
 
 // Absurd and its operations
-export class SS_Absurd {
+export class Absurd {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitAbsurd(this);
   }
 }
 
-export class SS_IndAbsurd {
+export class IndAbsurd {
   constructor(
     public target: Source,
     public motive: Source,
@@ -298,7 +298,7 @@ export class SS_IndAbsurd {
 }
 
 // Equality types and operations
-export class SS_Equal {
+export class Equal {
   constructor(
     public type: Source,
     public left: Source,
@@ -309,7 +309,7 @@ export class SS_Equal {
   }
 }
 
-export class SS_Same {
+export class Same {
   constructor(
     public type: Source,
   ) { }
@@ -318,7 +318,7 @@ export class SS_Same {
   }
 }
 
-export class SS_Replace {
+export class Replace {
   constructor(
     public target: Source,
     public motive: Source,
@@ -329,7 +329,7 @@ export class SS_Replace {
   }
 }
 
-export class SS_Trans {
+export class Trans {
   constructor(
     public left: Source,
     public right: Source,
@@ -339,7 +339,7 @@ export class SS_Trans {
   }
 }
 
-export class SS_Cong {
+export class Cong {
   constructor(
     public from: Source,
     public to: Source,
@@ -349,7 +349,7 @@ export class SS_Cong {
   }
 }
 
-export class SS_Symm {
+export class Symm {
   constructor(
     public equality: Source,
   ) { }
@@ -358,7 +358,7 @@ export class SS_Symm {
   }
 }
 
-export class SS_IndEqual {
+export class IndEqual {
   constructor(
     public from: Source,
     public to: Source,
@@ -370,7 +370,7 @@ export class SS_IndEqual {
 }
 
 // Vector types and operations
-export class SS_Vec {
+export class Vec {
   constructor(
     public type: Source,
     public length: Source,
@@ -380,14 +380,14 @@ export class SS_Vec {
   }
 }
 
-export class SS_VecNil {
+export class VecNil {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitVecNil(this);
   }
 }
 
-export class SS_VecCons {
+export class VecCons {
   constructor(
     public x: Source,
     public xs: Source,
@@ -397,7 +397,7 @@ export class SS_VecCons {
   }
 }
 
-export class SS_Head {
+export class Head {
   constructor(
     public vec: Source,
   ) { }
@@ -406,7 +406,7 @@ export class SS_Head {
   }
 }
 
-export class SS_Tail {
+export class Tail {
   constructor(
     public vec: Source,
   ) { }
@@ -415,7 +415,7 @@ export class SS_Tail {
   }
 }
 
-export class SS_IndVec {
+export class IndVec {
   constructor(
     public length: Source,
     public target: Source,
@@ -429,7 +429,7 @@ export class SS_IndVec {
 }
 
 // Either type and operations
-export class SS_Either {
+export class Either {
   constructor(
     public left: Source,
     public right: Source,
@@ -439,7 +439,7 @@ export class SS_Either {
   }
 }
 
-export class SS_Left {
+export class Left {
   constructor(
     public value: Source,
   ) { }
@@ -448,7 +448,7 @@ export class SS_Left {
   }
 }
 
-export class SS_Right {
+export class Right {
   constructor(
     public value: Source,
   ) { }
@@ -457,7 +457,7 @@ export class SS_Right {
   }
 }
 
-export class SS_IndEither {
+export class IndEither {
   constructor(
     public target: Source,
     public motive: Source,
@@ -470,7 +470,7 @@ export class SS_IndEither {
 }
 
 // Utility
-export class SS_TODO {
+export class TODO {
   constructor() { }
   public accept(visitor: SourceSyntaxVisitor) {
     visitor.visitTODO(this);
@@ -478,7 +478,7 @@ export class SS_TODO {
 }
 
 // Application
-export class SS_Application {
+export class Application {
   constructor(
     public func: Source,
     public arg: Source,

@@ -157,7 +157,26 @@ class HigherOrderClosure extends Closure {
   ) { super() };
 }
 
+/*
+  ## Recognizing variable names ##
 
+  This macro causes a name to be defined both for Racket macros and
+  for use in ordinary Racket programs. In Racket, these are
+  separated.
+
+  Variable name recognition is needed in Racket macros in order to
+  parse Pie into the Src type, and it is needed in ordinary programs
+  in order to implement the type checker.
+
+  Here the codes are largely removed since the macro is not needed in TS.
+*/
+
+/*
+  The type of var-name? guarantees that the implementation will
+  always accept symbols that are not Pie keywords, and never accept
+  those that are.
+*/
+ex
 
 
 

@@ -42,3 +42,12 @@ export class Location {
     public forInfo: boolean
   ) { }
 }
+
+export function locationToSrcLoc(loc: Location): [Symbol | number, number, number] {
+  const stx = loc.source;
+  return [
+    stx.source, 
+    stx.line,
+    stx.column,
+  ];
+}

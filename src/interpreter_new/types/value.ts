@@ -1,6 +1,6 @@
 import { Core } from "./core";
 import { Environment } from "./environment";
-import { Neutral } from "./neutral";
+import * as N from "./neutral";
 import { Closure } from "./utils";
 
 /*
@@ -35,6 +35,10 @@ export class DelayClosure {
     this.env = env;
     this.expr = expr;
   }
+
+  public now() {
+    
+  } 
 }
 
 export class Box<Type> {
@@ -46,19 +50,19 @@ export class Box<Type> {
 }
 
 
-export class V_Delay extends Value {
+export class Delay extends Value {
   constructor(public val: Box<DelayClosure | Value>) { super() }
 }
 
-export class V_Quote extends Value {
+export class Quote extends Value {
   constructor(public name: string) { super() }
 }
 
-export class V_Add1 extends Value {
+export class Add1 extends Value {
   constructor(public smaller: Value) { super() }
 }
 
-export class V_Pi extends Value {
+export class Pi extends Value {
   constructor(
     public argName: Symbol,
     public argType: Value,
@@ -66,14 +70,14 @@ export class V_Pi extends Value {
   ) { super() }
 }
 
-export class V_Lambda extends Value {
+export class Lambda extends Value {
   constructor(
     public argName: Symbol,
     public body: Closure
   ) { super() }
 }
 
-export class V_Sigma extends Value {
+export class Sigma extends Value {
   constructor(
     public carName: Symbol,
     public carType: Value,
@@ -81,25 +85,25 @@ export class V_Sigma extends Value {
   ) { super() }
 }
 
-export class V_Cons extends Value {
+export class Cons extends Value {
   constructor(
     public car: Value,
     public cdr: Value
   ) { super() }
 }
 
-export class V_ListCons extends Value {
+export class ListCons extends Value {
   constructor(
     public head: Value,
     public tail: Value
   ) { super() }
 }
 
-export class V_List extends Value {
+export class List extends Value {
   constructor(public entryType: Value) { super() }
 }
 
-export class V_Equal extends Value {
+export class Equal extends Value {
   constructor(
     public type: Value,
     public from: Value,
@@ -107,78 +111,78 @@ export class V_Equal extends Value {
   ) { super() }
 }
 
-export class V_Same extends Value {
+export class Same extends Value {
   constructor(public value: Value) { super() }
 }
 
-export class V_Vec extends Value {
+export class Vec extends Value {
   constructor(
     public entryType: Value,
     public length: Value
   ) { super() }
 }
 
-export class V_VecCons extends Value {
+export class VecCons extends Value {
   constructor(
     public head: Value,
     public tail: Value
   ) { super() }
 }
 
-export class V_Either extends Value {
+export class Either extends Value {
   constructor(
     public leftType: Value,
     public rightType: Value
   ) { super() }
 }
 
-export class V_Left extends Value {
+export class Left extends Value {
   constructor(public value: Value) { super() }
 }
 
-export class V_Right extends Value {
+export class Right extends Value {
   constructor(public value: Value) { super() }
 }
 
-export class V_Neutral extends Value {
+export class Neutral extends Value {
   constructor(
     public type: Value,
     public neutral: Neutral
   ) { super() }
 }
 
-export class V_Universe extends Value {
+export class Universe extends Value {
   constructor() { super() }
 }
 
-export class V_Nat extends Value {
+export class Nat extends Value {
   constructor() { super() }
 }
 
-export class V_Zero extends Value {
+export class Zero extends Value {
   constructor() { super() }
 }
 
-export class V_Atom extends Value {
+export class Atom extends Value {
   constructor() { super() }
 }
 
-export class V_Trivial extends Value {
+export class Trivial extends Value {
   constructor() { super() }
 }
 
-export class V_Sole extends Value {
+export class Sole extends Value {
   constructor() { super() }
 }
 
-export class V_Nil extends Value {
+export class Nil extends Value {
   constructor() { super() }
 }
 
-export class V_Absurd extends Value {
+export class Absurd extends Value {
   constructor() { super() }
 }
 
-export class V_VecNil extends Value {
+export class VecNil extends Value {
   constructor() { super() }
 }
