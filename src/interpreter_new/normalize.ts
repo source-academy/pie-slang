@@ -7,10 +7,11 @@ import util from 'util';
 import { P } from 'ts-pattern';
 import * as C from './types/core'
 import * as S from "./types/source"
-
 import * as V from "./types/value"
+import * as N from "./types/neutral"
 import { locationToSrcLoc } from './locations';
 import { Environment } from './types/environment';
+import { HigherOrderClosure } from './types/utils';
 
 /**
  *   ## Call-by-need evaluation ##
@@ -52,13 +53,13 @@ import { Environment } from './types/environment';
   that contains a DELAY-CLOS closure.
 */
 
-function later(env: Environment, expr: C.Core): V.Value {
-  return new V.V_Delay(new Box(new DelayClosure(env, expr)));
+export function later(env: Environment, expr: C.Core): V.Value {
+  return new V.Delay(new V.Box(new V.DelayClosure(env, expr)));
 }
 
 // undelay is used to find the value that is contained in a
 // DELAY-CLOS closure by invoking the evaluator.
-function undelay(c: V.DelayClosure): V.Value {
+export function undelay(c: V.DelayClosure): V.Value {
   return now(valOf(c.env, c.expr)!);
 }
 
@@ -73,108 +74,110 @@ function undelay(c: V.DelayClosure): V.Value {
   form it has, because those situations require that the delayed
   evaluation steps be carried out.
 */
-function now(v: V.Value): Value {
-  if (v instanceof V_Delay && v.val instanceof Box) {
-    const content = v.val.contents;
-    if (content instanceof DelayClosure) {
+function now(todo: V.Value): V.Value {
+  if (todo instanceof V.Delay ) { //todo.val is nessarily a Box
+    const box = todo.val;
+    const content = box.get();
+    if (content instanceof V.DelayClosure) {
       let theValue = undelay(content);
-      v.val.contents = theValue;
+      box.set(theValue);
       return theValue;
     }
-    return content;
+    return box.get();
   }
-  return v;
+  return todo;
 }
 
-function PIType(arglist: [Symbol, Value.Value][], ret: Value.Value): Value.V_Pi | Value.Value {
-  if (arglist.length === 0) {
-    return ret;
-  } else {
-    const [argName, argType] = arglist[0];
-    return new V_Pi(argName, argType, new HO_CLOS((x) => PIType(arglist.slice(1), ret)));
+function PIType(arglist: [string, V.Value][], ret: V.Value): V.Value {
+  let result = ret;
+  for (let i = 0; i < arglist.length; i++) {
+    const [argName, argType] = arglist[i];
+    
+    result = new V.Pi(argName, argType, new HigherOrderClosure((x) => result));
   }
+
+  return ret;
 }
 
+/*
+  ### The evaluator ###
 
-function doAp(rator: Value.Value, rand: Value.Value): Value.Value | undefined {
-  const rtFin = now(rator);
-
-  if (rtFin instanceof Value.V_Lambda) {
-    return valOfClosure(rtFin.body, rand);
+  Functions whose names begin with "do-" are helpers that implement
+  the corresponding eliminator.
+*/
+function doApplication(operator: V.Value, operand: V.Value): V.Value | undefined {
+  const operatorNow = now(operator);
+  if (operatorNow instanceof V.Lambda) {
+    return valOfClosure(operatorNow.body, operand);
   }
-  else if (rtFin instanceof Value.V_Neutral) {
-    if (rtFin.type instanceof V_Pi) {
-      return new V_Neutral(
-        valOfClosure(rtFin.type.resultType, rand)!,
-        new N_Ap(rtFin.neutral, new Norm(rtFin.type.argType, rand)));
-    }
-  }
-}
-
-function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | undefined {
-  const targetFin = now(target);
-  if (targetFin === 'ZERO') {
-    return b;
-  } else if (targetFin instanceof V_Add1) {
-    return doAp(s, targetFin.smaller);
-  } else if (targetFin instanceof V_Neutral) {
-    if (targetFin.type === 'NAT') {
-      const n = new N_MetaVar(null, "NAT", Symbol("n"));
-      return new V_Neutral(
-        b_t,
-        new C_WhichNat(
-          targetFin.neutral,
-          new Norm(b_t, b),
-          new Norm(PIType([[n.name, n.varType]], b_t), s)
+  else if (operatorNow instanceof V.Neutral) {
+    if (operatorNow.type instanceof V.Pi) {
+      return new V.Neutral(
+        valOfClosure(operatorNow.type.resultType, operand)!,
+        new N.Application(
+          operatorNow.neutral,
+          new N.Norm(operatorNow.type.argType, operand)
         )
       );
     }
-    return now(b_t);
   }
 }
 
-function doIterNat(target: Value, bVType: Value, bV: Value, s: Value): Value | undefined {
+function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, succ: V.Value): V.Value | undefined {
   const targetNow = now(target);
-  if (targetNow === 'ZERO') {
-    return bV;
-  } else if (targetNow instanceof V_Add1) {
-    const nMinusOne = targetNow.smaller;
-    return doAp(s, doIterNat(nMinusOne, bVType, bV, s)!);
-  } else if (targetNow instanceof V_Neutral) {
-    if (targetNow.type !== 'NAT') {
-      return undefined;
-    }
-    const n = new MetaVar(null, "NAT", Symbol("n"));
-    const neutral = targetNow.neutral;
-    return new V_Neutral(bVType, new C_IterNat(
-      neutral,
-      new Norm(bVType, bV),
-      new Norm(PIType([[n.name, n.varType]], bVType), s))
+  if (targetNow instanceof V.Zero) {
+    return base;
+  } else if (targetNow instanceof V.Add1) {
+    return doApplication(succ, targetNow.smaller);
+  } else if (targetNow instanceof V.Neutral 
+      && targetNow.type instanceof V.Nat) {
+    return new V.Neutral(
+      baseType,
+      new N.WhichNat(
+        targetNow.neutral,
+        new N.Norm(baseType, base),
+        new N.Norm(PIType([["n", new V.Nat()]], baseType), succ)
+      )
     );
   }
 }
 
-function doRecNat(target: Value, b_t: Value, b: Value, s: Value): Value | undefined {
+function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, succ: V.Value): V.Value | undefined {
   const targetNow = now(target);
-  if (targetNow === 'ZERO') {
-    return b;
-  } else if (targetNow instanceof V_Add1) {
-    const nMinusOne = targetNow.smaller;
-    return doAp(s, new V_Add1(nMinusOne));
-  } else if (targetNow instanceof V_Neutral) {
-    if (targetNow.type !== 'NAT') {
-      return undefined;
-    }
-    const n_smaller = new MetaVar(null, "NAT", Symbol("n-1"));
-    const ih = new MetaVar(null, b_t, Symbol("ih"));
-    const neutral = targetNow.neutral;
-    return new V_Neutral(b_t, new C_RecNat(neutral,
-      new Norm(b_t, b),
-      new Norm(PIType(
-        [
-          [n_smaller.name, n_smaller.varType],
-          [ih.name, ih.varType],
-        ], b_t), s))
+  if (targetNow instanceof V.Zero) {
+    return base;
+  } else if (targetNow instanceof V.Add1) {
+    return doApplication(succ, doIterNat(targetNow.smaller, baseType, base, succ)!);
+  } else if (targetNow instanceof V.Neutral 
+      && targetNow.type instanceof V.Nat) {
+
+    return new V.Neutral(baseType, new N.IterNat(
+      targetNow.neutral,
+      new N.Norm(baseType, base),
+      new N.Norm(PIType([["n", new V.Nat()]], baseType), succ))
+    );
+  }
+}
+
+function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, succ: V.Value): V.Value | undefined {
+  const targetNow = now(target);
+  if (targetNow instanceof V.Zero) {
+    return base;
+  } else if (targetNow instanceof V.Add1) {
+    return doApplication(succ, new V.Add1(targetNow.smaller));
+  } else if (targetNow instanceof V.Neutral 
+      && targetNow.type instanceof V.Nat) {
+    return new V.Neutral(baseType, new N.RecNat(
+      targetNow.neutral,
+      new N.Norm(baseType, base),
+      new N.Norm(
+          PIType([
+              ["n-1", new V.Nat()],
+              ["ih", baseType],
+          ], baseType),
+          succ
+        )
+      )
     );
   }
 }

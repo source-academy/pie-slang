@@ -28,37 +28,37 @@ export abstract class Neutral {
   constructor() { } 
 }
 
-export class N_Variable extends Neutral {
+export class Variable extends Neutral {
   constructor(public name: string) {
     super();
   }
 }
 
-export class N_TODO extends Neutral {
+export class TODO extends Neutral {
   constructor(public where: SourceLocation, public type: Value) {
     super();
   }
 }
 
-export class N_WhichNat extends Neutral {
+export class WhichNat extends Neutral {
   constructor(public target: Neutral, public base: Norm, public step: Norm) {
     super();
   }
 }
 
-export class N_IterNat extends Neutral {
+export class IterNat extends Neutral {
   constructor(public target: Neutral, public base: Norm, public step: Norm) {
     super();
   }
 }
 
-export class N_RecNat extends Neutral {
+export class RecNat extends Neutral {
   constructor(public target: Neutral, public base: Norm, public step: Norm) {
     super();
   }
 }
 
-export class N_IndNat extends Neutral {
+export class IndNat extends Neutral {
   constructor(
     public target: Neutral,
     public motive: Norm,
@@ -69,91 +69,91 @@ export class N_IndNat extends Neutral {
   }
 }
 
-export class N_Car extends Neutral {
+export class Car extends Neutral {
   constructor(public target: Neutral) {
     super();
   }
 }
 
-export class N_Cdr extends Neutral {
+export class Cdr extends Neutral {
   constructor(public target: Neutral) {
     super();
   }
 }
 
-export class N_RecList extends Neutral {
+export class RecList extends Neutral {
   constructor(public target: Neutral, public base: Norm, public step: Norm) {
     super();
   }
 }
 
-export class N_IndList extends Neutral {
+export class IndList extends Neutral {
   constructor(public target: Neutral, public motive: Norm, public base: Norm, public step: Norm) {
     super();
   }
 }
 
-export class N_IndAbsurd extends Neutral {
+export class IndAbsurd extends Neutral {
   constructor(public target: Neutral, public motive: Norm) {
     super();
   }
 }
 
-export class N_Replace extends Neutral {
+export class Replace extends Neutral {
   constructor(public target: Neutral, public motive: Norm, public base: Norm) {
     super();
   }
 }
 
-export class N_Trans1 extends Neutral {
+export class Trans1 extends Neutral {
   constructor(public target1: Neutral, public target2: Norm) {
     super();
   }
 }
 
-export class N_Trans2 extends Neutral {
+export class Trans2 extends Neutral {
   constructor(public target1: Norm, public target2: Neutral) {
     super();
   }
 }
 
-export class N_Trans12 extends Neutral {
+export class Trans12 extends Neutral {
   constructor(public target1: Neutral, public target2: Neutral) {
     super();
   }
 }
 
-export class N_Cong extends Neutral {
+export class Cong extends Neutral {
   constructor(public target: Neutral, public func: Norm) {
     super();
   }
 }
 
-export class N_Symm extends Neutral {
+export class Symm extends Neutral {
   constructor(public target: Neutral) {
     super();
   }
 }
 
-export class N_IndEq extends Neutral {
+export class IndEq extends Neutral {
   constructor(public target: Neutral, public motive: Norm, public base: Norm) {
     super();
   }
 }
 
-export class N_Head extends Neutral {
+export class Head extends Neutral {
   constructor(public target: Neutral) {
     super();
   }
 }
 
-export class N_Tail extends Neutral {
+export class Tail extends Neutral {
   constructor(public target: Neutral) {
     super();
   }
 }
 
-export class N_IndVec1 extends Neutral {
+export class IndVec1 extends Neutral {
   constructor(
     public target1: Neutral,
     public target2: Norm,
@@ -165,7 +165,7 @@ export class N_IndVec1 extends Neutral {
   }
 }
 
-export class N_IndVec2 extends Neutral {
+export class IndVec2 extends Neutral {
   constructor(
     public target1: Norm,
     public target2: Neutral,
@@ -177,7 +177,7 @@ export class N_IndVec2 extends Neutral {
   }
 }
 
-export class N_IndVec12 extends Neutral {
+export class IndVec12 extends Neutral {
   constructor(
     public target1: Neutral,
     public target2: Neutral,
@@ -189,7 +189,7 @@ export class N_IndVec12 extends Neutral {
   }
 }
 
-export class N_IndEither extends Neutral {
+export class IndEither extends Neutral {
   constructor(
     public target: Neutral,
     public motive: Norm,
@@ -200,7 +200,7 @@ export class N_IndEither extends Neutral {
   }
 }
 
-export class N_Ap extends Neutral {
+export class Application extends Neutral {
   constructor(public operator: Neutral, public operand: Norm) {
     super();
   }

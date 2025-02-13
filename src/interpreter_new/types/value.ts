@@ -42,10 +42,17 @@ export class DelayClosure {
 }
 
 export class Box<Type> {
-  contents: Type;
+  content: Type;
 
   constructor(value: Type) {
-    this.contents = value;
+    this.content = value;
+  }
+
+  public get() {
+    return this.content;
+  }
+  public set(value: Type) {
+    this.content = value;
   }
 }
 
@@ -64,7 +71,7 @@ export class Add1 extends Value {
 
 export class Pi extends Value {
   constructor(
-    public argName: Symbol,
+    public argName: string,
     public argType: Value,
     public resultType: Closure
   ) { super() }
@@ -72,14 +79,14 @@ export class Pi extends Value {
 
 export class Lambda extends Value {
   constructor(
-    public argName: Symbol,
+    public argName: string,
     public body: Closure
   ) { super() }
 }
 
 export class Sigma extends Value {
   constructor(
-    public carName: Symbol,
+    public carName: string,
     public carType: Value,
     public cdrType: Closure
   ) { super() }
@@ -147,7 +154,7 @@ export class Right extends Value {
 export class Neutral extends Value {
   constructor(
     public type: Value,
-    public neutral: Neutral
+    public neutral: N.Neutral
   ) { super() }
 }
 

@@ -134,7 +134,7 @@ export abstract class Closure { }
   to first read the values back into Core Pie syntax.
 */
 
-class FirstOrderClosure extends Closure {
+export class FirstOrderClosure extends Closure {
   constructor(
     public env: Environment,
     public varName: string,
@@ -151,11 +151,12 @@ class FirstOrderClosure extends Closure {
   and NEU.
 */
 
-class HigherOrderClosure extends Closure {
+export class HigherOrderClosure extends Closure {
   constructor(
     public proc: (value: Value) => Value
   ) { super() };
 }
+
 
 /*
   ## Recognizing variable names ##
@@ -176,6 +177,10 @@ class HigherOrderClosure extends Closure {
   always accept symbols that are not Pie keywords, and never accept
   those that are.
 */
+
+export function isVarName(name: string): boolean {
+  return isPieKeywords(name);
+}
 
 
 

@@ -1,6 +1,7 @@
-import { Environment } from './environment';
+import { Environment, getValueFromEnvironment } from './environment';
 import * as V from "./value";
-
+import { isVarName } from './utils';
+import { later } from '../normalize';
 export abstract class Core {
   public abstract valOf(env: Environment, expression: Core): V.Value;
 }
@@ -47,7 +48,11 @@ export class VarName extends Core {
   }
 
   public valOf(env: Environment, expression: Core): V.Value {
-    if(isV)
+    if(isVarName(this.name)) {
+      return getValueFromEnvironment(env, this.name);
+    } else {
+      throw new Error(`{this.name} is not a valid variable name`);
+    }
   }
 }
 
@@ -58,11 +63,8 @@ export class Add1 extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitAdd1(this);
-  }
   public valOf(env: Environment, expression: Core): V.Value {
-    
+    return new V.Add1(later(env, this.n));
   }
 }
 
@@ -75,9 +77,6 @@ export class WhichNat extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitWhichNat(this);
-  }
   public valOf(env: Environment, expression: Core): V.Value {
     
   }
@@ -137,7 +136,7 @@ export class IndNat extends Core {
 
 export class Pi extends Core {
   constructor(
-    public bindings: Array<[Symbol, Core]>,
+    public bindings: Array<[string, Core]>,
     public body: Core
   ) {
     super();
@@ -153,7 +152,7 @@ export class Pi extends Core {
 
 export class Lambda extends Core {
   constructor(
-    public params: Array<Symbol>,
+    public params: Array<string>,
     public body: Core
   ) {
     super();
@@ -178,7 +177,7 @@ export class Atom extends Core {
 
 export class Quote extends Core {
   constructor(
-    public sym: Symbol
+    public sym: string
   ) {
     super();
   }
@@ -193,7 +192,7 @@ export class Quote extends Core {
 
 export class Sigma extends Core {
   constructor(
-    public bindings: Array<[Symbol, Core]>,
+    public bindings: Array<[string, Core]>,
     public body: Core
   ) {
     super();

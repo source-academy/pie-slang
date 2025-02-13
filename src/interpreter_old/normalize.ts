@@ -131,7 +131,7 @@ function doWhichNat(target: Value, b_t: Value, b: Value, s: Value): Value | unde
         )
       );
     }
-    return now(b_t);
+    return now(b_t); // ???
   }
 }
 
