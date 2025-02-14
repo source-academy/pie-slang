@@ -1,6 +1,6 @@
 import { Context, Claim, Free, Define } from './contexts';
-import { Value, V_Neutral} from './value';
-import { N_Variable } from './neutral';
+import { Value, Neutral} from './value';
+import { Variable } from './neutral';
 
 /*  
     ## Run-time Environments ##
@@ -13,6 +13,7 @@ export class Environment {
   constructor(
     public bindings: Map<string, Value>
   ) { }
+  
 }
 
 export function extendEnvironment(
@@ -44,7 +45,7 @@ export function contextToEnvironment(context: Context): Environment {
     if (binder instanceof Define) {
       environment.set(name, binder.value);
     } else if (binder instanceof Free) {
-      environment.set(name, new V_Neutral(binder.type, new N_Variable(name)));
+      environment.set(name, new Neutral(binder.type, new Variable(name)));
     } // else continue;
   }
   return new Environment(environment);

@@ -200,7 +200,7 @@ function doIndNat(target: Value, mot: Value, b: Value, s: Value): Value | undefi
           new Norm(doAp(mot, 'ZERO')!, b),
           new Norm(
             PIType([
-              [x.name, x.varType],
+              [n_smaller.name, n_smaller.varType], // WRONG
               [ih.name, ih.varType],
             ], doAp(mot, new ADD1(n_smaller))!),
             s
@@ -218,10 +218,10 @@ function doCar(p: Value): Value | undefined {
   } else if (nowP instanceof NEU) {
     const type = nowP.type;
     const neutral = nowP.neutral;
-    if (!(neutral instanceof SIGMA)) {
+    if (!(type instanceof SIGMA)) {
       return undefined;
     }
-    const A = neutral.carType;
+    const A = type.carType;
     return new NEU(A, new N_Car(neutral));
   }
 }
@@ -234,10 +234,10 @@ function doCdr(p: Value): Value | undefined {
   } else if (nowP instanceof NEU) {
     const type = nowP.type;
     const neutral = nowP.neutral;
-    if (!(neutral instanceof SIGMA)) {
+    if (!(type instanceof SIGMA)) {
       return undefined;
     }
-    return new NEU(valOfClosure(neutral.cdrType, doCar(nowP)!)!, new N_Cdr(neutral));
+    return new NEU(valOfClosure(type.cdrType, doCar(p)!)!, new N_Cdr(neutral));
   }
 }
 

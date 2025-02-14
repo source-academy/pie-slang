@@ -3,7 +3,7 @@ import * as V from "./value";
 import { isVarName } from './utils';
 import { later } from '../normalize';
 export abstract class Core {
-  public abstract valOf(env: Environment, expression: Core): V.Value;
+  public abstract valOf(env: Environment): V.Value;
 }
 
 export class The extends Core {
@@ -14,28 +14,28 @@ export class The extends Core {
     super();
   }
 
-  public valOf(env: Environment, expression: Core): V.Value {
-    return this.valOf(env, this.expr);
+  public valOf(env: Environment): V.Value {
+    return this.expr.valOf(env);
   }
 }
 
 export class U extends Core {
 
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     return new V.Universe();
   }
 }
 
 export class Nat extends Core {
 
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     return new V.Nat();
   }
 }
 
 export class Zero extends Core {
 
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     return new V.Zero();
   }
 }
@@ -47,7 +47,7 @@ export class VarName extends Core {
     super();
   }
 
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     if(isVarName(this.name)) {
       return getValueFromEnvironment(env, this.name);
     } else {
@@ -63,7 +63,7 @@ export class Add1 extends Core {
     super();
   }
 
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     return new V.Add1(later(env, this.n));
   }
 }
@@ -77,7 +77,7 @@ export class WhichNat extends Core {
     super();
   }
 
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -91,10 +91,7 @@ export class IterNat extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitIterNat(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -107,11 +104,7 @@ export class RecNat extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitRecNat(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -125,11 +118,7 @@ export class IndNat extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitIndNat(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -139,13 +128,9 @@ export class Pi extends Core {
     public bindings: Array<[string, Core]>,
     public body: Core
   ) {
-    super();
+    super()
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitPi(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -158,19 +143,14 @@ export class Lambda extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitLambda(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
 
 export class Atom extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitAtom(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -182,10 +162,7 @@ export class Quote extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitQuote(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -198,10 +175,7 @@ export class Sigma extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitSigma(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -214,10 +188,7 @@ export class Cons extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitCons(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -228,11 +199,7 @@ export class Car extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitCar(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -244,10 +211,7 @@ export class Cdr extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitCdr(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -260,19 +224,14 @@ export class ConsList extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitConsList(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
 
 export class Nil extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitNil(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -284,10 +243,7 @@ export class List extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitList(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -301,10 +257,7 @@ export class RecList extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitRecList(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -319,28 +272,21 @@ export class IndList extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitIndList(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
 
 export class Absurd extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitAbsurd(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+
+  public valOf(env: Environment): V.Value {
     
   }
+
 }
 
 export class Trivial extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitTrivial(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -353,10 +299,8 @@ export class IndAbsurd extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitIndAbsurd(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -370,10 +314,7 @@ export class Equal extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitEqual(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -385,10 +326,7 @@ export class Same extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitSame(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -402,10 +340,7 @@ export class Replace extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitReplace(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -417,11 +352,7 @@ export class Trans extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitTrans(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -435,10 +366,7 @@ export class Cong extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitCong(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -449,11 +377,7 @@ export class Symm extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitSymm(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -467,10 +391,7 @@ export class IndEqual extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitIndEqual(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -483,10 +404,7 @@ export class Vec extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitVec(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -499,19 +417,14 @@ export class VecCons extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitVecCons(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
 
 export class VecNil extends Core {
-  accept(visitor: CoreVisitor) {
-    visitor.visitVecNil(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -522,11 +435,7 @@ export class Head extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitHead(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -538,10 +447,7 @@ export class Tail extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitTail(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -556,11 +462,7 @@ export class IndVec extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitIndVec(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -572,11 +474,7 @@ export class Either extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitEither(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -587,11 +485,7 @@ export class Left extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitLeft(this);
-  }
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -602,12 +496,7 @@ export class Right extends Core {
   ) {
     super();
   }
-
-  accept(visitor: CoreVisitor) {
-    visitor.visitRight(this);
-  }
-
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -622,11 +511,7 @@ export class IndEither extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitIndEither(this);
-  }
-
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -639,11 +524,7 @@ export class TODO extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitTODO(this);
-  }
-
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
@@ -656,11 +537,7 @@ export class Application extends Core {
     super();
   }
 
-  accept(visitor: CoreVisitor) {
-    visitor.visitApplication(this);
-  }
-
-  public valOf(env: Environment, expression: Core): V.Value {
+  public valOf(env: Environment): V.Value {
     
   }
 }
