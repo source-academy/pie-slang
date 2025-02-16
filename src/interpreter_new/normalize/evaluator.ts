@@ -1,94 +1,8 @@
-/*
-  ## Normalize.rkt ##
-  This file implements normalization by evaluation.
-*/
-
-import util from 'util';
-import { P } from 'ts-pattern';
-import * as C from './types/core'
-import * as S from "./types/source"
-import * as V from "./types/value"
-import * as N from "./types/neutral"
-import { locationToSrcLoc } from './locations';
-import { contextToEnvironment, Environment, extendEnvironment } from './types/environment';
-import { Closure, FirstOrderClosure, HigherOrderClosure } from './types/utils';
-import { Context } from './types/contexts';
-
-
-/**
- *   ## Call-by-need evaluation ##
-
-  Pie is a total language, which means that every program will
-  eventually terminate. Because the steps taken during evaluation are
-  completely deterministic, and because Pie is total, it is
-  acceptable to choose any order of evaluation.
-
-  On the other hand, many useful Pie programs will take many more
-  evaluation steps to complete when using strict evaluation. For
-  instance, consider zerop from chapter 3 of The Little Typer. zerop
-  returns 'nil when its argument's value has V_Add1 at the top, or 't
-  if it is zero. If (zerop (double 10000)) is evaluated strictly, the
-  evaluator will first need to find out that (double 10000) is 20000,
-  requiring 10000 steps.  On the other hand, if it is evaluated
-  lazily, then it will need only one step to discover that the value
-  has V_Add1 at the top.
-
-  Pie uses call-by-need evaluation. This means that if two different
-  expressions make use of some expression, such as a definition, then
-  evaluation steps will be shared between them and will not need to
-  be repeated.
-
-  Call-by-need evaluation is achieved by introducing a new value that
-  represents evaluation that has not yet been performed, but should
-  instead be performed on demand. That value, which doesn't represent
-  any value in the Pie sense of the word, is called DELAY and is
-  defined in basics.rkt. When DELAY represents work that has not yet
-  been done, it is filled with a special kind of closure called
-  DELAY-CLOS that pairs an expression with its environment.
-
-  Not every DELAY represents evaluation that has not yet been
-  performed. Some represent evaluation that was already demanded by
-  some other operator. The work is shared by updating the contents of
-  DELAY with an actual value.
-
-  later is used to delay evaluation by constructing a DELAY value
-  that contains a DELAY-CLOS closure.
-*/
-
-export function later(env: Environment, expr: C.Core): V.Value {
-  return new V.Delay(new V.Box(new V.DelayClosure(env, expr)));
-}
-
-// undelay is used to find the value that is contained in a
-// DELAY-CLOS closure by invoking the evaluator.
-export function undelay(c: V.DelayClosure): V.Value {
-  return now(c.expr.valOf(c.env));
-}
-
-
-/*
-  now demands the _actual_ value represented by a DELAY. If the value
-  is a DELAY-CLOS, then it is computed using undelay. If it is
-  anything else, then it has already been computed, so it is
-  returned.
-  
-  now should be used any time that a value is inspected to see what
-  form it has, because those situations require that the delayed
-  evaluation steps be carried out.
-*/
-function now(todo: V.Value): V.Value {
-  if (todo instanceof V.Delay) { //todo.val is nessarily a Box
-    const box = todo.val;
-    const content = box.get();
-    if (content instanceof V.DelayClosure) {
-      let theValue = undelay(content);
-      box.set(theValue);
-      return theValue;
-    }
-    return box.get();
-  }
-  return todo;
-}
+import * as util from "util";
+import * as V from "../types/value";
+import * as N from "../types/neutral";
+import { Closure, FirstOrderClosure, HigherOrderClosure } from '../types/utils';
+import { now, natEqual, valOfClosure } from './utils';
 
 /*
   ### The evaluator ###
@@ -96,7 +10,7 @@ function now(todo: V.Value): V.Value {
   Functions whose names begin with "do-" are helpers that implement
   the corresponding eliminator.
 */
-function doApp(operator: V.Value, operand: V.Value): V.Value | undefined {
+export function doApp(operator: V.Value, operand: V.Value): V.Value {
   const operatorNow = now(operator);
   if (operatorNow instanceof V.Lambda) {
     return valOfClosure(operatorNow.body, operand);
@@ -110,11 +24,15 @@ function doApp(operator: V.Value, operand: V.Value): V.Value | undefined {
           new N.Norm(operatorNow.type.argType, operand)
         )
       );
+    } else {
+      throw new Error(`doApp: invalid input ${util.inspect([operator, operand])}`);
     }
+  } else {
+    throw new Error(`doApp: invalid input ${util.inspect([operator, operand])}`);
   }
 }
 
-function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value | undefined {
+export function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Zero) {
     return base;
@@ -135,10 +53,12 @@ function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.V
           step)
       )
     );
+  } else {
+    throw new Error(`invalid input for whichNat ${util.inspect([target, baseType, base, step])}`);
   }
 }
 
-function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value | undefined {
+export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Zero) {
     return base;
@@ -159,10 +79,12 @@ function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Va
           new HigherOrderClosure((_) => baseType)),
         step)
     ));
+  } else {
+    throw new Error(`invalid input for iterNat ${util.inspect([target, baseType, base, step])}`);
   }
 }
 
-function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value | undefined {
+export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Zero) {
     return base;
@@ -193,10 +115,12 @@ function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Val
         step
       )
     ));
+  } else {
+    throw new Error(`invalid input for recNat ${util.inspect([target, baseType, base, step])}`);
   }
 }
 
-function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value | undefined {
+export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Zero) {
     return base;
@@ -235,11 +159,13 @@ function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: V.Value
         )
       )
     );
+  } else {
+    throw new Error(`invalid input for indNat ${util.inspect([target, motive, base, step])}`);
   }
 }
 
 
-function doCar(p: V.Value): V.Value | undefined {
+export function doCar(p: V.Value): V.Value {
   const pairNow: V.Value = now(p);
   if (pairNow instanceof V.Cons) {
     return pairNow.car;
@@ -248,11 +174,13 @@ function doCar(p: V.Value): V.Value | undefined {
     const sigma = pairNow.type;
     const neutral = pairNow.neutral;
     return new V.Neutral(sigma.carType, new N.Car(neutral));
+  } else {
+    throw new Error(`invalid input for car ${util.inspect(p)}`);
   }
 }
 
 
-function doCdr(pair: V.Value): V.Value | undefined {
+export function doCdr(pair: V.Value): V.Value {
   const pairNow: V.Value = now(pair);
   if (pairNow instanceof V.Cons) {
     return pairNow.car;
@@ -264,11 +192,13 @@ function doCdr(pair: V.Value): V.Value | undefined {
       valOfClosure(sigma.cdrType, doCar(pair)!)!,
       new N.Cdr(neutral)
     )
+  } else {
+    throw new Error(`invalid input for cdr ${util.inspect(pair)}`);
   }
 }
 
 
-function doIndList(target: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value | undefined {
+export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Nil) {
     return base;
@@ -321,10 +251,12 @@ function doIndList(target: V.Value, motive: V.Value, base: V.Value, step: V.Valu
         )
       )
     );
+  } else {
+    throw new Error(`invalid input for indList ${util.inspect([targetNow, motive, base, step])}`);
   }
 }
 
-function doRecList(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value | undefined {
+export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Nil) {
     return base;
@@ -370,11 +302,13 @@ function doRecList(target: V.Value, baseType: V.Value, base: V.Value, step: V.Va
         ),
       )
     );
+  } else {
+    throw new Error(`invalid input for recList ${util.inspect([targetNow, baseType, base, step])}`);
   }
 }
 
 
-function doIndAbsurd(target: V.Value, motive: V.Value): V.Value | undefined {
+export function doIndAbsurd(target: V.Value, motive: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Neutral &&
     targetNow.type instanceof V.Absurd) {
@@ -385,11 +319,13 @@ function doIndAbsurd(target: V.Value, motive: V.Value): V.Value | undefined {
         new N.Norm(new V.Universe(), motive)
       )
     );
+  } else {
+    throw new Error(`invalid input for indAbsurd ${util.inspect([target, motive])}`);
   }
 }
 
 
-function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Value | undefined {
+export function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Same) {
     return base;
@@ -414,11 +350,13 @@ function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Value | u
         new N.Norm(doApp(motive, from)!, base)
       )
     );
+  } else {
+    throw new Error(`invalid input for replace ${util.inspect([target, motive, base])}`);
   }
 }
 
 
-function doTrans(target1: V.Value, target2: V.Value): V.Value | undefined {
+export function doTrans(target1: V.Value, target2: V.Value): V.Value {
   const target1Now = now(target1);
   const target2Now = now(target2);
   if (target1Now instanceof V.Same && target2Now instanceof V.Same) {
@@ -467,11 +405,13 @@ function doTrans(target1: V.Value, target2: V.Value): V.Value | undefined {
       new V.Equal(eqType, from, to),
       new N.Trans12(neutral1, neutral2)
     );
+  } else {
+    throw new Error(`invalid input for ${util.inspect([target1, target2])}`);
   }
 }
 
 
-function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value | undefined {
+export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Same) {
     return new V.Same(doApp(func, targetNow.value)!);
@@ -499,10 +439,12 @@ function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value | undefi
         )
       )
     );
+  } else {
+    throw new Error(`invalid input for cong ${util.inspect([target, base, func])}`);
   }
 }
 
-function doSymm(target: V.Value): V.Value | undefined {
+export function doSymm(target: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Same) {
     return new V.Same(targetNow.value);
@@ -516,11 +458,13 @@ function doSymm(target: V.Value): V.Value | undefined {
       ),
       new N.Symm(targetNow.neutral)
     );
+  } else {
+    throw new Error(`invalid input for symm ${util.inspect(target)}`);
   }
 }
 
 
-function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.Value | undefined {
+export function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Same) {
     return base;
@@ -556,11 +500,13 @@ function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.Value | 
         )
       )
     );
+  } else {
+    throw new Error(`invalid input for indEqual ${util.inspect([target, motive, base])}`);
   }
 }
 
 
-function doHead(target: V.Value): V.Value | undefined {
+export function doHead(target: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.VecCons) {
     return targetNow.head;
@@ -571,11 +517,13 @@ function doHead(target: V.Value): V.Value | undefined {
       targetNow.type.entryType,
       new N.Head(targetNow.neutral)
     );
+  } else {
+    throw new Error(`invalid input for head ${util.inspect(target)}`);
   }
 }
 
 
-function doTail(target: V.Value): V.Value | undefined {
+export function doTail(target: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.VecCons) {
     return targetNow.tail;
@@ -589,11 +537,12 @@ function doTail(target: V.Value): V.Value | undefined {
       ),
       new N.Tail(targetNow.neutral)
     );
+  } else {
+    throw new Error(`invalid input for tail ${util.inspect(target)}`);
   }
 }
 
-
-function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
+export function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
   return new V.Pi(
     "k",
     new V.Nat(),
@@ -625,7 +574,8 @@ function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
   );
 }
 
-function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value | undefined {
+
+export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
   const lenNow = now(len);
   const vecNow = now(vec);
   if (lenNow instanceof V.Zero && vecNow instanceof V.VecNil) {
@@ -720,27 +670,12 @@ function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Value, 
         ),
       )
     );
-  }
-}
-
-/*
-  The function doIndVec is a helper for the inductive definition of
-  natural numbers. It is used to implement the induction step.
-*/
-
-function natEqual(nat1: V.Value, nat2: V.Value): boolean {
-  const nat1Now = now(nat1);
-  const nat2Now = now(nat2);
-  if (nat1Now instanceof V.Zero && nat2Now instanceof V.Zero) {
-    return true;
-  } else if (nat1Now instanceof V.Add1 && nat2Now instanceof V.Add1) {
-    return natEqual(nat1Now.smaller, nat2Now.smaller);
   } else {
-    return false;
+    throw new Error(`invalid input for indVec ${util.inspect([len, vec, motive, base, step])}`);
   }
 }
 
-function doIndEither(target: V.Value, motive: V.Value, left: V.Value, right: V.Value): V.Value | undefined {
+export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, right: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Left) {
     return doApp(left, targetNow.value);
@@ -778,30 +713,8 @@ function doIndEither(target: V.Value, motive: V.Value, left: V.Value, right: V.V
         )
       )
     )
+  } else {
+    throw new Error(`invalid input for indEither ${util.inspect([target, motive, left, right])}`);
   }
 }
 
-/*
-  General-purpose helpers
- 
-  Given a value for a closure's free variable, find the value. This
-  cannot be used for DELAY-CLOS, because DELAY-CLOS's laziness
-  closures do not have free variables, but are instead just delayed
-  computations.
-*/
-function valOfClosure(c: Closure, v: V.Value): V.Value | undefined {
-  if (c instanceof FirstOrderClosure) {
-    return c.expr.valOf(extendEnvironment(c.env, c.varName, v));
-  } else if (c instanceof HigherOrderClosure) {
-    return c.proc(v);
-  }
-  return v;
-}
-
-/*
-  Find the value of an expression in the environment that
-  corresponds to a context.
-*/
-function valInCtx(context: Context, core: C.Core): V.Value | undefined {
-  return core.valOf(contextToEnvironment(context));
-}
