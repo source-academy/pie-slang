@@ -1,32 +1,30 @@
 import * as util from "util";
 import * as V from "../types/value";
 import * as N from "../types/neutral";
-import { Closure, FirstOrderClosure, HigherOrderClosure } from '../types/utils';
-import { now, natEqual, valOfClosure } from './utils';
+import { HigherOrderClosure } from '../types/utils';
+import { now, natEqual} from './utils';
 
 /*
-  ### The evaluator ###
+  ### The Evaluators ###
 
   Functions whose names begin with "do-" are helpers that implement
   the corresponding eliminator.
 */
+
 export function doApp(operator: V.Value, operand: V.Value): V.Value {
   const operatorNow = now(operator);
   if (operatorNow instanceof V.Lambda) {
-    return valOfClosure(operatorNow.body, operand);
+    return operatorNow.body.valOfClosure(operand);
   }
-  else if (operatorNow instanceof V.Neutral) {
-    if (operatorNow.type instanceof V.Pi) {
-      return new V.Neutral(
-        valOfClosure(operatorNow.type.resultType, operand)!,
-        new N.Application(
-          operatorNow.neutral,
-          new N.Norm(operatorNow.type.argType, operand)
-        )
-      );
-    } else {
-      throw new Error(`doApp: invalid input ${util.inspect([operator, operand])}`);
-    }
+  else if (operatorNow instanceof V.Neutral &&
+    operatorNow.type instanceof V.Pi) {
+    return new V.Neutral(
+      operatorNow.type.resultType.valOfClosure(operand),
+      new N.Application(
+        operatorNow.neutral,
+        new N.Norm(operatorNow.type.argType, operand)
+      )
+    );
   } else {
     throw new Error(`doApp: invalid input ${util.inspect([operator, operand])}`);
   }
@@ -189,7 +187,7 @@ export function doCdr(pair: V.Value): V.Value {
     const sigma = pairNow.type;
     const neutral = pairNow.neutral;
     return new V.Neutral(
-      valOfClosure(sigma.cdrType, doCar(pair)!)!,
+      sigma.cdrType.valOfClosure(doCar(pair)!),
       new N.Cdr(neutral)
     )
   } else {
@@ -623,7 +621,7 @@ export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.
         ),
         new N.Norm(
           doApp(
-            doApp(motive, new V.Zero)!, V.VecNil
+            doApp(motive, new V.Zero)!, new V.VecNil()
           )!,
           base
         ),
@@ -660,8 +658,8 @@ export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.
           doApp(
             doApp(motive, new V.Nat())!,
             new V.VecNil
-          )!, 
-        base),
+          )!,
+          base),
         new N.Norm(
           indVecStepType(
             entryType, motive
@@ -699,7 +697,9 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
           new V.Pi(
             "x",
             leftType,
-            new HigherOrderClosure((x) => doApp(motive, new V.Left(x))!)
+            new HigherOrderClosure(
+              (x) => doApp(motive, new V.Left(x))!
+            )
           ),
           left
         ),
@@ -707,14 +707,17 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
           new V.Pi(
             "x",
             rightType,
-            new HigherOrderClosure((x) => doApp(motive, new V.Right(x))!)
+            new HigherOrderClosure(
+              (x) => doApp(motive, new V.Right(x))!
+            )
           ),
           right
         )
       )
     )
   } else {
-    throw new Error(`invalid input for indEither ${util.inspect([target, motive, left, right])}`);
+    throw new Error(`invalid input for indEither
+      ${util.inspect([target, motive, left, right])}`);
   }
 }
 

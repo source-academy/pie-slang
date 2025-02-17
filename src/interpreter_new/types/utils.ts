@@ -2,10 +2,9 @@ import { Source } from "./source"
 import { Core } from "./core"
 import { Location } from "../locations";
 import { Value } from "./value";
-import { Environment } from "./environment";
+import { Environment, extendEnvironment } from "./environment";
 
 // 
-
 export class SourceLocation {
   constructor(
     public location: string,
@@ -122,7 +121,20 @@ export class stop extends Perhaps<undefined> {
 */
 
 
-export abstract class Closure { }
+export abstract class Closure { 
+
+  constructor() { }
+  /*
+    General-purpose helpers
+   
+    Given a value for a closure's free variable, find the value. This
+    cannot be used for DELAY-CLOS, because DELAY-CLOS's laziness
+    closures do not have free variables, but are instead just delayed
+    computations.
+  */
+  public abstract valOfClosure(v: Value): Value;
+
+}
 
 /*
   First-order closures, which are a pair of an environment an an
@@ -140,6 +152,10 @@ export class FirstOrderClosure extends Closure {
     public varName: string,
     public expr: Core
   ) { super() }
+
+  public valOfClosure(v: Value): Value {
+    return this.expr.valOf(extendEnvironment(this.env, this.varName, v));
+  }
 }
 
 /*
@@ -155,6 +171,10 @@ export class HigherOrderClosure extends Closure {
   constructor(
     public proc: (value: Value) => Value
   ) { super() };
+
+  public valOfClosure(v: Value): Value {
+    return this.proc(v);
+  }
 }
 
 

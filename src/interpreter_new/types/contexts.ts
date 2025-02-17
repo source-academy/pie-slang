@@ -1,7 +1,8 @@
 import { Value } from './value';
 import { Location } from '../locations';
-import { Core } from './core';
+import * as C from './core';
 import { go, Perhaps } from './utils';
+import { contextToEnvironment } from './environment';
 /*
     ## Contexts ##
     A context maps free variable names to binders.
@@ -16,7 +17,14 @@ export class Context {
     this.context.set(name, binder);
     return this;
   }
-}
+  /*
+    Find the value of an expression in the environment that
+    corresponds to a context.
+  */
+  public valInContext(expr: C.Core): Value | undefined {
+    return expr.valOf(contextToEnvironment(this));
+  }
+} 
 
 
 const initCtx: Context = new Context(new Map());
@@ -78,7 +86,7 @@ function bindVal(ctx: Context, varName: string, type: Value, value: Value): Cont
 // normalize.rkt.
 export class SerializableContext {
   constructor(
-    public context: Map<string, ['free', Core] | ['def', Core, Core] | ['claim', Core]>
+    public context: Map<string, ['free', C.Core] | ['def', C.Core, C.Core] | ['claim', C.Core]>
   ) { }
 }
 

@@ -1,14 +1,30 @@
 import { Environment, getValueFromEnvironment } from './environment';
 import * as V from "./value";
-import {TODO as N_TOTO } from './neutral';
+import * as N from './neutral';
 import { FirstOrderClosure, isVarName, SourceLocation } from './utils';
 import * as Evaluator from '../normalize/evaluator';
-import {later} from '../normalize/utils';
-import { Location } from '../locations';
-import { Neutral } from './neutral';
 
+
+/*
+  ### Core Types ###
+
+    Core Pie expressions are the result of type checking (elaborating)
+    an expression written in Pie. They do not have source positions,
+    because they by definition are not written by a user of the
+    implementation.
+
+*/
 export abstract class Core {
+
   public abstract valOf(env: Environment): V.Value;
+
+  /*
+    Original "later" function. It is used to delay the evaluation.
+  */
+  public toLazy(env: Environment): V.Value {
+    return new V.Delay(new V.Box(new V.DelayClosure(env, this)));
+  }
+
 }
 
 export class The extends Core {
@@ -69,7 +85,7 @@ export class Add1 extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    return new V.Add1(later(env, this.n));
+    return new V.Add1(this.n.toLazy(env));
   }
 }
 
@@ -84,10 +100,10 @@ export class WhichNat extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doWhichNat(
-      later(env, this.target),
-      later(env, this.base.type),
-      later(env, this.base.expr),
-      later(env, this.step)
+      this.target.toLazy(env),
+      this.base.type.toLazy(env),
+      this.base.expr.toLazy(env),
+      this.step.toLazy(env),
     );
   }
 }
@@ -103,10 +119,10 @@ export class IterNat extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIterNat(
-      later(env, this.target),
-      later(env, this.base.type),
-      later(env, this.base.expr),
-      later(env, this.step)
+      this.target.toLazy(env),
+      this.base.type.toLazy(env),
+      this.base.expr.toLazy(env),
+      this.step.toLazy(env)
     );
   }
 }
@@ -121,10 +137,10 @@ export class RecNat extends Core {
   }
   public valOf(env: Environment): V.Value {
     return Evaluator.doRecNat(
-      later(env, this.target),
-      later(env, this.base.type),
-      later(env, this.base.expr),
-      later(env, this.step)
+      this.target.toLazy(env),
+      this.base.type.toLazy(env),
+      this.base.expr.toLazy(env),
+      this.step.toLazy(env)
     );
   }
 }
@@ -140,10 +156,10 @@ export class IndNat extends Core {
   }
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndNat(
-      later(env, this.target),
-      later(env, this.motive),
-      later(env, this.base),
-      later(env, this.step)
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.base.toLazy(env),
+      this.step.toLazy(env),
     );
   }
 }
@@ -156,10 +172,10 @@ export class Pi extends Core {
     super()
   }
   public valOf(env: Environment): V.Value {
-    const [x, A] = this.bindings[0];
-    const Av = later(env, A);
-    return new V.Pi(x, Av, 
-      new FirstOrderClosure(env, x, this.body));
+    const [name, type] = this.bindings[0];
+    const typeVal = type.toLazy(env);
+    return new V.Pi(name, typeVal, 
+      new FirstOrderClosure(env, name, this.body));
   }
 }
 
@@ -206,10 +222,10 @@ export class Sigma extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    const [x, A] = this.bindings[0];
-    const Av = later(env, A);
-    return new V.Sigma(x, Av, 
-      new FirstOrderClosure(env, x, this.body));
+    const [name, type] = this.bindings[0];
+    const typeVal = type.toLazy(env);
+    return new V.Sigma(name, typeVal, 
+      new FirstOrderClosure(env, name, this.body));
   }
 }
 
@@ -222,8 +238,8 @@ export class Cons extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    const first = later(env, this.first);
-    const second = later(env, this.second);
+    const first = this.first.toLazy(env);
+    const second = this.second.toLazy(env);
     return new V.Cons(first, second);
   }
 }
@@ -235,7 +251,7 @@ export class Car extends Core {
     super();
   }
   public valOf(env: Environment): V.Value {
-    return Evaluator.doCar(later(env, this.pair));
+    return Evaluator.doCar(this.pair.toLazy(env));
   }
 }
 
@@ -247,7 +263,7 @@ export class Cdr extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    return Evaluator.doCdr(later(env, this.pair));
+    return Evaluator.doCdr(this.pair.toLazy(env));
   }
 }
 
@@ -260,8 +276,8 @@ export class ListCons extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    const head = later(env, this.head);
-    const tail = later(env, this.tail);
+    const head = this.head.toLazy(env);
+    const tail = this.tail.toLazy(env);;
     return new V.ListCons(head, tail);
   }
 }
@@ -281,7 +297,7 @@ export class List extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    return new V.List(later(env, this.elemType));
+    return new V.List(this.elemType.toLazy(env));
   }
 }
 
@@ -296,10 +312,10 @@ export class RecList extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doRecList(
-      later(env, this.target),
-      later(env, this.base.type),
-      later(env, this.base.expr),
-      later(env, this.step)
+      this.target.toLazy(env),
+      this.base.type.toLazy(env),
+      this.base.expr.toLazy(env),
+      this.step.toLazy(env),
     );
   }
 }
@@ -316,10 +332,10 @@ export class IndList extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndList(
-      later(env, this.target),
-      later(env, this.motive),
-      later(env, this.base),
-      later(env, this.step)
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.base.toLazy(env),
+      this.step.toLazy(env),
     );
   }
 }
@@ -338,6 +354,12 @@ export class Trivial extends Core {
   }
 }
 
+export class Sole extends Core {
+  public valOf(env: Environment): V.Value {
+    return new V.Sole();
+  }
+}
+
 export class IndAbsurd extends Core {
   constructor(
     public target: Core,
@@ -346,11 +368,10 @@ export class IndAbsurd extends Core {
     super();
   }
 
-  
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndAbsurd(
-      later(env, this.target),
-      later(env, this.motive)
+      this.target.toLazy(env),
+      this.motive.toLazy(env)
     );
   }
 }
@@ -366,9 +387,9 @@ export class Equal extends Core {
 
   public valOf(env: Environment): V.Value {
     return new V.Equal(
-      later(env, this.type),
-      later(env, this.left),
-      later(env, this.right)
+      this.type.toLazy(env),
+      this.left.toLazy(env),
+      this.right.toLazy(env),
     );
   }
 }
@@ -381,7 +402,7 @@ export class Same extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    return new V.Same(later(env, this.expr));
+    return new V.Same(this.expr.toLazy(env));
   }
 }
 
@@ -396,9 +417,9 @@ export class Replace extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doReplace(
-      later(env, this.target),
-      later(env, this.motive),
-      later(env, this.base)
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.base.toLazy(env),
     );
   }
 }
@@ -412,8 +433,8 @@ export class Trans extends Core {
   }
   public valOf(env: Environment): V.Value {
     return Evaluator.doTrans(
-      later(env, this.left),
-      later(env, this.right)
+      this.left.toLazy(env),
+      this.right.toLazy(env),
     );
   }
 }
@@ -429,9 +450,9 @@ export class Cong extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doCong(
-      later(env, this.fn),
-      later(env, this.left),
-      later(env, this.right)
+      this.fn.toLazy(env),
+      this.left.toLazy(env),
+      this.right.toLazy(env),
     );
   }
 }
@@ -444,7 +465,7 @@ export class Symm extends Core {
   }
   public valOf(env: Environment): V.Value {
     return Evaluator.doSymm(
-      later(env, this.equality)
+      this.equality.toLazy(env)
     );
   }
 }
@@ -460,9 +481,9 @@ export class IndEqual extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndEqual(
-      later(env, this.target),
-      later(env, this.motive),
-      later(env, this.base)
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.base.toLazy(env),
     );
   }
 }
@@ -476,7 +497,10 @@ export class Vec extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    return new V.Vec(later(env, this.elemType), later(env, this.length));
+    return new V.Vec(
+      this.elemType.toLazy(env), 
+      this.length.toLazy(env)
+    );
   }
 }
 
@@ -489,7 +513,10 @@ export class VecCons extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    return new V.VecCons(later(env, this.head), later(env, this.tail));
+    return new V.VecCons(
+      this.head.toLazy(env),
+      this.tail.toLazy(env),
+    );
   }
 }
 
@@ -507,7 +534,7 @@ export class Head extends Core {
     super();
   }
   public valOf(env: Environment): V.Value {
-    return Evaluator.doHead(later(env, this.vec));
+    return Evaluator.doHead(this.vec.toLazy(env));
   }
 }
 
@@ -519,7 +546,7 @@ export class Tail extends Core {
   }
 
   public valOf(env: Environment): V.Value {
-    return Evaluator.doTail(later(env, this.vec));
+    return Evaluator.doTail(this.vec.toLazy(env));
   }
 }
 
@@ -535,11 +562,11 @@ export class IndVec extends Core {
   }
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndV_Vec(
-      later(env, this.length),
-      later(env, this.target),
-      later(env, this.motive),
-      later(env, this.base),
-      later(env, this.step)
+      this.length.toLazy(env),
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.base.toLazy(env),
+      this.step.toLazy(env),
     );
   }
 }
@@ -552,7 +579,7 @@ export class Either extends Core {
     super();
   }
   public valOf(env: Environment): V.Value {
-    return new V.Either(later(env, this.left), later(env, this.right));
+    return new V.Either(this.left.toLazy(env), this.right.toLazy(env));
   }
 }
 
@@ -563,7 +590,7 @@ export class Left extends Core {
     super();
   }
   public valOf(env: Environment): V.Value {
-    return new V.Left(later(env, this.value));
+    return new V.Left(this.value.toLazy(env));
   }
 }
 
@@ -574,7 +601,7 @@ export class Right extends Core {
     super();
   }
   public valOf(env: Environment): V.Value {
-    return new V.Right(later(env, this.value));
+    return new V.Right(this.value.toLazy(env));
   }
 }
 
@@ -590,10 +617,10 @@ export class IndEither extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndEither(
-      later(env, this.target),
-      later(env, this.motive),
-      later(env, this.baseLeft),
-      later(env, this.baseRight)
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.baseLeft.toLazy(env),
+      this.baseRight.toLazy(env),
     );
   }
 }
@@ -608,8 +635,8 @@ export class TODO extends Core {
 
   public valOf(env: Environment): V.Value {
     return new V.Neutral(
-      later(env, this.type),
-      new N_TOTO(this.loc, later(env, this.type))
+      this.type.toLazy(env),
+      new N.TODO(this.loc, this.type.toLazy(env),)
     )
   }
 }
@@ -624,8 +651,8 @@ export class Application extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doApp(
-      later(env, this.fn),
-      later(env, this.arg)
+      this.fn.toLazy(env),
+      this.arg.toLazy(env),
     );
   }
 }

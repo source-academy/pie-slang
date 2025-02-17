@@ -25,7 +25,13 @@ import { Closure } from "./utils";
     for "Call-by-need").
 */
 
-export abstract class Value { }
+export abstract class Value {
+
+  public now(): Value {
+    return this;
+  }
+
+}
 
 export class DelayClosure {
   env: Environment;
@@ -36,8 +42,8 @@ export class DelayClosure {
     this.expr = expr;
   }
 
-  public now() {
-    
+  public undelay(): Value {
+    return this.expr.valOf(this.env).now();
   } 
 }
 
@@ -58,7 +64,19 @@ export class Box<Type> {
 
 
 export class Delay extends Value {
+
   constructor(public val: Box<DelayClosure | Value>) { super() }
+
+  public now(): Value {
+    const boxContent = this.val.get();
+    if (boxContent instanceof DelayClosure) {
+      let theValue = boxContent.undelay();
+      this.val.set(theValue);
+      return theValue;
+    } else { // content is a Value (content instanceof Value).
+      return boxContent as Value;
+    }
+  }
 }
 
 export class Quote extends Value {

@@ -1,8 +1,9 @@
 import * as V from "../types/value";
-import * as C from '../types/core'
+import * as C from '../types/core';
+import * as N from '../types/neutral';
 import { contextToEnvironment, Environment, extendEnvironment } from '../types/environment';
 import { Closure, FirstOrderClosure, HigherOrderClosure } from '../types/utils';
-import { Context } from '../types/contexts';
+import { Context, Free, Claim, Define, SerializableContext } from '../types/contexts';
 
 /**
  *   ## Call-by-need evaluation ##
@@ -44,10 +45,6 @@ import { Context } from '../types/contexts';
   that contains a DELAY-CLOS closure.
 */
 
-export function later(env: Environment, expr: C.Core): V.Value {
-  return new V.Delay(new V.Box(new V.DelayClosure(env, expr)));
-}
-
 // undelay is used to find the value that is contained in a
 // DELAY-CLOS closure by invoking the evaluator.
 export function undelay(c: V.DelayClosure): V.Value {
@@ -72,8 +69,9 @@ export function now(todo: V.Value): V.Value {
       let theValue = undelay(content);
       box.set(theValue);
       return theValue;
+    } else { // content is a Value (content instanceof Value).
+      return box.get() as V.Value;
     }
-    return box.get();
   }
   return todo;
 }
@@ -89,29 +87,3 @@ export function natEqual(nat1: V.Value, nat2: V.Value): boolean {
     return false;
   }
 }
-
-/*
-  General-purpose helpers
- 
-  Given a value for a closure's free variable, find the value. This
-  cannot be used for DELAY-CLOS, because DELAY-CLOS's laziness
-  closures do not have free variables, but are instead just delayed
-  computations.
-*/
-export function valOfClosure(c: Closure, v: V.Value): V.Value {
-  if (c instanceof FirstOrderClosure) {
-    return c.expr.valOf(extendEnvironment(c.env, c.varName, v));
-  } else if (c instanceof HigherOrderClosure) {
-    return c.proc(v);
-  }
-  return v;
-}
-
-/*
-  Find the value of an expression in the environment that
-  corresponds to a context.
-*/
-function valInCtx(context: Context, core: C.Core): V.Value | undefined {
-  return core.valOf(contextToEnvironment(context));
-}
-
