@@ -116,7 +116,8 @@ export class Pi extends Value {
     const freshedName =  fresh(context, this.argName);
     const excludeNameCtx = bindFree(context, freshedName, this.argType);
     return new C.Pi(
-      [[freshedName, Aexpr]],
+      freshedName,
+      Aexpr,
       this.resultType
         .valOfClosure(
           new Neutral(this.argType, new N.Variable(freshedName))
@@ -148,7 +149,8 @@ export class Sigma extends Value {
     const freshedName = fresh(context, this.carName);
     const excludeNameCtx = bindFree(context, freshedName, this.carType);
     return new C.Sigma(
-      [[freshedName, Aexpr]],
+      freshedName,
+      Aexpr,
       this.cdrType
         .valOfClosure(
           new Neutral(this.carType, new N.Variable(freshedName))

@@ -106,7 +106,7 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
     const y = valueNow instanceof V.Lambda ?
       valueNow.argName : typeNow.argName;
     const freshx = fresh(context, y);
-    return new C.Lambda([freshx], readBack(
+    return new C.Lambda(freshx, readBack(
       bindFree(context, freshx, typeNow.argType),
       typeNow.resultType.valOfClosure(
         new V.Neutral(typeNow.argType, new N.Variable(freshx))
