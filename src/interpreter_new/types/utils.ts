@@ -3,6 +3,8 @@ import { Core } from "./core"
 import { Location } from "../locations";
 import { Value } from "./value";
 import { Environment, extendEnvironment } from "./environment";
+import { Context } from "./contexts";
+import { freshen } from "../fresh";
 
 // 
 export class SourceLocation {
@@ -19,8 +21,8 @@ export class SourceLocation {
 
 export class SiteBinder {
   constructor(
-    public varName: string,
     public location: Location,
+    public varName: string,
   ) { }
 }
 
@@ -202,7 +204,41 @@ export function isVarName(name: string): boolean {
   return isPieKeywords(name);
 }
 
+/*
+  ### Finding fresh names ###
 
+  Find a fresh name, using none of those described in a context.
 
+  This is the implementation of the Γ ⊢ fresh ↝ x form of
+  judgment. Unlike the rules in the appendix to The Little Typer,
+  this implementation also accepts a name suggestion so that the code
+  produced by elaboration has names that are as similar as possible
+  to those written by the user.
+*/
 
+/*
+  Find the names that are described in a context, so they can be
+  avoided.
+*/
+function namesInContext(ctx: Context): string[] {
+  return Array.from(ctx.context.keys());
+}
 
+export function fresh(ctx: Context, name: string): string {
+  return freshen(namesInContext(ctx), name);
+}
+
+/*
+  Find a fresh name, using none of those described in a context nor
+  occurring in an expression. This is used when constructing a fresh
+  binding to avoid capturing a free variable that would otherwise be
+  an error because it points at the context.
+*/
+
+export function freshBinder(ctx: Context, src: Source, name: string): string {
+  return freshen(namesInContext(ctx).concat(src.occuringNames()), name);
+}
+
+export function occurringBinderNames(binder: TypedBinder): string[] {
+  return [binder.binder.varName].concat(binder.type.occuringNames());
+}

@@ -40,7 +40,7 @@ export class The extends Core {
   }
 }
 
-export class U extends Core {
+export class Universe extends Core {
 
   public valOf(env: Environment): V.Value {
     return new V.Universe();
@@ -561,7 +561,7 @@ export class IndVec extends Core {
     super();
   }
   public valOf(env: Environment): V.Value {
-    return Evaluator.doIndV_Vec(
+    return Evaluator.doIndVec(
       this.length.toLazy(env),
       this.target.toLazy(env),
       this.motive.toLazy(env),

@@ -15,8 +15,7 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
   const operatorNow = now(operator);
   if (operatorNow instanceof V.Lambda) {
     return operatorNow.body.valOfClosure(operand);
-  }
-  else if (operatorNow instanceof V.Neutral &&
+  } else if (operatorNow instanceof V.Neutral &&
     operatorNow.type instanceof V.Pi) {
     return new V.Neutral(
       operatorNow.type.resultType.valOfClosure(operand),
@@ -63,7 +62,7 @@ export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, ste
   } else if (targetNow instanceof V.Add1) {
     return doApp(
       step,
-      doIterNat(targetNow.smaller, baseType, base, step)!
+      doIterNat(targetNow.smaller, baseType, base, step)
     );
   } else if (targetNow instanceof V.Neutral
     && targetNow.type instanceof V.Nat) {
@@ -89,7 +88,7 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
   } else if (targetNow instanceof V.Add1) {
     return doApp(
       step,
-      doRecNat(targetNow.smaller, baseType, base, step)!
+      doRecNat(targetNow.smaller, baseType, base, step)
     );
   } else if (targetNow instanceof V.Neutral
     && targetNow.type instanceof V.Nat) {
@@ -124,13 +123,13 @@ export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: 
     return base;
   } else if (targetNow instanceof V.Add1) {
     return doApp(
-      doApp(step, targetNow.smaller)!,
-      doIndNat(targetNow.smaller, motive, base, step)!
+      doApp(step, targetNow.smaller),
+      doIndNat(targetNow.smaller, motive, base, step)
     );
   } else if (targetNow instanceof V.Neutral
     && targetNow.type instanceof V.Nat) {
     return new V.Neutral(
-      doApp(motive, target)!,
+      doApp(motive, target),
       new N.IndNat(
         targetNow.neutral,
         new N.Norm(new V.Pi(
@@ -138,7 +137,7 @@ export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: 
           new V.Nat(),
           new HigherOrderClosure((_) => new V.Universe())
         ), motive),
-        new N.Norm(doApp(motive, new V.Zero())!, base),
+        new N.Norm(doApp(motive, new V.Zero()), base),
         new N.Norm(
           new V.Pi(
             "n-1",
@@ -147,9 +146,9 @@ export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: 
               (n_minus_1) =>
                 new V.Pi(
                   "ih",
-                  doApp(motive, n_minus_1)!,
+                  doApp(motive, n_minus_1),
                   new HigherOrderClosure(
-                    (_) => doApp(motive, new V.Add1(n_minus_1))!
+                    (_) => doApp(motive, new V.Add1(n_minus_1))
                   )
                 )
             )
@@ -187,7 +186,7 @@ export function doCdr(pair: V.Value): V.Value {
     const sigma = pairNow.type;
     const neutral = pairNow.neutral;
     return new V.Neutral(
-      sigma.cdrType.valOfClosure(doCar(pair)!),
+      sigma.cdrType.valOfClosure(doCar(pair)),
       new N.Cdr(neutral)
     )
   } else {
@@ -206,10 +205,10 @@ export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step:
         doApp(
           step,
           targetNow.head
-        )!,
+        ),
         targetNow.tail
-      )!,
-      doIndList(targetNow.tail, motive, base, step)!
+      ),
+      doIndList(targetNow.tail, motive, base, step)
     );
   } else if (targetNow instanceof V.Neutral && targetNow.type instanceof V.List) {
     const entryType = targetNow.type.entryType;
@@ -220,11 +219,11 @@ export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step:
       new HigherOrderClosure((xs) => new V.Universe())
     );
     return new V.Neutral(
-      doApp(motive, target)!,
+      doApp(motive, target),
       new N.IndList(
         neutral,
         new N.Norm(motiveType, motive),
-        new N.Norm(doApp(motive, new V.Nil())!, base),
+        new N.Norm(doApp(motive, new V.Nil()), base),
         new N.Norm(
           new V.Pi(
             "h",
@@ -236,9 +235,9 @@ export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step:
                 new HigherOrderClosure((t) =>
                   new V.Pi(
                     "ih",
-                    doApp(motive, t)!,
+                    doApp(motive, t),
                     new HigherOrderClosure((_) =>
-                      doApp(motive, new V.ListCons(h, t))!
+                      doApp(motive, new V.ListCons(h, t))
                     )
                   )
                 )
@@ -263,10 +262,10 @@ export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, ste
     const tail = targetNow.tail;
     return doApp(
       doApp(
-        doApp(step, head)!,
-        tail)!,
-      doRecList(tail, baseType, base, step)!
-    )!;
+        doApp(step, head),
+        tail),
+      doRecList(tail, baseType, base, step)
+    );
   } else if (targetNow instanceof V.Neutral
     && targetNow.type instanceof V.List) {
     const entryType = targetNow.type.entryType;
@@ -334,7 +333,7 @@ export function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Va
     const from = targetNow.type.from;
     const to = targetNow.type.to;
     return new V.Neutral(
-      doApp(motive, to)!,
+      doApp(motive, to),
       new N.Replace(
         neutral,
         new N.Norm(
@@ -345,7 +344,7 @@ export function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Va
           ),
           motive
         ),
-        new N.Norm(doApp(motive, from)!, base)
+        new N.Norm(doApp(motive, from), base)
       )
     );
   } else {
@@ -412,7 +411,7 @@ export function doTrans(target1: V.Value, target2: V.Value): V.Value {
 export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
   const targetNow = now(target);
   if (targetNow instanceof V.Same) {
-    return new V.Same(doApp(func, targetNow.value)!);
+    return new V.Same(doApp(func, targetNow.value));
   } else if (targetNow instanceof V.Neutral &&
     targetNow.type instanceof V.Equal) {
     const eqType = targetNow.type.type;
@@ -422,8 +421,8 @@ export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
     return new V.Neutral(
       new V.Equal(
         base,
-        doApp(func, from)!,
-        doApp(func, to)!
+        doApp(func, from),
+        doApp(func, to)
       ),
       new N.Cong(
         neutral,
@@ -473,8 +472,8 @@ export function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.V
     const to = targetNow.type.to;
     const neutral = targetNow.neutral;
     return new V.Neutral(
-      doApp(doApp(motive, to)!, target)!,
-      new N.IndEq(
+      doApp(doApp(motive, to), target),
+      new N.IndEqual(
         neutral,
         new N.Norm(
           new V.Pi(
@@ -493,7 +492,7 @@ export function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.V
           motive
         ),
         new N.Norm(
-          doApp(doApp(motive, from)!, new V.Same(from))!,
+          doApp(doApp(motive, from), new V.Same(from)),
           base
         )
       )
@@ -555,13 +554,13 @@ export function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
             new HigherOrderClosure(
               (es) => new V.Pi(
                 "ih",
-                doApp(doApp(mot, k)!, es)!,
+                doApp(doApp(mot, k), es),
                 new HigherOrderClosure(
                   (_) =>
                     doApp(
-                      doApp(mot, new V.Add1(k))!,
+                      doApp(mot, new V.Add1(k)),
                       new V.VecCons(e, es)
-                    )!
+                    )
                 )
               )
             )
@@ -573,7 +572,7 @@ export function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
 }
 
 
-export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
+export function doIndVec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
   const lenNow = now(len);
   const vecNow = now(vec);
   if (lenNow instanceof V.Zero && vecNow instanceof V.VecNil) {
@@ -582,24 +581,24 @@ export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.
     return doApp(
       doApp(
         doApp(
-          doApp(step, lenNow.smaller)!,
+          doApp(step, lenNow.smaller),
           vecNow.head
-        )!,
-        doTail(vec)!
-      )!,
-      doIndV_Vec(
+        ),
+        doTail(vec)
+      ),
+      doIndVec(
         lenNow.smaller,
         vecNow.tail,
         motive,
         base,
         step
-      )!
-    )!;
+      )
+    );
   } else if (lenNow instanceof V.Neutral && vecNow instanceof V.Neutral
     && lenNow.type instanceof V.Nat && vecNow.type instanceof V.Vec) {
     const entryType = vecNow.type.entryType;
     return new V.Neutral(
-      doApp(doApp(motive, len)!, vec)!,
+      doApp(doApp(motive, len), vec),
       new N.IndVec12(
         lenNow.neutral,
         vecNow.neutral,
@@ -621,8 +620,8 @@ export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.
         ),
         new N.Norm(
           doApp(
-            doApp(motive, new V.Zero)!, new V.VecNil()
-          )!,
+            doApp(motive, new V.Zero), new V.VecNil()
+          ),
           base
         ),
         new N.Norm(
@@ -634,7 +633,7 @@ export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.
   } else if (natEqual(lenNow, len) && vecNow instanceof V.Neutral && vecNow.type instanceof V.Vec) {
     const entryType = vecNow.type.entryType;
     return new V.Neutral(
-      doApp(doApp(motive, len)!, vec)!,
+      doApp(doApp(motive, len), vec),
       new N.IndVec2(
         new N.Norm(new V.Nat(), len),
         vecNow.neutral,
@@ -656,9 +655,9 @@ export function doIndV_Vec(len: V.Value, vec: V.Value, motive: V.Value, base: V.
         ),
         new N.Norm(
           doApp(
-            doApp(motive, new V.Nat())!,
+            doApp(motive, new V.Nat()),
             new V.VecNil
-          )!,
+          ),
           base),
         new N.Norm(
           indVecStepType(
@@ -689,7 +688,7 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
       new HigherOrderClosure((x) => new V.Universe())
     )
     return new V.Neutral(
-      doApp(motive, target)!,
+      doApp(motive, target),
       new N.IndEither(
         targetNow.neutral,
         new N.Norm(motiveType, motive),
@@ -698,7 +697,7 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
             "x",
             leftType,
             new HigherOrderClosure(
-              (x) => doApp(motive, new V.Left(x))!
+              (x) => doApp(motive, new V.Left(x))
             )
           ),
           left
@@ -708,7 +707,7 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
             "x",
             rightType,
             new HigherOrderClosure(
-              (x) => doApp(motive, new V.Right(x))!
+              (x) => doApp(motive, new V.Right(x))
             )
           ),
           right
