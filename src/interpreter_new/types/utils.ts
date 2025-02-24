@@ -92,23 +92,48 @@ export function isPieKeywords(str : string) : boolean {
 
 type Message = Array<String | Core>;
 
-export abstract class Perhaps<T> {
-  abstract isGo(): boolean;
+export abstract class Perhaps<T> { 
+
 }
 
 export class go<T> extends Perhaps<T> {
   constructor(public result: T) { super() }
-  isGo(): boolean {
-    return true;
-  }
 }
 
 // A failure result named "stop"
 export class stop extends Perhaps<undefined> {
-  constructor(public where: Location, public message: Message) { super() }
-  isGo(): boolean {
-    return false;
+  constructor(
+    public where: Location,
+    public message: Message
+  ) { super() }
+}
+
+export class PerhapsM<T> {
+  // name is majorly for debugging use.
+  constructor(public name: string, public value: T = null as any) { }
+}
+
+/*
+  go-on is very much like let*. The difference is that if any of the
+  values bound to variables in it are stop, then the entire
+  expression becomes that first stop. Otherwise, the variables are
+  bound to the contents of each go.
+*/
+
+export function goOn<T>(
+  bindings: [PerhapsM<any>, () => Perhaps<any>][],
+  finalExpr: () => T
+): T {
+  for(const [meta, lazy] of bindings) {
+    const val = lazy();
+    if (val instanceof go) {
+      meta.value = (val as go<any>).result;
+    } else {
+      throw(`Encountered stop when evaluating the sequence 
+        ${bindings}`);
+    }
   }
+  return finalExpr();
 }
 
 /*
