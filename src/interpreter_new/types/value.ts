@@ -1,7 +1,10 @@
-import { Core } from "./core";
+import { bindFree, Context } from "./contexts";
+import * as C from "./core";
 import { Environment } from "./environment";
 import * as N from "./neutral";
 import { Closure } from "./utils";
+import { fresh } from "../types/utils";
+import { readBack } from "../normalize/utils";
 
 /*
     ## Values ##
@@ -31,13 +34,15 @@ export abstract class Value {
     return this;
   }
 
+  public abstract readBackType(context: Context): C.Core;
+
 }
 
 export class DelayClosure {
   env: Environment;
-  expr: Core;
+  expr: C.Core;
 
-  constructor(env: Environment, expr: Core) {
+  constructor(env: Environment, expr: C.Core) {
     this.env = env;
     this.expr = expr;
   }
@@ -77,14 +82,26 @@ export class Delay extends Value {
       return boxContent as Value;
     }
   }
+
+  public readBackType(context: Context): C.Core {
+    return this.now().readBackType(context);
+  }
 }
 
 export class Quote extends Value {
   constructor(public name: string) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Quote.");
+  }
 }
 
 export class Add1 extends Value {
   constructor(public smaller: Value) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Add1.");
+  }
 }
 
 export class Pi extends Value {
@@ -93,6 +110,20 @@ export class Pi extends Value {
     public argType: Value,
     public resultType: Closure
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    const Aexpr = this.argType.readBackType(context);
+    const freshedName =  fresh(context, this.argName);
+    const excludeNameCtx = bindFree(context, freshedName, this.argType);
+    return new C.Pi(
+      [[freshedName, Aexpr]],
+      this.resultType
+        .valOfClosure(
+          new Neutral(this.argType, new N.Variable(freshedName))
+        )
+        .readBackType(excludeNameCtx)
+    );
+  }
 }
 
 export class Lambda extends Value {
@@ -100,6 +131,9 @@ export class Lambda extends Value {
     public argName: string,
     public body: Closure
   ) { super() }
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Lambda.");
+  }
 }
 
 export class Sigma extends Value {
@@ -108,6 +142,20 @@ export class Sigma extends Value {
     public carType: Value,
     public cdrType: Closure
   ) { super() }
+  
+  public readBackType(context: Context): C.Core {
+    const Aexpr = this.carType.readBackType(context);
+    const freshedName = fresh(context, this.carName);
+    const excludeNameCtx = bindFree(context, freshedName, this.carType);
+    return new C.Sigma(
+      [[freshedName, Aexpr]],
+      this.cdrType
+        .valOfClosure(
+          new Neutral(this.carType, new N.Variable(freshedName))
+        )
+        .readBackType(excludeNameCtx)
+    );
+  }
 }
 
 export class Cons extends Value {
@@ -115,6 +163,10 @@ export class Cons extends Value {
     public car: Value,
     public cdr: Value
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Cons.");
+  }
 }
 
 export class ListCons extends Value {
@@ -122,10 +174,18 @@ export class ListCons extends Value {
     public head: Value,
     public tail: Value
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for ListCons.");
+  }
 }
 
 export class List extends Value {
   constructor(public entryType: Value) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.List(this.entryType.readBackType(context));
+  }
 }
 
 export class Equal extends Value {
@@ -134,10 +194,22 @@ export class Equal extends Value {
     public from: Value,
     public to: Value
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Equal(
+      this.type.readBackType(context),
+      readBack(context, this.type, this.from),
+      readBack(context, this.type, this.to)
+    );
+  }
 }
 
 export class Same extends Value {
   constructor(public value: Value) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Same.");
+  }
 }
 
 export class Vec extends Value {
@@ -145,6 +217,13 @@ export class Vec extends Value {
     public entryType: Value,
     public length: Value
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Vec(
+      this.entryType.readBackType(context),
+      readBack(context, new Nat(), this.length)
+    );
+  }
 }
 
 export class VecCons extends Value {
@@ -152,6 +231,10 @@ export class VecCons extends Value {
     public head: Value,
     public tail: Value
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for VecCons.");
+  }
 }
 
 export class Either extends Value {
@@ -159,14 +242,29 @@ export class Either extends Value {
     public leftType: Value,
     public rightType: Value
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Either(
+      this.leftType.readBackType(context),
+      this.rightType.readBackType(context)
+    );
+  }
 }
 
 export class Left extends Value {
   constructor(public value: Value) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Left.");
+  }
 }
 
 export class Right extends Value {
   constructor(public value: Value) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Right.");
+  }
 }
 
 export class Neutral extends Value {
@@ -174,40 +272,80 @@ export class Neutral extends Value {
     public type: Value,
     public neutral: N.Neutral
   ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return this.neutral.readBackNeutral(context);
+  }
 }
 
 export class Universe extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Universe();
+  }
 }
 
 export class Nat extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Nat();
+  }
 }
 
 export class Zero extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Zero.");
+  }
 }
 
 export class Atom extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Atom();
+  }
 }
 
 export class Trivial extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Trivial();
+  }
 }
 
 export class Sole extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Sole.");
+  }
 }
 
 export class Nil extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Nil.");
+  }
 }
 
 export class Absurd extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Absurd();
+  }
 }
 
 export class VecNil extends Value {
   constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for VecNil.");
+  }
 }

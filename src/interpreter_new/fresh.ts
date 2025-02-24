@@ -26,7 +26,7 @@ const nonSubscripts: Record<string, string> = {
 }
 
 // Main freshen function
-function freshen(used: string[], x: string): string {
+export function freshen(used: string[], x: string): string {
   if (used.some(usedName => usedName === x)) {
     const split = splitName(x);
     return freshenAux(used, split);

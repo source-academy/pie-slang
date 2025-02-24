@@ -1,9 +1,9 @@
 import * as V from "../types/value";
 import * as C from '../types/core';
 import * as N from '../types/neutral';
-import { contextToEnvironment, Environment, extendEnvironment } from '../types/environment';
-import { Closure, FirstOrderClosure, HigherOrderClosure } from '../types/utils';
-import { Context, Free, Claim, Define, SerializableContext } from '../types/contexts';
+import { fresh } from '../types/utils';
+import { bindFree, Context } from '../types/contexts';
+import { doApp, doCar, doCdr } from "./evaluator";
 
 /**
  *   ## Call-by-need evaluation ##
@@ -86,4 +86,97 @@ export function natEqual(nat1: V.Value, nat2: V.Value): boolean {
   } else {
     return false;
   }
+}
+
+export function readBack(context: Context, type: V.Value, value: V.Value): C.Core {
+  const typeNow = now(type);
+  const valueNow = now(value);
+
+  if (typeNow instanceof V.Universe) {
+    return value.readBackType(context);
+  } else if (typeNow instanceof V.Nat
+    && valueNow instanceof V.Nat) {
+    return new C.Zero();
+  } else if (typeNow instanceof V.Nat
+    && valueNow instanceof V.Add1) {
+    return new C.Add1(
+      readBack(context, new V.Nat(), valueNow.smaller)
+    );
+  } else if (typeNow instanceof V.Pi) {
+    const y = valueNow instanceof V.Lambda ?
+      valueNow.argName : typeNow.argName;
+    const freshx = fresh(context, y);
+    return new C.Lambda([freshx], readBack(
+      bindFree(context, freshx, typeNow.argType),
+      typeNow.resultType.valOfClosure(
+        new V.Neutral(typeNow.argType, new N.Variable(freshx))
+      ),
+      doApp(
+        valueNow,
+        new V.Neutral(typeNow.argType, new N.Variable(freshx))
+      )
+    ));
+  } else if (typeNow instanceof V.Sigma) {
+    const car = doCar(value);
+    const cdr = doCdr(value);
+    return new C.Cons(
+      readBack(context, typeNow.carType, car),
+      readBack(
+        context,
+        typeNow.cdrType.valOfClosure(car),
+        cdr
+      )
+    );
+  } else if (typeNow instanceof V.Atom
+    && valueNow instanceof V.Quote) {
+    return new C.Quote(valueNow.name);
+  } else if (typeNow instanceof V.Trivial) {
+    return new C.Sole();
+  } else if (typeNow instanceof V.List
+    && valueNow instanceof V.Nil) {
+    return new C.Nil();
+  } else if (typeNow instanceof V.List
+    && valueNow instanceof V.ListCons) {
+    return new C.Cons(
+      readBack(context, typeNow.entryType, valueNow.head),
+      readBack(context, new V.List(typeNow.entryType), valueNow.tail));
+  } else if (typeNow instanceof V.Absurd
+    && valueNow instanceof V.Neutral) {
+    return new C.The(
+      new C.Absurd(),
+      valueNow.neutral.readBackNeutral(context)
+    );
+  } else if (typeNow instanceof V.Equal
+    && valueNow instanceof V.Same) {
+    return new C.Same(
+      readBack(context, typeNow.type, valueNow.value));
+  } else if (typeNow instanceof V.Vec
+    && typeNow.length instanceof V.Zero
+    && valueNow instanceof V.VecNil) {
+    return new C.VecNil();
+  } else if (typeNow instanceof V.Vec
+    && typeNow.length instanceof V.Add1
+    && valueNow instanceof V.VecCons) {
+    return new C.VecCons(
+      readBack(context, typeNow.entryType, valueNow.head),
+      readBack(
+        context,
+        new V.Vec(typeNow.entryType, typeNow.length.smaller),
+        valueNow.tail
+      )
+    );
+  } else if (typeNow instanceof V.Either
+    && valueNow instanceof V.Left) {
+    return new C.Left(
+      readBack(context, typeNow.leftType, valueNow.value)
+    );
+  } else if (typeNow instanceof V.Either
+    && valueNow instanceof V.Right) {
+    return new C.Right(
+      readBack(context, typeNow.rightType, valueNow.value)!
+    );
+  } else if (valueNow instanceof V.Neutral) {
+    return valueNow.neutral.readBackNeutral(context);
+  }
+  throw new Error(`Cannot read back ${valueNow} : ${typeNow}`);
 }
