@@ -128,8 +128,7 @@ export function goOn<T>(
     if (val instanceof go) {
       meta.value = (val as go<any>).result;
     } else {
-      throw(`Encountered stop when evaluating the sequence 
-        ${bindings}`);
+      throw new Error(`Encountered stop when evaluating the sequence ${bindings}`);
     }
   }
   return finalExpr();

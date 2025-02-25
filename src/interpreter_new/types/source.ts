@@ -1,10 +1,14 @@
-import { Renaming } from '../typechecker/utils';
-import { Location } from './../locations';
+import { PieInfoHook, Renaming, SendPieInfo } from '../typechecker/utils';
+import { Location, locationToSrcLoc, notForInfo } from './../locations';
 import { SourceSyntaxVisitor} from './../visitors/basics_visitors';
-import { Context } from './contexts';
+import { bindFree, Context } from './contexts';
 import * as C from './core';
-import { Value } from './value';
-import { occurringBinderNames, Perhaps, SiteBinder, TypedBinder } from './utils';
+import * as V from './value';
+import * as N from './neutral';
+import * as S from './source';
+import { go, stop, goOn, occurringBinderNames, Perhaps, PerhapsM, SiteBinder, TypedBinder } from './utils';
+import { convert, sameType } from '../typechecker/utils';
+import { readBack } from '../normalize/utils';
 
 export class Source {
   constructor(
@@ -24,15 +28,21 @@ export class Source {
   }
 
   public isType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
-    return this.syntax.isType(ctx, renames);
+
   }
 
-  public synth(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return this.syntax.synth(ctx, renames);
+  public synth(ctx: Context, renames: Renaming): Perhaps<C.The> { 
+
   }
 
-  public check(ctx: Context, renames: Renaming, type: Value): Perhaps<C.Core> {
-    return this.syntax.check(ctx, renames, type);
+  public check(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
+    const ok = new PerhapsM<C.Core>("ok");
+    const out = this.syntax.checkOut(ctx, renames, type, this);
+    // SendPieInfo(srcLoc(input), ['has-type', readBackType(Γ, tv)!]);
+    return goOn(
+      [[ok, () => out]],
+      () => new go(ok.value)
+    );
   }
 }
 
@@ -42,12 +52,23 @@ abstract class SourceSyntax {
 
   public abstract findNames(): string[];
 
-  public abstract isType(ctx: Context, renames: Renaming): Perhaps<C.Core>;
+  public abstract theType(ctx: Context, renames: Renaming, input: Source): Perhaps<C.Core>;
 
-  public abstract synth(ctx: Context, renames: Renaming): Perhaps<C.The>;
+  public abstract theExpr(ctx: Context, renames: Renaming, input: Source): Perhaps<C.The>;
 
-  public abstract check(ctx: Context, renames: Renaming, type: Value): Perhaps<C.Core>;
-
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const theT = new PerhapsM<C.The>("theT");
+    return goOn(
+      [
+        [theT, () => input.synth(ctx, renames)],
+        [
+          new PerhapsM<undefined>("_"),
+          () => sameType(ctx, input.location, ctx.valInContext(theT.value.type), type)
+        ],
+      ],
+      () => new go(theT.value.expr)
+    );
+  }
 }
 
 export class The extends SourceSyntax {
@@ -288,6 +309,59 @@ export class Lambda extends SourceSyntax {
     return this.binders.map(binder => binder.varName)
       .concat(this.body.occuringNames());
   }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    if (this.binders.length === 1) {
+      const body = this.body;
+      const binder = this.binders[0];
+      const x = binder.varName;
+      const xLoc = binder.location;
+      const typeNow = type.now();
+      if (typeNow instanceof V.Pi) {
+        const A = typeNow.argType;
+        const closure = typeNow.resultType;
+        const xRenamed = renames.rename(x);
+        const bout = new PerhapsM<C.Core>("bout");
+        return goOn(
+          [
+            [
+              bout, 
+              () => body.check(
+                bindFree(ctx, xRenamed, A),
+                renames.extendRenaming(x, xRenamed),
+                closure.valOfClosure(
+                  new V.Neutral(
+                    A, 
+                    new N.Variable(xRenamed)
+                  )
+                )
+              )
+            ]
+          ],
+          () => {
+            PieInfoHook(xLoc, ['binding-site', A.readBackType(ctx)]);
+            return new go(new C.Lambda(xRenamed, bout.value));
+          }
+        );
+      } else {
+        return new stop(
+          xLoc, 
+          [`Not a function type: ${xType.readBackType(ctx)}.`]
+        );
+      }
+    } else { // xBinding.length > 1
+      return new Source(
+        input.location,
+        new S.Lambda(
+          [this.binders[0]],
+          new Source(
+            notForInfo(input.location),
+            new S.Lambda(this.binders.slice(1), this.body)
+          )
+        )
+      ).check(ctx, renames, type);
+    }
+  }
 }
 
 // Product types and operations
@@ -337,6 +411,38 @@ export class Cons extends SourceSyntax {
   public findNames(): string[] {
     return this.first.occuringNames()
       .concat(this.second.occuringNames());
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeNow = type.now();
+    if (typeNow instanceof V.Sigma) {
+      const A = typeNow.carType;
+      const closure = typeNow.cdrType;
+      const aout = new PerhapsM<C.Core>("aout");
+      const dout = new PerhapsM<C.Core>("dout");
+      return goOn(
+        [
+          [aout, () => this.first.check(ctx, renames, A)],
+          [
+            dout, 
+            () => 
+              this.second.check(
+                ctx, 
+                renames, 
+                closure.valOfClosure(ctx.valInContext(aout.value))
+              )
+          ]
+        ],
+        () => new go(
+          new C.Cons(aout.value, dout.value)
+        )
+      );
+    } else {
+      return new stop(
+        input.location,
+        [`cons requires a Pair or Σ type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+      );
+    }
   }
 }
 
@@ -403,6 +509,17 @@ export class Nil extends SourceSyntax {
 
   public findNames(): string[] {
     return [];
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeNow = type.now();
+    if (typeNow instanceof V.List) {
+      return new go('nil');
+    } else {
+      return new stop(
+        input.location, 
+        [`nil requires a List type, but was used as a: ${typeNow.readBackType(ctx)}.`]);
+    }
   }
 }
 
@@ -537,6 +654,37 @@ export class Same extends SourceSyntax {
   public findNames(): string[] {
     return this.type.occuringNames();
   }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeNow = type.now();
+    if (typeNow instanceof V.Equal) {
+      const A = typeNow.type;
+      const from = typeNow.from;
+      const to = typeNow.to;
+      const cout = new PerhapsM<C.Core>("cout");
+      const val = new PerhapsM<V.Value>("val");
+      return goOn(
+        [
+          [cout, () => this.type.check(ctx, renames, A)],
+          [val, () => new go(ctx.valInContext(cout.value))],
+          [
+            new PerhapsM<undefined>("_"), 
+            () => convert(ctx, this.type.location, A, from, val.value)
+          ],
+          [
+            new PerhapsM<undefined>("_"),
+            () => convert(ctx, this.type.location, A, to, val.value)
+          ],
+        ],
+        () => new go(new C.Same(cout.value))
+      );
+    } else {
+      return new stop(
+        input.location,
+        [`same requires an Equal type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+      );
+    }
+  }
 }
 
 export class Replace extends SourceSyntax {
@@ -649,6 +797,24 @@ export class VecNil extends SourceSyntax {
   public findNames(): string[] {
     return [];
   }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeNow = type.now();
+    if (typeNow instanceof V.Vec) {
+      if (typeNow.length instanceof V.Zero) {
+        return new go('vecnil');
+      } else {
+        return new stop(input.location,
+          [`vecnil requires a Vec type with length ZERO, but was used as a: 
+          ${readBack(ctx, new V.Nat(), typeNow.length)}.`]);
+      }
+    } else {
+      return new stop(
+        input.location,
+        [`vecnil requires a Vec type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+      );
+    }
+  }
 }
 
 export class VecCons extends SourceSyntax {
@@ -664,6 +830,37 @@ export class VecCons extends SourceSyntax {
   public findNames(): string[] {
     return this.x.occuringNames()
       .concat(this.xs.occuringNames());
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeNow = type.now();
+    if (typeNow instanceof V.Vec) {
+      if (typeNow.length instanceof V.Add1) {
+        const hout = new PerhapsM<C.Core>("hout");
+        const tout = new PerhapsM<C.Core>("tout");
+        const n_minus_1 = typeNow.length.smaller;
+        return goOn(
+          [
+            [hout, () => this.x.check(ctx, renames, typeNow.entryType)],
+            [tout, () => 
+              this.xs.check(ctx, renames, new V.Vec(typeNow.entryType, n_minus_1))
+            ]
+          ],
+          () => new go(new C.VecCons(hout.value, tout.value))
+        );
+      } else {
+        return new stop(
+          input.location,
+          [`vec:: requires a Vec type with length Add1, but was used with a: 
+          ${readBack(ctx, new V.Nat(), typeNow.length)}.`]
+        );
+      }
+    } else {
+      return new stop(
+        input.location,
+        [`vec:: requires a Vec type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+      );
+    }
   }
 }
 
@@ -746,6 +943,27 @@ export class Left extends SourceSyntax {
   public findNames(): string[] {
     return this.value.occuringNames();
   }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeNow = type.now();
+    if (typeNow instanceof V.Either) {
+      const lout = new PerhapsM<C.Core>("lout");
+      return goOn(
+        [
+          [lout, () => this.value.check(ctx, renames, typeNow.leftType)]
+        ],
+        () => new go(new C.Left(lout.value))
+      );
+    } else {
+      return new stop(
+        input.location,
+        [
+          `left requires an Either type, but was used as a: 
+          ${typeNow.readBackType(ctx)}.`
+        ]
+      );
+    }
+  }
 }
 
 export class Right extends SourceSyntax {
@@ -759,6 +977,27 @@ export class Right extends SourceSyntax {
 
   public findNames(): string[] {
     return this.value.occuringNames();
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeNow = type.now();
+    if (typeNow instanceof V.Either) {
+      const rout = new PerhapsM<C.Core>("rout");
+      return goOn(
+        [
+          [rout, () => this.value.check(ctx, renames, typeNow.rightType)]
+        ],
+        () => new go(new C.Right(rout.value))
+      );
+    } else {
+      return new stop(
+        input.location,
+        [
+          `right requires an Either type, but was used as a: 
+          ${typeNow.readBackType(ctx)}.`
+        ]
+      );
+    }
   }
 }
 
@@ -792,6 +1031,12 @@ export class TODO extends SourceSyntax {
 
   public findNames(): string[] {
     return [];
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value, input: Source): Perhaps<C.Core> {
+    const typeVal = type.readBackType(ctx);
+    SendPieInfo(input.location, ['TODO', ctx.readBackContext(), typeVal]);
+    return new go(new C.TODO(input.location.locationToSrcLoc(), typeVal));
   }
 }
 
