@@ -1,4 +1,5 @@
 import { TokenType } from './tokenTypes';
+import { SourceLocation } from './types/utils';
 
 class Position {
   constructor(
@@ -41,6 +42,12 @@ export class Location {
     public source: Syntax,
     public forInfo: boolean
   ) { }
+
+  public locationToSrcLoc(): SourceLocation {
+    const stx = this.source;
+    return new SourceLocation(
+      
+  }
 }
 
 export function locationToSrcLoc(loc: Location): [string | number, number, number] {
