@@ -3,7 +3,6 @@
 *.cjs
 *~
 *#
-*.json
 .travis.yml
 COPYING
 LICENSE

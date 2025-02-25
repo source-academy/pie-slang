@@ -9,11 +9,10 @@ import { freshen } from "../fresh";
 // 
 export class SourceLocation {
   constructor(
-    public location: string,
-    public a: number,
-    public b: number,
-    public c: number,
-    public d: number,
+    public startLine: number,
+    public startColumn: number,
+    public endLine: number,
+    public endColumn: number,
   ) { }
 }
 
