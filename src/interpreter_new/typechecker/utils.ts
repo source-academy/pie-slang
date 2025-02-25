@@ -1,7 +1,29 @@
-import { alphaEquiv } from "../alphaeqv";
+import { Value } from "../types/value";
 import { Source } from "../types/source";
-import { SourceLocation } from "../types/utils";
 import { Application } from "../types/source";
+import { Core } from "../types/core";
+import { Location } from "../locations";
+import { Context, SerializableContext } from "../types/contexts";
+import { go, stop, Perhaps } from "../types/utils";
+import { alphaEquiv } from "../alphaeqv";
+import { readBack } from "../normalize/utils";
+
+
+type What = 'definition'
+  | ['binding-site', Core]
+  | ['is-type', Core]
+  | ['has-type', Core]
+  | ['TODO', SerializableContext, Core];
+
+export function PieInfoHook(where: Location, what: What): void {
+
+}
+
+export function SendPieInfo(where: Location, what: What): void {
+  if (where.forInfo) {
+    PieInfoHook(where, what);
+  }
+}
 
 // ### Renamings
 
@@ -20,6 +42,34 @@ export class Renaming {
   public extendRenaming(from: string, to: string): Renaming {
     this.renames.set(from, to);
     return this;
+  }
+}
+
+// ### Check the form of judgment Γ ⊢ c ≡ c type
+function sameType(ctx: Context, where: Location, given: Value, expected: Value): Perhaps<undefined> {
+  const givenE = given.readBackType(ctx);
+  const expectedE = expected.readBackType(ctx);
+  if (alphaEquiv(givenE, expectedE)) {
+    return new go(undefined);
+  } else {
+    return new stop(
+      where,
+      [`Expected ${expectedE} but got ${givenE}`]
+    );
+  }
+}
+
+// ### Check the form of judgment Γ ⊢ c : A type
+function convert(ctx: Context, where: Location, type: Value, from: Value, to: Value): Perhaps<undefined> {
+  const fromE = readBack(ctx, type, from);
+  const toE = readBack(ctx, type, to);
+  if (alphaEquiv(fromE, toE)) {
+    return new go(undefined);
+  } else {
+    return new stop(
+      where,
+      [`The terms ${from} and ${to} are not the same ${type}.`]
+    );
   }
 }
 

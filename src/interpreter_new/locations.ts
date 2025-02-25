@@ -45,16 +45,14 @@ export class Location {
 
   public locationToSrcLoc(): SourceLocation {
     const stx = this.source;
-    return new SourceLocation(
       
   }
 }
 
-export function locationToSrcLoc(loc: Location): [string | number, number, number] {
-  const stx = loc.source;
-  return [
-    stx.source, 
-    stx.pos.line,
-    stx.pos.column,
-  ];
+/*
+    * Function to create a Location from a syntax object.
+    * The forInfo field is set to false.
+*/
+export function notForInfo(loc: Location): Location {
+  return new Location(loc.source, false);
 }
