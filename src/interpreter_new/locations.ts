@@ -1,4 +1,5 @@
 import { TokenType } from './tokenTypes';
+import { SourceLocation } from './types/utils';
 
 class Position {
   constructor(
@@ -9,27 +10,27 @@ class Position {
 
 class Token {
   type: TokenType;
-  lexeme: string;
+  source: string;
   literal: any;
   pos: Position;
   endPos: Position;
 
   constructor(
     type: TokenType,
-    lexeme: any,
+    source: any,
     literal: any,
     line: number,
     col: number
   ) {
     this.type = type;
-    this.lexeme = lexeme;
+    this.source = source;
     this.literal = literal;
     this.pos = new Position(line, col);
-    this.endPos = new Position(line, col + lexeme.length - 1);
+    this.endPos = new Position(line, col + source.length - 1);
   }
 
   public toString(): string {
-    return `${this.lexeme}`;
+    return `${this.source}`;
   }
 }
 
@@ -41,13 +42,19 @@ export class Location {
     public source: Syntax,
     public forInfo: boolean
   ) { }
+
+  public locationToSrcLoc(): SourceLocation {
+    const stx = this.source;
+    return new SourceLocation(
+      
+  }
 }
 
-export function locationToSrcLoc(loc: Location): [Symbol | number, number, number] {
+export function locationToSrcLoc(loc: Location): [string | number, number, number] {
   const stx = loc.source;
   return [
     stx.source, 
-    stx.line,
-    stx.column,
+    stx.pos.line,
+    stx.pos.column,
   ];
 }
