@@ -166,30 +166,31 @@ export class IndNat extends Core {
 
 export class Pi extends Core {
   constructor(
-    public bindings: Array<[string, Core]>,
+    public name: string,
+    public type: Core,
     public body: Core
   ) {
     super()
   }
   public valOf(env: Environment): V.Value {
-    const [name, type] = this.bindings[0];
-    const typeVal = type.toLazy(env);
-    return new V.Pi(name, typeVal, 
-      new FirstOrderClosure(env, name, this.body));
+    const typeVal = this.type.toLazy(env);
+    return new V.Pi(this.name, typeVal, 
+      new FirstOrderClosure(env, this.name, this.body)
+    );
   }
 }
 
 export class Lambda extends Core {
   constructor(
-    public params: Array<string>,
+    public param: string,
     public body: Core
   ) {
     super();
   }
 
   public valOf(env: Environment): V.Value {
-    return new V.Lambda(this.params[0], 
-      new FirstOrderClosure(env, this.params[0], this.body));
+    return new V.Lambda(this.param, 
+      new FirstOrderClosure(env, this.param, this.body));
   }
 }
 
@@ -215,17 +216,17 @@ export class Quote extends Core {
 
 export class Sigma extends Core {
   constructor(
-    public bindings: Array<[string, Core]>,
+    public name: string,
+    public type: Core,
     public body: Core
   ) {
     super();
   }
 
   public valOf(env: Environment): V.Value {
-    const [name, type] = this.bindings[0];
-    const typeVal = type.toLazy(env);
-    return new V.Sigma(name, typeVal, 
-      new FirstOrderClosure(env, name, this.body));
+    const typeVal = this.type.toLazy(env);
+    return new V.Sigma(this.name, typeVal, 
+      new FirstOrderClosure(env, this.name, this.body));
   }
 }
 
@@ -348,12 +349,6 @@ export class Absurd extends Core {
 
 }
 
-export class Trivial extends Core {
-  public valOf(env: Environment): V.Value {
-    return new V.Trivial();
-  }
-}
-
 export class Sole extends Core {
   public valOf(env: Environment): V.Value {
     return new V.Sole();
@@ -441,7 +436,7 @@ export class Trans extends Core {
 
 export class Cong extends Core {
   constructor(
-    public fn: Core,
+    public fun: Core,
     public left: Core,
     public right: Core
   ) {
@@ -450,7 +445,7 @@ export class Cong extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doCong(
-      this.fn.toLazy(env),
+      this.fun.toLazy(env),
       this.left.toLazy(env),
       this.right.toLazy(env),
     );
@@ -490,7 +485,7 @@ export class IndEqual extends Core {
 
 export class Vec extends Core {
   constructor(
-    public elemType: Core,
+    public type: Core,
     public length: Core
   ) {
     super();
@@ -498,7 +493,7 @@ export class Vec extends Core {
 
   public valOf(env: Environment): V.Value {
     return new V.Vec(
-      this.elemType.toLazy(env), 
+      this.type.toLazy(env), 
       this.length.toLazy(env)
     );
   }
@@ -643,7 +638,7 @@ export class TODO extends Core {
 
 export class Application extends Core {
   constructor(
-    public fn: Core,
+    public fun: Core,
     public arg: Core
   ) {
     super();
@@ -651,7 +646,7 @@ export class Application extends Core {
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doApp(
-      this.fn.toLazy(env),
+      this.fun.toLazy(env),
       this.arg.toLazy(env),
     );
   }

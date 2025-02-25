@@ -1,9 +1,11 @@
 import { Value } from './value';
 import { Location } from '../locations';
 import * as C from './core';
-import { go, Perhaps } from './utils';
+import { go, stop, Perhaps, goOn, PerhapsM } from './utils';
 import { contextToEnvironment } from './environment';
 import { readBack } from '../normalize/utils';
+import { Source } from './source';
+import { Renaming } from '../typechecker/utils';
 /*
     ## Contexts ##
     A context maps free variable names to binders.
@@ -45,7 +47,75 @@ export class Context {
     }
     return result;
   }
-} 
+
+  public nameNotUsed(where: Location, name: string) {
+    if (this.context.has(name)) {
+      return new stop(
+        where, 
+        [`The name "${name}" is already in use in the context.`]
+      );
+    } else return new go<boolean>(true);
+  }
+
+  public getClaim(where: Location, name: string): Perhaps<Value> {
+    for(const [x, binder] of this.context) {
+      if(x === name) {
+        if (binder instanceof Define) {
+          return new stop(where, [`The name "${name}" is already defined.`])
+        } else if (binder instanceof Claim) {
+          return new go<Value>(binder.type);
+        }
+      }
+    }
+    return new stop(where, [`No claim: ${name}`]);
+  }
+
+  public addClaimToContext(fun: string, funLoc: Location, type: Source): Perhaps<Context> {
+    const typeOut = new PerhapsM<C.Core>("typeOut")
+    return goOn(
+      [
+        [new PerhapsM("_"), () => this.nameNotUsed(funLoc, fun)],
+        [typeOut, () => type.isType(this, new Renaming())]
+      ],
+      () => new go(
+        this.extendContext(
+          fun, new Claim(this.valInContext(typeOut.value))
+        )
+      )
+    )
+  }
+
+  public removeClaimFromContext(name: string): Context {
+    this.context.delete(name);
+    return this;
+  }
+
+  public addDefineToContext(fun: string, funLoc: Location, expr: Source): Perhaps<Context> {
+    const typeOut = new PerhapsM<Value>("typeOut");
+    const exprOut = new PerhapsM<C.Core>("exprOut");
+    return goOn(
+      [
+        [typeOut, () => this.getClaim(funLoc, fun)],
+        [exprOut, 
+          () => expr.check(
+            this, 
+            new Renaming(),
+            typeOut.value)
+        ]
+      ],
+      () => new go(
+        bindVal(
+          this.removeClaimFromContext(fun),
+          fun,
+          typeOut.value,
+          this.valInContext(exprOut.value)
+        )
+      )
+    )
+  }
+}
+
+
 
 
 const initCtx: Context = new Context(new Map());

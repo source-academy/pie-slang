@@ -1,6 +1,10 @@
+import { Renaming } from '../typechecker/utils';
 import { Location } from './../locations';
 import { SourceSyntaxVisitor} from './../visitors/basics_visitors';
-import { occurringBinderNames, SiteBinder, TypedBinder } from './utils';
+import { Context } from './contexts';
+import * as C from './core';
+import { Value } from './value';
+import { occurringBinderNames, Perhaps, SiteBinder, TypedBinder } from './utils';
 
 export class Source {
   constructor(
@@ -18,6 +22,18 @@ export class Source {
   public occuringNames(): string[] {
     return this.syntax.findNames();
   }
+
+  public isType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return this.syntax.isType(ctx, renames);
+  }
+
+  public synth(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return this.syntax.synth(ctx, renames);
+  }
+
+  public check(ctx: Context, renames: Renaming, type: Value): Perhaps<C.Core> {
+    return this.syntax.check(ctx, renames, type);
+  }
 }
 
 abstract class SourceSyntax {
@@ -25,6 +41,12 @@ abstract class SourceSyntax {
   public abstract accept(visitor: SourceSyntaxVisitor) : void; 
 
   public abstract findNames(): string[];
+
+  public abstract isType(ctx: Context, renames: Renaming): Perhaps<C.Core>;
+
+  public abstract synth(ctx: Context, renames: Renaming): Perhaps<C.The>;
+
+  public abstract check(ctx: Context, renames: Renaming, type: Value): Perhaps<C.Core>;
 
 }
 
