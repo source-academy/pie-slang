@@ -7,7 +7,7 @@ import * as V from './value';
 import * as N from './neutral';
 import * as S from './source';
 import { go, stop, goOn, occurringBinderNames, Perhaps, PerhapsM, SiteBinder, TypedBinder } from './utils';
-import { convert, sameType } from '../typechecker';
+import { convert, sameType } from '../typechecker/utils';
 import { readBack } from '../normalize/utils';
 
 export class Source {

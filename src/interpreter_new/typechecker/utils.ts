@@ -46,7 +46,7 @@ export class Renaming {
 }
 
 // ### Check the form of judgment Γ ⊢ c ≡ c type
-function sameType(ctx: Context, where: Location, given: Value, expected: Value): Perhaps<undefined> {
+export function sameType(ctx: Context, where: Location, given: Value, expected: Value): Perhaps<undefined> {
   const givenE = given.readBackType(ctx);
   const expectedE = expected.readBackType(ctx);
   if (alphaEquiv(givenE, expectedE)) {
@@ -60,7 +60,7 @@ function sameType(ctx: Context, where: Location, given: Value, expected: Value):
 }
 
 // ### Check the form of judgment Γ ⊢ c : A type
-function convert(ctx: Context, where: Location, type: Value, from: Value, to: Value): Perhaps<undefined> {
+export function convert(ctx: Context, where: Location, type: Value, from: Value, to: Value): Perhaps<undefined> {
   const fromE = readBack(ctx, type, from);
   const toE = readBack(ctx, type, to);
   if (alphaEquiv(fromE, toE)) {
