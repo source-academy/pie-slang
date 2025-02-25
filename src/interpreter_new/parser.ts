@@ -1,6 +1,6 @@
-import { SchemeLexer } from "../transpiler/lexer/scheme-lexer";
-import { SchemeParser } from "../transpiler/parser/scheme-parser";
-import { Extended } from "../transpiler/types/nodes/scheme-node-types";
+import { SchemeLexer } from "../scheme_parser/transpiler/lexer/scheme-lexer";
+import { SchemeParser } from "../scheme_parser/transpiler/parser/scheme-parser";
+import { Extended } from "../scheme_parser/transpiler/types/nodes/scheme-node-types";
 
 
 export function syntaxParse(stx: string): Extended.List[] {
