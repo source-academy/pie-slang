@@ -259,9 +259,9 @@ export function fresh(ctx: Context, name: string): string {
 */
 
 export function freshBinder(ctx: Context, src: Source, name: string): string {
-  return freshen(namesInContext(ctx).concat(src.occuringNames()), name);
+  return freshen(namesInContext(ctx).concat(src.findNames()), name);
 }
 
 export function occurringBinderNames(binder: TypedBinder): string[] {
-  return [binder.binder.varName].concat(binder.type.occuringNames());
+  return [binder.binder.varName].concat(binder.type.findNames());
 }

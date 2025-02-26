@@ -1,7 +1,7 @@
 import * as Source from "./../types/source"
 
 
-export interface SourceSyntaxVisitor {
+export interface SourceVisitor {
   visitThe(node: Source.The): void;
   visitU(node: Source.U): void;
   visitNat(node: Source.Nat): void;

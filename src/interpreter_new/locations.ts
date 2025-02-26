@@ -53,3 +53,7 @@ export class Location {
     )
   }
 }
+
+export function notForInfo(loc: Location): Location {
+  return new Location(loc.source, false);
+}
