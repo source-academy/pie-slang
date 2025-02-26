@@ -367,7 +367,7 @@ export class Lambda extends Source {
       } else {
         return new stop(
           xLoc, 
-          [`Not a function type: ${xType.readBackType(ctx)}.`]
+          [`Not a function type: ${typeNow.readBackType(ctx)}.`]
         );
       }
     } else { // xBinding.length > 1
