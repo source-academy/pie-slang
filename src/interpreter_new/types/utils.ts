@@ -89,7 +89,10 @@ export function isPieKeywords(str : string) : boolean {
     false;
 }
 
-type Message = Array<String | Core>;
+
+export class Message {
+  constructor(public message: Array<String|Core>) { }
+}
 
 export abstract class Perhaps<T> { 
 

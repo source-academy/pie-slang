@@ -1,11 +1,12 @@
-import { Value } from './value';
+import { Neutral, Value } from './value';
 import { Location } from '../locations';
 import * as C from './core';
-import { go, stop, Perhaps, goOn, PerhapsM } from './utils';
-import { contextToEnvironment } from './environment';
+import { go, stop, Perhaps, goOn, PerhapsM, Message } from './utils';
+import { Environment } from './environment';
 import { readBack } from '../normalize/utils';
 import { Source } from './source';
 import { Renaming } from '../typechecker/utils';
+import { Variable } from './neutral';
 /*
     ## Contexts ##
     A context maps free variable names to binders.
@@ -25,7 +26,7 @@ export class Context {
     corresponds to a context.
   */
   public valInContext(expr: C.Core): Value {
-    return expr.valOf(contextToEnvironment(this));
+    return expr.valOf(this.contextToEnvironment());
   }
 
   public readBackContext(): SerializableContext {
@@ -52,7 +53,7 @@ export class Context {
     if (this.context.has(name)) {
       return new stop(
         where, 
-        [`The name "${name}" is already in use in the context.`]
+        new Message([`The name "${name}" is already in use in the context.`])
       );
     } else return new go<boolean>(true);
   }
@@ -61,13 +62,13 @@ export class Context {
     for(const [x, binder] of this.context) {
       if(x === name) {
         if (binder instanceof Define) {
-          return new stop(where, [`The name "${name}" is already defined.`])
+          return new stop(where, new Message([`The name "${name}" is already defined.`]))
         } else if (binder instanceof Claim) {
           return new go<Value>(binder.type);
         }
       }
     }
-    return new stop(where, [`No claim: ${name}`]);
+    return new stop(where, new Message([`No claim: ${name}`]));
   }
 
   public addClaimToContext(fun: string, funLoc: Location, type: Source): Perhaps<Context> {
@@ -112,6 +113,22 @@ export class Context {
         )
       )
     )
+  }
+
+  public contextToEnvironment(): Environment {
+    if (this.context.size === 0) {
+      return new Environment(new Map());
+    }
+    const bindings = this.context.entries();
+    const environment = new Map();
+    for (const [name, binder] of bindings) {
+      if (binder instanceof Define) {
+        environment.set(name, binder.value);
+      } else if (binder instanceof Free) {
+        environment.set(name, new Neutral(binder.type, new Variable(name)));
+      } // else continue;
+    }
+    return new Environment(environment);
   }
 }
 

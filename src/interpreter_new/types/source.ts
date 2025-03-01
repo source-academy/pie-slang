@@ -6,9 +6,11 @@ import * as C from './core';
 import * as V from './value';
 import * as N from './neutral';
 import * as S from './source';
-import { go, stop, goOn, occurringBinderNames, Perhaps, PerhapsM, SiteBinder, TypedBinder } from './utils';
+import { go, stop, goOn, occurringBinderNames, Perhaps, PerhapsM, SiteBinder, TypedBinder, Message } from './utils';
 import { convert, sameType } from '../typechecker/utils';
 import { readBack } from '../normalize/utils';
+import { Synth } from '../typechecker/synth';
+// import { Universe } from './value';
 
 export abstract class Source {
   constructor(
@@ -44,6 +46,22 @@ export abstract class Source {
     );
   }
 
+  public synth(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    const ok = new PerhapsM<C.The>("ok");
+    
+    return goOn(
+      [[ok, () => this.synthHelper(ctx, renames)]],
+      () => {
+        SendPieInfo(this.location, ['is-type', ok.value.type]);
+        return new go(ok.value)
+      }
+    );
+  }
+
+  protected abstract synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The>;
+
+  public isType
+
   protected checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const theT = new PerhapsM<C.The>("theT");
     return goOn(
@@ -73,6 +91,9 @@ export abstract class Source {
 // }
 
 export class The extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthThe(ctx, renames, this);
+  }
 
   // ['the', Source, Source]
   
@@ -92,9 +113,14 @@ export class The extends Source {
     return this.type.findNames()
       .concat(this.value.findNames());
   }
+
+
 }
 
-export class U extends Source {
+export class Universe extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthUniverse(ctx, renames, this);
+  }
   // ['U']
   constructor(
     public location: Location,
@@ -110,6 +136,9 @@ export class U extends Source {
 }
 
 export class Nat extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthNat(ctx, renames, this);
+  }
   // ['Nat']
   constructor(
     public location: Location,
@@ -125,6 +154,9 @@ export class Nat extends Source {
 }
 
 export class Zero extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthZero(ctx, renames, this);
+  }
   // ['zero']
   constructor(
     public location: Location,
@@ -140,6 +172,9 @@ export class Zero extends Source {
 }
 
 export class Name extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthName(ctx, renames, this);
+  }
   // [string]
   constructor(
     public location: Location,
@@ -156,6 +191,9 @@ export class Name extends Source {
 }
 
 export class Atom extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthAtom(ctx, renames, this);
+  }
   constructor(
     public location: Location,
   ) { super(location); }
@@ -170,6 +208,9 @@ export class Atom extends Source {
 }
 
 export class Quote extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthQuote(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public name: string,
@@ -186,6 +227,9 @@ export class Quote extends Source {
 
 // Natural number operations
 export class Add1 extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthAdd1(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public base: Source,
@@ -201,6 +245,9 @@ export class Add1 extends Source {
 }
 
 export class WhichNat extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthWhichNat(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public target: Source,
@@ -219,6 +266,9 @@ export class WhichNat extends Source {
 }
 
 export class IterNat extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthIterNat(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public target: Source,
@@ -238,6 +288,9 @@ export class IterNat extends Source {
 }
 
 export class RecNat extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthRecNat(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public target: Source,
@@ -257,6 +310,9 @@ export class RecNat extends Source {
 }
 
 export class IndNat extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthIndNat(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public target: Source,
@@ -279,6 +335,9 @@ export class IndNat extends Source {
 
 // Function types and operations
 export class Arrow extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthArrow(ctx, renames, this);
+  }
 
   constructor(
     public location: Location,
@@ -299,6 +358,9 @@ export class Arrow extends Source {
 }
 
 export class Pi extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthPi(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public binders: TypedBinder[],
@@ -315,7 +377,11 @@ export class Pi extends Source {
   }
 }
 
+//TODO: lambda?
 export class Lambda extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
     public binders: SiteBinder[],
@@ -367,7 +433,7 @@ export class Lambda extends Source {
       } else {
         return new stop(
           xLoc, 
-          [`Not a function type: ${typeNow.readBackType(ctx)}.`]
+          new Message([`Not a function type: ${typeNow.readBackType(ctx)}.`])
         );
       }
     } else { // xBinding.length > 1
@@ -385,6 +451,9 @@ export class Lambda extends Source {
 
 // Product types and operations
 export class Sigma extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthSigma(ctx, renames, this);
+  }
 
   constructor(
     public location: Location,
@@ -403,6 +472,9 @@ export class Sigma extends Source {
 }
 
 export class Pair extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthPair(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public first: Source,
@@ -420,6 +492,9 @@ export class Pair extends Source {
 }
 
 export class Cons extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
     public first: Source,
@@ -462,13 +537,16 @@ export class Cons extends Source {
     } else {
       return new stop(
         this.location,
-        [`cons requires a Pair or Σ type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+        new Message([`cons requires a Pair or Σ type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }
 }
 
 export class Car extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthCar(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public pair: Source,
@@ -484,6 +562,9 @@ export class Car extends Source {
 }
 
 export class Cdr extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthCdr(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public pair: Source,
@@ -500,6 +581,9 @@ export class Cdr extends Source {
 
 // Basic constructors
 export class Trivial extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthTrivial(ctx, renames, this);
+  }
 
   constructor(
     public location: Location,
@@ -514,7 +598,10 @@ export class Trivial extends Source {
   }
 }
 
-export class Sole extends Source {  
+export class Sole extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthSole(ctx, renames, this);
+  }  
   constructor(
     public location: Location,
   ) { super(location); }
@@ -529,6 +616,9 @@ export class Sole extends Source {
 }
 
 export class Nil extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
   ) { super(location); }
@@ -548,12 +638,16 @@ export class Nil extends Source {
     } else {
       return new stop(
         this.location, 
-        [`nil requires a List type, but was used as a: ${typeNow.readBackType(ctx)}.`]);
+        new Message([`nil requires a List type, but was used as a: ${typeNow.readBackType(ctx)}.`])
+      );
     }
   }
 }
 
 export class Number extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthNumber(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public value: number,
@@ -570,8 +664,28 @@ export class Number extends Source {
   }
 }
 
+export class List extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthList(ctx, renames, this);
+  }
+  constructor(
+    public location: Location,
+    public entryType: Source,
+  ) { super(location); }
+
+  public accept(visitor: SourceVisitor) {
+    visitor.visitList(this);
+  }
+
+  public findNames(): string[] {
+    return this.entryType.findNames();
+  }
+}
 // List operations
 export class ConsList extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthConsList(ctx, renames, this);
+  }
 
   constructor(
     public location: Location,
@@ -590,6 +704,9 @@ export class ConsList extends Source {
 }
 
 export class RecList extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthRecList(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public target: Source,
@@ -609,6 +726,9 @@ export class RecList extends Source {
 }
 
 export class IndList extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthIndList(ctx, renames, this);
+  }
 
   constructor(
     public location: Location,
@@ -632,6 +752,9 @@ export class IndList extends Source {
 
 // Absurd and its operations
 export class Absurd extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthAbsurd(ctx, renames, this);
+  }
   constructor(
     public location: Location,
   ) { super(location); }
@@ -646,6 +769,9 @@ export class Absurd extends Source {
 }
 
 export class IndAbsurd extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthIndAbsurd(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public target: Source,
@@ -664,6 +790,9 @@ export class IndAbsurd extends Source {
 
 // Equality types and operations
 export class Equal extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthEqual(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public type: Source,
@@ -683,6 +812,9 @@ export class Equal extends Source {
 }
 
 export class Same extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
     public type: Source,
@@ -722,13 +854,16 @@ export class Same extends Source {
     } else {
       return new stop(
         this.location,
-        [`same requires an Equal type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+        new Message([`same requires an Equal type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }
 }
 
 export class Replace extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthReplace(ctx, renames, this);
+  }
 
   constructor(
     public location: Location,
@@ -749,6 +884,9 @@ export class Replace extends Source {
 }
 
 export class Trans extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthTrans(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public left: Source,
@@ -766,6 +904,9 @@ export class Trans extends Source {
 }
 
 export class Cong extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthCong(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public from: Source,
@@ -783,6 +924,9 @@ export class Cong extends Source {
 }
 
 export class Symm extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthSymm(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public equality: Source,
@@ -798,6 +942,9 @@ export class Symm extends Source {
 }
 
 export class IndEqual extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthIndEqual(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public from: Source,
@@ -818,6 +965,9 @@ export class IndEqual extends Source {
 
 // Vector types and operations
 export class Vec extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthVec(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public type: Source,
@@ -835,6 +985,9 @@ export class Vec extends Source {
 }
 
 export class VecNil extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
   ) { super(location); }
@@ -854,19 +1007,22 @@ export class VecNil extends Source {
         return new go('vecnil');
       } else {
         return new stop(this.location,
-          [`vecnil requires a Vec type with length ZERO, but was used as a: 
-          ${readBack(ctx, new V.Nat(), typeNow.length)}.`]);
+          new Message([`vecnil requires a Vec type with length ZERO, but was used as a: 
+          ${readBack(ctx, new V.Nat(), typeNow.length)}.`]));
       }
     } else {
       return new stop(
         this.location,
-        [`vecnil requires a Vec type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+        new Message([`vecnil requires a Vec type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }
 }
 
 export class VecCons extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
     public x: Source,
@@ -901,20 +1057,23 @@ export class VecCons extends Source {
       } else {
         return new stop(
           this.location,
-          [`vec:: requires a Vec type with length Add1, but was used with a: 
-          ${readBack(ctx, new V.Nat(), typeNow.length)}.`]
+          new Message([`vec:: requires a Vec type with length Add1, but was used with a: 
+          ${readBack(ctx, new V.Nat(), typeNow.length)}.`])
         );
       }
     } else {
       return new stop(
         this.location,
-        [`vec:: requires a Vec type, but was used as a: ${typeNow.readBackType(ctx)}.`]
+        new Message([`vec:: requires a Vec type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }
 }
 
 export class Head extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthHead(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public vec: Source,
@@ -930,6 +1089,9 @@ export class Head extends Source {
 }
 
 export class Tail extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthTail(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public vec: Source,
@@ -945,6 +1107,9 @@ export class Tail extends Source {
 }
 
 export class IndVec extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthIndVec(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public length: Source,
@@ -969,6 +1134,9 @@ export class IndVec extends Source {
 
 // Either type and operations
 export class Either extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthEither(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public left: Source,
@@ -986,6 +1154,9 @@ export class Either extends Source {
 }
 
 export class Left extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
     public value: Source,
@@ -1012,16 +1183,16 @@ export class Left extends Source {
     } else {
       return new stop(
         this.location,
-        [
-          `left requires an Either type, but was used as a: 
-          ${typeNow.readBackType(ctx)}.`
-        ]
+        new Message([`left requires an Either type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }
 }
 
 export class Right extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
     public value: Source,
@@ -1048,16 +1219,16 @@ export class Right extends Source {
     } else {
       return new stop(
         this.location,
-        [
-          `right requires an Either type, but was used as a: 
-          ${typeNow.readBackType(ctx)}.`
-        ]
+        new Message([`right requires an Either type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }
 }
 
 export class IndEither extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthIndEither(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public target: Source,
@@ -1080,6 +1251,9 @@ export class IndEither extends Source {
 
 // Utility
 export class TODO extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
   ) { super(location); }
@@ -1101,6 +1275,9 @@ export class TODO extends Source {
 
 // Application
 export class Application extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthApplication(ctx, renames, this);
+  }
   constructor(
     public location: Location,
     public func: Source,
