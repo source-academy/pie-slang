@@ -209,7 +209,7 @@ export class Atom extends Source {
 
 export class Quote extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthQuote(ctx, renames, this);
+    throw new Error('Method not implemented.');
   }
   constructor(
     public location: Location,
@@ -582,7 +582,7 @@ export class Cdr extends Source {
 // Basic constructors
 export class Trivial extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthTrivial(ctx, renames, this);
+    throw new Error('Method not implemented.');
   }
 
   constructor(
@@ -600,7 +600,7 @@ export class Trivial extends Source {
 
 export class Sole extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthSole(ctx, renames, this);
+    throw new Error('Method not implemented.');
   }  
   constructor(
     public location: Location,

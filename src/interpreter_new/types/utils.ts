@@ -2,7 +2,7 @@ import { Source } from "./source"
 import { Core } from "./core"
 import { Location } from "../locations";
 import { Value } from "./value";
-import { Environment, extendEnvironment } from "./environment";
+import { Environment} from "./environment";
 import { Context } from "./contexts";
 import { freshen } from "../fresh";
 
@@ -182,7 +182,7 @@ export class FirstOrderClosure extends Closure {
   ) { super() }
 
   public valOfClosure(v: Value): Value {
-    return this.expr.valOf(extendEnvironment(this.env, this.varName, v));
+    return this.expr.valOf(this.env.extendEnvironment(this.varName, v));
   }
 }
 
