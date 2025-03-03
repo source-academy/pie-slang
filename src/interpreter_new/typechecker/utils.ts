@@ -15,6 +15,9 @@ type What = 'definition'
   | ['has-type', Core]
   | ['TODO', SerializableContext, Core];
 
+
+// TODO: Implement PieInfoHook
+
 export function PieInfoHook(where: Location, what: What): void {
 
 }
@@ -94,6 +97,6 @@ function isAlphabetic(char: string): boolean {
 }
 
 // Helper to concoct a function application form in source syntax
-function makeApp(a: Source, b: Source, cs: Source[]): Source {
-  return new Source(a.location, new Application(a, b, cs));
+export function makeApp(a: Source, b: Source, cs: Source[]): Source {
+  return new Application(a.location, a, b, cs);
 }
