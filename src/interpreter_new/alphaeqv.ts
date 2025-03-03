@@ -1,5 +1,6 @@
 import * as C from './types/core';
 import { isVarName, SourceLocation } from './types/utils';
+import { Source } from './types/source';
 
 export function alphaEquiv(e1: C.Core, e2: C.Core): boolean {
   return alphaEquivAux(0, new Map(), new Map(), e1, e2);
@@ -249,7 +250,10 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: C.Core, e2: 
 }
 
 function sameLocation(e1: SourceLocation, e2: SourceLocation): boolean {
-  return e1.a === e2.a && e1.b === e2.b && e1.c === e2.c && e1.d === e2.d && e1.location === e2.location;
+  return e1.startLine === e2.startLine && 
+         e1.startColumn === e2.startColumn && 
+         e1.endLine === e2.endLine && 
+         e1.endColumn === e2.endColumn;
 }
 
 /* function alphaEquivAuxSeq(lvl: number, b1: Bindings, b2: Bindings, es1: C.Core[], es2: C.Core[]): boolean {
