@@ -9,11 +9,10 @@ import { freshen } from "../fresh";
 // 
 export class SourceLocation {
   constructor(
-    public location: string,
-    public a: number,
-    public b: number,
-    public c: number,
-    public d: number,
+    public startLine: number,
+    public startColumn: number,
+    public endLine: number,
+    public endColumn: number,
   ) { }
 }
 
@@ -90,7 +89,10 @@ export function isPieKeywords(str : string) : boolean {
     false;
 }
 
-type Message = Array<String | Core>;
+
+export class Message {
+  constructor(public message: Array<String|Core>) { }
+}
 
 export abstract class Perhaps<T> { 
 
@@ -129,8 +131,7 @@ export function goOn<T>(
     if (val instanceof go) {
       meta.value = (val as go<any>).result;
     } else {
-      throw(`Encountered stop when evaluating the sequence 
-        ${bindings}`);
+      throw new Error(`Encountered stop when evaluating the sequence ${bindings}`);
     }
   }
   return finalExpr();
@@ -261,9 +262,9 @@ export function fresh(ctx: Context, name: string): string {
 */
 
 export function freshBinder(ctx: Context, src: Source, name: string): string {
-  return freshen(namesInContext(ctx).concat(src.occuringNames()), name);
+  return freshen(namesInContext(ctx).concat(src.findNames()), name);
 }
 
 export function occurringBinderNames(binder: TypedBinder): string[] {
-  return [binder.binder.varName].concat(binder.type.occuringNames());
+  return [binder.binder.varName].concat(binder.type.findNames());
 }

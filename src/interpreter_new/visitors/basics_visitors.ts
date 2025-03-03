@@ -1,9 +1,10 @@
 import * as Source from "./../types/source"
 
 
-export interface SourceSyntaxVisitor {
+export interface SourceVisitor {
+  visitList(arg0: Source.List): unknown;
   visitThe(node: Source.The): void;
-  visitU(node: Source.U): void;
+  visitU(node: Source.Universe): void;
   visitNat(node: Source.Nat): void;
   visitZero(node: Source.Zero): void;
   visitName(node: Source.Name): void;
