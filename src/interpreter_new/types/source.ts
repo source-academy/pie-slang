@@ -1,4 +1,4 @@
-import { PieInfoHook, Renaming, SendPieInfo } from '../typechecker/utils';
+import { PieInfoHook, Renaming, SendPieInfo, makeApp} from '../typechecker/utils';
 import { Location, notForInfo } from './../locations';
 import { SourceVisitor} from './../visitors/basics_visitors';
 import { bindFree, Context } from './contexts';
@@ -6,10 +6,12 @@ import * as C from './core';
 import * as V from './value';
 import * as N from './neutral';
 import * as S from './source';
-import { go, stop, goOn, occurringBinderNames, Perhaps, PerhapsM, SiteBinder, TypedBinder, Message } from './utils';
+import { go, stop, goOn, occurringBinderNames, Perhaps, PerhapsM, SiteBinder, TypedBinder, Message, freshBinder } from './utils';
 import { convert, sameType } from '../typechecker/utils';
 import { readBack } from '../normalize/utils';
 import { Synth } from '../typechecker/synth';
+import {fresh} from '../types/utils';
+import {varType} from '../types/contexts';
 // import { Universe } from './value';
 
 export abstract class Source {
@@ -28,9 +30,39 @@ export abstract class Source {
 
   public abstract accept(visitor: SourceVisitor) : void;
 
-  // public isType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public isType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const ok = new PerhapsM<C.The>("ok");
+    const theType = this.checkIsType(ctx, renames);
 
-  // }
+    return goOn(
+      [[ok, () => theType]],
+      () => {
+        SendPieInfo(this.location, ['is-type', ok.value.type]);
+        return new go(ok.value);
+      }
+    );
+  }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const checkType = this.check(ctx, renames, new V.Universe());
+    if (checkType instanceof go) {
+      return checkType;
+    } else if (checkType instanceof stop) {
+      if (checkType instanceof Name) {
+        const otherTv = new PerhapsM<V.Value>("other-tv");
+        return new goOn(
+          [[otherTv, () => varType(ctx, this.location, checkType.name)]],
+          () => {
+            new stop(this.location, new Message([`Expected , but given ${otherTv.value.readBackType(ctx)}`]));
+          }
+        );
+      } else {
+        return new stop(this.location, new Message([`not a type`]));
+      }
+    } else {
+      throw new Error('Invalid checkType');
+    }
+  }
 
   // public synth(ctx: Context, renames: Renaming): Perhaps<C.The> { 
 
@@ -59,8 +91,6 @@ export abstract class Source {
   }
 
   protected abstract synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The>;
-
-  public isType
 
   protected checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const theT = new PerhapsM<C.The>("theT");
@@ -133,6 +163,10 @@ export class Universe extends Source {
   public findNames(): string[] {
     return [];
   }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return new go(new C.Universe());
+  }
 }
 
 export class Nat extends Source {
@@ -150,6 +184,10 @@ export class Nat extends Source {
 
   public findNames(): string[] {
     return [];
+  }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return new go(new C.Nat());
   }
 }
 
@@ -204,6 +242,10 @@ export class Atom extends Source {
 
   public findNames(): string[] {
     return [];
+  }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return new go(new C.Atom());
   }
 }
 
@@ -355,6 +397,41 @@ export class Arrow extends Source {
       .concat(this.arg2.findNames())
       .concat(this.args.flatMap(arg => arg.findNames()));
   }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const [A, B, arr] = [this.arg1, this.arg2, this.args];
+    if (arr.length === 0) {
+      const x = freshBinder(ctx, B, 'x');
+      const Aout = new PerhapsM<C.Core>("Aout");
+      const Bout = new PerhapsM<C.Core>('Bout');
+      return goOn(
+        [[Aout, () => A.isType(ctx, renames)],
+        [Bout, () => B.isType(
+          bindFree(ctx, x, ctx.valInContext(Aout.value)),renames)]],
+        (() => {
+          return new go<C.Pi>(
+            new C.Pi(x, Aout.value, Bout.value)
+        );
+    }))
+    } else {
+      const [Cdot, ...rest] = arr;
+      const x = freshBinder(ctx, makeApp(B, Cdot, rest), 'x');
+      const Aout = new PerhapsM<C.Core>("Aout");
+      const tout = new PerhapsM<C.Core>('tout');
+      return goOn(
+        [
+          [Aout, () => A.isType(ctx, renames)],
+          [tout, () => (new Arrow(notForInfo(this.location), B, Cdot, rest))
+            .isType(bindFree(ctx, x, ctx.valInContext(Aout.value)), renames)
+          ]
+        ],
+        (() => {
+          return new go<C.Pi>(
+            new C.Pi(x, Aout.value, tout.value)
+        );
+        }))
+    }
+  }
 }
 
 export class Pi extends Source {
@@ -374,6 +451,68 @@ export class Pi extends Source {
     // TEST THIS
     return this.binders.flatMap(binder => occurringBinderNames(binder))
       .concat(this.body.findNames());
+  }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const [arr, B] = [this.binders, this.body];
+    if (arr.length === 1) {
+      const [bd, A] = [arr[0].binder, arr[0].type];
+      const y = fresh(ctx, bd.varName);
+      const xloc = bd.location;
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Aoutv = new PerhapsM<V.Value>('Aoutv');
+      const Bout = new PerhapsM<C.Core>('Bout');
+      return goOn(
+        [
+          [Aout, () => A.isType(ctx, renames)],
+          [Aoutv, () => new go(ctx.valInContext(Aout.value))],
+          [Bout, () => B.isType(
+            bindFree(ctx, y, Aoutv.value),
+            renames.extendRenaming(bd.varName, y))],
+        ],
+        (() => {
+          PieInfoHook(xloc, ['binding-site', Aout.value]);
+          return new go<C.Pi>(
+            new C.Pi(
+              y,
+              Aout.value,
+              Bout.value
+            )
+          )
+        })
+      )
+    } else if (arr.length > 1) {
+      const [bd, ...rest] = arr;
+      const [x, A] = [bd.binder.varName, bd.type];
+      const xloc = bd.binder.location;
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Aoutv = new PerhapsM<V.Value>('Aoutv');
+      const Bout = new PerhapsM<C.Core>('Bout');
+      return goOn(
+        [
+          [Aout, () => A.isType(ctx, renames)],
+          [Aoutv, () => new go(ctx.valInContext(Aout.value))],
+          [Bout, () => (new Pi(notForInfo(this.location), rest, B))
+            .isType(
+              bindFree(ctx, x, Aoutv.value),
+              renames.extendRenaming(bd.binder.varName, x)
+            )
+          ]
+        ],
+        () => {
+          PieInfoHook(xloc, ['binding-site', Aout.value]);
+          return new go(
+            new C.Pi(
+              x,
+              Aout.value,
+              Bout.value
+            )
+          );
+        }
+      );
+    } else {
+      throw new Error('Invalid number of binders in Pi type');
+    }
   }
 }
 
@@ -469,6 +608,64 @@ export class Sigma extends Source {
     return this.binders.flatMap(binder => occurringBinderNames(binder))
       .concat(this.body.findNames());
   }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const [arr, D] = [this.binders, this.body];
+    if (arr.length === 1) {
+      const [bd, A] = [arr[0].binder, arr[0].type];
+      const x = bd.varName;
+      const y = fresh(ctx, x);
+      const xloc = bd.location;
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Aoutv = new PerhapsM<V.Value>('Aoutv');
+      const Dout = new PerhapsM<C.Core>('Dout');
+      return goOn(
+        [
+          [Aout, () => A.isType(ctx, renames)],
+          [Aoutv, () => new go(ctx.valInContext(Aout.value))],
+          [Dout, () => D.isType(
+            bindFree(ctx, y, Aoutv.value),
+            renames.extendRenaming(x, y)
+          )]
+        ],
+        () => {
+          PieInfoHook(xloc, ['binding-site', Aout.value]);
+          return new go(
+            new C.Sigma(y, Aout.value, Dout.value)
+          );
+        }
+      );
+    } else if (arr.length > 1) {
+      const [[bd, A], yA1, ...rest] 
+        = [[arr[0].binder, arr[0].type], arr[1], ...arr.slice(2)];
+      const x = bd.varName;
+      const z = fresh(ctx, x);
+      const xloc = bd.location;
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Aoutv = new PerhapsM<V.Value>('Aoutv');
+      const Dout = new PerhapsM<C.Core>('Dout');
+      return goOn(
+        [
+          [Aout, () => A.isType(ctx, renames)],
+          [Aoutv, () => new go(ctx.valInContext(Aout.value))],
+          [Dout, () => (new Sigma(this.location, [yA1, ...rest], D))
+            .isType(
+              bindFree(ctx, x, Aoutv.value),
+              renames.extendRenaming(x, z)
+            )
+          ]
+        ],
+        () => {
+          PieInfoHook(xloc, ['binding-site', Aout.value]);
+          return new go(
+            new C.Sigma(x, Aout.value, Dout.value)
+          );
+        }
+      );
+    } else {
+      throw new Error('Invalid number of binders in Sigma type');
+    }
+  }
 }
 
 export class Pair extends Source {
@@ -488,6 +685,21 @@ export class Pair extends Source {
   public findNames(): string[] {
     return this.first.findNames()
       .concat(this.second.findNames());
+  }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const Aout = new PerhapsM<C.Core>('Aout');
+    const Dout = new PerhapsM<C.Core>('Dout');
+    const x = freshBinder(ctx, this.second, 'x');
+    return goOn(
+      [
+        [Aout, () => this.first.isType(ctx, renames)],
+        [Dout, () => this.second.isType(
+          bindFree(ctx, x, ctx.valInContext(Aout.value)), 
+          renames)],
+      ],
+      () => new go(new C.Sigma(x, Aout.value, Dout.value))
+    );
   }
 }
 
@@ -680,6 +892,14 @@ export class List extends Source {
   public findNames(): string[] {
     return this.entryType.findNames();
   }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const Eout = new PerhapsM<C.Core>('Eout');
+    return goOn(
+      [[Eout, () => this.checkIsType(ctx, renames)]],
+      () => new go(new C.List(Eout.value))
+        );
+  }
 }
 // List operations
 export class ConsList extends Source {
@@ -766,6 +986,9 @@ export class Absurd extends Source {
   public findNames(): string[] {
     return [];
   }
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return new go(new C.Absurd());
+  }
 }
 
 export class IndAbsurd extends Source {
@@ -808,6 +1031,25 @@ export class Equal extends Source {
     return this.type.findNames()
       .concat(this.left.findNames())
       .concat(this.right.findNames());
+  }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const [A, from, to] = [this.type, this.left, this.right];
+    const Aout = new PerhapsM<C.Core>('Aout');
+    const Av = new PerhapsM<V.Value>('Av');
+    const from_out = new PerhapsM<C.Core>('from_out');
+    const to_out = new PerhapsM<C.Core>('to_out');
+    return goOn(
+      [
+        [Aout, () => A.isType(ctx, renames)],
+        [Av, () => new go(ctx.valInContext(Aout.value))],
+        [from_out, () => from.check(ctx, renames, Av.value)],
+        [to_out, () => to.check(ctx, renames, Av.value)],
+      ],
+      () => new go(
+        new C.Equal(Aout.value, from_out.value, to_out.value)
+      )
+    );
   }
 }
 
@@ -982,6 +1224,16 @@ export class Vec extends Source {
     return this.type.findNames()
       .concat(this.length.findNames());
   }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const Eout = new PerhapsM<C.Core>("Eout");
+    const lenout = new PerhapsM<C.Core>('lenout');
+    return goOn(
+      [[Eout, () => this.isType(ctx, renames)],
+      [lenout, () => this.length.check(ctx, renames, new V.Nat())]],
+      () => new go(new C.Vec(Eout.value, lenout.value))
+    );
+  }
 }
 
 export class VecNil extends Source {
@@ -1150,6 +1402,18 @@ export class Either extends Source {
   public findNames(): string[] {
     return this.left.findNames()
       .concat(this.right.findNames());
+  }
+
+  public checkIsType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    const Lout = new PerhapsM<C.Core>("Lout");
+    const Rout = new PerhapsM<C.Core>("Rout");
+    return goOn(
+      [
+        [Lout, () => this.left.isType(ctx, renames)],
+        [Rout, () => this.right.isType(ctx, renames)]
+      ],
+      () => new go(new C.Either(Lout.value, Rout.value))
+    );
   }
 }
 

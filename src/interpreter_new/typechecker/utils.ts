@@ -4,7 +4,7 @@ import { Application } from "../types/source";
 import { Core } from "../types/core";
 import { Location } from "../locations";
 import { Context, SerializableContext } from "../types/contexts";
-import { go, stop, Perhaps } from "../types/utils";
+import { go, stop, Perhaps, Message } from "../types/utils";
 import { alphaEquiv } from "../alphaeqv";
 import { readBack } from "../normalize/utils";
 
@@ -57,7 +57,7 @@ export function sameType(ctx: Context, where: Location, given: Value, expected: 
   } else {
     return new stop(
       where,
-      [`Expected ${expectedE} but got ${givenE}`]
+      new Message[`Expected ${expectedE} but got ${givenE}`]
     );
   }
 }
@@ -71,7 +71,7 @@ export function convert(ctx: Context, where: Location, type: Value, from: Value,
   } else {
     return new stop(
       where,
-      [`The terms ${from} and ${to} are not the same ${type}.`]
+      new Message[`The terms ${from} and ${to} are not the same ${type}.`]
     );
   }
 }
