@@ -10,8 +10,8 @@ import { go, stop, goOn, occurringBinderNames, Perhaps, PerhapsM, SiteBinder, Ty
 import { convert, sameType } from '../typechecker/utils';
 import { readBack } from '../normalize/utils';
 import { Synth } from '../typechecker/synth';
-import {fresh} from '../types/utils';
-import {varType} from '../types/contexts';
+import { fresh } from '../types/utils';
+import { varType } from '../types/contexts';
 // import { Universe } from './value';
 
 export abstract class Source {
