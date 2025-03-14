@@ -1,7 +1,8 @@
 import { Environment} from './environment';
 import * as V from "./value";
 import * as N from './neutral';
-import { FirstOrderClosure, isVarName, SourceLocation } from './utils';
+import { FirstOrderClosure, isVarName } from './utils';
+import { SourceLocation } from '../locations';
 import * as Evaluator from '../normalize/evaluator';
 
 
@@ -649,5 +650,12 @@ export class Application extends Core {
       this.fun.toLazy(env),
       this.arg.toLazy(env),
     );
+  }
+}
+
+export class Trivial extends Core {
+  
+  public valOf(env: Environment): V.Value {
+    return new V.Trivial();
   }
 }

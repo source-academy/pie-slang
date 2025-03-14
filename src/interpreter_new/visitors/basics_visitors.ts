@@ -27,7 +27,7 @@ export interface SourceVisitor {
   visitSole(node: Source.Sole): void;
   visitNil(node: Source.Nil): void;
   visitNumber(node: Source.Number): void;
-  visitConsList(node: Source.ConsList): void;
+  visitConsList(node: Source.ListCons): void;
   visitRecList(node: Source.RecList): void;
   visitIndList(node: Source.IndList): void;
   visitAbsurd(node: Source.Absurd): void;

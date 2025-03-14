@@ -680,7 +680,7 @@ export class Synth {
   }
 
 
-  public static synthConsList(context: Context, r: Renaming, e: Source.ConsList): Perhaps<Core.The> {
+  public static synthListCons(context: Context, r: Renaming, e: Source.ListCons): Perhaps<Core.The> {
     const [x, xs] = [e.x, e.xs];
     const e_rst = new PerhapsM<Core.The>('e_rst');
     const esout = new PerhapsM<Core.Core>('esout');

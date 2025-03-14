@@ -1,5 +1,5 @@
 import { Value, Pi, Absurd } from "./value";
-import { SourceLocation } from "./utils";
+import { SourceLocation } from "../locations";
 import * as C from "./core";
 import { Context } from "./contexts";
 import { readBack } from "../normalize/utils";

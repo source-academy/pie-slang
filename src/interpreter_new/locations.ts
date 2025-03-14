@@ -1,59 +1,41 @@
-import { TokenType } from './tokenTypes';
-import { SourceLocation } from './types/utils';
-import { Location as Syntax } from '../scheme_parser/transpiler/types/location';
+import { Position } from '../scheme_parser/transpiler/types/location';
 
-// class Position {
-//   constructor(
-//     public line: number,
-//     public column: number
-//   ) { }
-// }
+export class SourceLocation {
+  constructor(
+    public source: string,
+    public startLine: number,
+    public startColumn: number,
+    public endLine: number,
+    public endColumn: number,
+  ) { }
+}
 
-// class Token {
-//   type: TokenType;
-//   source: string;
-//   literal: any;
-//   pos: Position;
-//   endPos: Position;
 
-//   constructor(
-//     type: TokenType,
-//     source: any,
-//     literal: any,
-//     line: number,
-//     col: number
-//   ) {
-//     this.type = type;
-//     this.source = source;
-//     this.literal = literal;
-//     this.pos = new Position(line, col);
-//     this.endPos = new Position(line, col + source.length - 1);
-//   }
-
-//   public toString(): string {
-//     return `${this.source}`;
-//   }
-// }
-
-// Define Syntax as a node on AST
+export class Syntax {
+  constructor(
+    public start: Position,
+    public end: Position,
+    public source: string
+  ) { }
+}
 
 export class Location {
   constructor(
-    public source: Syntax,
+    public syntax: Syntax,
     public forInfo: boolean
   ) { }
 
   public locationToSrcLoc(): SourceLocation {
-    const stx = this.source;
     return new SourceLocation(
-      this.source.start.line,
-      this.source.start.column,
-      this.source.end.line,
-      this.source.end.column
+      this.syntax.source,
+      this.syntax.start.line,
+      this.syntax.start.column,
+      this.syntax.end.line,
+      this.syntax.end.column
     )
   }
 }
 
 export function notForInfo(loc: Location): Location {
-  return new Location(loc.source, false);
+  return new Location(loc.syntax, false);
 }

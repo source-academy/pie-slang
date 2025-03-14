@@ -7,14 +7,7 @@ import { Context } from "./contexts";
 import { freshen } from "../fresh";
 
 // 
-export class SourceLocation {
-  constructor(
-    public startLine: number,
-    public startColumn: number,
-    public endLine: number,
-    public endColumn: number,
-  ) { }
-}
+
 
 // A SiteBinder is a variable name and its location, substitute BindingSite in original code.
 
@@ -227,7 +220,7 @@ export class HigherOrderClosure extends Closure {
 */
 
 export function isVarName(name: string): boolean {
-  return isPieKeywords(name);
+  return !isPieKeywords(name) && isNaN(Number(name));
 }
 
 /*

@@ -902,9 +902,9 @@ export class List extends Source {
   }
 }
 // List operations
-export class ConsList extends Source {
+export class ListCons extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthConsList(ctx, renames, this);
+    return Synth.synthListCons(ctx, renames, this);
   }
 
   constructor(
