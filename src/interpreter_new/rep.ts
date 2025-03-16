@@ -8,11 +8,13 @@ import { Renaming } from './typechecker/utils';
 export function rep(Γ: Context, e: Source): Perhaps<Core.Core> {
   const outmeta = new PerhapsM<Core.Core>('outmeta');
 
-  return goOn([[outmeta, () => e.synth(Γ, new Renaming())]],
+  return goOn([[outmeta, () => e.synth(Γ, new Renaming(new Map()))]],
     () => {
-      const tv = Γ.valInContext(outmeta.value!)!;
-      const v = Γ.valInContext(outmeta.value!)!;
-      return new go(new Core.The(tv.readBackType(Γ), readBack(Γ, tv, v)));
+      const typeCore = (outmeta.value! as Core.The).type;
+      const exprCore = (outmeta.value! as Core.The).expr;
+      const tv = Γ.valInContext(typeCore)!;
+      const v = Γ.valInContext(exprCore)!;
+      return new go([new Core.The(tv.readBackType(Γ), readBack(Γ, tv, v))]);
     }
   );
 }
