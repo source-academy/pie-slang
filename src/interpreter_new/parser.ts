@@ -229,7 +229,7 @@ export class Parser {
       );
     } else if (parsee === 'Atom') {
       return makeAtom(locationToSyntax('Atom', element.location));
-    } else if (parsee === 'Quote') {
+    } else if (parsee === 'quote') {
       return makeQuote(
         locationToSyntax('Quote', element.location),
         getValue((element as Extended.List).elements[1] as Element)
