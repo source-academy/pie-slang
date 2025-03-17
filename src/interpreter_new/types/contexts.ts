@@ -134,8 +134,7 @@ export class Context {
 
 
 
-
-const initCtx: Context = new Context(new Map());
+export const initCtx: Context = new Context(new Map());
 
 // There are three kinds of binders: a free binder represents a free
 // variable, that was bound in some larger context by λ, Π, or Σ. A

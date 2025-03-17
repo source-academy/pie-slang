@@ -63,7 +63,7 @@ function subscriptToNumber(str: string): number {
 // Helper function to split the name (base name and subscript)
 function splitNameAux(str: string, i: number): [string, number] {
   if (i < 0) {
-    return [str, 1]; // Default case if no subscript is found
+    return [str, 0]; // Default case if no subscript is found
   }
   if (isSubscriptDigit(str[i])) {
     return splitNameAux(str, i - 1);
