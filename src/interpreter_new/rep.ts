@@ -1,30 +1,32 @@
-import { Context} from './types/contexts';
+import { Context, valInContext} from './types/contexts';
 import { Source } from './types/source';
-import * as Core from './types/core';
+import * as util from 'util';
+import * as C from './types/core';
 import { go, goOn, Perhaps, PerhapsM } from './types/utils';
 import { readBack } from './normalize/utils';
 import { Renaming } from './typechecker/utils';
 
-export function rep(Γ: Context, e: Source): Perhaps<Core.Core> {
-  const outmeta = new PerhapsM<Core.Core>('outmeta');
+export function rep(ctx: Context, expr: Source): Perhaps<C.Core> {
+  const outmeta = new PerhapsM<C.The>('outmeta');
 
-  return goOn([[outmeta, () => e.synth(Γ, new Renaming(new Map()))]],
+  return goOn([[outmeta, () => expr.synth(ctx, new Renaming(new Map()))]],
     () => {
-      const typeCore = (outmeta.value! as Core.The).type;
-      const exprCore = (outmeta.value! as Core.The).expr;
-      const tv = Γ.valInContext(typeCore)!;
-      const v = Γ.valInContext(exprCore)!;
-      return new go([new Core.The(tv.readBackType(Γ), readBack(Γ, tv, v))]);
+      const tv = valInContext(ctx, outmeta.value.type);
+      const v = valInContext(ctx, outmeta.value.expr);
+      // console.log(expr, "TYPE: ", util.inspect(tv, false, null, true), "VALUE: ", util.inspect(v, false, null, true));
+      return new go(
+        [new C.The(tv.readBackType(ctx), readBack(ctx, tv, v))]
+      );
     }
   );
 }
 
-export function normType(Γ: Context, src: Source): Perhaps<Core.Core> {
-  const eout = new PerhapsM<Core.Core>('eout');
+/* export function normType(Γ: Context, src: Source): Perhaps<C.Core> {
+  const eout = new PerhapsM<C.Core>('eout');
   return goOn(
     [[eout, () => src.isType(Γ, new Renaming())]],
     () => {
       return new go(Γ.valInContext(eout.value!).readBackType(Γ));
     }
   )
-}
+} */

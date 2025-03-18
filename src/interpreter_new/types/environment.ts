@@ -9,37 +9,31 @@ import { Variable } from './neutral';
     A run-time environment associates a value with each variable.
 */
 
-export class Environment {
-  constructor(
-    public bindings: Map<string, Value>
-  ) { }
-
-  public extendEnvironment(name: string, value: Value): Environment {
-    return new Environment(
-      new Map([...this.bindings, [name, value]])
-    );
+export type Environment = Map<string, Value>;
+  export function extendEnvironment(env: Environment, name: string, value: Value): Environment {
+    return new Map([...env, [name, value]]);
   }
 
   // Lookup the value of a variable in an environment (var-val)
-  public getValueFromEnvironment(name: string): Value {
-    if (this.bindings.has(name)) {
+  export function getValueFromEnvironment(env: Environment, name: string): Value {
+    if (env.has(name)) {
       // As we are sure that the variable is in the environment,
       // we can use the non-nullable assertion operator (!)
-      return this.bindings.get(name)!;
+      return env.get(name)!;
     } else {
       throw new Error(`Variable ${name} not found in environment`);
     }
   }
 
   // To find the value of a variable in an environment
-  public ValueOfVar(name: string): Value {
-    if (this.bindings.has(name)) {
-      return this.bindings.get(name)!;
+  export function ValueOfVar(env: Environment, name: string): Value {
+    if (env.has(name)) {
+      return env.get(name)!;
     } else {
       throw new Error(`Variable ${name} not in env: ${JSON.stringify(this)}`);
     }
   }
-}
+
 
 // // export function extendEnvironment(
 // //     env: Environment, name: string, value: Value

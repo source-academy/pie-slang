@@ -1,4 +1,4 @@
-import { Environment} from './environment';
+import { Environment, getValueFromEnvironment} from './environment';
 import * as V from "./value";
 import * as N from './neutral';
 import { FirstOrderClosure, isVarName } from './utils';
@@ -71,7 +71,7 @@ export class VarName extends Core {
 
   public valOf(env: Environment): V.Value {
     if(isVarName(this.name)) {
-      return env.getValueFromEnvironment(this.name);
+      return getValueFromEnvironment(env, this.name);
     } else {
       throw new Error(`{this.name} is not a valid variable name`);
     }

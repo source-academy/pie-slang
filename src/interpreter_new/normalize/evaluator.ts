@@ -180,7 +180,7 @@ export function doCar(p: V.Value): V.Value {
 export function doCdr(pair: V.Value): V.Value {
   const pairNow: V.Value = now(pair);
   if (pairNow instanceof V.Cons) {
-    return pairNow.car;
+    return pairNow.cdr;
   } else if (pairNow instanceof V.Neutral &&
     pairNow.type instanceof V.Sigma) {
     const sigma = pairNow.type;

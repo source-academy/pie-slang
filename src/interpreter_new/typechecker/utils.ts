@@ -57,7 +57,7 @@ export function sameType(ctx: Context, where: Location, given: Value, expected: 
   } else {
     return new stop(
       where,
-      new Message[`Expected ${expectedE} but got ${givenE}`]
+      new Message([`Expected ${expectedE} but got ${givenE}`])
     );
   }
 }
@@ -71,14 +71,14 @@ export function convert(ctx: Context, where: Location, type: Value, from: Value,
   } else {
     return new stop(
       where,
-      new Message[`The terms ${from} and ${to} are not the same ${type}.`]
+      new Message([`The terms ${from} and ${to} are not the same ${type}.`])
     );
   }
 }
 
 // ### Claims + defines ###
 
-function atomOk(a: string): boolean {
+export function atomOk(a: string): boolean {
   return allOkAtom(a.split(''));
 }
 

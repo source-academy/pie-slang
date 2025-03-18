@@ -2,7 +2,7 @@ import { Source } from "./source"
 import { Core } from "./core"
 import { Location } from "../locations";
 import { Value } from "./value";
-import { Environment} from "./environment";
+import { Environment, extendEnvironment} from "./environment";
 import { Context } from "./contexts";
 import { freshen } from "../fresh";
 
@@ -117,8 +117,7 @@ export class PerhapsM<T> {
 
 export function goOn<T>(
   bindings: [PerhapsM<any>, () => Perhaps<any>][],
-  finalExpr: () => T
-): T {
+  finalExpr: () => T): T {
   for(const [meta, lazy] of bindings) {
     const val = lazy();
     if (val instanceof go) {
@@ -175,7 +174,7 @@ export class FirstOrderClosure extends Closure {
   ) { super() }
 
   public valOfClosure(v: Value): Value {
-    return this.expr.valOf(this.env.extendEnvironment(this.varName, v));
+    return this.expr.valOf(extendEnvironment(this.env, this.varName, v));
   }
 }
 
@@ -240,7 +239,7 @@ export function isVarName(name: string): boolean {
   avoided.
 */
 function namesInContext(ctx: Context): string[] {
-  return Array.from(ctx.context.keys());
+  return Array.from(ctx.keys());
 }
 
 export function fresh(ctx: Context, name: string): string {

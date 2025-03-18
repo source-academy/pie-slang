@@ -12,129 +12,130 @@ import { Variable } from './neutral';
     A context maps free variable names to binders.
 */
 
-export class Context {
-  constructor(
-    public context: Map<string, Binder>
-  ) { }
+export type Context = Map<string, Binder>
 
-  public extendContext(name: string, binder: Binder): Context {
-    this.context.set(name, binder);
-    return this;
-  }
-  /*
-    Find the value of an expression in the environment that
-    corresponds to a context.
-  */
-  public valInContext(expr: C.Core): Value {
-    return expr.valOf(this.contextToEnvironment());
-  }
 
-  public readBackContext(): SerializableContext {
-    const result = new SerializableContext(new Map());
-    for (const [x, binder] of this.context) {
-      if (binder instanceof Free) {
-        result.context.set(x, ['free', binder.type.readBackType(this)]);
-      } else if (binder instanceof Define) {
-        result.context.set(x, 
-          ['def', 
-            binder.type.readBackType(this),
-            readBack(this, binder.type, binder.value)
-          ]
-        );
-      } else if (binder instanceof Claim) {
-        result.context.set(x, 
-          ['claim', binder.type.readBackType(this)]);
-      }
-    }
-    return result;
-  }
 
-  public nameNotUsed(where: Location, name: string) {
-    if (this.context.has(name)) {
-      return new stop(
-        where, 
-        new Message([`The name "${name}" is already in use in the context.`])
-      );
-    } else return new go<boolean>(true);
-  }
+export function extendContext(ctx: Context, name: string, binder: Binder): Context {
+  return new Map([...ctx, [name, binder]]);
+}
 
-  public getClaim(where: Location, name: string): Perhaps<Value> {
-    for(const [x, binder] of this.context) {
-      if(x === name) {
-        if (binder instanceof Define) {
-          return new stop(where, new Message([`The name "${name}" is already defined.`]))
-        } else if (binder instanceof Claim) {
-          return new go<Value>(binder.type);
-        }
-      }
-    }
-    return new stop(where, new Message([`No claim: ${name}`]));
-  }
+/*
+  Find the value of an expression in the environment that
+  corresponds to a context.
+*/
+export function valInContext(ctx: Context, expr: C.Core): Value {
+  return expr.valOf(contextToEnvironment(ctx));
+}
 
-  public addClaimToContext(fun: string, funLoc: Location, type: Source): Perhaps<Context> {
-    const typeOut = new PerhapsM<C.Core>("typeOut")
-    return goOn(
-      [
-        [new PerhapsM("_"), () => this.nameNotUsed(funLoc, fun)],
-        [typeOut, () => type.isType(this, new Renaming())]
-      ],
-      () => new go(
-        this.extendContext(
-          fun, new Claim(this.valInContext(typeOut.value))
-        )
-      )
-    )
-  }
-
-  public removeClaimFromContext(name: string): Context {
-    this.context.delete(name);
-    return this;
-  }
-
-  public addDefineToContext(fun: string, funLoc: Location, expr: Source): Perhaps<Context> {
-    const typeOut = new PerhapsM<Value>("typeOut");
-    const exprOut = new PerhapsM<C.Core>("exprOut");
-    return goOn(
-      [
-        [typeOut, () => this.getClaim(funLoc, fun)],
-        [exprOut, 
-          () => expr.check(
-            this, 
-            new Renaming(),
-            typeOut.value)
+export function readBackContext(ctx: Context): SerializableContext {
+  const result = new Map();
+  for (const [x, binder] of ctx) {
+    if (binder instanceof Free) {
+      result.set(x, ['free', binder.type.readBackType(this)]);
+    } else if (binder instanceof Define) {
+      result.set(x,
+        ['def',
+          binder.type.readBackType(this),
+          readBack(this, binder.type, binder.value)
         ]
-      ],
-      () => new go(
-        bindVal(
-          this.removeClaimFromContext(fun),
-          fun,
-          typeOut.value,
-          this.valInContext(exprOut.value)
-        )
+      );
+    } else if (binder instanceof Claim) {
+      result.set(x,
+        ['claim', binder.type.readBackType(this)]);
+    }
+  }
+  return result;
+}
+
+export function nameNotUsed(ctx: Context, where: Location, name: string) {
+  if (ctx.has(name)) {
+    return new stop(
+      where,
+      new Message([`The name "${name}" is already in use in the context.`])
+    );
+  } else return new go<boolean>(true);
+}
+
+export function getClaim(ctx: Context, where: Location, name: string): Perhaps<Value> {
+  for (const [x, binder] of ctx) {
+    if (x === name) {
+      if (binder instanceof Define) {
+        return new stop(where, new Message([`The name "${name}" is already defined.`]))
+      } else if (binder instanceof Claim) {
+        return new go<Value>(binder.type);
+      }
+    }
+  }
+  return new stop(where, new Message([`No claim: ${name}`]));
+}
+
+export function addClaimToContext(ctx: Context, fun: string, funLoc: Location, type: Source): Perhaps<Context> {
+  const typeOut = new PerhapsM<C.Core>("typeOut")
+  return goOn(
+    [
+      [new PerhapsM("_"), () => nameNotUsed(ctx, funLoc, fun)],
+      [typeOut, () => type.isType(this, new Renaming())]
+    ],
+    () => new go(
+      extendContext(
+        ctx,
+        fun, 
+        new Claim(valInContext(ctx, typeOut.value))
       )
     )
-  }
+  )
+}
 
-  public contextToEnvironment(): Environment {
-    if (this.context.size === 0) {
-      return new Environment(new Map());
-    }
-    const bindings = this.context.entries();
-    const environment = new Map();
-    for (const [name, binder] of bindings) {
-      if (binder instanceof Define) {
-        environment.set(name, binder.value);
-      } else if (binder instanceof Free) {
-        environment.set(name, new Neutral(binder.type, new Variable(name)));
-      } // else continue;
-    }
-    return new Environment(environment);
+export function removeClaimFromContext(ctx: Context, name: string): Context {
+  ctx.delete(name);
+  return ctx;
+}
+
+export function addDefineToContext(fun: string, funLoc: Location, expr: Source): Perhaps<Context> {
+  const typeOut = new PerhapsM<Value>("typeOut");
+  const exprOut = new PerhapsM<C.Core>("exprOut");
+  return goOn(
+    [
+      [typeOut, () => this.getClaim(funLoc, fun)],
+      [exprOut,
+        () => expr.check(
+          this,
+          new Renaming(),
+          typeOut.value)
+      ]
+    ],
+    () => new go(
+      bindVal(
+        this.removeClaimFromContext(fun),
+        fun,
+        typeOut.value,
+        this.valInContext(exprOut.value)
+      )
+    )
+  )
+}
+
+export function contextToEnvironment(ctx: Context): Environment {
+  if (ctx.size === 0) {
+    return new Map();
   }
+  const bindings = ctx.entries();
+  const env = new Map();
+  for (const [name, binder] of bindings) {
+    if (binder instanceof Define) {
+      env.set(name, binder.value);
+    } else if (binder instanceof Free) {
+      env.set(name, new Neutral(binder.type, new Variable(name)));
+    } // else continue;
+  }
+  return env;
 }
 
 
 
-export const initCtx: Context = new Context(new Map());
+
+export const initCtx: Context = new Map();
 
 // There are three kinds of binders: a free binder represents a free
 // variable, that was bound in some larger context by λ, Π, or Σ. A
@@ -160,10 +161,10 @@ export class Free extends Binder {
 }
 
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
-  if (ctx.context.size === 0) {
+  if (ctx.size === 0) {
     throw new Error(`Unknown variable ${x}`);
   }
-  for (const [y, binder] of ctx.context.entries()) {
+  for (const [y, binder] of ctx.entries()) {
     if (binder instanceof Claim) {
       continue;
     } else if (x === y) {
@@ -175,30 +176,36 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 
 // Function to bind a free variable in a context
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
-  if (ctx.context.has(varName)) {
+  if (ctx.has(varName)) {
     throw new Error(`
       ${varName} is already bound in ${JSON.stringify(ctx)}
     `);
   }
-  return ctx.extendContext(varName, new Free(tv));
+  return extendContext(ctx, varName, new Free(tv));
 }
 
 // Function to bind a value in a context
 export function bindVal(ctx: Context, varName: string, type: Value, value: Value): Context {
-  return ctx.extendContext(varName, new Define(type, value));
+  return extendContext(ctx, varName, new Define(type, value));
 }
 
 
 // For informationa bout serializable contexts, see the comments in
 // normalize.rkt.
-export class SerializableContext {
-  constructor(
-    public context: Map<string, ['free', C.Core] | ['def', C.Core, C.Core] | ['claim', C.Core]>
-  ) { }
-}
+export type SerializableContext = 
+  Map<string, ['free', C.Core] | ['def', C.Core, C.Core] | ['claim', C.Core]>;
 
 // Predicate to check if something is a serializable context
-function isSerializableContext(ctx: any): ctx is SerializableContext {
-  return ctx instanceof SerializableContext;
+export function isSerializableContext(ctx: any): ctx is SerializableContext {
+  return ctx instanceof Map && Array.from(ctx.values()).every(value => {
+    return Array.isArray(value) && 
+           (
+            (value[0] === 'free' && value[1] instanceof C.Core) 
+            || 
+            (value[0] === 'def' && value[1] instanceof C.Core && value[2] instanceof C.Core) 
+            || 
+            (value[0] === 'claim' && value[2] instanceof C.Core)
+          );
+  });
 }
 

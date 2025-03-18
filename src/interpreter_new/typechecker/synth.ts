@@ -1,46 +1,57 @@
-import * as Core from "../types/core";
-import * as Source from "../types/source";
-import { go, Perhaps, stop, Message, freshBinder, PerhapsM, goOn, TypedBinder, fresh, FirstOrderClosure, HigherOrderClosure, isVarName } from '../types/utils';
-import { Binder, bindFree, Context, Define, varType } from '../types/contexts';
-import { convert, makeApp, PieInfoHook, Renaming, sameType } from "./utils";
-import * as Value from "../types/value";
+import * as C from "../types/core";
+import * as S from "../types/source";
+import * as V from "../types/value";
+// import * as N from "../types/neutral";
+import {
+  go, Perhaps, stop, Message, freshBinder, PerhapsM, goOn,
+  fresh, FirstOrderClosure, HigherOrderClosure,
+  TypedBinder
+} from '../types/utils';
+import { bindFree, Context, contextToEnvironment, Define, valInContext, varType } from '../types/contexts';
+import { atomOk, convert, makeApp, PieInfoHook, Renaming, sameType } from "./utils";
 import { notForInfo } from "../locations";
-import { Universe } from '../types/value';
-import { doApp, indVecStepType } from "../normalize/evaluator";
-import * as Neutral from "../types/neutral";
+import { doApp, doCar, indVecStepType } from "../normalize/evaluator";
 import { readBack, now } from '../normalize/utils';
+import { Location } from '../locations';
 
 
 export class Synth {
-  
-  public static synthNat(C: Context, r: Renaming, e: Source.Nat): Perhaps<Core.The> {
-    return new go(new Core.The(
-      new Core.Universe(),
-      new Core.Nat()
+
+  public static synthNat(ctx: Context, r: Renaming): Perhaps<C.The> {
+    return new go(new C.The(
+      new C.Universe(),
+      new C.Nat()
     ));
   }
 
-  public static synthUniverse(C: Context, r: Renaming, e: Source.Universe): Perhaps<Core.The> {
-    return new stop(e.location,
+  public static synthUniverse(ctx: Context, r: Renaming, location: Location): Perhaps<C.The> {
+    return new stop(location,
       new Message(["U is a type, but it does not have a type."])
     );
   }
 
-  public static synthArrow(context: Context, r: Renaming, e: Source.Arrow): Perhaps<Core.The> {
-    const [A, B, arr] = [e.arg1, e.arg2, e.args];
-    if (arr.length === 0) {
-      const z = freshBinder(context, B, String('x'));
-      const Aout = new PerhapsM<Core.Core>("Aout");
-      const Bout = new PerhapsM<Core.Core>('Bout');
+  public static synthArrow(context: Context, r: Renaming, location: Location, arg1 : S.Source, arg2 : S.Source, args : S.Source[]): Perhaps<C.The> {
+    if (args.length === 0) {
+      const z = freshBinder(context, arg2, 'x');
+      const Aout = new PerhapsM<C.Core>("Aout");
+      const Bout = new PerhapsM<C.Core>('Bout');
       return goOn(
-        [[Aout, () => A.check(context, r, new Value.Universe())],
-        [Bout, () => B.check(bindFree(context, z, context.valInContext(Aout.value)),
-          r,  new Value.Universe())],],
+        [
+          [Aout, () => 
+            arg1.check(context, r, new V.Universe())],
+          [Bout, () => 
+            arg2.check(
+              bindFree(context, z, valInContext(context, Aout.value)),
+              r,
+              new V.Universe()
+            )
+          ],
+        ],
         (() => {
-          return new go<Core.The>(
-            new Core.The( 
-              new Core.Universe(), 
-              new Core.Pi(
+          return new go<C.The>(
+            new C.The(
+              new C.Universe(),
+              new C.Pi(
                 z,
                 Aout.value,
                 Bout.value
@@ -48,162 +59,159 @@ export class Synth {
         })
       );
     } else {
-      const [C, ...rest] = arr;
-      const z = freshBinder(context, makeApp(B, C, rest), 'x');
-      const Aout = new PerhapsM<Core.Core>("Aout");
-      const tout = new PerhapsM<Core.Core>('tout');
+      const [first, ...rest] = args;
+      const z = freshBinder(context, makeApp(arg2, first, rest), 'x');
+      const Aout = new PerhapsM<C.Core>("Aout");
+      const tout = new PerhapsM<C.Core>('tout');
       return goOn(
         [
-          [Aout, () => A.check(context, r, new Value.Universe())],
-          [tout, () => 
-            (new Source.Arrow(notForInfo(e.location), B, C, rest))
-              .check(
-                bindFree(context, z, context.valInContext(Aout.value)),
-                r,
-                new Value.Universe()
-          )
+          [Aout, () => arg1.check(context, r, new V.Universe())],
+          [tout, () =>
+            new S.Arrow(notForInfo(location), arg2, first, rest)
+                .check(
+                  bindFree(context, z, valInContext(context, Aout.value)),
+                  r,
+                  new V.Universe()
+                )
           ]
         ],
-        (() => {
-          return new go<Core.The>(
-            new Core.The(
-              new Core.Universe(),
-              new Core.Pi(
+        () => {
+          return new go<C.The>(
+            new C.The(
+              new C.Universe(),
+              new C.Pi(
                 z,
                 Aout.value,
                 tout.value
               )
             )
           )
-        }))
+        })
     }
   }
 
-  public static synthPi(context: Context, r: Renaming, e: Source.Pi): Perhaps<Core.The> {
-    const [arr, B] = [e.binders, e.body];
-    if (arr.length === 1) {
-      const [bd, A] = [arr[0].binder, arr[0].type];
-      const xhat = fresh(context, bd.varName);
-      const xloc = bd.location;
-      const Aout = new PerhapsM<Core.Core>('Aout');
-      const Bout = new PerhapsM<Core.Core>('Bout');
+  public static synthPi(context: Context, r: Renaming, location: Location, binders: TypedBinder[], body: S.Source): Perhaps<C.The> {
+    if (binders.length === 1) {
+      const [binder, type] = [binders[0].binder, binders[0].type];
+      const xhat = fresh(context, binder.varName);
+      const xloc = binder.location;
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Bout = new PerhapsM<C.Core>('Bout');
       return goOn(
         [
-          [Aout, () => A.check(context, r, new Value.Universe())],
-          [Bout, () => B.check(
-            bindFree(context, xhat, context.valInContext(Aout.value)),
-            r.extendRenaming(bd.varName, xhat), 
-            new Value.Universe())],
+          [Aout, () => type.check(context, r, new V.Universe())],
+          [Bout, () => body.check(
+            bindFree(context, xhat, valInContext(context, Aout.value)),
+            r.extendRenaming(binder.varName, xhat),
+            new V.Universe())],
         ],
-        (() => {
+        () => {
           PieInfoHook(xloc, ['binding-site', Aout.value!]);
-          return new go<Core.The>(
-            new Core.The(
-              new Core.Universe(),
-              new Core.Pi(
+          return new go<C.The>(
+            new C.The(
+              new C.Universe(),
+              new C.Pi(
                 xhat,
                 Aout.value,
                 Bout.value
               )
             )
           )
-        })
+        }
       )
-    } else if (arr.length > 1) {
-      const [fst, snd, ...rest] = arr;
-      const [bd, A] = [fst.binder, fst.type];
-      const [y, A1] = [snd.binder, snd.type];
-      const xloc = bd.location;
-      const x = bd.varName;
+    } else if (binders.length > 1) {
+      const [fst, ...rest] = binders;
+      const [binder, type] = [fst.binder, fst.type];
+      const xloc = binder.location;
+      const x = binder.varName;
       const xhat = fresh(context, x);
-      const Aout = new PerhapsM<Core.Core>('Aout');
-      const Bout = new PerhapsM<Core.Core>('Bout');
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Bout = new PerhapsM<C.Core>('Bout');
       return goOn(
         [
-          [Aout, () => A.check(context, r, new Value.Universe())],
-          [Bout, () => 
-            (new Source.Pi(notForInfo(e.location), [snd, ...rest], B))
+          [Aout, () => type.check(context, r, new V.Universe())],
+          [Bout, () =>
+            new S.Pi(notForInfo(location), rest, body)
               .check(
-                bindFree(context, xhat, context.valInContext(Aout.value)),
+                bindFree(context, xhat, valInContext(context, Aout.value)),
                 r.extendRenaming(x, xhat),
-                new Value.Universe()
+                new V.Universe()
               )
           ],
         ],
-        (() => {
+        () => {
           PieInfoHook(xloc, ['binding-site', Aout.value!]);
-          return new go<Core.The>(
-            new Core.The(
-              new Core.Universe(),
-              new Core.Pi(
+          return new go<C.The>(
+            new C.The(
+              new C.Universe(),
+              new C.Pi(
                 xhat,
                 Aout.value,
                 Bout.value
               )
             )
           )
-        })
+        }
       )
     } else {
       throw new Error('Invalid number of binders in Pi type');
     }
   }
 
-  public static synthZero(context: Context, r: Renaming, e: Source.Zero): Perhaps<Core.The> {
-    return new Source.The(
-      e.location, 
-      new Source.Nat(e.location),
-      new Source.Zero(e.location)
+  public static synthZero(context: Context, r: Renaming): Perhaps<C.The> {
+    return new go(
+      new C.The(
+        new C.Universe(),
+        new C.Nat()
       )
+    );
   }
 
 
-  public static synthAdd1(context: Context, r: Renaming, e: Source.Add1): Perhaps<Core.The> {
-    const nout = new PerhapsM<Core.Core>('nout');
+  public static synthAdd1(context: Context, r: Renaming, base: S.Source): Perhaps<C.The> {
+    const nout = new PerhapsM<C.Core>('nout');
     return goOn(
-      [[nout, () => e.check(context, r, new Value.Nat())]],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.Nat(),
-          new Core.Add1(nout.value)
+      [[nout, () => base.check(context, r, new V.Nat())]],
+      () => new go<C.The>(
+        new C.The(
+          new C.Nat(),
+          new C.Add1(nout.value)
         )
       )
     );
   }
 
-  public static synthWhichNat(context: Context, r: Renaming, e: Source.WhichNat): Perhaps<Core.The> {
-    const tgtout = new PerhapsM<Core.Core>('tgtout');
-    const b_rst = new PerhapsM<Core.The>('b_rst');
-    const sout = new PerhapsM<Core.Core>('sout');
+  public static synthWhichNat(context: Context, r: Renaming, target: S.Source, base: S.Source, step: S.Source): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.Core>('tgtout');
+    const bout = new PerhapsM<C.The>('bout');
+    const sout = new PerhapsM<C.Core>('sout');
+    let n_minus_1 = fresh(context, 'n_minus_1');
     return goOn(
       [
-        [tgtout, () => e.target.check(context, r, new Value.Nat())],
-        [b_rst, () => e.base.synth(context, r)],
-        [sout, () => e.step.check(
+        [tgtout, () => target.check(context, r, new V.Nat())],
+        [bout, () => base.synth(context, r)],
+        [sout, () => step.check(
           context,
           r,
-          (() => {
-            const n_minus_1 = fresh(context, 'n_minus_1');
-            return new Value.Pi(
+          new V.Pi(
+            n_minus_1,
+            new V.Nat(),
+            new FirstOrderClosure(
+              contextToEnvironment(context),
               n_minus_1,
-              new Value.Nat(),
-              new FirstOrderClosure(
-                context.contextToEnvironment(),
-                n_minus_1,
-                b_rst.value.type
-              )
+              bout.value.type
             )
-          }) ()
-        )],
+          ))
+        ],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          b_rst.value,
-          new Core.WhichNat(
+      () => new go<C.The>(
+        new C.The(
+          bout.value.type,
+          new C.WhichNat(
             tgtout.value,
-            new Core.The(
-              b_rst.value.type,
-              b_rst.value.expr),
+            new C.The(
+              bout.value.type,
+              bout.value.expr),
             sout.value
           )
         )
@@ -213,36 +221,37 @@ export class Synth {
 
 
 
-  public static synthIterNat(context: Context, r: Renaming, e: Source.IterNat): Perhaps<Core.The> {
-    const tgtout = new PerhapsM<Core.Core>('tgtout');
-    const b_rst = new PerhapsM<Core.The>('b_rst');
-    const sout = new PerhapsM<Core.Core>('sout');
+  public static synthIterNat(context: Context, r: Renaming, target: S.Source, base: S.Source, step: S.Source): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.Core>('tgtout');
+    const bout = new PerhapsM<C.The>('bout');
+    const sout = new PerhapsM<C.Core>('sout');
     return goOn(
       [
-        [tgtout, () => e.target.check(context, r, new Value.Nat())],
-        [b_rst, () => e.base.synth(context, r)],
-        [sout, () => e.step.check(
+        [tgtout, () => target.check(context, r, new V.Nat())],
+        [bout, () => base.synth(context, r)],
+        [sout, () => step.check(
           context,
           r,
           (() => {
             const old = fresh(context, 'old');
-            return context.valInContext(
-              new Core.Pi(
+            return valInContext(
+              context,
+              new C.Pi(
                 old,
-                b_rst.value.type,
-                b_rst.value.type
+                bout.value.type,
+                bout.value.type
               ))
           })()
         )],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          b_rst.value.type,
-          new Core.IterNat(
+      () => new go<C.The>(
+        new C.The(
+          bout.value.type,
+          new C.IterNat(
             tgtout.value,
-            new Core.The(
-              b_rst.value.type,
-              b_rst.value.expr
+            new C.The(
+              bout.value.type,
+              bout.value.expr
             ),
             sout.value
           )
@@ -252,43 +261,43 @@ export class Synth {
   }
 
 
-
-  public static synthRecNat(context: Context, r: Renaming, e: Source.RecNat): Perhaps<Core.The> {
-    const tgtout = new PerhapsM<Core.Core>('tgtout');
-    const b_rst = new PerhapsM<Core.The>('b_rst');
-    const sout = new PerhapsM<Core.Core>('sout');
+  public static synthRecNat(context: Context, r: Renaming, target: S.Source, base: S.Source, step: S.Source): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.Core>('tgtout');
+    const bout = new PerhapsM<C.The>('bout');
+    const sout = new PerhapsM<C.Core>('sout');
     return goOn(
       [
-        [tgtout, () => e.target.check(context, r, new Value.Nat())],
-        [b_rst, () => e.base.synth(context, r)],
-        [sout, () => e.step.check(
+        [tgtout, () => target.check(context, r, new V.Nat())],
+        [bout, () => base.synth(context, r)],
+        [sout, () => step.check(
           context,
           r,
           (() => {
             const n_minus_1 = fresh(context, 'n_minus_1');
             const old = fresh(context, 'old');
-            return context.valInContext(
-              new Core.Pi(
+            return valInContext(
+              context,
+              new C.Pi(
                 n_minus_1,
-                new Core.Nat(),
-                new Core.Pi(
+                new C.Nat(),
+                new C.Pi(
                   old,
-                  b_rst.value.type,
-                  b_rst.value.type
+                  bout.value.type,
+                  bout.value.type
                 )
               )
             )
           })()
         )],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          b_rst.value.type,
-          new Core.RecNat(
+      () => new go<C.The>(
+        new C.The(
+          bout.value.type,
+          new C.RecNat(
             tgtout.value,
-            new Core.The(
-              b_rst.value.type,
-              b_rst.value.expr
+            new C.The(
+              bout.value.type,
+              bout.value.expr
             ),
             sout.value
           )
@@ -298,49 +307,56 @@ export class Synth {
   }
 
 
-  public static synthIndNat(context: Context, r: Renaming, e: Source.IndNat): Perhaps<Core.The> {
-    const tgtout = new PerhapsM<Core.Core>('tgtout');
-    const motout = new PerhapsM<Core.Core>('motout');
-    const motval = new PerhapsM<Value.Value>('motval');
-    const bout = new PerhapsM<Core.Core>('bout');
-    const sout = new PerhapsM<Core.Core>('sout');
+  public static synthIndNat(context: Context, r: Renaming, target: S.Source, motive: S.Source, base: S.Source, step: S.Source): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.Core>('tgtout');
+    const motout = new PerhapsM<C.Core>('motout');
+    const motval = new PerhapsM<V.Value>('motval');
+    const bout = new PerhapsM<C.Core>('bout');
+    const sout = new PerhapsM<C.Core>('sout');
     return goOn(
       [
-        [tgtout, () => e.target.check(context, r, new Value.Nat())],
-        [motout, () => e.motive.check(context, r, new Value.Pi(
-          'n',
-          new Value.Nat(),
-          new HigherOrderClosure((n) => new Value.Universe())
-        ))],
-        [motval, () => new go(
-          context.valInContext(motout.value)
+        [tgtout, () => target.check(context, r, new V.Nat())],
+        [motout, () => motive.check(context, r, 
+          new V.Pi(
+            'n',
+            new V.Nat(),
+            new HigherOrderClosure((_) => new V.Universe())
+          )
         )],
-        [bout, () => e.base.check(
+        [motval, () => new go(
+          valInContext(context, motout.value)
+        )],
+        [bout, () => base.check(
           context,
           r,
-          doApp(motval.value, new Value.Zero())
+          doApp(motval.value, new V.Zero())
         )],
-        [sout, () => new Value.Pi(
-          'n_minus_1',
-          new Value.Nat(),
-          new HigherOrderClosure(
-            (n_minus_1: Value.Nat) => (new Value.Pi(
-            'ih',
-            doApp(motval.value, new Value.Nat),
+        [sout, () => step.check(
+          context,
+          r,
+          new V.Pi(
+            'n_minus_1',
+            new V.Nat(),
             new HigherOrderClosure(
-              (_) => doApp(motval.value, new Value.Add1(n_minus_1))
+              (n_minus_1) =>
+                new V.Pi(
+                  'ih',
+                  doApp(motval.value, n_minus_1),
+                  new HigherOrderClosure(
+                    (_) => doApp(motval.value, new V.Add1(n_minus_1))
+                  )
+                )
             )
-
-          )))
+          )
         )],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.Application(
+      () => new go<C.The>(
+        new C.The(
+          new C.Application(
             motout.value,
             tgtout.value
           ),
-          new Core.IndNat(
+          new C.IndNat(
             tgtout.value,
             motout.value,
             bout.value,
@@ -351,34 +367,34 @@ export class Synth {
     );
   }
 
-  public static synthAtom(context: Context, r: Renaming, e: Source.Atom): Perhaps<Core.The> {
+  public static synthAtom(context: Context, r: Renaming): Perhaps<C.The> {
     return new go(
-      new Core.The(
-        new Core.Universe(),
-        new Core.Atom()
+      new C.The(
+        new C.Universe(),
+        new C.Atom()
       )
     )
   }
 
 
-  public static synthPair(context: Context, r: Renaming, e: Source.Pair): Perhaps<Core.The> {
-    const [A, D] = [e.first, e.second];
+  public static synthPair(context: Context, r: Renaming, first: S.Source, second: S.Source): Perhaps<C.The> {
     const a = fresh(context, 'a');
-    const Aout = new PerhapsM<Core.Core>('Aout');
-    const Dout = new PerhapsM<Core.Core>('Dout');
+    const Aout = new PerhapsM<C.Core>('Aout');
+    const Dout = new PerhapsM<C.Core>('Dout');
     return goOn(
       [
-        [Aout, () => A.check(context, r, new Value.Universe())],
-        [Dout, () => D.check(
-          bindFree(context, a, context.valInContext(Aout.value)),
-          r,
-          new Value.Universe()
+        [Aout, () => first.check(context, r, new V.Universe())],
+        [Dout, () => 
+          second.check(
+            bindFree(context, a, valInContext(context, Aout.value)),
+            r,
+            new V.Universe()
         )],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.Universe(),
-          new Core.Sigma(
+      () => new go<C.The>(
+        new C.The(
+          new C.Universe(),
+          new C.Sigma(
             a,
             Aout.value,
             Dout.value
@@ -389,29 +405,28 @@ export class Synth {
   }
 
 
-  public static synthSigma(context: Context, r: Renaming, e: Source.Sigma): Perhaps<Core.The> {
-    const [arr, D] = [e.binders, e.body];
-    if (arr.length === 1) {
-      const [bd, A] = [arr[0].binder, arr[0].type];
+  public static synthSigma(context: Context, r: Renaming, location: Location, binders: TypedBinder[], body: S.Source): Perhaps<C.The> {
+    if (binders.length === 1) {
+      const [bd, type] = [binders[0].binder, binders[0].type];
       const xhat = fresh(context, bd.varName);
       const xloc = bd.location;
-      const Aout = new PerhapsM<Core.Core>('Aout');
-      const Dout = new PerhapsM<Core.Core>('Dout');
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Dout = new PerhapsM<C.Core>('Dout');
       return goOn(
         [
-          [Aout, () => A.check(context, r, new Value.Universe())],
-          [Dout, () => D.check(
-            bindFree(context, xhat, context.valInContext(Aout.value)),
+          [Aout, () => type.check(context, r, new V.Universe())],
+          [Dout, () => body.check(
+            bindFree(context, xhat, valInContext(context, Aout.value)),
             r.extendRenaming(bd.varName, xhat),
-            new Value.Universe()
+            new V.Universe()
           )],
         ],
         () => {
           PieInfoHook(xloc, ['binding-site', Aout.value!]);
-          return new go<Core.The>(
-            new Core.The(
-              new Core.Universe(),
-              new Core.Sigma(
+          return new go<C.The>(
+            new C.The(
+              new C.Universe(),
+              new C.Sigma(
                 xhat,
                 Aout.value,
                 Dout.value
@@ -420,33 +435,35 @@ export class Synth {
           )
         }
       )
-    } else if (arr.length > 1) {
-      const [[bd, A], yA1, ...rest] 
-        = [[arr[0].binder, arr[0].type], arr[1], ...arr.slice(2)];
-      const xloc = bd.location;
-      const x = bd.varName;
+    } else if (binders.length > 1) {
+      const [fst, ...rest] = binders;
+      const [binder, type] = [fst.binder, fst.type];
+      const xloc = binder.location;
+      const x = binder.varName;
       const xhat = fresh(context, x);
-      const Aout = new PerhapsM<Core.Core>('Aout');
-      const Dout = new PerhapsM<Core.Core>('Dout');
+      const Aout = new PerhapsM<C.Core>('Aout');
+      const Dout = new PerhapsM<C.Core>('Dout');
       return goOn(
         [
-          [Aout, () => A.check(context, r, new Value.Universe())],
-          [Dout, () => (new Source.Sigma(
-            notForInfo(e.location),
-            [yA1, ...rest],
-            D
-          )).check(
-            bindFree(context, xhat, context.valInContext(Aout.value)),
-            r.extendRenaming(x, xhat),
-            new Value.Universe()
-          )],
+          [Aout, () => type.check(context, r, new V.Universe())],
+          [Dout, () => 
+            new S.Sigma(
+              notForInfo(location),
+              rest,
+              body
+            ).check(
+              bindFree(context, xhat, valInContext(context, Aout.value)),
+              r.extendRenaming(x, xhat),
+              new V.Universe()
+            )
+          ],
         ],
         () => {
-          PieInfoHook(xloc, ['binding-site', Aout.value!]);
-          return new go<Core.The>(
-            new Core.The(
-              new Core.Universe(),
-              new Core.Sigma(
+          PieInfoHook(xloc, ['binding-site', Aout.value]);
+          return new go<C.The>(
+            new C.The(
+              new C.Universe(),
+              new C.Sigma(
                 xhat,
                 Aout.value,
                 Dout.value
@@ -460,25 +477,24 @@ export class Synth {
     }
   }
 
-  public static synthCar(context: Context, r: Renaming, e: Source.Car): Perhaps<Core.The> {
-    const p_rst = new PerhapsM<Core.The>('p_rst');
+  public static synthCar(context: Context, r: Renaming, location: Location, pair: S.Source): Perhaps<C.The> {
+    const pout = new PerhapsM<C.The>('p_rst');
     return goOn(
-      [[p_rst, () => e.pair.synth(context, r)]],
+      [[pout, () => pair.synth(context, r)]],
       () => {
-        const val = context.valInContext(p_rst.value);
-        if (val instanceof Value.Sigma) {
-          const [x, A, clos] = [val.carName, val.carType, val.cdrType];
+        const val = valInContext(context, pout.value.type);
+        if (val instanceof V.Sigma) {
           return new go(
-            new Core.The(
-              A.readBackType(context),
-              new Core.Car(
-                p_rst.value.expr,
+            new C.The(
+              val.carType.readBackType(context),
+              new C.Car(
+                pout.value.expr,
               )
             )
           )
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`car requires a Pair type, but was used as a: ${val}.`])
           );
         }
@@ -486,26 +502,27 @@ export class Synth {
     )
   }
 
-  public static synthCdr(context: Context, r: Renaming, e: Source.Cdr): Perhaps<Core.The> {
-    const p_rst = new PerhapsM<Core.The>('p_rst');
+  public static synthCdr(context: Context, r: Renaming, location: Location, pair: S.Source): Perhaps<C.The> {
+    const pout = new PerhapsM<C.The>('pout');
     return goOn(
-      [[p_rst, () => e.pair.synth(context, r)]],
+      [[pout, () => pair.synth(context, r)]],
       () => {
-        const val = context.valInContext(p_rst.value.type);
-        if (val instanceof Value.Sigma) {
+        const val = valInContext(context, pout.value.type);
+        if (val instanceof V.Sigma) {
           const [x, A, clos] = [val.carName, val.carType, val.cdrType];
           return new go(
-            new Core.The(
-              clos.valOfClosure(new Value.Neutral(A, new Neutral.Variable(x)))
-                  .readBackType(context),
-              new Core.Cdr(
-                p_rst.value.expr,
+            new C.The(
+              clos.valOfClosure(
+                doCar(valInContext(context, pout.value.expr))
+              ).readBackType(context),
+              new C.Cdr(
+                pout.value.expr,
               )
             )
           );
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`cdr requires a Pair type, but was used as a: ${val}.`])
           );
         }
@@ -513,60 +530,96 @@ export class Synth {
     )
   }
 
-//TODO: Quote Trivial Sole
+  public static synthQuote(context: Context, r: Renaming, location: Location, atom: string): Perhaps<C.The> {
+    if (atomOk(atom)) {
+      return new go(
+        new C.The(
+          new C.Atom(),
+          new C.Quote(atom)
+        )
+      );
+    } else {
+      return new stop(
+        location,
+        new Message([`Invalid atom: ${atom}. Atoms consist of letters and hyphens.`])
+      );
+    }
+  }
 
+  public static synthTrivial(context: Context, r: Renaming): Perhaps<C.The> {
+    return new go(
+      new C.The(
+        new C.Universe(),
+        new C.Trivial()
+      )
+    );
+  }
 
-  public static synthIndList(context: Context, r: Renaming, e: Source.IndList): Perhaps<Core.The> {
-    const themeta = new PerhapsM<Core.The>('themeta');
-    const motout = new PerhapsM<Core.Core>('motout');
-    const motval = new PerhapsM<Value.Value>('motval');
-    const bout = new PerhapsM<Core.Core>('bout');
-    const sout = new PerhapsM<Core.Core>('sout');
+  public static synthSole(context: Context, r: Renaming): Perhaps<C.The> {
+    return new go(
+      new C.The(
+        new C.Trivial(),
+        new C.Sole()
+      )
+    )
+  }
+
+  public static synthIndList(context: Context, r: Renaming, 
+    location: Location, target: S.Source, motive: S.Source, base: S.Source, step: S.Source,): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.The>('tgtout');
+    const motout = new PerhapsM<C.Core>('motout');
+    const motval = new PerhapsM<V.Value>('motval');
+    const bout = new PerhapsM<C.Core>('bout');
+    const sout = new PerhapsM<C.Core>('sout');
     return goOn(
       [
-        [themeta, () => e.target.synth(context, r)],
+        [tgtout, () => target.synth(context, r)],
       ],
       (() => {
-        const mtc = context.valInContext(themeta.value);
-        if (mtc instanceof Value.List) {
-          const E = mtc.entryType;
+        const [tgt_t, tgt_e] = [tgtout.value.type, tgtout.value.expr];
+        const type = valInContext(context, tgt_t);
+        if (type instanceof V.List) {
+          const E = type.entryType;
           return goOn(
             [
-              [motout, () => e.motive.check(
-                context,
-                r,
-                new Value.Pi(
-                  'xs',
-                  new Value.List(E),
-                  new FirstOrderClosure(
-                    context.contextToEnvironment(),
+              [
+                motout, 
+                () => motive.check(
+                  context,
+                  r,
+                  new V.Pi(
                     'xs',
-                    new Core.Universe()
+                    new V.List(E),
+                    new FirstOrderClosure(
+                      contextToEnvironment(context),
+                      'xs',
+                      new C.Universe()
+                    )
                   )
                 )
-              )],
-              [motval, () => new go(context.valInContext(motout.value))],
-              [bout, () => e.base.check(
+              ],
+              [motval, () => new go(valInContext(context, motout.value))],
+              [bout, () => base.check(
                 context,
                 r,
-                doApp(motval.value, new Value.Nil())
+                doApp(motval.value, new V.Nil())
               )],
-              [sout, () => e.step.check(
+              [sout, () => step.check(
                 context,
                 r,
-                new Value.Pi(
+                new V.Pi(
                   'e',
                   E,
                   new HigherOrderClosure(
-                    (e: Value.Value) => new Value.Pi(
+                    (e) => new V.Pi(
                       'es',
-                      new Value.List(E),
+                      new V.List(E),
                       new HigherOrderClosure(
-                        (es: Value.Value) => new Value.Pi(
+                        (es) => new V.Pi(
                           'ih',
                           doApp(motval.value, es),
                           new HigherOrderClosure(
-                            (_) => doApp(motval.value, new Value.Cons(e, es))
+                            (_) => doApp(motval.value, new V.ListCons(e, es))
                           )
                         )
                       )
@@ -575,14 +628,14 @@ export class Synth {
                 )
               )],
             ],
-            () => new go<Core.The>(
-              new Core.The(
-                new Core.Application(
+            () => new go<C.The>(
+              new C.The(
+                new C.Application(
                   motout.value,
-                  themeta.value
+                  tgt_e
                 ),
-                new Core.IndList(
-                  themeta.value.expr,
+                new C.IndList(
+                  tgt_e,
                   motout.value,
                   bout.value,
                   sout.value
@@ -592,8 +645,8 @@ export class Synth {
           );
         } else {
           return new stop(
-            e.location,
-            new Message([`Not a List: ${mtc.readBackType(context)}.`])
+            location,
+            new Message([`Not a List: ${type.readBackType(context)}.`])
           );
         }
       })
@@ -601,54 +654,57 @@ export class Synth {
   }
 
 
-  public static synthRecList(context: Context, r: Renaming, e: Source.RecList): Perhaps<Core.The> {
-    const themeta = new PerhapsM<Core.The>('themeta');
+  public static synthRecList(context: Context, r: Renaming, 
+    location: Location, target: S.Source, base: S.Source, step: S.Source,): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.The>('tgtout');
     return goOn(
-      [[themeta, () => e.target.synth(context, r)]],
+      [[tgtout, () => target.synth(context, r)]],
       () => {
-        const [tgtt, tgtout] = [themeta.value.type, themeta.value.expr];
-        const mtc = context.valInContext(tgtt);
-        if (mtc instanceof Value.List) {
-          const E = mtc.entryType;
-          const themeta_2 = new PerhapsM<Core.The>('themeta_2');
-          const btval = new PerhapsM<Value.Value>('btval');
-          const sout = new PerhapsM<Core.Core>('sout');
+        const [tgt_t, tgt_e] = [tgtout.value.type, tgtout.value.expr];
+        const type = valInContext(context, tgt_t);
+        if (type instanceof V.List) {
+          const E = type.entryType;
+          const bout = new PerhapsM<C.The>('bout');
+          const btval = new PerhapsM<V.Value>('btval');
+          const sout = new PerhapsM<C.Core>('sout');
           return goOn(
             [
-              [themeta_2, () => e.base.synth(context, r)],
-              [btval, () => new go(context.valInContext(themeta_2.value.type))],
-              [sout, () => e.step.check(
-                context,
-                r,
-                new Value.Pi(
-                  'e',
-                  E,
-                  new HigherOrderClosure(
-                    (e: Value.Value) => new Value.Pi(
-                      'es',
-                      new Value.List(E),
-                      new HigherOrderClosure(
-                        (es: Value.Value) => new Value.Pi(
-                          'ih',
-                          btval.value,
-                          new HigherOrderClosure(
-                            (_) => btval.value
+              [bout, () => base.synth(context, r)],
+              [btval, () => new go(valInContext(context, bout.value.type))],
+              [sout, () => 
+                step.check(
+                  context,
+                  r,
+                  new V.Pi(
+                    'e',
+                    E,
+                    new HigherOrderClosure(
+                      (_) => new V.Pi(
+                        'es',
+                        new V.List(E),
+                        new HigherOrderClosure(
+                          (_) => new V.Pi(
+                            'ih',
+                            btval.value,
+                            new HigherOrderClosure(
+                              (_) => btval.value
+                            )
                           )
                         )
                       )
                     )
                   )
                 )
-              )],
+              ],
             ],
-            () => new go<Core.The>(
-              new Core.The(
-                themeta_2.value.type,
-                new Core.RecList(
-                  tgtout,
-                  new Core.The(
-                    themeta_2.value.type,
-                    themeta_2.value.expr
+            () => new go<C.The>(
+              new C.The(
+                bout.value.type,
+                new C.RecList(
+                  tgt_e,
+                  new C.The(
+                    bout.value.type,
+                    bout.value.expr
                   ),
                   sout.value
                 )
@@ -657,8 +713,8 @@ export class Synth {
           );
         } else {
           return new stop(
-            e.location,
-            new Message([`Not a List: ${mtc.readBackType(context)}.`])
+            location,
+            new Message([`Not a List: ${type.readBackType(context)}.`])
           );
         }
       }
@@ -666,69 +722,69 @@ export class Synth {
   }
 
 
-  public static synthList(context: Context, r: Renaming, e: Source.List): Perhaps<Core.The> {
-    const Eout = new PerhapsM<Core.Core>('Eout');
+  public static synthList(context: Context, r: Renaming, e: S.List): Perhaps<C.The> {
+    const Eout = new PerhapsM<C.Core>('Eout');
     return goOn(
-      [[Eout, () => e.entryType.check(context, r, new Value.Universe())]],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.Universe(),
-          new Core.List(Eout.value)
+      [[Eout, () => e.entryType.check(context, r, new V.Universe())]],
+      () => new go<C.The>(
+        new C.The(
+          new C.Universe(),
+          new C.List(Eout.value)
         )
       )
     );
   }
 
 
-  public static synthListCons(context: Context, r: Renaming, e: Source.ListCons): Perhaps<Core.The> {
-    const [x, xs] = [e.x, e.xs];
-    const e_rst = new PerhapsM<Core.The>('e_rst');
-    const esout = new PerhapsM<Core.Core>('esout');
+  public static synthListCons(context: Context, r: Renaming, x: S.Source, xs: S.Source): Perhaps<C.The> {
+    const fstout = new PerhapsM<C.The>('eout');
+    const restout = new PerhapsM<C.Core>('esout');
     return goOn(
       [
-        [e_rst, () => x.synth(context, r)],
-        [esout, () => xs.check(
-          context,
-          r,
-          context.valInContext(new Core.List(e_rst.value.type))
-        )],
+        [fstout, () => x.synth(context, r)],
+        [restout, () => 
+          xs.check(
+            context,
+            r,
+            valInContext(context, new C.List(fstout.value.type))
+          )
+        ],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.List(e_rst.value.type),
-          new Core.ListCons(
-            e_rst.value,
-            esout.value
+      () => new go<C.The>(
+        new C.The(
+          new C.List(fstout.value.type),
+          new C.ListCons(
+            fstout.value.expr,
+            restout.value
           )
         )
       )
     );
   }
 
-
-  public static synthAbsurd(context: Context, r: Renaming, e: Source.Absurd): Perhaps<Core.The> {
+  public static synthAbsurd(context: Context, r: Renaming, e: S.Absurd): Perhaps<C.The> {
     return new go(
-      new Core.The(
-        new Core.Universe(),
-        new Core.Absurd()
+      new C.The(
+        new C.Universe(),
+        new C.Absurd()
       )
     );
   }
 
 
-  
-  public static synthIndAbsurd(context: Context, r: Renaming, e: Source.IndAbsurd): Perhaps<Core.The> {
-    const tgtout = new PerhapsM<Core.Core>('tgtout');
-    const motout = new PerhapsM<Core.Core>('motout');
+
+  public static synthIndAbsurd(context: Context, r: Renaming, e: S.IndAbsurd): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.Core>('tgtout');
+    const motout = new PerhapsM<C.Core>('motout');
     return goOn(
       [
-        [tgtout, () => e.target.check(context, r, new Value.Absurd())],
-        [motout, () => e.motive.check(context, r, new Value.Universe())],
+        [tgtout, () => e.target.check(context, r, new V.Absurd())],
+        [motout, () => e.motive.check(context, r, new V.Universe())],
       ],
-      () => new go<Core.The>(
-        new Core.The(
+      () => new go<C.The>(
+        new C.The(
           motout.value,
-          new Core.IndAbsurd(
+          new C.IndAbsurd(
             tgtout.value,
             motout.value
           )
@@ -738,24 +794,23 @@ export class Synth {
   }
 
 
-  
-  public static synthEqual(context: Context, r: Renaming, e: Source.Equal): Perhaps<Core.The> {
-    const [A, from, to] = [e.type, e.left, e.right];
-    const Aout = new PerhapsM<Core.Core>('Aout');
-    const Av = new PerhapsM<Value.Value>('Av');
-    const from_out = new PerhapsM<Core.Core>('from_out');
-    const to_out = new PerhapsM<Core.Core>('to_out');
+
+  public static synthEqual(context: Context, r: Renaming, type: S.Source, left: S.Source, right: S.Source): Perhaps<C.The> {
+    const Aout = new PerhapsM<C.Core>('Aout');
+    const Av = new PerhapsM<V.Value>('Av');
+    const from_out = new PerhapsM<C.Core>('from_out');
+    const to_out = new PerhapsM<C.Core>('to_out');
     return goOn(
       [
-        [Aout, () => A.check(context, r, new Value.Universe())],
-        [Av, () => new go(context.valInContext(Aout.value))],
-        [from_out, () => from.check(context, r, Av.value)],
-        [to_out, () => to.check(context, r, Av.value)],
+        [Aout, () => type.check(context, r, new V.Universe())],
+        [Av, () => new go(valInContext(context, Aout.value))],
+        [from_out, () => left.check(context, r, Av.value)],
+        [to_out, () => right.check(context, r, Av.value)],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.Universe(),
-          new Core.Equal(
+      () => new go<C.The>(
+        new C.The(
+          new C.Universe(),
+          new C.Equal(
             Aout.value,
             from_out.value,
             to_out.value
@@ -763,44 +818,45 @@ export class Synth {
         )
       )
     );
-  }      
+  }
 
 
-  public static synthReplace(context: Context, r: Renaming, e: Source.Replace): Perhaps<Core.The> {
-    const [tgt, mot, b] = [e.target, e.motive, e.base];
-    const tgt_rst = new PerhapsM<Core.The>('tgt_rst');
-    const motout = new PerhapsM<Core.Core>('motout');
-    const bout = new PerhapsM<Core.Core>('bout');
+  public static synthReplace(context: Context, r: Renaming, location: Location, target: S.Source, motive: S.Source, base: S.Source): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.The>('tgt_rst');
+    const motout = new PerhapsM<C.Core>('motout');
+    const bout = new PerhapsM<C.Core>('bout');
     return goOn(
-      [[tgt_rst, () => tgt.synth(context, r)]],
+      [[tgtout, () => target.synth(context, r)]],
       () => {
-        const result = context.valInContext(tgt_rst.value);
-        if (result instanceof Value.Equal) {
+        const result = valInContext(context, tgtout.value.type);
+        if (result instanceof V.Equal) {
           const [Av, fromv, tov] = [result.type, result.from, result.to];
           return goOn(
             [
-              [motout, () => mot.check(
-                context,
-                r,
-                new Value.Pi(
-                  'x',
-                  Av,
-                  new HigherOrderClosure(
-                    (_) => new Value.Universe()
+              [motout, () =>
+                motive.check(
+                  context,
+                  r,
+                  new V.Pi(
+                    'x',
+                    Av,
+                    new HigherOrderClosure(
+                      (_) => new V.Universe()
+                    )
                   )
                 )
-              )],
-              [bout, () => b.check(
+              ],
+              [bout, () => base.check(
                 context,
                 r,
-                doApp(context.valInContext(motout.value), fromv)
+                doApp(valInContext(context, motout.value), fromv)
               )],
             ],
             () => new go(
-              new Core.The(
-                (doApp(context.valInContext(motout.value), tov)).readBackType(context),
-                new Core.Replace(
-                  tgt_rst.value.expr,
+              new C.The(
+                (doApp(valInContext(context, motout.value), tov)).readBackType(context),
+                new C.Replace(
+                  tgtout.value.expr,
                   motout.value,
                   bout.value
                 )
@@ -809,49 +865,48 @@ export class Synth {
           );
         } else {
           return new stop(
-            e.location,
-            new Message([`Expected an expression with = type, but the type was: ${tgt_rst.value.expr}.`])
+            location,
+            new Message([`Expected an expression with = type, but the type was: ${tgtout.value.type}.`])
           );
         }
       }
     );
   }
 
-  public static synthTrans(context: Context, r: Renaming, e: Source.Trans): Perhaps<Core.The> {
-    const [p1, p2] = [e.left, e.right];
-    const p1_rst = new PerhapsM<Core.The>('p1_rst');
-    const p2_rst = new PerhapsM<Core.The>('p2_rst');
+  public static synthTrans(context: Context, r: Renaming, location: Location, left: S.Source, right: S.Source): Perhaps<C.The> {
+
+    const lout = new PerhapsM<C.The>('p1_rst');
+    const rout = new PerhapsM<C.The>('p2_rst');
     return goOn(
       [
-        [p1_rst, () => p1.synth(context, r)],
-        [p2_rst, () => p2.synth(context, r)],
+        [lout, () => left.synth(context, r)],
+        [rout, () => right.synth(context, r)],
       ],
       () => {
-        const result1 = context.valInContext(p1_rst.value.type);
-        const result2 = context.valInContext(p2_rst.value.type);
-        if (result1 instanceof Value.Equal && result2 instanceof Value.Equal) {
+        const result1 = valInContext(context, lout.value.type);
+        const result2 = valInContext(context, rout.value.type);
+        if (result1 instanceof V.Equal && result2 instanceof V.Equal) {
           const [Av, fromv, midv] = [result1.type, result1.from, result1.to];
           const [Bv, midv2, tov] = [result2.type, result2.from, result2.to];
-          const ph1 = new PerhapsM<any>('ph1');
-          const ph2 = new PerhapsM<any>('ph2');
+
           return goOn(
             [
-              [ph1, () => sameType(context, e.location, Av, Bv)],
-              [ph2, () => convert(context, e.location, Av, midv, midv2)],
+              [new PerhapsM("_"), () => sameType(context, location, Av, Bv)],
+              [new PerhapsM("_"), () => convert(context, location, Av, midv, midv2)],
             ],
-            () => new go<Core.The>(
-              new Core.The(
-                (new Value.Equal(Av, fromv, tov)).readBackType(context),
-                new Core.Trans(
-                  p1_rst.value.expr,
-                  p2_rst.value.expr
+            () => new go<C.The>(
+              new C.The(
+                new V.Equal(Av, fromv, tov).readBackType(context),
+                new C.Trans(
+                  lout.value.expr,
+                  rout.value.expr
                 )
               )
             )
           );
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`Expected =, got ${result1} and ${result2}.`])
           );
         }
@@ -859,55 +914,55 @@ export class Synth {
     )
   }
 
-  public static synthCong(context: Context, r: Renaming, e: Source.Cong): Perhaps<Core.The> {
-    const [p, f] = [e.from, e.to];
-    const p_rst = new PerhapsM<Core.The>('p_rst');
-    const f_rst = new PerhapsM<Core.The>('f_rst');
+  public static synthCong(context: Context, r: Renaming, location: Location, base: S.Source, fun: S.Source): Perhaps<C.The> {
+
+    const bout = new PerhapsM<C.The>('bout');
+    const fout = new PerhapsM<C.The>('f_rst');
     return goOn(
       [
-        [p_rst, () => p.synth(context, r)],
-        [f_rst, () => f.synth(context, r)],
+        [bout, () => base.synth(context, r)],
+        [fout, () => fun.synth(context, r)],
       ],
       () => {
-        const result1 = context.valInContext(p_rst.value.type);
-        const result2 = context.valInContext(f_rst.value.type);
-        if (result1 instanceof Value.Equal) {
+        const result1 = valInContext(context, bout.value.type);
+        const result2 = valInContext(context, fout.value.type);
+        if (result1 instanceof V.Equal) {
           const [Av, fromv, tov] = [result1.type, result1.from, result1.to];
-          if (result2 instanceof Value.Pi) {
+          if (result2 instanceof V.Pi) {
             const [x, Bv, c] = [result2.argName, result2.argType, result2.resultType];
             const ph = new PerhapsM<any>('ph');
-            const Cv = new PerhapsM<Value.Value>('Cv');
-            const fv = new PerhapsM<Value.Value>('fv');
+            const Cv = new PerhapsM<V.Value>('Cv');
+            const fv = new PerhapsM<V.Value>('fv');
             return goOn(
               [
-                [ph, () => sameType(context, e.location, Av, Bv)],
+                [ph, () => sameType(context, location, Av, Bv)],
                 [Cv, () => new go(c.valOfClosure(fromv))],
-                [fv, () => new go(context.valInContext(f_rst.value.expr))],
+                [fv, () => new go(valInContext(context, fout.value.expr))],
               ],
               () => new go(
-                new Core.The(
-                  new Core.Equal(
+                new C.The(
+                  new C.Equal(
                     Cv.value.readBackType(context),
                     readBack(context, Cv.value, doApp(fv.value, fromv)),
                     readBack(context, Cv.value, doApp(fv.value, tov))
                   ),
-                  new Core.Cong(
-                    p_rst.value.expr,
+                  new C.Cong(
+                    bout.value.expr,
                     Cv.value.readBackType(context),
-                    f_rst.value.expr
+                    fout.value.expr
                   )
                 )
               )
             );
           } else {
             return new stop(
-              e.location,
+              location,
               new Message([`Expected a function type, got ${result2.readBackType(context)}.`])
             );
           }
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`Expected an = type, got ${result1.readBackType(context)}.`])
           );
         }
@@ -915,29 +970,29 @@ export class Synth {
     )
   }
 
-  public static synthSymm(context: Context, r: Renaming, e: Source.Symm): Perhaps<Core.The> {
-    const p_rst = new PerhapsM<Core.The>('p_rst');
+  public static synthSymm(context: Context, r: Renaming, location: Location, eq: S.Source): Perhaps<C.The> {
+    const eout = new PerhapsM<C.The>('eout');
     return goOn(
-      [[p_rst, () => e.equality.synth(context, r)]],
+      [[eout, () => eq.synth(context, r)]],
       () => {
-        const result = context.valInContext(p_rst.value.type);
-        if (result instanceof Value.Equal) {
+        const result = valInContext(context, eout.value.type);
+        if (result instanceof V.Equal) {
           const [Av, fromv, tov] = [result.type, result.from, result.to];
           return new go(
-            new Core.The(
-              (new Value.Equal(
+            new C.The(
+              (new V.Equal(
                 Av,
                 tov,
                 fromv
               )).readBackType(context),
-              new Core.Symm(
-                p_rst.value.expr
+              new C.Symm(
+                eout.value.expr
               )
             )
           );
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`Expected an = type, got ${result.readBackType(context)}.`])
           );
         }
@@ -946,49 +1001,55 @@ export class Synth {
   }
 
 
-  public static synthIndEqual(context: Context, r: Renaming, e: Source.IndEqual): Perhaps<Core.The> {
-    const tgt_rst = new PerhapsM<Core.The>('tgt_rst');
-    const motout = new PerhapsM<Core.Core>('motout');
-    const motv = new PerhapsM<Value.Value>('motv');
-    const baseout = new PerhapsM<Core.Core>('baseout');
+  public static synthIndEqual(context: Context, r: Renaming, location: Location, target: S.Source, motive: S.Source, base: S.Source): Perhaps<C.The> {
+    const tgtout = new PerhapsM<C.The>('tgtout');
+    const motout = new PerhapsM<C.Core>('motout');
+    const motv = new PerhapsM<V.Value>('motv');
+    const baseout = new PerhapsM<C.Core>('baseout');
     return goOn(
-      [[tgt_rst, () => e.from.synth(context, r)]],
+      [[tgtout, () => target.synth(context, r)]],
       () => {
-        const result = context.valInContext(tgt_rst.value.type);
-        if (result instanceof Value.Equal) {
+        const result = valInContext(context, tgtout.value.type);
+        if (result instanceof V.Equal) {
           const [Av, fromv, tov] = [result.type, result.from, result.to];
           return goOn(
             [
-              [motout, () => e.to.check(
-                context,
-                r,
-                new Value.Pi(
-                  'to',
-                  Av,
-                  new HigherOrderClosure(
-                    (to: Value.Value) => new Value.Pi(
-                      'p',
-                      new Value.Equal(Av, fromv, to),
-                      new HigherOrderClosure(
-                        (_) => new Value.Universe()
+              [motout, () => 
+                motive.check(
+                  context,
+                  r,
+                  new V.Pi(
+                    'to',
+                    Av,
+                    new HigherOrderClosure(
+                      (to) => new V.Pi(
+                        'p',
+                        new V.Equal(Av, fromv, to),
+                        new HigherOrderClosure(
+                          (_) => new V.Universe()
+                        )
                       )
                     )
                   )
                 )
-              )],
-              [motv, () => new go(context.valInContext(motout.value))],
-              [baseout, () => e.base.check(
-                context,
-                r,
-                doApp(doApp(motv.value, fromv), new Value.Same(fromv))
-              )],
+              ],
+              [motv, () => new go(valInContext(context, motout.value))],
+              [baseout, () => 
+                base.check(
+                  context,
+                  r,
+                  doApp(doApp(motv.value, fromv), new V.Same(fromv))
+                )
+              ],
             ],
-            () => new go<Core.The>(
-              new Core.The(
-                (doApp(doApp(motv.value, tov), 
-                      context.valInContext(tgt_rst.value.expr))).readBackType(context),
-                new Core.IndEqual(
-                  tgt_rst.value.expr,
+            () => new go<C.The>(
+              new C.The(
+                doApp(
+                  doApp(motv.value, tov),
+                  valInContext(context, tgtout.value.expr)
+                ).readBackType(context),
+                new C.IndEqual(
+                  tgtout.value.expr,
                   motout.value,
                   baseout.value
                 )
@@ -997,7 +1058,7 @@ export class Synth {
           );
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`Expected evidence of equality, got ${result.readBackType(context)}.`])
           );
         }
@@ -1006,54 +1067,50 @@ export class Synth {
   }
 
 
-
-  public static synthVec(context: Context, r: Renaming, e: Source.Vec): Perhaps<Core.The> {
-    const [E, len] = [e.type, e.length];
-    const Eout = new PerhapsM<Core.Core>('Eout');
-    const lenout = new PerhapsM<Core.Core>('lenout');
+  public static synthVec(context: Context, r: Renaming, type: S.Source, len: S.Source): Perhaps<C.The> {
+    const tout = new PerhapsM<C.Core>('tout');
+    const lenout = new PerhapsM<C.Core>('lenout');
     return goOn(
       [
-        [Eout, () => E.check(context, r, new Value.Universe())],
-        [lenout, () => len.check(context, r, new Value.Nat())],
+        [tout, () => type.check(context, r, new V.Universe())],
+        [lenout, () => len.check(context, r, new V.Nat())],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.Universe(),
-          new Core.Vec(Eout.value, lenout.value)
+      () => new go<C.The>(
+        new C.The(
+          new C.Universe(),
+          new C.Vec(tout.value, lenout.value)
         )
       )
     );
   }
 
 
-
-  public static synthHead(context: Context, r: Renaming, e: Source.Head): Perhaps<Core.The> {
-    const es_rst = new PerhapsM<Core.The>('es_rst');
+  public static synthHead(context: Context, r: Renaming, location: Location, vec: S.Source): Perhaps<C.The> {
+    const vout = new PerhapsM<C.The>('vout');
     return goOn(
-      [[es_rst, () => e.vec.synth(context, r)]],
+      [[vout, () => vec.synth(context, r)]],
       () => {
-        const result = now(context.valInContext(es_rst.value.type));
-        if (result instanceof Value.Vec) {
-          const [E, len] = [result.entryType, result.length];
-          if (len instanceof Value.Add1) {
+        const result = now(valInContext(context, vout.value.type));
+        if (result instanceof V.Vec) {
+          const [T, len] = [result.entryType, result.length];
+          if (len instanceof V.Add1) {
             return new go(
-              new Core.The(
-                E.readBackType(context),
-                new Core.Head(
-                  es_rst.value.expr
+              new C.The(
+                T.readBackType(context),
+                new C.Head(
+                  vout.value.expr
                 )
               )
             );
           } else {
             return new stop(
-              e.location,
-              new Message([`Expected a Vec with add1 at the top of the length, got ${
-                readBack(context, new Value.Nat(), len)}.`])
+              location,
+              new Message([`Expected a Vec with add1 at the top of the length, got ${readBack(context, new V.Nat(), len)}.`])
             );
           }
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`Expected a Vec, got ${result.readBackType(context)}.`])
           );
         }
@@ -1061,38 +1118,35 @@ export class Synth {
     );
   }
 
-
-
-  public static synthTail(context: Context, r: Renaming, e: Source.Tail): Perhaps<Core.The> {
-    const es_rst = new PerhapsM<Core.The>('es_rst');
+  public static synthTail(context: Context, r: Renaming, location: Location, vec: S.Source): Perhaps<C.The> {
+    const vout = new PerhapsM<C.The>('vout');
     return goOn(
-      [[es_rst, () => e.vec.synth(context, r)]],
+      [[vout, () => vec.synth(context, r)]],
       () => {
-        const result = now(context.valInContext(es_rst.value.type));
-        if (result instanceof Value.Vec) {
-          const [E, len] = [result.entryType, result.length];
-          if (len instanceof Value.Add1) {
+        const result = now(valInContext(context, vout.value.type));
+        if (result instanceof V.Vec) {
+          const [T, len] = [result.entryType, result.length];
+          if (len instanceof V.Add1) {
             const len_minus_1 = len.smaller;
             return new go(
-              new Core.The(
-                new Core.Vec(
-                  E.readBackType(context), 
-                  readBack(context, new Value.Nat(), len_minus_1)),
-                new Core.Tail(
-                  es_rst.value.expr
+              new C.The(
+                new C.Vec(
+                  T.readBackType(context),
+                  readBack(context, new V.Nat(), len_minus_1)),
+                new C.Tail(
+                  vout.value.expr
                 )
               )
             );
           } else {
             return new stop(
-              e.location,
-              new Message([`Expected a Vec with add1 at the top of the length, got ${
-                readBack(context, new Value.Nat(), len)}.`])
+              location,
+              new Message([`Expected a Vec with add1 at the top of the length, got ${readBack(context, new V.Nat(), len)}.`])
             );
           }
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`Expected a Vec, got ${result.readBackType(context)}.`])
           );
         }
@@ -1100,67 +1154,67 @@ export class Synth {
     );
   }
 
-  public static synthIndVec(context: Context, r: Renaming, e: Source.IndVec): Perhaps<Core.The> {
-    const lenout = new PerhapsM<Core.Core>('lenout');
-    const lenv = new PerhapsM<Value.Value>('lenv');
-    const vecout = new PerhapsM<Core.The>('vecout');
-    const motout = new PerhapsM<Core.Core>('motout');
-    const motval = new PerhapsM<Value.Value>('motval');
-    const bout = new PerhapsM<Core.Core>('bout');
-    const sout = new PerhapsM<Core.Core>('sout');
-    const any = new PerhapsM<any>('any');
+  public static synthIndVec(context: Context, r: Renaming, location: Location,
+      length: S.Source, target: S.Source, motive: S.Source, base: S.Source, step: S.Source): Perhaps<C.The> {
+    const lenout = new PerhapsM<C.Core>('lenout');
+    const lenv = new PerhapsM<V.Value>('lenv');
+    const vecout = new PerhapsM<C.The>('vecout');
+    const motout = new PerhapsM<C.Core>('motout');
+    const motval = new PerhapsM<V.Value>('motval');
+    const bout = new PerhapsM<C.Core>('bout');
+    const sout = new PerhapsM<C.Core>('sout');
     return goOn(
       [
-        [lenout, () => e.length.check(context, r, new Value.Nat())],
-        [lenv, () => new go(context.valInContext(lenout.value))],
-        [vecout, () => e.target.synth(context, r)],
+        [lenout, () => length.check(context, r, new V.Nat())],
+        [lenv, () => new go(valInContext(context, lenout.value))],
+        [vecout, () => target.synth(context, r)],
       ],
       () => {
-        const result = context.valInContext(vecout.value.type);
-        if (result instanceof Value.Vec) {
+        const result = valInContext(context, vecout.value.type);
+        if (result instanceof V.Vec) {
           const [E, len2v] = [result.entryType, result.length];
           return goOn(
             [
-              [any, () => convert(context, e.location, new Value.Nat(), lenv.value, len2v)],
-              [motout, () => e.motive.check(
+              [new PerhapsM<any>('_'), () => convert(context, location, new V.Nat(), lenv.value, len2v)],
+              [motout, () => motive.check(
                 context,
                 r,
-                new Value.Pi(
+                new V.Pi(
                   'k',
-                  new Value.Nat(),
+                  new V.Nat(),
                   new HigherOrderClosure(
-                    (k: Value.Value) => new Value.Pi(
+                    (k) => new V.Pi(
                       'es',
-                      new Value.Vec(E, k),
+                      new V.Vec(E, k),
                       new HigherOrderClosure(
-                        (_) => new Value.Universe()
+                        (_) => new V.Universe()
                       )
                     )
                   )
                 )
               )],
-              [motval, () => new go(context.valInContext(motout.value))],
-              [bout, () => e.base.check(
+              [motval, () => new go(valInContext(context, motout.value))],
+              [bout, () => base.check(
                 context,
                 r,
-                doApp(doApp(motval.value, new Value.Zero()), new Value.VecNil())
+                doApp(doApp(motval.value, new V.Zero()), new V.VecNil())
               )],
-              [sout, () => e.step.check(
+              [sout, () => step.check(
                 context,
                 r,
                 indVecStepType(E, motval.value)
               )],
             ],
-            () => new go<Core.The>(
-              new Core.The(
-                new Core.Application(
-                  new Core.Application(
+            () => new go<C.The>(
+              new C.The(
+                new C.Application(
+                  new C.Application(
                     motout.value,
                     lenout.value
                   ),
                   vecout.value.expr
                 ),
-                new Core.IndVec(
+                new C.IndVec(
                   lenout.value,
                   vecout.value.expr,
                   motout.value,
@@ -1172,7 +1226,7 @@ export class Synth {
           );
         } else {
           return new stop(
-            e.location,
+            location,
             new Message([`Expected a Vec, got ${result.readBackType(context)}.`])
           );
         }
@@ -1180,81 +1234,81 @@ export class Synth {
     );
   }
 
-  public static synthEither(context: Context, r: Renaming, e: Source.Either): Perhaps<Core.The> {
+  public static synthEither(context: Context, r: Renaming, e: S.Either): Perhaps<C.The> {
     const [L, R] = [e.left, e.right];
-    const Lout = new PerhapsM<Core.Core>('Lout');
-    const Rout = new PerhapsM<Core.Core>('Rout');
+    const Lout = new PerhapsM<C.Core>('Lout');
+    const Rout = new PerhapsM<C.Core>('Rout');
     return goOn(
       [
-        [Lout, () => L.check(context, r, new Value.Universe())],
-        [Rout, () => R.check(context, r, new Value.Universe())],
+        [Lout, () => L.check(context, r, new V.Universe())],
+        [Rout, () => R.check(context, r, new V.Universe())],
       ],
-      () => new go<Core.The>(
-        new Core.The(
-          new Core.Universe(),
-          new Core.Either(Lout.value, Rout.value)
+      () => new go<C.The>(
+        new C.The(
+          new C.Universe(),
+          new C.Either(Lout.value, Rout.value)
         )
       )
     );
   }
 
 
-  public static synthIndEither(context: Context, r: Renaming, e: Source.IndEither): Perhaps<Core.The> {
-    const tgt_rst = new PerhapsM<Core.The>('tgt_rst');
-    const motout = new PerhapsM<Core.Core>('motout');
-    const motval = new PerhapsM<Value.Value>('motval');
-    const lout = new PerhapsM<Core.Core>('lout');
-    const rout = new PerhapsM<Core.Core>('rout');
+  public static synthIndEither(context: Context, r: Renaming, e: S.IndEither): Perhaps<C.The> {
+    const tgt_rst = new PerhapsM<C.The>('tgt_rst');
+    const motout = new PerhapsM<C.Core>('motout');
+    const motval = new PerhapsM<V.Value>('motval');
+    const lout = new PerhapsM<C.Core>('lout');
+    const rout = new PerhapsM<C.Core>('rout');
     return goOn(
       [[tgt_rst, () => e.target.synth(context, r)]],
       () => {
-        const result = context.valInContext(tgt_rst.value.type);
-        if (result instanceof Value.Either) {
+        const result = valInContext(context, tgt_rst.value.type);
+        if (result instanceof V.Either) {
           const [Lv, Rv] = [result.leftType, result.rightType];
           return goOn(
             [
               [motout, () => e.motive.check(
                 context,
                 r,
-                new Value.Pi(
+                new V.Pi(
                   'x',
-                  new Value.Either(Lv, Rv),
+                  new V.Either(Lv, Rv),
                   new HigherOrderClosure(
-                    (_) => new Value.Universe()
+                    (_) => new V.Universe()
                   )
                 )
               )],
-              [motval, () => new go(context.valInContext(motout.value))],
+              [motval, () => new go(valInContext(context, motout.value))],
               [lout, () => e.baseLeft.check(
                 context,
                 r,
-                new Value.Pi(
+                new V.Pi(
                   'x',
                   Lv,
                   new HigherOrderClosure(
-                    (x) => doApp(motval.value, new Value.Left(x))
+                    (x) => doApp(motval.value, new V.Left(x))
                   )
                 )
               )],
               [rout, () => e.baseRight.check(
                 context,
                 r,
-                new Value.Pi(
+                new V.Pi(
                   'x',
                   Rv,
                   new HigherOrderClosure(
-                    (x) => doApp(motval.value, new Value.Right(x))
+                    (x) => doApp(motval.value, new V.Right(x))
                   )
                 )
               )],
             ],
-            () => new go<Core.The>(
-              new Core.The(
-                new Core.Application(
+            () => new go<C.The>(
+              new C.The(
+                new C.Application(
                   motout.value,
                   tgt_rst.value.expr
                 ),
-                new Core.IndEither(
+                new C.IndEither(
                   tgt_rst.value.expr,
                   motout.value,
                   lout.value,
@@ -1273,157 +1327,157 @@ export class Synth {
     );
   }
 
-  public static synthThe(context: Context, r: Renaming, e: Source.The): Perhaps<Core.The> {
-    const t_out = new PerhapsM<Core.Core>('t_out');
-    const e_out = new PerhapsM<Core.Core>('e_out');
+  public static synthThe(context: Context, r: Renaming, e: S.The): Perhaps<C.The> {
+    const t_out = new PerhapsM<C.Core>('t_out');
+    const e_out = new PerhapsM<C.Core>('e_out');
     return goOn(
       [
         [t_out, () => e.type.isType(context, r)],
-        [e_out, () => e.value.check(context, r, context.valInContext(t_out.value))],
+        [e_out, () => e.value.check(context, r, valInContext(context, t_out.value))],
       ],
-      () => new go<Core.The>(
-        new Core.The(
+      () => new go<C.The>(
+        new C.The(
           t_out.value,
           e_out.value
         )
       )
     );
-  }  
+  }
 
 
-//TODO: might have bugs
-  public static synthApplication(context: Context, r: Renaming, e: Source.Application): Perhaps<Core.The> {
+  //TODO: might have bugs
+  public static synthApplication(context: Context, r: Renaming, e: S.Application): Perhaps<C.The> {
     const [rator, rand0, ...rands] = [e.func, e.arg, ...e.args];
     if (rands.length === 0) {
-        const rator_out = new PerhapsM<Core.The>('rator_out');
-        return goOn(
-          [[rator_out, () => rator.synth(context, r)]],
-          () => {
-            const result = context.valInContext(rator_out.value.type);
-            if (result instanceof Value.Pi) {
-              const [x, A, c] = [result.argName, result.argType, result.resultType];
-              const rand_out = new PerhapsM<Core.Core>('rand_out');
-              return goOn(
-                [[rand_out, () => rand0.check(context, r, A)]],
-                () => new go(
-                  new Core.The(
-                    c.valOfClosure(context.valInContext(rand_out.value)).readBackType(context),
-                    new Core.Application(
-                      rator_out.value.expr,
-                      rand_out.value
-                    )
+      const rator_out = new PerhapsM<C.The>('rator_out');
+      return goOn(
+        [[rator_out, () => rator.synth(context, r)]],
+        () => {
+          const result = valInContext(context, rator_out.value.type);
+          if (result instanceof V.Pi) {
+            const [x, A, c] = [result.argName, result.argType, result.resultType];
+            const rand_out = new PerhapsM<C.Core>('rand_out');
+            return goOn(
+              [[rand_out, () => rand0.check(context, r, A)]],
+              () => new go(
+                new C.The(
+                  c.valOfClosure(valInContext(context, rand_out.value)).readBackType(context),
+                  new C.Application(
+                    rator_out.value.expr,
+                    rand_out.value
                   )
                 )
-              );
-            } else {
-              return new stop(
-                e.location,
-                new Message([`Not a function type: ${result.readBackType(context)}.`])
-              );
-            }
-          }
-        );
-    } else {
-        
-          const appmeta = new PerhapsM<Core.The>('appmeta');
-          return goOn(
-            [[appmeta, () => (
-              new Source.Application(
-                notForInfo(e.location),
-                rator,
-                rand0,
-                rands.slice(0, rands.length - 1)
               )
-            ).synth(context, r)]],
-            () => {
-              const result = context.valInContext(appmeta.value.type);
-              if (result instanceof Value.Pi) {
-                const [x, A, c] = [result.argName, result.argType, result.resultType];
-                const rand_out = new PerhapsM<Core.Core>('rand_out');
-                return goOn(
-                  [[rand_out, () => rands[rands.length - 1].check(context, r, A)]],
-                  () => new go(
-                    new Core.The(
-                      c.valOfClosure(context.valInContext(rand_out.value)).readBackType(context),
-                      new Core.Application(
-                        appmeta.value.expr,
-                        rand_out.value
-                      )
-                    )
-                  )
-                );
-              } else {
-                return new stop(
-                  e.location,
-                  new Message([`Not a function type: ${result.readBackType(context)}.`])
-                );
-              }
-            }
-          );
-        
-    }
-    
-  }
-/*
-[x
-      (cond [(and (symbol? x) (var-name? x))
-             (let ((real-x (rename r x)))
-              (go-on ((x-tv (var-type Γ (src-loc e) real-x)))
-                (begin (match (assv real-x Γ)
-                         [(cons _ (def _ _))
-                          (send-pie-info (src-loc e) 'definition)]
-                         [_ (void)])
-                       (go `(the ,(read-back-type Γ x-tv) ,real-x)))))]
-            [(number? x)
-             (cond [(zero? x)
-                    (go `(the Nat zero))]
-                   [(positive? x)
-                    (go-on ((n-1-out (check Γ
-                                            r
-                                            (@ (src-loc e) (sub1 x))
-                                            'NAT)))
-                      (go `(the Nat (add1 ,n-1-out))))])]
-            [else
-             (stop (src-loc e)
-                   `("Can't determine a type"))])]
-*/
+            );
+          } else {
+            return new stop(
+              e.location,
+              new Message([`Not a function type: ${result.readBackType(context)}.`])
+            );
+          }
+        }
+      );
+    } else {
 
-  public static synthName(context: Context, r: Renaming, e: Source.Name): Perhaps<Core.The> {
+      const appmeta = new PerhapsM<C.The>('appmeta');
+      return goOn(
+        [[appmeta, () => (
+          new S.Application(
+            notForInfo(e.location),
+            rator,
+            rand0,
+            rands.slice(0, rands.length - 1)
+          )
+        ).synth(context, r)]],
+        () => {
+          const result = valInContext(context, appmeta.value.type);
+          if (result instanceof V.Pi) {
+            const [x, A, c] = [result.argName, result.argType, result.resultType];
+            const rand_out = new PerhapsM<C.Core>('rand_out');
+            return goOn(
+              [[rand_out, () => rands[rands.length - 1].check(context, r, A)]],
+              () => new go(
+                new C.The(
+                  c.valOfClosure(valInContext(context, rand_out.value)).readBackType(context),
+                  new C.Application(
+                    appmeta.value.expr,
+                    rand_out.value
+                  )
+                )
+              )
+            );
+          } else {
+            return new stop(
+              e.location,
+              new Message([`Not a function type: ${result.readBackType(context)}.`])
+            );
+          }
+        }
+      );
+
+    }
+
+  }
+  /*
+  [x
+        (cond [(and (symbol? x) (var-name? x))
+               (let ((real-x (rename r x)))
+                (go-on ((x-tv (var-type Γ (src-loc e) real-x)))
+                  (begin (match (assv real-x Γ)
+                           [(cons _ (def _ _))
+                            (send-pie-info (src-loc e) 'definition)]
+                           [_ (void)])
+                         (go `(the ,(read-back-type Γ x-tv) ,real-x)))))]
+              [(number? x)
+               (cond [(zero? x)
+                      (go `(the Nat zero))]
+                     [(positive? x)
+                      (go-on ((n-1-out (check Γ
+                                              r
+                                              (@ (src-loc e) (sub1 x))
+                                              'NAT)))
+                        (go `(the Nat (add1 ,n-1-out))))])]
+              [else
+               (stop (src-loc e)
+                     `("Can't determine a type"))])]
+  */
+
+  public static synthName(context: Context, r: Renaming, e: S.Name): Perhaps<C.The> {
     const real_x = r.rename(e.name);
-    const x_tv = new PerhapsM<Value.Value>('x_tv');
+    const x_tv = new PerhapsM<V.Value>('x_tv');
     return goOn(
       [[x_tv, () => varType(context, e.location, real_x)]],
       () => {
-        const result = context.context.get(real_x);
+        const result = context.get(real_x);
         if (result instanceof Define) {
           PieInfoHook(e.location, 'definition');
-        } 
+        }
         return new go(
-          new Core.The(
+          new C.The(
             x_tv.value.readBackType(context),
-            new Core.VarName(real_x)
+            new C.VarName(real_x)
           )
         )
       }
     );
   }
 
-  public static synthNumber(context: Context, r: Renaming, e: Source.Number): Perhaps<Core.The> {
+  public static synthNumber(context: Context, r: Renaming, e: S.Number): Perhaps<C.The> {
     if (e.value === 0) {
       return new go(
-        new Core.The(
-          new Core.Nat(),
-          new Core.Zero()
+        new C.The(
+          new C.Nat(),
+          new C.Zero()
         )
       );
     } else if (e.value > 0) {
-      const n_minus_1_out = new PerhapsM<Core.Core>('n_1_out');
+      const n_minus_1_out = new PerhapsM<C.Core>('n_1_out');
       return goOn(
-        [[n_minus_1_out, () => (new Source.Number(e.location, e.value - 1)).check(context, r, new Value.Nat())]],
+        [[n_minus_1_out, () => (new S.Number(e.location, e.value - 1)).check(context, r, new V.Nat())]],
         () => new go(
-          new Core.The(
-            new Core.Nat(),
-            new Core.Add1(n_minus_1_out.value)
+          new C.The(
+            new C.Nat(),
+            new C.Add1(n_minus_1_out.value)
           )
         )
       );

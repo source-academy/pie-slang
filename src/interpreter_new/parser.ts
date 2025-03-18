@@ -177,21 +177,21 @@ export class Parser {
         this.parseElements(elements[1] as Element),
         this.parseElements(elements[2] as Element)
       );
-    } else if (parsee === 'Cons') {
+    } else if (parsee === 'cons') {
       let elements = (element as Extended.List).elements;
       return makeCons(
         locationToSyntax('Cons', element.location),
         this.parseElements(elements[1] as Element),
         this.parseElements(elements[2] as Element)
       );
-    } else if (parsee === 'Car') {
+    } else if (parsee === 'car') {
       return makeCar(
-        locationToSyntax('Car', element.location),
+        locationToSyntax('car', element.location),
         this.parseElements((element as Extended.List).elements[1] as Element)
       );
-    } else if (parsee === 'Cdr') {
+    } else if (parsee === 'cdr') {
       return makeCdr(
-        locationToSyntax('Cdr', element.location),
+        locationToSyntax('cdr', element.location),
         this.parseElements((element as Extended.List).elements[1] as Element)
       );
     } else if (parsee === 'which-Nat') {

@@ -4,7 +4,7 @@ import * as N from '../types/neutral';
 import { fresh } from '../types/utils';
 import { bindFree, Context } from '../types/contexts';
 import { doApp, doCar, doCdr } from "./evaluator";
-
+import * as util from 'util';
 /**
  *   ## Call-by-need evaluation ##
 
@@ -95,7 +95,7 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
   if (typeNow instanceof V.Universe) {
     return value.readBackType(context);
   } else if (typeNow instanceof V.Nat
-    && valueNow instanceof V.Nat) {
+    && valueNow instanceof V.Zero) {
     return new C.Zero();
   } else if (typeNow instanceof V.Nat
     && valueNow instanceof V.Add1) {
@@ -178,5 +178,5 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
   } else if (valueNow instanceof V.Neutral) {
     return valueNow.neutral.readBackNeutral(context);
   }
-  throw new Error(`Cannot read back ${valueNow} : ${typeNow}`);
+  throw new Error(`Cannot read back ${JSON.stringify(valueNow)} : ${JSON.stringify(typeNow)}`);
 }
