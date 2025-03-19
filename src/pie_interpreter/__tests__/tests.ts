@@ -1,11 +1,12 @@
 import 'jest';
 
-import {Parser} from '../parser';
+import { Parser } from '../parser/parser';
 import * as util from 'util';
-import {go} from '../types/utils';
-import {Context, initCtx} from '../types/contexts';
-import {normType, rep} from '../rep';
-import * as Core from '../types/core';
+import { go } from '../types/utils';
+import { initCtx } from '../utils/context';
+import { normType, represent } from '../typechecker/represent';
+import * as C from '../types/core';
+import { prettyPrint } from '../unparser/pretty';
 
 const parser = new Parser();
 
@@ -14,13 +15,14 @@ describe("demo", () => {
   it("Pie demo", () => {
     const src = parser.parsePie('(-> Nat Nat Nat Nat Nat)');
     
-    const actual = new go(new Core.The(new Core.Universe, new Core.Pi('x', new Core.Nat, 
-      new Core.Pi('x₁', new Core.Nat, 
-        new Core.Pi('x₂', new Core.Nat, 
-          new Core.Pi('x₃', new Core.Nat, new Core.Nat)))))
+    const actual = new go(new C.The(new C.Universe, new C.Pi('x', new C.Nat, 
+      new C.Pi('x₁', new C.Nat, 
+        new C.Pi('x₂', new C.Nat, 
+          new C.Pi('x₃', new C.Nat, new C.Nat)))))
     )
-    // console.log('result: ', util.inspect(rep(initCtx, src), false, null, true));
-    expect(rep(initCtx, src)).toEqual(actual);                                      
+    // console.log('result: ', util.inspect(represent(initCtx, src), false, null, true));
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
+    expect(represent(initCtx, src)).toEqual(actual);                                      
     });
 
   it("Sigma demo", () => {
@@ -34,8 +36,8 @@ describe("demo", () => {
         ['the', ['Π', [[Symbol('x'), 'Trivial']], 
         ['Σ', [[Symbol('x₁'), 'Trivial']], 'Trivial']], 
         ['λ', [Symbol('x')],['cons', Symbol('sole'), Symbol('sole')]]]);
-    console.log(util.inspect(rep(initCtx, src), false, null, true));
-    expect(rep(initCtx, src)).toEqual(actual);
+    console.log(util.inspect(represent(initCtx, src), false, null, true));
+    expect(represent(initCtx, src)).toEqual(actual);
   });
 
 });
@@ -44,37 +46,37 @@ describe("Pie language tests", () => {
   
   it("Simple lambda function", () => {
     const src = parsePie('(the (-> Nat Nat) (λ (my-var) my-var))');
-    const actual = new go(new Core.The(new Core.Pi('x', new Core.Nat, new Core.Nat), 
-                                  new Core.Lambda('my-var', new Core.VarName('my-var'))));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
-    expect(rep(initCtx, src)).toEqual(actual);
+    const actual = new go(new C.The(new C.Pi('x', new C.Nat, new C.Nat), 
+                                  new C.Lambda('my-var', new C.VarName('my-var'))));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+    expect(represent(initCtx, src)).toEqual(actual);
   });
 
   it("Lambda with parameter named z", () => {
     const src = parsePie('(the (-> Nat Nat) (λ (z) z))');
-    const actual = new go(new Core.The(
-      new Core.Pi('x', new Core.Nat(), new Core.Nat()),
-      new Core.Lambda('z', new Core.VarName('z'))
+    const actual = new go(new C.The(
+      new C.Pi('x', new C.Nat(), new C.Nat()),
+      new C.Lambda('z', new C.VarName('z'))
     ));
     const context = new Map();
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
-    expect(rep(context, src)).toEqual(actual);
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("which-Nat with non-zero argument", () => {
     const src = parsePie('(which-Nat 1 1 (lambda (x) x))');
-    const actual = new go(new Core.The(new Core.Nat(), new Core.Zero()));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Nat(), new C.Zero()));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("which-Nat with zero argument", () => {
     const src = parsePie('(which-Nat 0 2 (lambda (x) x))');
-    const actual = new go(new Core.The(new Core.Nat(), new Core.Add1(new Core.Add1(new Core.Zero()))));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Nat(), new C.Add1(new C.Add1(new C.Zero()))));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 });
 
@@ -91,19 +93,19 @@ describe("Higher-order function tests", () => {
     //                             ['Π', [[Symbol('x₁'), 'Nat']], 'Nat']], 
     //                       ['λ', [Symbol('f')], ['λ', [Symbol('x')], [Symbol('f'), Symbol('x')]]]]);
     const actual = new go(
-      new Core.The(
-        new Core.Pi(
-          'x', new Core.Pi('x', new Core.Nat(), new Core.Nat()),
-          new Core.Pi(
-            'x₁', new Core.Nat(), 
-            new Core.Nat()
+      new C.The(
+        new C.Pi(
+          'x', new C.Pi('x', new C.Nat(), new C.Nat()),
+          new C.Pi(
+            'x₁', new C.Nat(), 
+            new C.Nat()
           )
         ),
-        new Core.Lambda('f', new Core.Lambda('x', new Core.Application(new Core.VarName('f'), new Core.VarName('x'))))
+        new C.Lambda('f', new C.Lambda('x', new C.Application(new C.VarName('f'), new C.VarName('x'))))
       )
     );
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("which-Nat with constant base case and function step case", () => {
@@ -115,24 +117,24 @@ describe("Higher-order function tests", () => {
     //                             ['λ', [Symbol('f')], 
     //                                  [Symbol('f'), ['add1', 'zero']]]]]);
     const actual = new go(
-      new Core.The(
-        new Core.Pi(
-          'x', new Core.Nat(), 
-          new Core.Pi(
-            'x₁', new Core.Pi('x₁', new Core.Nat(), new Core.Nat()), 
-            new Core.Nat()
+      new C.The(
+        new C.Pi(
+          'x', new C.Nat(), 
+          new C.Pi(
+            'x₁', new C.Pi('x₁', new C.Nat(), new C.Nat()), 
+            new C.Nat()
           )
         ),
-        new Core.Lambda('x', 
-          new Core.Lambda('f', 
-            new Core.Application(new Core.VarName('f'), new Core.Add1(new Core.Zero()))
+        new C.Lambda('x', 
+          new C.Lambda('f', 
+            new C.Application(new C.VarName('f'), new C.Add1(new C.Zero()))
           )
         )
       )
     );
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("which-Nat with variable condition", () => {
@@ -146,28 +148,28 @@ describe("Higher-order function tests", () => {
     //                                               ['the', 'Nat', ['add1', ['add1', 'zero']]], 
     //                                               ['λ', [Symbol('n')], [Symbol('f'), Symbol('n')]]]]]]);
     const actual = new go(
-      new Core.The(
-        new Core.Pi(
-          'x₁', new Core.Nat(), 
-          new Core.Pi(
-            'x₁', new Core.Pi('x₁', new Core.Nat(), new Core.Nat()), 
-            new Core.Nat()
+      new C.The(
+        new C.Pi(
+          'x₁', new C.Nat(), 
+          new C.Pi(
+            'x₁', new C.Pi('x₁', new C.Nat(), new C.Nat()), 
+            new C.Nat()
           )
         ),
-        new Core.Lambda('x', 
-          new Core.Lambda('f', 
-            new Core.WhichNat(
-              new Core.VarName('x'),
-              new Core.The(new Core.Nat(), new Core.Add1(new Core.Add1(new Core.Zero()))),
-              new Core.Lambda('n', new Core.Application(new Core.VarName('f'), new Core.VarName('n')))
+        new C.Lambda('x', 
+          new C.Lambda('f', 
+            new C.WhichNat(
+              new C.VarName('x'),
+              new C.The(new C.Nat(), new C.Add1(new C.Add1(new C.Zero()))),
+              new C.Lambda('n', new C.Application(new C.VarName('f'), new C.VarName('n')))
             )
           )
         )
       )
     );
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 });
 
@@ -179,17 +181,17 @@ describe("Advanced Pie language features", () => {
                           ['Π', [[Symbol('A'), 'U']], 'U'], 
                           ['λ', [Symbol('B')], Symbol('B')]]); */
     const actual = new go(
-      new Core.The(
-        new Core.Pi(
-          'A', new Core.Universe(), 
-          new Core.Universe()
+      new C.The(
+        new C.Pi(
+          'A', new C.Universe(), 
+          new C.Universe()
         ),
-        new Core.Lambda('B', new Core.VarName('B'))
+        new C.Lambda('B', new C.VarName('B'))
       )
     );
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Dependent type with multiple parameters", () => {
@@ -198,27 +200,28 @@ describe("Advanced Pie language features", () => {
                           ['Π', [[Symbol('A'), 'U']], ['Π', [[Symbol('a'), Symbol('A')]], Symbol('A')]], 
                           ['λ', [Symbol('B')], ['λ', [Symbol('b')], Symbol('b')]]]); */
     const actual = new go(
-      new Core.The(
-        new Core.Pi(
-          'A', new Core.Universe(), 
-          new Core.Pi(
+      new C.The(
+        new C.Pi(
+          'A', new C.Universe(), 
+          new C.Pi(
             'a', 
-            new Core.VarName('A'), 
-            new Core.VarName('A')
+            new C.VarName('A'), 
+            new C.VarName('A')
           )
         ),
-        new Core.Lambda('B', new Core.Lambda('b', new Core.VarName('b')))));
-    const context = new Map();                      
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
-    expect(rep(context, src)).toEqual(actual);
+        new C.Lambda('B', new C.Lambda('b', new C.VarName('b')))));
+    const context = new Map();      
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));                
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("ind-Nat with constant values", () => {
     const src = parsePie('(ind-Nat (add1 (add1 zero)) (lambda (x) Nat) (add1 zero) (lambda (n-1 ih) (add1 ih)))');
-    const actual = new go([new Core.The(new Core.Nat(), new Core.Add1(new Core.Add1(new Core.Zero())))]);
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go([new C.The(new C.Nat(), new C.Add1(new C.Add1(new C.Zero())))]);
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Addition function using ind-Nat", () => {
@@ -234,27 +237,27 @@ describe("Advanced Pie language features", () => {
                                                      ['λ', [Symbol('ih')], 
                                                           ['add1', Symbol('ih')]]]]]]]); */
     const actual = new go(
-      new Core.The(
-        new Core.Pi(
-          'x', new Core.Nat(), 
-          new Core.Pi(
-            'x₁', new Core.Nat(), 
-            new Core.Nat()
+      new C.The(
+        new C.Pi(
+          'x', new C.Nat(), 
+          new C.Pi(
+            'x₁', new C.Nat(), 
+            new C.Nat()
           )
         ),
-        new Core.Lambda(
+        new C.Lambda(
           'x', 
-          new Core.Lambda(
+          new C.Lambda(
             'y', 
-            new Core.IndNat(
-              new Core.VarName('x'), 
-              new Core.Lambda('x₁', new Core.Nat()), 
-              new Core.VarName('y'), 
-              new Core.Lambda(
+            new C.IndNat(
+              new C.VarName('x'), 
+              new C.Lambda('x₁', new C.Nat()), 
+              new C.VarName('y'), 
+              new C.Lambda(
                 'n-1', 
-                new Core.Lambda(
+                new C.Lambda(
                   'ih', 
-                  new Core.Add1(new Core.VarName('ih'))
+                  new C.Add1(new C.VarName('ih'))
                 )
               )
             )
@@ -262,32 +265,33 @@ describe("Advanced Pie language features", () => {
         )
       )
     );
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    //console.log('result_IND_NAT', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Function type as a universe type", () => {
     const src = parsePie('(the U (-> Nat Nat))');
     //const actual = new go(['the', 'U', ['Π', [[Symbol('x'), 'Nat']], 'Nat']]);
-    const actual = new go(new Core.The(new Core.Universe(), new Core.Pi('x', new Core.Nat(), new Core.Nat())));
+    const actual = new go(new C.The(new C.Universe(), new C.Pi('x', new C.Nat(), new C.Nat())));
     const context = new Map();
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
-    expect(rep(context, src)).toEqual(actual);
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Pi type with explicit parameter names", () => {
     const src = parsePie('(Π ((x Nat) (y Nat)) Nat)');
     //const actual = new go(['the', 'U', ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('y'), 'Nat']], 'Nat']]]);
-    const actual = new go(new Core.The(new Core.Universe(), new Core.Pi('x', new Core.Nat(), new Core.Pi('y', new Core.Nat(), new Core.Nat()))));
+    const actual = new go(new C.The(new C.Universe(), new C.Pi('x', new C.Nat(), new C.Pi('y', new C.Nat(), new C.Nat()))));
     const context = new Map();
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
-    expect(rep(context, src)).toEqual(actual);
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("normType with Nat", () => {
     const src = parsePie('Nat');
-    const actual = new go(new Core.Nat());
+    const actual = new go(new C.Nat());
     const context = new Map();
     //console.log('result', util.inspect(normType(initCtx, src), false, null, true));
     expect(normType(context, src)).toEqual(actual);
@@ -298,77 +302,80 @@ describe("Atom and Pair tests", () => {
   
   it("Quote literal", () => {
     const src = parsePie("'a");
-    const actual = new go(new Core.The(new Core.Atom(), new Core.Quote('a')));
+    const actual = new go(new C.The(new C.Atom(), new C.Quote('a')));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Explicit atom type", () => {
     const src = parsePie("(the Atom 'a)");
     //const actual = new go(['the', 'Atom', "'a"]);
-    const actual = new go(new Core.The(new Core.Atom(), new Core.Quote('a')));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Atom(), new C.Quote('a')));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Atom type", () => {
     const src = parsePie("Atom");
     //const actual = new go(['the', 'U', 'Atom']);
-    const actual = new go(new Core.The(new Core.Universe(), new Core.Atom()));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Universe(), new C.Atom()));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Pair type", () => {
     const src = parsePie("(Pair Atom Atom)");
     //const actual = new go(['the', 'U', ['Σ', [[Symbol('a'), 'Atom']], 'Atom']]);
-    const actual = new go(new Core.The(new Core.Universe(), new Core.Sigma('a', new Core.Atom(), new Core.Atom())));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Universe(), new C.Sigma('a', new C.Atom(), new C.Atom())));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Sigma type with multiple fields", () => {
     const src = parsePie("(Σ ((x Nat) (y Atom)) Nat)");
     //const actual = new go(['the', 'U', ['Σ', [[Symbol('x'), 'Nat']], ['Σ', [[Symbol('y'), 'Atom']], 'Nat']]]);
     const actual = new go(
-      new Core.The(
-        new Core.Universe(), 
-        new Core.Sigma('x', new Core.Nat(), new Core.Sigma('y', new Core.Atom(), new Core.Nat()))
+      new C.The(
+        new C.Universe(), 
+        new C.Sigma('x', new C.Nat(), new C.Sigma('y', new C.Atom(), new C.Nat()))
       )
     );
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Pair construction", () => {
     const src = parsePie("(the (Pair Atom Atom) (cons 'olive 'oil))");
     //const actual = new go(['the', ['Σ', [[Symbol('x'), 'Atom']], 'Atom'], ['cons', "'olive", "'oil"]]);
-    const actual = new go(new Core.The(new Core.Sigma('x', new Core.Atom(), new Core.Atom()), new Core.Cons(new Core.Quote('olive'), new Core.Quote('oil'))));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Sigma('x', new C.Atom(), new C.Atom()), new C.Cons(new C.Quote('olive'), new C.Quote('oil'))));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Pair first projection", () => {
     const src = parsePie("(car (the (Pair Atom Atom) (cons 'olive 'oil)))");
     //const actual = new go(['the', 'Atom', "'olive"]);
-    const actual = new go(new Core.The(new Core.Atom(), new Core.Quote('olive')));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Atom(), new C.Quote('olive')));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Pair second projection", () => {
     const src = parsePie("(cdr (the (Pair Atom Atom) (cons 'olive 'oil)))");
     //const actual = new go(['the', 'Atom', "'oil"]);
-    const actual = new go(new Core.The(new Core.Atom(), new Core.Quote('oil')));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+    const actual = new go(new C.The(new C.Atom(), new C.Quote('oil')));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Complex dependent function with pair", () => {
@@ -386,24 +393,26 @@ describe("Atom and Pair tests", () => {
     //   ['λ', [Symbol('f')], ['λ', [Symbol('p')], ['cdr', Symbol('p')]]]
     // ]);
     const actual = new go(
-      new Core.The(
-        new Core.Pi(
-          'f', new Core.Pi('x', new Core.Nat(), new Core.Universe()),
-            new Core.Pi(
-              'p', new Core.Sigma('n', new Core.Nat(), new Core.Application(new Core.VarName('f'), new Core.VarName('n'))),
-              new Core.Application(new Core.VarName('f'), new Core.Car(new Core.VarName('p'))))),
-              new Core.Lambda('f', new Core.Lambda('p', new Core.Cdr(new Core.VarName('p'))))));
-    //console.log('result', util.inspect(rep(initCtx, src), false, null, true));
+      new C.The(
+        new C.Pi(
+          'f', new C.Pi('x', new C.Nat(), new C.Universe()),
+            new C.Pi(
+              'p', new C.Sigma('n', new C.Nat(), new C.Application(new C.VarName('f'), new C.VarName('n'))),
+              new C.Application(new C.VarName('f'), new C.Car(new C.VarName('p'))))),
+              new C.Lambda('f', new C.Lambda('p', new C.Cdr(new C.VarName('p'))))));
+    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
-    expect(rep(context, src)).toEqual(actual);
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
+    expect(represent(context, src)).toEqual(actual);
   });
 
   it("Normalize sigma type", () => {
     const src = parsePie("(Σ ((x Nat) (y Nat)) Nat)");
     //const actual = new go(['Σ', [[Symbol('x'), 'Nat']], ['Σ', [[Symbol('y'), 'Nat']], 'Nat']]);
-    const actual = new go(new Core.Sigma('x', new Core.Nat(), new Core.Sigma('y', new Core.Nat(), new Core.Nat())));
+    const actual = new go(new C.Sigma('x', new C.Nat(), new C.Sigma('y', new C.Nat(), new C.Nat())));
     //console.log('result', util.inspect(normType(initCtx, src), false, null, true));
     const context = new Map();
+    console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
     expect(normType(context, src)).toEqual(actual);
   });
 });

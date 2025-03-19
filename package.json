@@ -24,7 +24,8 @@
     "to-fast-properties": "^4.0.0",
     "ts-jest": "^29.2.5",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.15.0"
+    "typescript-eslint": "^8.15.0",
+    "conductor": "https://github.com/source-academy/conductor.git#0.2.1"
   },
   "scripts": {
     "test": "jest"

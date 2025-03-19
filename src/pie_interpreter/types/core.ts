@@ -1,9 +1,11 @@
-import { Environment, getValueFromEnvironment} from './environment';
 import * as V from "./value";
 import * as N from './neutral';
+
+import * as Evaluator from '../evaluator/evaluator';
+import { Environment, getValueFromEnvironment} from '../utils/environment';
+import { SourceLocation } from '../utils/locations';
+
 import { FirstOrderClosure, isVarName } from './utils';
-import { SourceLocation } from '../locations';
-import * as Evaluator from '../normalize/evaluator';
 
 
 /*
@@ -15,9 +17,12 @@ import * as Evaluator from '../normalize/evaluator';
     implementation.
 
 */
+
 export abstract class Core {
 
   public abstract valOf(env: Environment): V.Value;
+
+  public abstract prettyPrint(): string;
 
   /*
     Original "later" function. It is used to delay the evaluation.
@@ -29,15 +34,18 @@ export abstract class Core {
 }
 
 export class The extends Core {
+
   constructor(
     public type: Core,
     public expr: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return this.expr.valOf(env);
+  }
+
+  public prettyPrint(): string {
+    return `(the ${this.type.prettyPrint()} ${this.expr.prettyPrint()})`;
   }
 }
 
@@ -46,6 +54,11 @@ export class Universe extends Core {
   public valOf(env: Environment): V.Value {
     return new V.Universe();
   }
+
+  public prettyPrint(): string {
+    return 'U';
+  }
+
 }
 
 export class Nat extends Core {
@@ -53,6 +66,11 @@ export class Nat extends Core {
   public valOf(env: Environment): V.Value {
     return new V.Nat();
   }
+
+  public prettyPrint(): string {
+    return 'Nat';
+  }
+
 }
 
 export class Zero extends Core {
@@ -60,17 +78,25 @@ export class Zero extends Core {
   public valOf(env: Environment): V.Value {
     return new V.Zero();
   }
+
+  public prettyPrint(): string {
+    return 'zero';
+  }
+
 }
 
 export class VarName extends Core {
+
   constructor(
     public name: string
-  ) {
-    super();
+  ) { super() }
+
+  public prettyPrint(): string {
+    return this.name;
   }
 
   public valOf(env: Environment): V.Value {
-    if(isVarName(this.name)) {
+    if (isVarName(this.name)) {
       return getValueFromEnvironment(env, this.name);
     } else {
       throw new Error(`{this.name} is not a valid variable name`);
@@ -79,25 +105,28 @@ export class VarName extends Core {
 }
 
 export class Add1 extends Core {
+
   constructor(
     public n: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return new V.Add1(this.n.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(add1 ${this.n.prettyPrint()})`;
+  }
+
 }
 
 export class WhichNat extends Core {
+
   constructor(
     public target: Core,
     public base: The,
     public step: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doWhichNat(
@@ -107,16 +136,22 @@ export class WhichNat extends Core {
       this.step.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(which-nat ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
 }
 
 export class IterNat extends Core {
+
   constructor(
     public target: Core,
     public base: The,
     public step: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIterNat(
@@ -126,16 +161,23 @@ export class IterNat extends Core {
       this.step.toLazy(env)
     );
   }
+
+  public prettyPrint(): string {
+    return `(iter-nat ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
 }
 
 export class RecNat extends Core {
+
   constructor(
     public target: Core,
     public base: The,
     public step: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return Evaluator.doRecNat(
       this.target.toLazy(env),
@@ -144,17 +186,24 @@ export class RecNat extends Core {
       this.step.toLazy(env)
     );
   }
+
+  public prettyPrint(): string {
+    return `(rec-nat ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
 }
 
 export class IndNat extends Core {
+
   constructor(
     public target: Core,
     public motive: Core,
     public base: Core,
     public step: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndNat(
       this.target.toLazy(env),
@@ -163,36 +212,54 @@ export class IndNat extends Core {
       this.step.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(ind-nat ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
 }
 
 export class Pi extends Core {
+
   constructor(
     public name: string,
     public type: Core,
     public body: Core
-  ) {
-    super()
-  }
+  ) { super() }
+
+
   public valOf(env: Environment): V.Value {
     const typeVal = this.type.toLazy(env);
     return new V.Pi(this.name, typeVal, 
       new FirstOrderClosure(env, this.name, this.body)
     );
   }
+
+  public prettyPrint(): string {
+    return `(Π (${this.name} ${this.type.prettyPrint()}) 
+          ${this.body.prettyPrint()})`;
+  }
 }
 
 export class Lambda extends Core {
+
   constructor(
     public param: string,
     public body: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return new V.Lambda(this.param, 
       new FirstOrderClosure(env, this.param, this.body));
   }
+
+  public prettyPrint(): string {
+    return `(λ (${this.param}) ${this.body.prettyPrint()})`;
+  }
+
 }
 
 export class Atom extends Core {
@@ -200,19 +267,26 @@ export class Atom extends Core {
   public valOf(env: Environment): V.Value {
     return new V.Atom();
   }
+
+  public prettyPrint(): string {
+    return 'Atom';
+  }
+
 }
 
 export class Quote extends Core {
   constructor(
     public sym: string
-  ) {
-    super();
-  }
+  ) { super() }
 
-//TODO : Test this
   public valOf(env: Environment): V.Value {
     return new V.Quote(this.sym);
   }
+
+  public prettyPrint(): string {
+    return `'${this.sym}`;
+  }
+
 }
 
 export class Sigma extends Core {
@@ -220,68 +294,87 @@ export class Sigma extends Core {
     public name: string,
     public type: Core,
     public body: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     const typeVal = this.type.toLazy(env);
     return new V.Sigma(this.name, typeVal, 
       new FirstOrderClosure(env, this.name, this.body));
   }
+
+  public prettyPrint(): string {
+    return `(Σ (${this.name} ${this.type.prettyPrint()}) 
+              ${this.body.prettyPrint()})`;
+  }
 }
 
 export class Cons extends Core {
+
   constructor(
     public first: Core,
     public second: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     const first = this.first.toLazy(env);
     const second = this.second.toLazy(env);
     return new V.Cons(first, second);
   }
+
+  public prettyPrint(): string {
+    return `(cons ${this.first.prettyPrint()} ${this.second.prettyPrint()})`;
+  }
+
 }
 
 export class Car extends Core {
+
   constructor(
     public pair: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return Evaluator.doCar(this.pair.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(car ${this.pair.prettyPrint()})`;
+  }
+
 }
 
 export class Cdr extends Core {
   constructor(
     public pair: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doCdr(this.pair.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(cdr ${this.pair.prettyPrint()})`;
+  }
+
 }
 
 export class ListCons extends Core {
+
   constructor(
     public head: Core,
     public tail: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     const head = this.head.toLazy(env);
     const tail = this.tail.toLazy(env);;
     return new V.ListCons(head, tail);
   }
+
+  public prettyPrint(): string {
+    return `(:: ${this.head.prettyPrint()} ${this.tail.prettyPrint()})`;
+  }
+
 }
 
 export class Nil extends Core {
@@ -289,28 +382,35 @@ export class Nil extends Core {
   public valOf(env: Environment): V.Value {
     return new V.Nil();
   }
+
+  public prettyPrint(): string {
+    return 'nil';
+  }
+
 }
 
 export class List extends Core {
+
   constructor(
     public elemType: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return new V.List(this.elemType.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(List ${this.elemType.prettyPrint()})`;
+  }
 }
 
 export class RecList extends Core {
+
   constructor(
     public target: Core,
     public base: The,
     public step: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doRecList(
@@ -320,17 +420,23 @@ export class RecList extends Core {
       this.step.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(rec-list ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
 }
 
 export class IndList extends Core {
+
   constructor(
     public target: Core,
     public motive: Core,
     public base: Core,
     public step: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndList(
@@ -340,6 +446,38 @@ export class IndList extends Core {
       this.step.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(ind-list ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
+}
+
+export class Trivial extends Core {
+  
+  public valOf(env: Environment): V.Value {
+    return new V.Trivial();
+  }
+
+  public prettyPrint(): string {
+    return 'Trivial';
+  }
+
+}
+
+export class Sole extends Core {
+
+  public valOf(env: Environment): V.Value {
+    return new V.Sole();
+  }
+
+  public prettyPrint(): string {
+    return 'sole';
+  }
+
 }
 
 export class Absurd extends Core {
@@ -348,21 +486,18 @@ export class Absurd extends Core {
     return new V.Absurd();
   }
 
-}
-
-export class Sole extends Core {
-  public valOf(env: Environment): V.Value {
-    return new V.Sole();
+  public prettyPrint(): string {
+    return 'Absurd';
   }
+
 }
 
 export class IndAbsurd extends Core {
+
   constructor(
     public target: Core,
     public motive: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndAbsurd(
@@ -370,16 +505,22 @@ export class IndAbsurd extends Core {
       this.motive.toLazy(env)
     );
   }
+
+  public prettyPrint(): string {
+    return `(ind-absurd 
+              ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()})`;
+  }
+
 }
 
 export class Equal extends Core {
+
   constructor(
     public type: Core,
     public left: Core,
     public right: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return new V.Equal(
@@ -388,28 +529,38 @@ export class Equal extends Core {
       this.right.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(= ${this.type.prettyPrint()} 
+              ${this.left.prettyPrint()} 
+              ${this.right.prettyPrint()})`;  
+  }
+
 }
 
 export class Same extends Core {
+
   constructor(
     public expr: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return new V.Same(this.expr.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(same ${this.expr.prettyPrint()})`;
+  }
+
 }
 
 export class Replace extends Core {
+
   constructor(
     public target: Core,
     public motive: Core,
     public base: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doReplace(
@@ -418,62 +569,79 @@ export class Replace extends Core {
       this.base.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(replace ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()})`;
+  }
+
 }
 
 export class Trans extends Core {
+
   constructor(
     public left: Core,
     public right: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return Evaluator.doTrans(
       this.left.toLazy(env),
       this.right.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(trans ${this.left.prettyPrint()} ${this.right.prettyPrint()})`;
+  }
+
 }
 
 export class Cong extends Core {
+
   constructor(
-    public fun: Core,
-    public left: Core,
-    public right: Core
-  ) {
-    super();
-  }
+    public target: Core,
+    public base: Core,
+    public fun: Core
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doCong(
+      this.target.toLazy(env),
+      this.base.toLazy(env),
       this.fun.toLazy(env),
-      this.left.toLazy(env),
-      this.right.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(cong ${this.target.prettyPrint()} ${this.fun.prettyPrint()})`;
+  }
+
 }
 
 export class Symm extends Core {
   constructor(
     public equality: Core
-  ) {
-    super();
-  }
+  ) { super() }
   public valOf(env: Environment): V.Value {
     return Evaluator.doSymm(
       this.equality.toLazy(env)
     );
   }
+
+  public prettyPrint(): string {
+    return `(symm ${this.equality.prettyPrint()})`;
+  }
 }
 
 export class IndEqual extends Core {
+  
   constructor(
     public target: Core,
     public motive: Core,
     public base: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndEqual(
@@ -482,15 +650,20 @@ export class IndEqual extends Core {
       this.base.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(ind-= ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()})`;
+  }
+
 }
 
 export class Vec extends Core {
   constructor(
     public type: Core,
     public length: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return new V.Vec(
@@ -498,15 +671,20 @@ export class Vec extends Core {
       this.length.toLazy(env)
     );
   }
+
+  public prettyPrint(): string {
+    return `(Vec ${this.type.prettyPrint()} ${this.length.prettyPrint()})`;
+  }
+
 }
 
 export class VecCons extends Core {
+
   constructor(
     public head: Core,
     public tail: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
 
   public valOf(env: Environment): V.Value {
     return new V.VecCons(
@@ -514,6 +692,11 @@ export class VecCons extends Core {
       this.tail.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(vec:: ${this.head.prettyPrint()} ${this.tail.prettyPrint()})`;
+  }
+
 }
 
 export class VecNil extends Core {
@@ -521,41 +704,55 @@ export class VecNil extends Core {
   public valOf(env: Environment): V.Value {
     return new V.VecNil();
   }
+
+  public prettyPrint(): string {
+    return 'vecnil';
+  }
+
 }
 
 export class Head extends Core {
+
   constructor(
     public vec: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return Evaluator.doHead(this.vec.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(head ${this.vec.prettyPrint()})`;
+  }
+
 }
 
 export class Tail extends Core {
+
   constructor(
     public vec: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doTail(this.vec.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(tail ${this.vec.prettyPrint()})`;
+  }
+
 }
 
 export class IndVec extends Core {
+
   constructor(
     public length: Core,
     public target: Core,
     public motive: Core,
     public base: Core,
     public step: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndVec(
       this.length.toLazy(env),
@@ -565,51 +762,73 @@ export class IndVec extends Core {
       this.step.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `ind-Vec ${this.length.prettyPrint()}
+              ${this.target.prettyPrint()}
+              ${this.motive.prettyPrint()}
+              ${this.base.prettyPrint()}
+              ${this.step.prettyPrint()}`;
+  }
 }
 
 export class Either extends Core {
+
   constructor(
     public left: Core,
     public right: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return new V.Either(this.left.toLazy(env), this.right.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(Either ${this.left.prettyPrint()} ${this.right.prettyPrint()})`;
+  }
+  
 }
 
 export class Left extends Core {
+
   constructor(
     public value: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return new V.Left(this.value.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(left ${this.value.prettyPrint()})`;
+  }
+
 }
 
 export class Right extends Core {
+
   constructor(
     public value: Core
-  ) {
-    super();
-  }
+  ) { super() }
+
   public valOf(env: Environment): V.Value {
     return new V.Right(this.value.toLazy(env));
   }
+
+  public prettyPrint(): string {
+    return `(right ${this.value.prettyPrint()})`;
+  }
+
 }
 
 export class IndEither extends Core {
+
   constructor(
     public target: Core,
     public motive: Core,
     public baseLeft: Core,
     public baseRight: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doIndEither(
@@ -619,15 +838,21 @@ export class IndEither extends Core {
       this.baseRight.toLazy(env),
     );
   }
+
+  public prettyPrint(): string {
+    return `(ind-Either ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.baseLeft.prettyPrint()} 
+              ${this.baseRight.prettyPrint()})`;
+  }
+
 }
 
 export class TODO extends Core {
   constructor(
     public loc: SourceLocation,
     public type: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return new V.Neutral(
@@ -635,15 +860,19 @@ export class TODO extends Core {
       new N.TODO(this.loc, this.type.toLazy(env),)
     )
   }
+
+  public prettyPrint(): string {
+    return `TODO ${this.type.prettyPrint()}`;
+  }
+
 }
 
 export class Application extends Core {
+
   constructor(
     public fun: Core,
     public arg: Core
-  ) {
-    super();
-  }
+  ) { super() }
 
   public valOf(env: Environment): V.Value {
     return Evaluator.doApp(
@@ -651,11 +880,9 @@ export class Application extends Core {
       this.arg.toLazy(env),
     );
   }
-}
 
-export class Trivial extends Core {
-  
-  public valOf(env: Environment): V.Value {
-    return new V.Trivial();
+  public prettyPrint(): string {
+    return `(${this.fun.prettyPrint()} ${this.arg.prettyPrint()})`;
   }
+
 }

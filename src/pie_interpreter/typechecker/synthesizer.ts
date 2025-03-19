@@ -1,21 +1,20 @@
 import * as C from "../types/core";
 import * as S from "../types/source";
 import * as V from "../types/value";
-// import * as N from "../types/neutral";
 import {
   go, Perhaps, stop, Message, freshBinder, PerhapsM, goOn,
   fresh, FirstOrderClosure, HigherOrderClosure,
   TypedBinder
 } from '../types/utils';
-import { bindFree, Context, contextToEnvironment, Define, valInContext, varType } from '../types/contexts';
+import { bindFree, Context, contextToEnvironment, Define, valInContext, varType } from '../utils/context';
 import { atomOk, convert, extendRenaming, makeApp, PieInfoHook, rename, Renaming, sameType } from "./utils";
-import { notForInfo } from "../locations";
-import { doApp, doCar, indVecStepType } from "../normalize/evaluator";
-import { readBack, now } from '../normalize/utils';
-import { Location } from '../locations';
+import { notForInfo } from "../utils/locations";
+import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
+import { readBack, now } from '../evaluator/utils';
+import { Location } from '../utils/locations';
 
 
-export class Synth {
+export class synthesizer {
 
   public static synthNat(ctx: Context, r: Renaming): Perhaps<C.The> {
     return new go(new C.The(

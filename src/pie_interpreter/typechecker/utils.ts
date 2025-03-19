@@ -2,11 +2,11 @@ import { Value } from "../types/value";
 import { Source } from "../types/source";
 import { Application } from "../types/source";
 import { Core } from "../types/core";
-import { Location } from "../locations";
-import { Context, SerializableContext } from "../types/contexts";
+import { Location } from "../utils/locations";
+import { Context, SerializableContext } from "../utils/context";
 import { go, stop, Perhaps, Message } from "../types/utils";
-import { alphaEquiv } from "../alphaeqv";
-import { readBack } from "../normalize/utils";
+import { alphaEquiv } from "../utils/alphaeqv";
+import { readBack } from "../evaluator/utils";
 
 
 type What = 'definition'

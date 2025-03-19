@@ -1,10 +1,10 @@
-import { bindFree, Context } from "./contexts";
+import { bindFree, Context } from "../utils/context";
 import * as C from "./core";
-import { Environment } from "./environment";
+import { Environment } from "../utils/environment";
 import * as N from "./neutral";
 import { Closure } from "./utils";
-import { fresh } from "../types/utils";
-import { readBack } from "../normalize/utils";
+import { fresh } from "./utils";
+import { readBack } from "../evaluator/utils";
 
 /*
     ## Values ##

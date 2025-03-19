@@ -1,4 +1,4 @@
-import { Position } from '../scheme_parser/transpiler/types/location';
+import { Position } from '../../scheme_parser/transpiler/types/location';
 
 export class SourceLocation {
   constructor(

@@ -1,12 +1,10 @@
 import { Source } from "./source"
 import { Core } from "./core"
-import { Location } from "../locations";
+import { Location } from "../utils/locations";
 import { Value } from "./value";
-import { Environment, extendEnvironment} from "./environment";
-import { Context } from "./contexts";
-import { freshen } from "../fresh";
-
-// 
+import { Environment, extendEnvironment} from "../utils/environment";
+import { Context } from "../utils/context";
+import { freshen } from "../utils/fresh";
 
 
 // A SiteBinder is a variable name and its location, substitute BindingSite in original code.
