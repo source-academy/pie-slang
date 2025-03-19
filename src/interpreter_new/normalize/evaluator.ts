@@ -2,7 +2,7 @@ import * as util from "util";
 import * as V from "../types/value";
 import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
-import { now, natEqual} from './utils';
+import { now, natEqual } from './utils';
 
 /*
   ### The Evaluators ###
@@ -15,17 +15,21 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
   const operatorNow = now(operator);
   if (operatorNow instanceof V.Lambda) {
     return operatorNow.body.valOfClosure(operand);
-  } else if (operatorNow instanceof V.Neutral &&
-    operatorNow.type instanceof V.Pi) {
-    return new V.Neutral(
-      operatorNow.type.resultType.valOfClosure(operand),
-      new N.Application(
-        operatorNow.neutral,
-        new N.Norm(operatorNow.type.argType, operand)
-      )
-    );
+  } else if (operatorNow instanceof V.Neutral) {
+    const typeNow = now(operatorNow.type);
+    if (typeNow instanceof V.Pi) {
+      return new V.Neutral(
+        typeNow.resultType.valOfClosure(operand),
+        new N.Application(
+          operatorNow.neutral,
+          new N.Norm(typeNow.argType, operand)
+        )
+      );
+    } else {
+      throw new Error(`doApp: invalid input ${util.inspect([operatorNow, operand])}`);
+    }
   } else {
-    throw new Error(`doApp: invalid input ${util.inspect([operator, operand])}`);
+    throw new Error(`doApp: invalid input ${util.inspect([operatorNow, operand])}`);
   }
 }
 
@@ -35,21 +39,25 @@ export function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, st
     return base;
   } else if (targetNow instanceof V.Add1) {
     return doApp(step, targetNow.smaller);
-  } else if (targetNow instanceof V.Neutral
-    && targetNow.type instanceof V.Nat) {
-    return new V.Neutral(
-      baseType,
-      new N.WhichNat(
-        targetNow.neutral,
-        new N.Norm(baseType, base),
-        new N.Norm(
-          new V.Pi(
-            "n",
-            new V.Nat(),
-            new HigherOrderClosure((_) => baseType)),
-          step)
-      )
-    );
+  } else if (targetNow instanceof V.Neutral) {
+    const typeNow = now(targetNow.type);
+    if (typeNow instanceof V.Nat) {
+      return new V.Neutral(
+        baseType,
+        new N.WhichNat(
+          targetNow.neutral,
+          new N.Norm(baseType, base),
+          new N.Norm(
+            new V.Pi(
+              "n",
+              new V.Nat(),
+              new HigherOrderClosure((_) => baseType)),
+            step)
+        )
+      );
+    } else {
+      throw new Error(`invalid input for whichNat ${util.inspect([target, baseType, base, step])}`);
+    }
   } else {
     throw new Error(`invalid input for whichNat ${util.inspect([target, baseType, base, step])}`);
   }
@@ -64,18 +72,23 @@ export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, ste
       step,
       doIterNat(targetNow.smaller, baseType, base, step)
     );
-  } else if (targetNow instanceof V.Neutral
-    && targetNow.type instanceof V.Nat) {
-    return new V.Neutral(baseType, new N.IterNat(
-      targetNow.neutral,
-      new N.Norm(baseType, base),
-      new N.Norm(
-        new V.Pi(
-          "n",
-          new V.Nat(),
-          new HigherOrderClosure((_) => baseType)),
-        step)
-    ));
+  } else if (targetNow instanceof V.Neutral) {
+    const typeNow = now(targetNow.type);
+    if (typeNow instanceof V.Nat) {
+      return new V.Neutral(baseType, new N.IterNat(
+        targetNow.neutral,
+        new N.Norm(baseType, base),
+        new N.Norm(
+          new V.Pi(
+            "n",
+            new V.Nat(),
+            new HigherOrderClosure((_) => baseType)),
+          step)
+      )
+      );
+    } else {
+      throw new Error(`invalid input for iterNat ${util.inspect([target, baseType, base, step])}`);
+    }
   } else {
     throw new Error(`invalid input for iterNat ${util.inspect([target, baseType, base, step])}`);
   }
@@ -90,28 +103,32 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
       step,
       doRecNat(targetNow.smaller, baseType, base, step)
     );
-  } else if (targetNow instanceof V.Neutral
-    && targetNow.type instanceof V.Nat) {
-    return new V.Neutral(baseType, new N.RecNat(
-      targetNow.neutral,
-      new N.Norm(baseType, base),
-      new N.Norm(
-        new V.Pi(
-          "n-1",
-          new V.Nat(),
-          new HigherOrderClosure(
-            (_) => new V.Pi(
-              "ih",
-              baseType,
-              new HigherOrderClosure(
-                (_) => baseType
+  } else if (targetNow instanceof V.Neutral) {
+    const typeNow = now(targetNow.type);
+    if (typeNow instanceof V.Nat) {
+      return new V.Neutral(baseType, new N.RecNat(
+        targetNow.neutral,
+        new N.Norm(baseType, base),
+        new N.Norm(
+          new V.Pi(
+            "n-1",
+            new V.Nat(),
+            new HigherOrderClosure(
+              (_) => new V.Pi(
+                "ih",
+                baseType,
+                new HigherOrderClosure(
+                  (_) => baseType
+                )
               )
             )
-          )
-        ),
-        step
-      )
-    ));
+          ),
+          step
+        )
+      ));
+    } else {
+      throw new Error(`invalid input for recNat ${util.inspect([target, baseType, base, step])}`);
+    }
   } else {
     throw new Error(`invalid input for recNat ${util.inspect([target, baseType, base, step])}`);
   }
@@ -126,36 +143,40 @@ export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: 
       doApp(step, targetNow.smaller),
       doIndNat(targetNow.smaller, motive, base, step)
     );
-  } else if (targetNow instanceof V.Neutral
-    && targetNow.type instanceof V.Nat) {
-    return new V.Neutral(
-      doApp(motive, target),
-      new N.IndNat(
-        targetNow.neutral,
-        new N.Norm(new V.Pi(
-          "x",
-          new V.Nat(),
-          new HigherOrderClosure((_) => new V.Universe())
-        ), motive),
-        new N.Norm(doApp(motive, new V.Zero()), base),
-        new N.Norm(
-          new V.Pi(
-            "n-1",
+  } else if (targetNow instanceof V.Neutral) {
+    const typeNow = now(targetNow.type);
+    if (targetNow.type instanceof V.Nat) {
+      return new V.Neutral(
+        doApp(motive, target),
+        new N.IndNat(
+          targetNow.neutral,
+          new N.Norm(new V.Pi(
+            "x",
             new V.Nat(),
-            new HigherOrderClosure(
-              (n_minus_1) =>
-                new V.Pi(
-                  "ih",
-                  doApp(motive, n_minus_1),
-                  new HigherOrderClosure(
-                    (_) => doApp(motive, new V.Add1(n_minus_1))
+            new HigherOrderClosure((_) => new V.Universe())
+          ), motive),
+          new N.Norm(doApp(motive, new V.Zero()), base),
+          new N.Norm(
+            new V.Pi(
+              "n-1",
+              new V.Nat(),
+              new HigherOrderClosure(
+                (n_minus_1) =>
+                  new V.Pi(
+                    "ih",
+                    doApp(motive, n_minus_1),
+                    new HigherOrderClosure(
+                      (_) => doApp(motive, new V.Add1(n_minus_1))
+                    )
                   )
-                )
-            )
-          ), step
+              )
+            ), step
+          )
         )
-      )
-    );
+      );
+    } else {
+      throw new Error(`invalid input for indNat ${util.inspect([target, motive, base, step])}`);
+    }
   } else {
     throw new Error(`invalid input for indNat ${util.inspect([target, motive, base, step])}`);
   }
@@ -166,11 +187,15 @@ export function doCar(p: V.Value): V.Value {
   const pairNow: V.Value = now(p);
   if (pairNow instanceof V.Cons) {
     return pairNow.car;
-  } else if (pairNow instanceof V.Neutral &&
-    pairNow.type instanceof V.Sigma) {
-    const sigma = pairNow.type;
-    const neutral = pairNow.neutral;
-    return new V.Neutral(sigma.carType, new N.Car(neutral));
+  } else if (pairNow instanceof V.Neutral) {
+    const pairType = now(pairNow.type);
+    if (pairType instanceof V.Sigma) {
+      const sigma = pairType;
+      const neutral = pairNow.neutral;
+      return new V.Neutral(sigma.carType, new N.Car(neutral));
+    } else {
+      throw new Error(`invalid input for car ${util.inspect(p)}`);
+    }
   } else {
     throw new Error(`invalid input for car ${util.inspect(p)}`);
   }
@@ -181,14 +206,19 @@ export function doCdr(pair: V.Value): V.Value {
   const pairNow: V.Value = now(pair);
   if (pairNow instanceof V.Cons) {
     return pairNow.cdr;
-  } else if (pairNow instanceof V.Neutral &&
-    pairNow.type instanceof V.Sigma) {
-    const sigma = pairNow.type;
+  } else if (pairNow instanceof V.Neutral) {
+    const pairType = now(pairNow.type);
+    if (pairType instanceof V.Sigma) {
+    const sigma = pairType;
     const neutral = pairNow.neutral;
     return new V.Neutral(
       sigma.cdrType.valOfClosure(doCar(pair)),
       new N.Cdr(neutral)
-    )
+    );
+    }
+    else {
+      throw new Error(`invalid input for cdr ${util.inspect(pair)}`);
+    }
   } else {
     throw new Error(`invalid input for cdr ${util.inspect(pair)}`);
   }

@@ -30,22 +30,18 @@ export function SendPieInfo(where: Location, what: What): void {
 
 // ### Renamings
 
-export class Renaming {
-  constructor(
-    public renames: Map<string, string> = new Map()
-  ) { }
+export type Renaming = Map<string, string>;
 
-  // Function to rename a symbol using the Renaming list
-  public rename(x: string): string {
-    const rename = this.renames.get(x);
-    return rename ? rename : x;
-  }
+// Function to rename a symbol using the Renaming list
+export function rename(renames: Renaming, x: string): string {
+  const rename = renames.get(x);
+  return rename ? rename : x;
+}
 
-  // Function to extend the Renaming list with a new pair
-  public extendRenaming(from: string, to: string): Renaming {
-    this.renames.set(from, to);
-    return this;
-  }
+// Function to extend the Renaming list with a new pair
+export function extendRenaming(renames: Renaming, from: string, to: string): Renaming {
+  const newRenames = new Map([[from, to], ...renames]);
+  return newRenames;
 }
 
 // ### Check the form of judgment Γ ⊢ c ≡ c type

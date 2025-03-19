@@ -1,4 +1,4 @@
-import { PieInfoHook, Renaming, SendPieInfo, makeApp} from '../typechecker/utils';
+import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename} from '../typechecker/utils';
 import { Location, notForInfo } from './../locations';
 import { SourceVisitor} from './../visitors/basics_visitors';
 import { bindFree, Context, readBackContext, valInContext } from './contexts';
@@ -33,7 +33,6 @@ export abstract class Source {
   public isType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     const ok = new PerhapsM<C.The>("ok");
     const theType = this.checkIsType(ctx, renames);
-
     return goOn(
       [[ok, () => theType]],
       () => {
@@ -122,7 +121,7 @@ export abstract class Source {
 
 export class The extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthThe(ctx, renames, this);
+    return Synth.synthThe(ctx, renames, this.type, this.value);
   }
 
   // ['the', Source, Source]
@@ -215,7 +214,7 @@ export class Zero extends Source {
 
 export class Name extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthName(ctx, renames, this);
+    return Synth.synthName(ctx, renames, this.location, this.name);
   }
   // [string]
   constructor(
@@ -491,7 +490,7 @@ export class Pi extends Source {
           [Aoutv, () => new go(valInContext(ctx, Aout.value))],
           [Bout, () => B.isType(
             bindFree(ctx, y, Aoutv.value),
-            renames.extendRenaming(bd.varName, y))],
+            extendRenaming(renames, bd.varName, y))],
         ],
         (() => {
           PieInfoHook(xloc, ['binding-site', Aout.value]);
@@ -518,7 +517,7 @@ export class Pi extends Source {
           [Bout, () => (new Pi(notForInfo(this.location), rest, B))
             .isType(
               bindFree(ctx, x, Aoutv.value),
-              renames.extendRenaming(bd.binder.varName, x)
+              extendRenaming(renames, bd.binder.varName, x)
             )
           ]
         ],
@@ -571,7 +570,7 @@ export class Lambda extends Source {
       if (typeNow instanceof V.Pi) {
         const A = typeNow.argType;
         const closure = typeNow.resultType;
-        const xRenamed = renames.rename(x);
+        const xRenamed = rename(renames, x);
         const bout = new PerhapsM<C.Core>("bout");
         return goOn(
           [
@@ -579,7 +578,7 @@ export class Lambda extends Source {
               bout, 
               () => body.check(
                 bindFree(ctx, xRenamed, A),
-                renames.extendRenaming(x, xRenamed),
+                extendRenaming(renames, x, xRenamed),
                 closure.valOfClosure(
                   new V.Neutral(
                     A, 
@@ -651,7 +650,7 @@ export class Sigma extends Source {
           [Aoutv, () => new go(valInContext(ctx, Aout.value))],
           [Dout, () => D.isType(
             bindFree(ctx, y, Aoutv.value),
-            renames.extendRenaming(x, y)
+            extendRenaming(renames, x, y)
           )]
         ],
         () => {
@@ -674,10 +673,11 @@ export class Sigma extends Source {
         [
           [Aout, () => A.isType(ctx, renames)],
           [Aoutv, () => new go(valInContext(ctx, Aout.value))],
-          [Dout, () => (new Sigma(this.location, [yA1, ...rest], D))
+          [Dout, () => 
+            new Sigma(this.location, [yA1, ...rest], D)
             .isType(
               bindFree(ctx, x, Aoutv.value),
-              renames.extendRenaming(x, z)
+              extendRenaming(renames, x, z)
             )
           ]
         ],
@@ -895,7 +895,7 @@ export class Nil extends Source {
 
 export class Number extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthNumber(ctx, renames, this);
+    return Synth.synthNumber(ctx, renames, this.location, this.value);
   }
   constructor(
     public location: Location,
@@ -935,7 +935,7 @@ export class List extends Source {
     return goOn(
       [[Eout, () => this.checkIsType(ctx, renames)]],
       () => new go(new C.List(Eout.value))
-        );
+    );
   }
 }
 // List operations
@@ -1421,7 +1421,7 @@ export class IndVec extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthIndVec(ctx, renames, this.location, this.length, this.target, this.motive, this.base, this.step);
   }
-  
+
   public accept(visitor: SourceVisitor) {
     visitor.visitIndVec(this);
   }
@@ -1438,7 +1438,7 @@ export class IndVec extends Source {
 // Either type and operations
 export class Either extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthEither(ctx, renames, this);
+    return Synth.synthEither(ctx, renames, this.left, this.right);
   }
   constructor(
     public location: Location,
@@ -1542,7 +1542,7 @@ export class Right extends Source {
 
 export class IndEither extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthIndEither(ctx, renames, this);
+    return Synth.synthIndEither(ctx, renames, this.location, this.target, this.motive, this.baseLeft, this.baseRight);
   }
   constructor(
     public location: Location,
@@ -1591,7 +1591,7 @@ export class TODO extends Source {
 // Application
 export class Application extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthApplication(ctx, renames, this);
+    return Synth.synthApplication(ctx, renames, this.location, this.func, this.arg, this.args);
   }
   constructor(
     public location: Location,

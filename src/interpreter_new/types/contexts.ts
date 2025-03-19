@@ -75,7 +75,7 @@ export function addClaimToContext(ctx: Context, fun: string, funLoc: Location, t
   return goOn(
     [
       [new PerhapsM("_"), () => nameNotUsed(ctx, funLoc, fun)],
-      [typeOut, () => type.isType(this, new Renaming())]
+      [typeOut, () => type.isType(this, new Map())]
     ],
     () => new go(
       extendContext(
@@ -101,7 +101,7 @@ export function addDefineToContext(fun: string, funLoc: Location, expr: Source):
       [exprOut,
         () => expr.check(
           this,
-          new Renaming(),
+          new Map(),
           typeOut.value)
       ]
     ],
