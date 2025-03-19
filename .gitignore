@@ -1,6 +1,7 @@
 *.css
 *.js
 *.cjs
+*.rkt
 *~
 *#
 .travis.yml

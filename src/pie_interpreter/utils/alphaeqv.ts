@@ -1,5 +1,5 @@
-import * as C from './types/core';
-import { isVarName } from './types/utils';
+import * as C from '../types/core';
+import { isVarName } from '../types/utils';
 import { SourceLocation } from './locations';
 
 export function alphaEquiv(e1: C.Core, e2: C.Core): boolean {
@@ -188,11 +188,11 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: C.Core, e2: 
     alphaEquivAux(lvl, b1, b2, e1.right, e2.right);
 
   } else if (e1 instanceof C.Cong && e2 instanceof C.Cong) {
-    return alphaEquivAux(lvl, b1, b2, e1.fun, e2.fun)
+    return alphaEquivAux(lvl, b1, b2, e1.target, e2.target)
     &&
-    alphaEquivAux(lvl, b1, b2, e1.left, e2.left)
+    alphaEquivAux(lvl, b1, b2, e1.base, e2.base)
     &&
-    alphaEquivAux(lvl, b1, b2, e1.right, e2.right);
+    alphaEquivAux(lvl, b1, b2, e1.fun, e2.fun);
   } else if (e1 instanceof C.Symm && e2 instanceof C.Symm) {
     return alphaEquivAux(lvl, b1, b2, e1.equality, e2.equality);
 

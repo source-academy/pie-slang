@@ -1,8 +1,8 @@
 import { Value, Pi, Absurd } from "./value";
-import { SourceLocation } from "../locations";
+import { SourceLocation } from "../utils/locations";
 import * as C from "./core";
-import { Context } from "./contexts";
-import { readBack } from "../normalize/utils";
+import { Context } from "../utils/context";
+import { readBack } from "../evaluator/utils";
 
 /*
     Normal forms consist of syntax that is produced by read-back,
