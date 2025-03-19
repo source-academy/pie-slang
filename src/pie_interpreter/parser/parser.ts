@@ -1,10 +1,10 @@
-import { SchemeLexer } from "../scheme_parser/transpiler/lexer/scheme-lexer";
-import { SchemeParser } from "../scheme_parser/transpiler/parser/scheme-parser";
-import { Extended, Atomic, Expression, } from "../scheme_parser/transpiler/types/nodes/scheme-node-types";
-import { Location, Syntax } from "./locations";
-import * as S from "./types/source";
-import { Location as Loc, Position } from '../scheme_parser/transpiler/types/location';
-import { isVarName, SiteBinder, TypedBinder } from "./types/utils";
+import { SchemeLexer } from "../../scheme_parser/transpiler/lexer/scheme-lexer";
+import { SchemeParser } from "../../scheme_parser/transpiler/parser/scheme-parser";
+import { Extended, Atomic, Expression, } from "../../scheme_parser/transpiler/types/nodes/scheme-node-types";
+import { Location, Syntax } from "../utils/locations";
+import * as S from "../types/source";
+import { Location as Loc, Position } from '../../scheme_parser/transpiler/types/location';
+import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
 import * as util from 'util';
 
 

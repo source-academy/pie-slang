@@ -1,12 +1,11 @@
-import { Neutral, Value } from './value';
-import { Location } from '../locations';
-import * as C from './core';
-import { go, stop, Perhaps, goOn, PerhapsM, Message } from './utils';
+import { Neutral, Value } from '../types/value';
+import { Location } from './locations';
+import * as C from '../types/core';
+import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
 import { Environment } from './environment';
-import { readBack } from '../normalize/utils';
-import { Source } from './source';
-import { Renaming } from '../typechecker/utils';
-import { Variable } from './neutral';
+import { readBack } from '../evaluator/utils';
+import { Source } from '../types/source';
+import { Variable } from '../types/neutral';
 /*
     ## Contexts ##
     A context maps free variable names to binders.
@@ -177,6 +176,13 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 // Function to bind a free variable in a context
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
   if (ctx.has(varName)) {
+    // CHANGE: REMOVE THIS LOOP AFTER FIXING THE BUG
+    for (const [x, binder] of ctx) {
+      if (x === varName) {
+        //console.log(`binding ${varName} to ${binder}`);
+        return extendContext(ctx, varName, new Free(tv));
+      }
+    }
     throw new Error(`
       ${varName} is already bound in ${JSON.stringify(ctx)}
     `);

@@ -6,7 +6,7 @@
 // Crafting Interpreters: https://craftinginterpreters.com/
 // py-slang: https://github.com/source-academy/py-slang
 
-import { stringIsSchemeNumber } from "../../stdlib/core-math";
+import { stringIsSchemeNumber } from "../../core-math";
 import { Token } from "../types/tokens/token";
 import { TokenType } from "../types/tokens/token-type";
 import { Lexer } from "./lexer";

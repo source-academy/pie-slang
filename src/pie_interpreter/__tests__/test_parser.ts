@@ -1,6 +1,6 @@
 import 'jest';
 import * as util from 'util';
-import { Parser } from '../parser';
+import { Parser } from '../parser/parser';
 
 function testParser(input: string) {
   const parser = new Parser();
