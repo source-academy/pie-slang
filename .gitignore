@@ -1,7 +1,11 @@
 *.css
 *.js
+*.cjs
 *~
 *#
+.travis.yml
+COPYING
+LICENSE
 
 compiled
 /doc
