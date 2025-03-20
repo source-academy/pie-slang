@@ -105,7 +105,8 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: C.Core, e2: 
     return alphaEquivAux(lvl, b1, b2, e1.type, e2.type)
     &&
     alphaEquivAux(lvl, b1, b2, e1.expr, e2.expr);
-
+  } else if (e1 instanceof C.List && e2 instanceof C.List) {
+    return alphaEquivAux(lvl, b1, b2, e1.elemType, e2.elemType);
   } else if (e1 instanceof C.Add1 && e2 instanceof C.Add1) {
     return alphaEquivAux(lvl, b1, b2, e1.n, e2.n);
 
