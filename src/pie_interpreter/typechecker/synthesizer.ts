@@ -10,7 +10,7 @@ import { bindFree, Context, contextToEnvironment, Define, valInContext, varType 
 import { atomOk, convert, extendRenaming, makeApp, PieInfoHook, rename, Renaming, sameType } from "./utils";
 import { notForInfo } from "../utils/locations";
 import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
-import { readBack, now } from '../evaluator/utils';
+import { readBack } from '../evaluator/utils';
 import { Location } from '../utils/locations';
 
 
@@ -1089,7 +1089,7 @@ export class synthesizer {
     return goOn(
       [[vout, () => vec.synth(context, r)]],
       () => {
-        const result = now(valInContext(context, vout.value.type));
+        const result = valInContext(context, vout.value.type).now();
         if (result instanceof V.Vec) {
           const [T, len] = [result.entryType, result.length];
           if (len instanceof V.Add1) {
@@ -1122,7 +1122,7 @@ export class synthesizer {
     return goOn(
       [[vout, () => vec.synth(context, r)]],
       () => {
-        const result = now(valInContext(context, vout.value.type));
+        const result = valInContext(context, vout.value.type).now();
         if (result instanceof V.Vec) {
           const [T, len] = [result.entryType, result.length];
           if (len instanceof V.Add1) {

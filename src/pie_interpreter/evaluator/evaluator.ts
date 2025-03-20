@@ -2,7 +2,7 @@ import * as util from "util";
 import * as V from "../types/value";
 import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
-import { now, natEqual } from './utils';
+import { natEqual } from './utils';
 
 /*
   ### The Evaluators ###
@@ -12,11 +12,11 @@ import { now, natEqual } from './utils';
 */
 
 export function doApp(operator: V.Value, operand: V.Value): V.Value {
-  const operatorNow = now(operator);
+  const operatorNow = operator.now();
   if (operatorNow instanceof V.Lambda) {
     return operatorNow.body.valOfClosure(operand);
   } else if (operatorNow instanceof V.Neutral) {
-    const typeNow = now(operatorNow.type);
+    const typeNow = operatorNow.type.now();
     if (typeNow instanceof V.Pi) {
       return new V.Neutral(
         typeNow.resultType.valOfClosure(operand),
@@ -31,13 +31,13 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
 }
 
 export function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Zero) {
     return base;
   } else if (targetNow instanceof V.Add1) {
     return doApp(step, targetNow.smaller);
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
       return new V.Neutral(
         baseType,
@@ -58,7 +58,7 @@ export function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, st
 }
 
 export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Zero) {
     return base;
   } else if (targetNow instanceof V.Add1) {
@@ -67,7 +67,7 @@ export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, ste
       doIterNat(targetNow.smaller, baseType, base, step)
     );
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
       return new V.Neutral(baseType, new N.IterNat(
         targetNow.neutral,
@@ -86,7 +86,7 @@ export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, ste
 }
 
 export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Zero) {
     return base;
   } else if (targetNow instanceof V.Add1) {
@@ -95,7 +95,7 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
       doRecNat(targetNow.smaller, baseType, base, step)
     );
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
       return new V.Neutral(baseType, new N.RecNat(
         targetNow.neutral,
@@ -124,7 +124,7 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
 }
 
 export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Zero) {
     return base;
   } else if (targetNow instanceof V.Add1) {
@@ -133,7 +133,7 @@ export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: 
       doIndNat(targetNow.smaller, motive, base, step)
     );
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
       return new V.Neutral(
         doApp(motive, target),
@@ -170,29 +170,29 @@ export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: 
 }
 
 
-export function doCar(p: V.Value): V.Value {
-  const pairNow: V.Value = now(p);
+export function doCar(pair: V.Value): V.Value {
+  const pairNow: V.Value = pair.now();
   if (pairNow instanceof V.Cons) {
     return pairNow.car;
   } else if (pairNow instanceof V.Neutral) {
-    const pairType = now(pairNow.type);
+    const pairType = pairNow.type.now();
     if (pairType instanceof V.Sigma) {
       const sigma = pairType;
       const neutral = pairNow.neutral;
       return new V.Neutral(sigma.carType, new N.Car(neutral));
     }
   }
-  throw new Error(`invalid input for car ${util.inspect(p)}`);
+  throw new Error(`invalid input for car ${util.inspect(pair)}`);
 
 }
 
 
 export function doCdr(pair: V.Value): V.Value {
-  const pairNow: V.Value = now(pair);
+  const pairNow: V.Value = pair.now();
   if (pairNow instanceof V.Cons) {
     return pairNow.cdr;
   } else if (pairNow instanceof V.Neutral) {
-    const pairType = now(pairNow.type);
+    const pairType = pairNow.type.now();
     if (pairType instanceof V.Sigma) {
       const sigma = pairType;
       const neutral = pairNow.neutral;
@@ -209,7 +209,7 @@ export function doCdr(pair: V.Value): V.Value {
 
 
 export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Nil) {
     return base;
   } else if (targetNow instanceof V.ListCons) {
@@ -224,7 +224,7 @@ export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step:
       doIndList(targetNow.tail, motive, base, step)
     );
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.List) {
       const entryType = typeNow.entryType;
       const neutral = targetNow.neutral;
@@ -270,7 +270,7 @@ export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step:
 }
 
 export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Nil) {
     return base;
   } else if (targetNow instanceof V.ListCons) {
@@ -283,7 +283,7 @@ export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, ste
       doRecList(tail, baseType, base, step)
     );
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.List) {
       const entryType = typeNow.entryType;
       const neutral = targetNow.neutral;
@@ -296,11 +296,11 @@ export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, ste
             new V.Pi(
               "h",
               entryType,
-              new HigherOrderClosure((h) =>
+              new HigherOrderClosure((_) =>
                 new V.Pi(
                   "t",
                   new V.List(entryType),
-                  new HigherOrderClosure((t) =>
+                  new HigherOrderClosure((_) =>
                     new V.Pi(
                       "ih",
                       baseType,
@@ -324,9 +324,9 @@ export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, ste
 
 
 export function doIndAbsurd(target: V.Value, motive: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Absurd) {
       return new V.Neutral(
         motive,
@@ -342,11 +342,11 @@ export function doIndAbsurd(target: V.Value, motive: V.Value): V.Value {
 
 
 export function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Same) {
     return base;
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Equal) {
       const neutral = targetNow.neutral;
       const eqType = typeNow.type;
@@ -360,7 +360,9 @@ export function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Va
             new V.Pi(
               "x",
               eqType,
-              new HigherOrderClosure((x) => new V.Universe())
+              new HigherOrderClosure(
+                (_) => new V.Universe()
+              )
             ),
             motive
           ),
@@ -375,12 +377,12 @@ export function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Va
 
 
 export function doTrans(target1: V.Value, target2: V.Value): V.Value {
-  const target1Now = now(target1);
-  const target2Now = now(target2);
+  const target1Now = target1.now();
+  const target2Now = target2.now();
   if (target1Now instanceof V.Same && target2Now instanceof V.Same) {
     return new V.Same(target1Now.value);
   } else if (target1Now instanceof V.Same && target2Now instanceof V.Neutral) {
-    const type2Now = now(target2Now.type);
+    const type2Now = target2Now.type.now();
     if (type2Now instanceof V.Equal) {
       const from = target1Now.value;
       const to = type2Now.to;
@@ -398,7 +400,7 @@ export function doTrans(target1: V.Value, target2: V.Value): V.Value {
       )
     }
   } else if (target1Now instanceof V.Neutral && target2Now instanceof V.Same) {
-    const type1Now = now(target1Now.type);
+    const type1Now = target1Now.type.now();
     if (type1Now instanceof V.Equal) {
       const from = type1Now.from;
       const to = target2Now.value;
@@ -417,8 +419,8 @@ export function doTrans(target1: V.Value, target2: V.Value): V.Value {
     }
   } else if (
     target1Now instanceof V.Neutral && target2Now instanceof V.Neutral) {
-    const type1Now = now(target1Now.type);
-    const type2Now = now(target2Now.type);
+    const type1Now = target1Now.type.now();
+    const type2Now = target2Now.type.now();
     if (type1Now instanceof V.Equal && type2Now instanceof V.Equal) {
       const from = type1Now.from;
       const to = type2Now.to;
@@ -436,11 +438,11 @@ export function doTrans(target1: V.Value, target2: V.Value): V.Value {
 
 
 export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Same) {
     return new V.Same(doApp(func, targetNow.value));
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Equal) {
       const eqType = typeNow.type;
       const from = typeNow.from;
@@ -470,11 +472,11 @@ export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
 }
 
 export function doSymm(target: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Same) {
     return new V.Same(targetNow.value);
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Equal) {
       return new V.Neutral(
         new V.Equal(
@@ -491,11 +493,11 @@ export function doSymm(target: V.Value): V.Value {
 
 
 export function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Same) {
     return base;
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Equal) {
       const eqType = typeNow.type;
       const from = typeNow.from;
@@ -533,13 +535,13 @@ export function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.V
 }
 
 export function doHead(target: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.VecCons) {
     return targetNow.head;
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Vec) {
-      const lengthNow = now(typeNow.length);
+      const lengthNow = typeNow.length.now();
       if (lengthNow instanceof V.Add1) {
         return new V.Neutral(
           typeNow.entryType,
@@ -553,15 +555,15 @@ export function doHead(target: V.Value): V.Value {
 
 
 export function doTail(target: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.VecCons) {
     return targetNow.tail;
   } else if (targetNow instanceof V.Neutral &&
     targetNow.type instanceof V.Vec &&
     targetNow.type.length instanceof V.Add1) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Vec) {
-      const lengthNow = now(typeNow.length);
+      const lengthNow = typeNow.length.now();
       if (lengthNow instanceof V.Add1) {
         return new V.Neutral(
           new V.Vec(
@@ -610,8 +612,8 @@ export function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
 
 
 export function doIndVec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Value, step: V.Value): V.Value {
-  const lenNow = now(len);
-  const vecNow = now(vec);
+  const lenNow = len.now();
+  const vecNow = vec.now();
   if (lenNow instanceof V.Zero && vecNow instanceof V.VecNil) {
     return base;
   } else if (lenNow instanceof V.Add1 && vecNow instanceof V.VecCons) {
@@ -709,13 +711,13 @@ export function doIndVec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Va
 }
 
 export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, right: V.Value): V.Value {
-  const targetNow = now(target);
+  const targetNow = target.now();
   if (targetNow instanceof V.Left) {
     return doApp(left, targetNow.value);
   } else if (targetNow instanceof V.Right) {
     return doApp(right, targetNow.value);
   } else if (targetNow instanceof V.Neutral) {
-    const typeNow = now(targetNow.type);
+    const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Either) {
       const leftType = typeNow.leftType;
       const rightType = typeNow.rightType;
