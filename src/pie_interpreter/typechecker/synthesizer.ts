@@ -160,8 +160,8 @@ export class synthesizer {
   public static synthZero(context: Context, r: Renaming): Perhaps<C.The> {
     return new go(
       new C.The(
-        new C.Universe(),
-        new C.Nat()
+        new C.Nat(),
+        new C.Zero()
       )
     );
   }

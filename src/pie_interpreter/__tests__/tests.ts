@@ -10,6 +10,10 @@ import { prettyPrint } from '../unparser/pretty';
 
 const parser = new Parser();
 
+function normalize(src: string): string {
+  return src.replace(/\s+/g, ' ').trim();
+}
+
 describe("demo", () => {
 
   it("Pie demo", () => {
@@ -23,7 +27,8 @@ describe("demo", () => {
     // console.log('result: ', util.inspect(represent(initCtx, src), false, null, true));
     console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
     expect(represent(initCtx, src)).toEqual(actual);                                      
-    });
+    }
+  );
 
   it("Sigma demo", () => {
     const src = parser.parsePie(
@@ -33,11 +38,41 @@ describe("demo", () => {
                                     (cons x x)))`
                                        );
     const actual = new go(
-        ['the', ['Π', [[Symbol('x'), 'Trivial']], 
-        ['Σ', [[Symbol('x₁'), 'Trivial']], 'Trivial']], 
-        ['λ', [Symbol('x')],['cons', Symbol('sole'), Symbol('sole')]]]);
-    console.log(util.inspect(represent(initCtx, src), false, null, true));
+      new C.The(
+        new C.Pi('x', new C.Trivial(), new C.Sigma('x₁', new C.Trivial(), new C.Trivial())),
+        new C.Lambda('x', new C.Cons(new C.Sole(), new C.Sole()))
+      )
+    );
+    console.log((represent(initCtx, src) as go<C.Core>).result.prettyPrint());
     expect(represent(initCtx, src)).toEqual(actual);
+  });
+
+  it("Lambda demo", () => {
+    const src = normalize(`(the (-> (List Nat) Nat)
+                             (lambda (ns)
+                               (ind-List
+                                ns
+                                (λ (_) Nat)
+                                zero
+                                (lambda (x y z)
+                                  (ind-Nat
+                                   x
+                                   (lambda (n)
+                                     Nat)
+                                   z
+                                   (lambda (_ q)
+                                     (add1 q)))))))`);
+    const actual = `(the
+                 (Π ((x (List Nat)))
+                   Nat)
+                 (λ (ns)
+                   (ind-List
+                    ns
+                    (λ (_) Nat)
+                    zero
+                    (λ (x)
+                      (λ (y) (λ (z) (ind-Nat x (λ (n) Nat) z (λ (_) (λ (q) (add1 q)))))))))`
+    expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
 });
@@ -150,7 +185,7 @@ describe("Higher-order function tests", () => {
     const actual = new go(
       new C.The(
         new C.Pi(
-          'x₁', new C.Nat(), 
+          'x', new C.Nat(), 
           new C.Pi(
             'x₁', new C.Pi('x₁', new C.Nat(), new C.Nat()), 
             new C.Nat()
@@ -177,9 +212,7 @@ describe("Advanced Pie language features", () => {
   
   it("Dependent type with Pi", () => {
     const src = parsePie('(the (Pi ((A U)) U) (lambda (B) B))');
-    /* const actual = new go(['the', 
-                          ['Π', [[Symbol('A'), 'U']], 'U'], 
-                          ['λ', [Symbol('B')], Symbol('B')]]); */
+
     const actual = new go(
       new C.The(
         new C.Pi(
@@ -196,9 +229,7 @@ describe("Advanced Pie language features", () => {
 
   it("Dependent type with multiple parameters", () => {
     const src = parsePie('(the (Pi ((A U) (a A)) A) (lambda (B b) b))');
-    /* const actual = new go(['the', 
-                          ['Π', [[Symbol('A'), 'U']], ['Π', [[Symbol('a'), Symbol('A')]], Symbol('A')]], 
-                          ['λ', [Symbol('B')], ['λ', [Symbol('b')], Symbol('b')]]]); */
+
     const actual = new go(
       new C.The(
         new C.Pi(
@@ -218,7 +249,7 @@ describe("Advanced Pie language features", () => {
 
   it("ind-Nat with constant values", () => {
     const src = parsePie('(ind-Nat (add1 (add1 zero)) (lambda (x) Nat) (add1 zero) (lambda (n-1 ih) (add1 ih)))');
-    const actual = new go([new C.The(new C.Nat(), new C.Add1(new C.Add1(new C.Zero())))]);
+    const actual = new go(new C.The(new C.Nat(), new C.Add1(new C.Add1(new C.Add1(new C.Zero())))));
     //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
     const context = new Map();
     expect(represent(context, src)).toEqual(actual);
@@ -226,16 +257,7 @@ describe("Advanced Pie language features", () => {
 
   it("Addition function using ind-Nat", () => {
     const src = parsePie('(the (-> Nat Nat Nat) (lambda (x y) (ind-Nat x (lambda (x) Nat) y (lambda (n-1 ih) (add1 ih)))))');
-    /* const actual = new go(['the', 
-                           ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('x₁'), 'Nat']], 'Nat']], 
-                          ['λ', [Symbol('x')], 
-                                ['λ', [Symbol('y')], 
-                                     ['ind-Nat', Symbol('x'), 
-                                                ['λ', [Symbol('x₁')], 'Nat'], 
-                                                Symbol('y'), 
-                                                ['λ', [Symbol('n-1')], 
-                                                     ['λ', [Symbol('ih')], 
-                                                          ['add1', Symbol('ih')]]]]]]]); */
+
     const actual = new go(
       new C.The(
         new C.Pi(
@@ -415,4 +437,4 @@ describe("Atom and Pair tests", () => {
     console.log((prettyPrint((represent(initCtx, src) as go<C.Core>).result)));
     expect(normType(context, src)).toEqual(actual);
   });
-});
+}); 

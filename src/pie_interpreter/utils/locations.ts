@@ -34,6 +34,10 @@ export class Location {
       this.syntax.end.column
     )
   }
+
+  public toString(): string {
+    return `${this.syntax.source}:${this.syntax.start.line}:${this.syntax.start.column}`;
+  }
 }
 
 export function notForInfo(loc: Location): Location {

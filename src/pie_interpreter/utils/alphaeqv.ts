@@ -95,7 +95,8 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: C.Core, e2: 
     (e1 instanceof C.Absurd && e2 instanceof C.Absurd) ||
     (e1 instanceof C.Sole && e2 instanceof C.Sole) ||
     (e1 instanceof C.Nil && e2 instanceof C.Nil) ||
-    (e1 instanceof C.VecNil && e2 instanceof C.VecNil)
+    (e1 instanceof C.VecNil && e2 instanceof C.VecNil) ||
+    (e1 instanceof C.Trivial && e2 instanceof C.Trivial)
   ) {
     return true;
   }
@@ -173,7 +174,7 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: C.Core, e2: 
     alphaEquivAux(lvl, b1, b2, e1.right, e2.right);
 
   } else if (e1 instanceof C.Same && e2 instanceof C.Same) {
-    return alphaEquivAux(lvl, b1, b2, e1.expr, e2.expr);
+    return alphaEquivAux(lvl, b1, b2, e1.type, e2.type);
 
   } else if (e1 instanceof C.Replace && e2 instanceof C.Replace) {
     return alphaEquivAux(lvl, b1, b2, e1.target, e2.target)

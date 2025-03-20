@@ -47,6 +47,10 @@ export class The extends Core {
   public prettyPrint(): string {
     return `(the ${this.type.prettyPrint()} ${this.expr.prettyPrint()})`;
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
 }
 
 export class Universe extends Core {
@@ -57,6 +61,10 @@ export class Universe extends Core {
 
   public prettyPrint(): string {
     return 'U';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -71,6 +79,10 @@ export class Nat extends Core {
     return 'Nat';
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Zero extends Core {
@@ -83,6 +95,10 @@ export class Zero extends Core {
     return 'zero';
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class VarName extends Core {
@@ -91,10 +107,6 @@ export class VarName extends Core {
     public name: string
   ) { super() }
 
-  public prettyPrint(): string {
-    return this.name;
-  }
-
   public valOf(env: Environment): V.Value {
     if (isVarName(this.name)) {
       return getValueFromEnvironment(env, this.name);
@@ -102,6 +114,15 @@ export class VarName extends Core {
       throw new Error(`{this.name} is not a valid variable name`);
     }
   }
+
+  public prettyPrint(): string {
+    return this.name;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Add1 extends Core {
@@ -116,6 +137,10 @@ export class Add1 extends Core {
 
   public prettyPrint(): string {
     return `(add1 ${this.n.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -143,6 +168,10 @@ export class WhichNat extends Core {
               ${this.step.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IterNat extends Core {
@@ -168,6 +197,10 @@ export class IterNat extends Core {
               ${this.step.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class RecNat extends Core {
@@ -191,6 +224,10 @@ export class RecNat extends Core {
     return `(rec-nat ${this.target.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -220,6 +257,10 @@ export class IndNat extends Core {
               ${this.step.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Pi extends Core {
@@ -242,6 +283,11 @@ export class Pi extends Core {
     return `(Π (${this.name} ${this.type.prettyPrint()}) 
           ${this.body.prettyPrint()})`;
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Lambda extends Core {
@@ -260,6 +306,10 @@ export class Lambda extends Core {
     return `(λ (${this.param}) ${this.body.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Atom extends Core {
@@ -270,6 +320,10 @@ export class Atom extends Core {
 
   public prettyPrint(): string {
     return 'Atom';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -287,9 +341,14 @@ export class Quote extends Core {
     return `'${this.sym}`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Sigma extends Core {
+
   constructor(
     public name: string,
     public type: Core,
@@ -306,6 +365,11 @@ export class Sigma extends Core {
     return `(Σ (${this.name} ${this.type.prettyPrint()}) 
               ${this.body.prettyPrint()})`;
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Cons extends Core {
@@ -325,6 +389,10 @@ export class Cons extends Core {
     return `(cons ${this.first.prettyPrint()} ${this.second.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Car extends Core {
@@ -341,6 +409,10 @@ export class Car extends Core {
     return `(car ${this.pair.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Cdr extends Core {
@@ -354,6 +426,10 @@ export class Cdr extends Core {
 
   public prettyPrint(): string {
     return `(cdr ${this.pair.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -375,6 +451,10 @@ export class ListCons extends Core {
     return `(:: ${this.head.prettyPrint()} ${this.tail.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Nil extends Core {
@@ -385,6 +465,10 @@ export class Nil extends Core {
 
   public prettyPrint(): string {
     return 'nil';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -402,6 +486,11 @@ export class List extends Core {
   public prettyPrint(): string {
     return `(List ${this.elemType.prettyPrint()})`;
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class RecList extends Core {
@@ -425,6 +514,10 @@ export class RecList extends Core {
     return `(rec-list ${this.target.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -454,6 +547,10 @@ export class IndList extends Core {
               ${this.step.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Trivial extends Core {
@@ -464,6 +561,10 @@ export class Trivial extends Core {
 
   public prettyPrint(): string {
     return 'Trivial';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -478,6 +579,10 @@ export class Sole extends Core {
     return 'sole';
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Absurd extends Core {
@@ -488,6 +593,10 @@ export class Absurd extends Core {
 
   public prettyPrint(): string {
     return 'Absurd';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -510,6 +619,10 @@ export class IndAbsurd extends Core {
     return `(ind-absurd 
               ${this.target.prettyPrint()} 
               ${this.motive.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -536,20 +649,28 @@ export class Equal extends Core {
               ${this.right.prettyPrint()})`;  
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Same extends Core {
 
   constructor(
-    public expr: Core
+    public type: Core
   ) { super() }
 
   public valOf(env: Environment): V.Value {
-    return new V.Same(this.expr.toLazy(env));
+    return new V.Same(this.type.toLazy(env));
   }
 
   public prettyPrint(): string {
-    return `(same ${this.expr.prettyPrint()})`;
+    return `(same ${this.type.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -576,6 +697,10 @@ export class Replace extends Core {
               ${this.base.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Trans extends Core {
@@ -594,6 +719,10 @@ export class Trans extends Core {
 
   public prettyPrint(): string {
     return `(trans ${this.left.prettyPrint()} ${this.right.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -618,6 +747,10 @@ export class Cong extends Core {
     return `(cong ${this.target.prettyPrint()} ${this.fun.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Symm extends Core {
@@ -633,6 +766,11 @@ export class Symm extends Core {
   public prettyPrint(): string {
     return `(symm ${this.equality.prettyPrint()})`;
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IndEqual extends Core {
@@ -657,6 +795,10 @@ export class IndEqual extends Core {
               ${this.base.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Vec extends Core {
@@ -674,6 +816,10 @@ export class Vec extends Core {
 
   public prettyPrint(): string {
     return `(Vec ${this.type.prettyPrint()} ${this.length.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -697,6 +843,10 @@ export class VecCons extends Core {
     return `(vec:: ${this.head.prettyPrint()} ${this.tail.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class VecNil extends Core {
@@ -707,6 +857,10 @@ export class VecNil extends Core {
 
   public prettyPrint(): string {
     return 'vecnil';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -725,6 +879,10 @@ export class Head extends Core {
     return `(head ${this.vec.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Tail extends Core {
@@ -739,6 +897,10 @@ export class Tail extends Core {
 
   public prettyPrint(): string {
     return `(tail ${this.vec.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -770,6 +932,11 @@ export class IndVec extends Core {
               ${this.base.prettyPrint()}
               ${this.step.prettyPrint()}`;
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Either extends Core {
@@ -785,6 +952,10 @@ export class Either extends Core {
 
   public prettyPrint(): string {
     return `(Either ${this.left.prettyPrint()} ${this.right.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
   
 }
@@ -803,6 +974,10 @@ export class Left extends Core {
     return `(left ${this.value.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Right extends Core {
@@ -817,6 +992,10 @@ export class Right extends Core {
 
   public prettyPrint(): string {
     return `(right ${this.value.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -846,6 +1025,10 @@ export class IndEither extends Core {
               ${this.baseRight.prettyPrint()})`;
   }
 
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class TODO extends Core {
@@ -863,6 +1046,10 @@ export class TODO extends Core {
 
   public prettyPrint(): string {
     return `TODO ${this.type.prettyPrint()}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }
@@ -883,6 +1070,10 @@ export class Application extends Core {
 
   public prettyPrint(): string {
     return `(${this.fun.prettyPrint()} ${this.arg.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 
 }

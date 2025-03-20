@@ -29,7 +29,9 @@ export abstract class Source {
     desugaring expressions are more different from the program as
     written, which can help readability of internals.
   */
-  public abstract findNames(): string[] 
+  public abstract findNames(): string[];
+
+  public abstract prettyPrint(): string;
 
   public isType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     const ok = new PerhapsM<C.Core>("ok");
@@ -126,6 +128,13 @@ export class The extends Source {
       .concat(this.value.findNames());
   }
 
+  public prettyPrint(): string {
+    return `(the ${this.type.prettyPrint()} ${this.value.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
 
 }
 
@@ -146,6 +155,15 @@ export class Universe extends Source {
   public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Universe());
   }
+
+  public prettyPrint(): string {
+    return 'U';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Nat extends Source {
@@ -165,6 +183,15 @@ export class Nat extends Source {
   public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Nat());
   }
+
+  public prettyPrint(): string {
+    return 'Nat';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Zero extends Source {
@@ -180,6 +207,15 @@ export class Zero extends Source {
   public findNames(): string[] {
     return [];
   }
+
+  public prettyPrint(): string {
+    return 'zero';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Name extends Source {
@@ -196,6 +232,15 @@ export class Name extends Source {
   public findNames(): string[] {
     return [this.name];
   }
+
+  public prettyPrint(): string {
+    return this.name;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Atom extends Source {
@@ -215,6 +260,15 @@ export class Atom extends Source {
   public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Atom());
   }
+
+  public prettyPrint(): string {
+    return 'Atom';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Quote extends Source {
@@ -231,6 +285,15 @@ export class Quote extends Source {
   public findNames(): string[] {
     return [];
   }
+
+  public prettyPrint(): string {
+    return `'${this.name}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Natural number operations
@@ -248,6 +311,15 @@ export class Add1 extends Source {
   public findNames(): string[] {
     return this.base.findNames();
   }
+
+  public prettyPrint(): string {
+    return `(add1 ${this.base.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class WhichNat extends Source {
@@ -268,6 +340,17 @@ export class WhichNat extends Source {
       .concat(this.base.findNames())
       .concat(this.step.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(which-nat ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IterNat extends Source {
@@ -289,6 +372,17 @@ export class IterNat extends Source {
       .concat(this.base.findNames())
       .concat(this.step.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(iter-nat ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class RecNat extends Source {
@@ -310,6 +404,17 @@ export class RecNat extends Source {
       .concat(this.base.findNames())
       .concat(this.step.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(rec-nat ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IndNat extends Source {
@@ -333,6 +438,18 @@ export class IndNat extends Source {
       .concat(this.base.findNames())
       .concat(this.step.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(ind-nat ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+  
 }
 
 // Function types and operations
@@ -403,6 +520,15 @@ export class Arrow extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return `(-> ${this.arg1.prettyPrint()} ${this.arg2.prettyPrint()} ${this.args.map(arg => arg.prettyPrint()).join(' ')})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Pi extends Source {
@@ -497,6 +623,16 @@ export class Pi extends Source {
       throw new Error('Invalid number of binders in Pi type');
     }
   }
+
+  public prettyPrint(): string {
+    return `(Π ${this.binders.map(binder => `(${binder.binder.varName} ${binder.type.prettyPrint()})`).join(' ')} 
+            ${this.body.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 
@@ -568,6 +704,15 @@ export class Lambda extends Source {
           )).check(ctx, renames, type);
     }
   }
+
+  public prettyPrint(): string {
+    return `(lambda ${this.binders.map(binder => binder.varName).join(' ')} ${this.body.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Product types and operations
@@ -648,6 +793,16 @@ export class Sigma extends Source {
       throw new Error('Invalid number of binders in Sigma type');
     }
   }
+
+  public prettyPrint(): string {
+    return `(Σ ${this.binders.map(binder => `(${binder.binder.varName} ${binder.type.prettyPrint()})`).join(' ')} 
+            ${this.body.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Pair extends Source {
@@ -682,6 +837,15 @@ export class Pair extends Source {
       () => new go(new C.Sigma(x, Aout.value, Dout.value))
     );
   }
+
+  public prettyPrint(): string {
+    return `(Pair ${this.first.prettyPrint()} ${this.second.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Cons extends Source {
@@ -733,6 +897,15 @@ export class Cons extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return `(cons ${this.first.prettyPrint()} ${this.second.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Car extends Source {
@@ -749,6 +922,15 @@ export class Car extends Source {
   public findNames(): string[] {
     return this.pair.findNames();
   }
+
+  public prettyPrint(): string {
+    return `(car ${this.pair.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Cdr extends Source {
@@ -765,6 +947,15 @@ export class Cdr extends Source {
   public findNames(): string[] {
     return this.pair.findNames();
   }
+
+  public prettyPrint(): string {
+    return `(cdr ${this.pair.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Basic constructors
@@ -782,6 +973,19 @@ export class Trivial extends Source {
   public findNames(): string[] {
     return [];
   }
+
+  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return new go(new C.Trivial());
+  }
+
+  public prettyPrint(): string {
+    return 'Trivial';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Sole extends Source {
@@ -798,6 +1002,11 @@ export class Sole extends Source {
   public findNames(): string[] {
     return [];
   }
+
+  public prettyPrint(): string {
+    return 'Sole';
+  }
+
 }
 
 export class Nil extends Source {
@@ -825,6 +1034,15 @@ export class Nil extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return 'nil';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Number extends Source {
@@ -841,6 +1059,15 @@ export class Number extends Source {
   public findNames(): string[] {
     return [];
   }
+
+  public prettyPrint(): string {
+    return `${this.value}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class List extends Source {
@@ -865,8 +1092,19 @@ export class List extends Source {
       () => new go(new C.List(Eout.value))
     );
   }
+
+  public prettyPrint(): string {
+    return `(List ${this.entryType.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
-// List operations
+
+
+
 export class ListCons extends Source {
   
   constructor(
@@ -883,6 +1121,15 @@ export class ListCons extends Source {
     return this.x.findNames()
       .concat(this.xs.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(:: ${this.x.prettyPrint()} ${this.xs.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class RecList extends Source {
@@ -903,6 +1150,17 @@ export class RecList extends Source {
       .concat(this.base.findNames())
       .concat(this.step.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(rec-list ${this.target.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IndList extends Source {
@@ -925,6 +1183,18 @@ export class IndList extends Source {
       .concat(this.base.findNames())
       .concat(this.step.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(ind-list ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()} 
+              ${this.step.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Absurd and its operations
@@ -944,6 +1214,15 @@ export class Absurd extends Source {
   public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Absurd());
   }
+
+  public prettyPrint(): string {
+    return 'Absurd';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IndAbsurd extends Source {
@@ -962,6 +1241,17 @@ export class IndAbsurd extends Source {
     return this.target.findNames()
       .concat(this.motive.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(ind-absurd 
+              ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Equality types and operations
@@ -1004,6 +1294,17 @@ export class Equal extends Source {
       )
     );
   }
+
+  public prettyPrint(): string {
+    return `(= ${this.type.prettyPrint()} 
+              ${this.left.prettyPrint()} 
+              ${this.right.prettyPrint()})`;  
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Same extends Source {
@@ -1052,6 +1353,15 @@ export class Same extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return `(same ${this.type.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Replace extends Source {
@@ -1072,6 +1382,17 @@ export class Replace extends Source {
       .concat(this.motive.findNames())
       .concat(this.base.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(replace ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Trans extends Source {
@@ -1088,25 +1409,43 @@ export class Trans extends Source {
     return this.left.findNames()
       .concat(this.right.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(trans ${this.left.prettyPrint()} ${this.right.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Cong extends Source {
 
   constructor(
     public location: Location,
-    public base: Source,
+    public target: Source,
     public fun: Source,
   ) { super(location); }
 
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthCong(ctx, renames, this.location, this.base, this.fun);
+    return Synth.synthCong(ctx, renames, this.location, this.target, this.fun);
   }
 
   public findNames(): string[] {
-    return this.base.findNames()
+    return this.target.findNames()
       .concat(this.fun.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(cong ${this.target.prettyPrint()} ${this.fun.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Symm extends Source {
@@ -1124,6 +1463,15 @@ export class Symm extends Source {
   public findNames(): string[] {
     return this.equality.findNames();
   }
+
+  public prettyPrint(): string {
+    return `(symm ${this.equality.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IndEqual extends Source {
@@ -1139,12 +1487,22 @@ export class IndEqual extends Source {
     return Synth.synthIndEqual(ctx, renames, this.location, this.target, this.motive, this.base);
   }
 
-
   public findNames(): string[] {
     return this.target.findNames()
       .concat(this.motive.findNames())
       .concat(this.base.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(ind-= ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.base.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Vector types and operations
@@ -1155,7 +1513,6 @@ export class Vec extends Source {
     public type: Source,
     public length: Source,
   ) { super(location); }
-
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthVec(ctx, renames, this.type, this.length);
@@ -1175,6 +1532,15 @@ export class Vec extends Source {
       () => new go(new C.Vec(Eout.value, lenout.value))
     );
   }
+
+  public prettyPrint(): string {
+    return `(Vec ${this.type.prettyPrint()} ${this.length.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class VecNil extends Source {
@@ -1208,6 +1574,15 @@ export class VecNil extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return 'vecnil';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class VecCons extends Source {
@@ -1256,6 +1631,15 @@ export class VecCons extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return `(vec:: ${this.x.prettyPrint()} ${this.xs.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Head extends Source {
@@ -1273,6 +1657,15 @@ export class Head extends Source {
   public findNames(): string[] {
     return this.vec.findNames();
   }
+
+  public prettyPrint(): string {
+    return `(head ${this.vec.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Tail extends Source {
@@ -1289,6 +1682,15 @@ export class Tail extends Source {
   public findNames(): string[] {
     return this.vec.findNames();
   }
+
+  public prettyPrint(): string {
+    return `(tail ${this.vec.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IndVec extends Source {
@@ -1314,6 +1716,19 @@ export class IndVec extends Source {
       .concat(this.base.findNames())
       .concat(this.step.findNames());
   }
+
+  public prettyPrint(): string {
+    return `ind-Vec ${this.length.prettyPrint()}
+              ${this.target.prettyPrint()}
+              ${this.motive.prettyPrint()}
+              ${this.base.prettyPrint()}
+              ${this.step.prettyPrint()}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Either type and operations
@@ -1345,6 +1760,15 @@ export class Either extends Source {
       () => new go(new C.Either(Lout.value, Rout.value))
     );
   }
+
+  public prettyPrint(): string {
+    return `(Either ${this.left.prettyPrint()} ${this.right.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Left extends Source {
@@ -1378,6 +1802,15 @@ export class Left extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return `(left ${this.value.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Right extends Source {
@@ -1411,6 +1844,15 @@ export class Right extends Source {
       );
     }
   }
+
+  public prettyPrint(): string {
+    return `(right ${this.value.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class IndEither extends Source {
@@ -1432,6 +1874,18 @@ export class IndEither extends Source {
       .concat(this.baseLeft.findNames())
       .concat(this.baseRight.findNames());
   }
+
+  public prettyPrint(): string {
+    return `(ind-Either ${this.target.prettyPrint()} 
+              ${this.motive.prettyPrint()} 
+              ${this.baseLeft.prettyPrint()} 
+              ${this.baseRight.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Utility
@@ -1453,6 +1907,15 @@ export class TODO extends Source {
     SendPieInfo(this.location, ['TODO', readBackContext(ctx), typeVal]);
     return new go(new C.TODO(this.location.locationToSrcLoc(), typeVal));
   }
+
+  public prettyPrint(): string {
+    return `TODO`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 // Application
@@ -1472,5 +1935,13 @@ export class Application extends Source {
     return this.func.findNames()
       .concat(this.arg.findNames())
       .concat(this.args.flatMap(arg => arg.findNames()));
+  }
+
+  public prettyPrint(): string {
+    return `(${this.func.prettyPrint()} ${this.arg.prettyPrint()} ${this.args.map(arg => arg.prettyPrint()).join(' ')})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 }
