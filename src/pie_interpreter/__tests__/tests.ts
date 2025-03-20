@@ -49,7 +49,11 @@ describe("demo", () => {
     expect(represent(initCtx, src)).toEqual(actual);
   });
 
-  it("Lambda demo", () => {
+});
+
+describe("Pie language tests", () => {
+
+  it("Lambda with ind-List and ind-Nat", () => {
     const src = normalize(`(the (-> (List Nat) Nat)
                              (lambda (ns)
                                (ind-List
@@ -65,7 +69,7 @@ describe("demo", () => {
                                    (lambda (_ q)
                                      (add1 q)))))))`);
     const actual = `(the
-                 (Π ((x (List Nat)))
+                 (Π (x (List Nat))
                    Nat)
                  (λ (ns)
                    (ind-List
@@ -73,13 +77,29 @@ describe("demo", () => {
                     (λ (_) Nat)
                     zero
                     (λ (x)
-                      (λ (y) (λ (z) (ind-Nat x (λ (n) Nat) z (λ (_) (λ (q) (add1 q)))))))))`
+                      (λ (y) (λ (z) (ind-Nat x (λ (n) Nat) z (λ (_) (λ (q) (add1 q))))))))))`
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-});
 
-describe("Pie language tests", () => {
+  it("ind-List test", () => {
+    const src = normalize(`(ind-List (:: (add1 (add1 (add1 zero)))
+                                      (:: (add1 (add1 zero))
+                                          nil))
+                                  (λ (_)
+                                    Nat)
+                                  zero
+                                  (lambda (x y z)
+                                    (ind-Nat x
+                                             (lambda (n)
+                                               Nat)
+                                             z
+                                             (lambda (_ q)
+                                               (add1 q)))))`);
+    const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
+    expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
+  });
+
   
   it("Simple lambda function", () => {
     const src = parsePie('(the (-> Nat Nat) (λ (my-var) my-var))');

@@ -1088,7 +1088,7 @@ export class List extends Source {
   public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     const Eout = new PerhapsM<C.Core>('Eout');
     return goOn(
-      [[Eout, () => this.getType(ctx, renames)]],
+      [[Eout, () => this.entryType.isType(ctx, renames)]],
       () => new go(new C.List(Eout.value))
     );
   }
