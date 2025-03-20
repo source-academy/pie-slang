@@ -1,6 +1,6 @@
 import 'jest';
 
-import { Parser } from '../parser/parser';
+import { Parser} from '../parser/parser';
 import * as util from 'util';
 import { go } from '../types/utils';
 import { initCtx } from '../utils/context';
@@ -8,7 +8,9 @@ import { normType, represent } from '../typechecker/represent';
 import * as C from '../types/core';
 import { prettyPrint } from '../unparser/pretty';
 
-const parser = new Parser();
+function parsePie(src: string) {
+  return Parser.parsePie(src);
+}
 
 function normalize(src: string): string {
   return src.replace(/\s+/g, ' ').trim();
@@ -17,7 +19,7 @@ function normalize(src: string): string {
 describe("demo", () => {
 
   it("Pie demo", () => {
-    const src = parser.parsePie('(-> Nat Nat Nat Nat Nat)');
+    const src = parsePie('(-> Nat Nat Nat Nat Nat)');
     
     const actual = new go(new C.The(new C.Universe, new C.Pi('x', new C.Nat, 
       new C.Pi('x₁', new C.Nat, 
@@ -31,7 +33,7 @@ describe("demo", () => {
   );
 
   it("Sigma demo", () => {
-    const src = parser.parsePie(
+    const src = parsePie(
                         `(the (-> Trivial
                                     (Pair Trivial Trivial))
                                     (lambda (x)
@@ -115,9 +117,6 @@ describe("Pie language tests", () => {
   });
 });
 
-function parsePie(src: string) {
-  return parser.parsePie(src);
-}
 
 describe("Higher-order function tests", () => {
   
