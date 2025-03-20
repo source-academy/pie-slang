@@ -30,6 +30,16 @@ import { readBack } from "../evaluator/utils";
 
 export abstract class Value {
 
+  /*
+  now demands the _actual_ value represented by a DELAY. If the value
+  is a DELAY-CLOS, then it is computed using undelay. If it is
+  anything else, then it has already been computed, so it is
+  returned.
+  
+  now should be used any time that a value is inspected to see what
+  form it has, because those situations require that the delayed
+  evaluation steps be carried out.
+  */
   public now(): Value {
     return this;
   }
@@ -46,10 +56,14 @@ export class DelayClosure {
     this.env = env;
     this.expr = expr;
   }
-
+  /*
+    undelay is used to find the value that is contained in a
+    DELAY-CLOS closure by invoking the evaluator.
+  */
   public undelay(): Value {
     return this.expr.valOf(this.env).now();
-  } 
+  }
+
 }
 
 export class Box<Type> {

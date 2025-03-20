@@ -5,6 +5,7 @@ import { fresh } from '../types/utils';
 import { bindFree, Context } from '../utils/context';
 import { doApp, doCar, doCdr } from "./evaluator";
 import * as util from 'util';
+
 /**
  *   ## Call-by-need evaluation ##
 
@@ -47,9 +48,9 @@ import * as util from 'util';
 
 // undelay is used to find the value that is contained in a
 // DELAY-CLOS closure by invoking the evaluator.
-export function undelay(c: V.DelayClosure): V.Value {
+/* export function undelay(c: V.DelayClosure): V.Value {
   return now(c.expr.valOf(c.env));
-}
+} */
 
 /*
   now demands the _actual_ value represented by a DELAY. If the value
@@ -61,7 +62,7 @@ export function undelay(c: V.DelayClosure): V.Value {
   form it has, because those situations require that the delayed
   evaluation steps be carried out.
 */
-export function now(todo: V.Value): V.Value {
+/* export function now(todo: V.Value): V.Value {
   if (todo instanceof V.Delay) { //todo.val is nessarily a Box
     const box = todo.val;
     const content = box.get();
@@ -74,11 +75,11 @@ export function now(todo: V.Value): V.Value {
     }
   }
   return todo;
-}
+} */
 
 export function natEqual(nat1: V.Value, nat2: V.Value): boolean {
-  const nat1Now = now(nat1);
-  const nat2Now = now(nat2);
+  const nat1Now = nat1.now();
+  const nat2Now = nat2.now();
   if (nat1Now instanceof V.Zero && nat2Now instanceof V.Zero) {
     return true;
   } else if (nat1Now instanceof V.Add1 && nat2Now instanceof V.Add1) {
@@ -89,8 +90,8 @@ export function natEqual(nat1: V.Value, nat2: V.Value): boolean {
 }
 
 export function readBack(context: Context, type: V.Value, value: V.Value): C.Core {
-  const typeNow = now(type);
-  const valueNow = now(value);
+  const typeNow = type.now();
+  const valueNow = value.now();
 
   if (typeNow instanceof V.Universe) {
     return value.readBackType(context);
