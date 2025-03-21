@@ -1026,7 +1026,7 @@ export class Nil extends Source {
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const typeNow = type.now();
     if (typeNow instanceof V.List) {
-      return new go('nil');
+      return new go(new C.Nil());
     } else {
       return new stop(
         this.location, 
@@ -1243,7 +1243,7 @@ export class IndAbsurd extends Source {
   }
 
   public prettyPrint(): string {
-    return `(ind-absurd 
+    return `(ind-Absurd 
               ${this.target.prettyPrint()} 
               ${this.motive.prettyPrint()})`;
   }

@@ -443,7 +443,6 @@ export class ListCons extends Core {
 
   public valOf(env: Environment): V.Value {
     const head = this.head.toLazy(env);
-    console.log("tail", this.tail);
     const tail = this.tail.toLazy(env);
     return new V.ListCons(head, tail);
   }
@@ -617,7 +616,7 @@ export class IndAbsurd extends Core {
   }
 
   public prettyPrint(): string {
-    return `(ind-absurd 
+    return `(ind-Absurd 
               ${this.target.prettyPrint()} 
               ${this.motive.prettyPrint()})`;
   }

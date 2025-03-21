@@ -22,8 +22,6 @@ describe("demo", () => {
 (λ (A D)
 (λ (p)
 (cons (cdr p) (car p)))))`
-
-    
     console.log(util.inspect(evaluatePie(src), false, null, true));
   });
 });
