@@ -121,7 +121,7 @@ export function goOn<T>(
     if (val instanceof go) {
       meta.value = (val as go<any>).result;
     } else {
-      throw new Error(`Encountered stop when evaluating the sequence ${bindings}`);
+      throw new Error(`Encountered stop when evaluating the sequence ${bindings}. Error message: ${(val as stop).message.message} at ${(val as stop).where}`);
     }
   }
   return finalExpr();
@@ -152,6 +152,8 @@ export abstract class Closure {
   */
   public abstract valOfClosure(v: Value): Value;
 
+  public abstract prettyPrint(): string;
+
 }
 
 /*
@@ -174,6 +176,15 @@ export class FirstOrderClosure extends Closure {
   public valOfClosure(v: Value): Value {
     return this.expr.valOf(extendEnvironment(this.env, this.varName, v));
   }
+
+  public prettyPrint(): string {
+    return `(CLOS ${this.varName} ${this.expr.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+  
 }
 
 /*
@@ -193,6 +204,15 @@ export class HigherOrderClosure extends Closure {
   public valOfClosure(v: Value): Value {
     return this.proc(v);
   }
+
+  public prettyPrint(): string {
+    return `(HOCLOS)`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 

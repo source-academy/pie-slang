@@ -30,11 +30,23 @@ import { readBack } from "../evaluator/utils";
 
 export abstract class Value {
 
+  /*
+  now demands the _actual_ value represented by a DELAY. If the value
+  is a DELAY-CLOS, then it is computed using undelay. If it is
+  anything else, then it has already been computed, so it is
+  returned.
+  
+  now should be used any time that a value is inspected to see what
+  form it has, because those situations require that the delayed
+  evaluation steps be carried out.
+  */
   public now(): Value {
     return this;
   }
 
   public abstract readBackType(context: Context): C.Core;
+
+  public abstract prettyPrint(): string;
 
 }
 
@@ -46,10 +58,18 @@ export class DelayClosure {
     this.env = env;
     this.expr = expr;
   }
-
+  /*
+    undelay is used to find the value that is contained in a
+    DELAY-CLOS closure by invoking the evaluator.
+  */
   public undelay(): Value {
     return this.expr.valOf(this.env).now();
-  } 
+  }
+
+  public toString(): string {
+    return `DelayClosure(${this.env}, ${this.expr})`;
+  }
+
 }
 
 export class Box<Type> {
@@ -86,6 +106,15 @@ export class Delay extends Value {
   public readBackType(context: Context): C.Core {
     return this.now().readBackType(context);
   }
+
+  public prettyPrint(): string {
+    return this.now().prettyPrint();
+  }
+
+  public toString(): string {
+    return `Delay(${this.val})`;
+  }
+
 }
 
 export class Quote extends Value {
@@ -94,17 +123,71 @@ export class Quote extends Value {
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Quote.");
   }
+
+  public prettyPrint(): string {
+    return `'${this.name}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Nat extends Value {
+  constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.Nat();
+  }
+
+  public prettyPrint(): string {
+    return 'Nat';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Zero extends Value {
+  constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Zero.");
+  }
+
+  public prettyPrint(): string {
+    return 'zero';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Add1 extends Value {
+
   constructor(public smaller: Value) { super() }
 
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Add1.");
   }
+
+  public prettyPrint(): string {
+    return `(add1 ${this.smaller.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Pi extends Value {
+
   constructor(
     public argName: string,
     public argType: Value,
@@ -125,16 +208,36 @@ export class Pi extends Value {
         .readBackType(excludeNameCtx)
     );
   }
+
+  public prettyPrint(): string {
+    return `(Π ${this.argName} ${this.argType.prettyPrint()} ${this.resultType.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Lambda extends Value {
+
   constructor(
     public argName: string,
     public body: Closure
   ) { super() }
+
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Lambda.");
   }
+
+  public prettyPrint(): string {
+    return `(lambda ${this.argName} ${this.body.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Sigma extends Value {
@@ -158,9 +261,19 @@ export class Sigma extends Value {
         .readBackType(excludeNameCtx)
     );
   }
+
+  public prettyPrint(): string {
+    return `(Σ ${this.carName} ${this.carType.prettyPrint()} ${this.cdrType.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Cons extends Value {
+
   constructor(
     public car: Value,
     public cdr: Value
@@ -169,9 +282,54 @@ export class Cons extends Value {
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Cons.");
   }
+
+  public prettyPrint(): string {
+    return `(cons ${this.car.prettyPrint()} ${this.cdr.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class List extends Value {
+
+  constructor(public entryType: Value) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.List(this.entryType.readBackType(context));
+  }
+
+  public prettyPrint(): string {
+    return `(List ${this.entryType.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Nil extends Value {
+  constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Nil.");
+  }
+
+  public prettyPrint(): string {
+    return 'nil';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class ListCons extends Value {
+
   constructor(
     public head: Value,
     public tail: Value
@@ -180,17 +338,20 @@ export class ListCons extends Value {
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for ListCons.");
   }
-}
 
-export class List extends Value {
-  constructor(public entryType: Value) { super() }
-
-  public readBackType(context: Context): C.Core {
-    return new C.List(this.entryType.readBackType(context));
+  public prettyPrint(): string {
+    return `(:: ${this.head.prettyPrint()} ${this.tail.prettyPrint()})`;
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
+
 
 export class Equal extends Value {
+
   constructor(
     public type: Value,
     public from: Value,
@@ -204,17 +365,37 @@ export class Equal extends Value {
       readBack(context, this.type, this.to)
     );
   }
+
+  public prettyPrint(): string {
+    return `(= ${this.type.prettyPrint()} ${this.from.prettyPrint()} ${this.to.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Same extends Value {
+
   constructor(public value: Value) { super() }
 
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Same.");
   }
+
+  public prettyPrint(): string {
+    return `(same ${this.value.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Vec extends Value {
+
   constructor(
     public entryType: Value,
     public length: Value
@@ -226,9 +407,33 @@ export class Vec extends Value {
       readBack(context, new Nat(), this.length)
     );
   }
+
+  public prettyPrint(): string {
+    return `(Vec ${this.entryType.prettyPrint()} ${this.length.prettyPrint()})`;
+  }
+
+}
+
+export class VecNil extends Value {
+
+  constructor() { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for VecNil.");
+  }
+
+  public prettyPrint(): string {
+    return 'vecnil';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class VecCons extends Value {
+
   constructor(
     public head: Value,
     public tail: Value
@@ -237,9 +442,19 @@ export class VecCons extends Value {
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for VecCons.");
   }
+
+  public prettyPrint(): string {
+    return `(vec:: ${this.head.prettyPrint()} ${this.tail.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Either extends Value {
+
   constructor(
     public leftType: Value,
     public rightType: Value
@@ -251,14 +466,33 @@ export class Either extends Value {
       this.rightType.readBackType(context)
     );
   }
+
+  public prettyPrint(): string {
+    return `(Either ${this.leftType.prettyPrint()} ${this.rightType.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Left extends Value {
+
   constructor(public value: Value) { super() }
 
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Left.");
   }
+
+  public prettyPrint(): string {
+    return `(left ${this.value.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Right extends Value {
@@ -267,6 +501,15 @@ export class Right extends Value {
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Right.");
   }
+
+  public prettyPrint(): string {
+    return `(right ${this.value.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Neutral extends Value {
@@ -278,38 +521,53 @@ export class Neutral extends Value {
   public readBackType(context: Context): C.Core {
     return this.neutral.readBackNeutral(context);
   }
+
+  public prettyPrint(): string {
+    return `(neutral ${this.type.prettyPrint()} ${this.neutral.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Universe extends Value {
+
   constructor() { super() }
 
   public readBackType(context: Context): C.Core {
     return new C.Universe();
   }
-}
 
-export class Nat extends Value {
-  constructor() { super() }
-
-  public readBackType(context: Context): C.Core {
-    return new C.Nat();
+  public prettyPrint(): string {
+    return 'U';
   }
-}
 
-export class Zero extends Value {
-  constructor() { super() }
-
-  public readBackType(context: Context): C.Core {
-    throw new Error("No readBackType for Zero.");
+  public toString(): string {
+    return this.prettyPrint();
   }
+
 }
+
+
 
 export class Atom extends Value {
+
   constructor() { super() }
 
   public readBackType(context: Context): C.Core {
     return new C.Atom();
   }
+
+  public prettyPrint(): string {
+    return 'Atom';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 export class Trivial extends Value {
@@ -317,6 +575,14 @@ export class Trivial extends Value {
 
   public readBackType(context: Context): C.Core {
     return new C.Trivial();
+  }
+
+  public prettyPrint(): string {
+    return 'Trivial';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
   }
 }
 
@@ -326,28 +592,32 @@ export class Sole extends Value {
   public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Sole.");
   }
-}
 
-export class Nil extends Value {
-  constructor() { super() }
-
-  public readBackType(context: Context): C.Core {
-    throw new Error("No readBackType for Nil.");
+  public prettyPrint(): string {
+    return 'sole';
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
+
 
 export class Absurd extends Value {
+
   constructor() { super() }
 
   public readBackType(context: Context): C.Core {
     return new C.Absurd();
   }
-}
 
-export class VecNil extends Value {
-  constructor() { super() }
-
-  public readBackType(context: Context): C.Core {
-    throw new Error("No readBackType for VecNil.");
+  public prettyPrint(): string {
+    return 'Absurd';
   }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+  
 }

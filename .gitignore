@@ -11,5 +11,5 @@ LICENSE
 compiled
 /doc
 /node_modules
-
+/conductor
 /.vscode/

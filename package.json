@@ -4,9 +4,7 @@
   "description": "Implementation of Pie, following The Little Typer",
   "author": "Ding Feng, Fan Haolin, Zhang Qixiang",
   "license": "ISC",
-  "dependencies": {
-    "ts-pattern": "^5.5.0"
-  },
+  "main": "src/pie_interpreter/index.ts",
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/highlight": "^7.25.9",
@@ -25,9 +23,16 @@
     "ts-jest": "^29.2.5",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.15.0",
-    "conductor": "https://github.com/source-academy/conductor.git#0.2.1"
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/node": "^22.13.10",
+    "conductor": "https://github.com/source-academy/conductor.git#0.2.1",
+    "rollup": "^4.34.1",
+    "tslib": "^2.8.1"
   },
   "scripts": {
+    "build": "rollup -c",
     "test": "jest"
   },
   "type": "module"

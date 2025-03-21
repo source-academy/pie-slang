@@ -12,9 +12,9 @@ export function represent(ctx: Context, expr: Source): Perhaps<C.Core> {
   const outmeta = new PerhapsM<C.The>('outmeta');
   return goOn([[outmeta, () => expr.synth(ctx, new Map())]],
     () => {
+      console.log(outmeta.value)
       const tv = valInContext(ctx, outmeta.value.type);
       const v = valInContext(ctx, outmeta.value.expr);
-      // console.log(expr, "TYPE: ", util.inspect(tv, false, null, true), "VALUE: ", util.inspect(v, false, null, true));
       return new go(
         new C.The(tv.readBackType(ctx), readBack(ctx, tv, v))
       );
