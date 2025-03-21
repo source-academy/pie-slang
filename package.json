@@ -5,6 +5,10 @@
   "author": "Ding Feng, Fan Haolin, Zhang Qixiang",
   "license": "ISC",
   "main": "dist/index.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dingf3ng/pie-slang.git"
+  },
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/highlight": "^7.25.9",
