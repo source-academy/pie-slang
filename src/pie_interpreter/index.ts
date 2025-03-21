@@ -1,13 +1,8 @@
 import {schemeParse, pieDeclarationParser} from './parser/parser'
 import { Context } from './utils/context';
 import * as util from 'util';
+import { initialise } from "../../conductor/src/conductor/runner/util/";
+import { PieEvaluator } from './main';
 
 
-export function evaluatePie(str) {
-  const astList = schemeParse(str);
-  for (const ast of astList) {
-    // console.log(util.inspect(ast, false, null, true));
-    // console.log(util.inspect(pieDeclarationParser.parseDeclaration(ast), 
-    // false, null, true));
-  }
-}
+const { runnerPlugin, conduit } = initialise(PieEvaluator);
