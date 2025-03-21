@@ -152,6 +152,8 @@ export abstract class Closure {
   */
   public abstract valOfClosure(v: Value): Value;
 
+  public abstract prettyPrint(): string;
+
 }
 
 /*
@@ -174,6 +176,15 @@ export class FirstOrderClosure extends Closure {
   public valOfClosure(v: Value): Value {
     return this.expr.valOf(extendEnvironment(this.env, this.varName, v));
   }
+
+  public prettyPrint(): string {
+    return `(CLOS ${this.varName} ${this.expr.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+  
 }
 
 /*
@@ -193,6 +204,15 @@ export class HigherOrderClosure extends Closure {
   public valOfClosure(v: Value): Value {
     return this.proc(v);
   }
+
+  public prettyPrint(): string {
+    return `(HOCLOS)`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
 }
 
 

@@ -218,85 +218,7 @@ export class Zero extends Source {
 
 }
 
-export class Name extends Source {
 
-  constructor(
-    public location: Location,
-    public name: string,
-  ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthName(ctx, renames, this.location, this.name);
-  }
-
-  public findNames(): string[] {
-    return [this.name];
-  }
-
-  public prettyPrint(): string {
-    return this.name;
-  }
-
-  public toString(): string {
-    return this.prettyPrint();
-  }
-
-}
-
-export class Atom extends Source {
-
-  constructor(
-    public location: Location,
-  ) { super(location); }
-
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthAtom(ctx, renames);
-  }
-
-  public findNames(): string[] {
-    return [];
-  }
-
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
-    return new go(new C.Atom());
-  }
-
-  public prettyPrint(): string {
-    return 'Atom';
-  }
-
-  public toString(): string {
-    return this.prettyPrint();
-  }
-
-}
-
-export class Quote extends Source {
-
-  constructor(
-    public location: Location,
-    public name: string,
-  ) { super(location); }
-
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthQuote(ctx, renames, this.location, this.name);
-  }
-
-  public findNames(): string[] {
-    return [];
-  }
-
-  public prettyPrint(): string {
-    return `'${this.name}`;
-  }
-
-  public toString(): string {
-    return this.prettyPrint();
-  }
-
-}
-
-// Natural number operations
 export class Add1 extends Source {
   
   constructor(
@@ -797,6 +719,84 @@ export class Sigma extends Source {
   public prettyPrint(): string {
     return `(Σ ${this.binders.map(binder => `(${binder.binder.varName} ${binder.type.prettyPrint()})`).join(' ')} 
             ${this.body.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Name extends Source {
+
+  constructor(
+    public location: Location,
+    public name: string,
+  ) { super(location); }
+  
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthName(ctx, renames, this.location, this.name);
+  }
+
+  public findNames(): string[] {
+    return [this.name];
+  }
+
+  public prettyPrint(): string {
+    return this.name;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Atom extends Source {
+
+  constructor(
+    public location: Location,
+  ) { super(location); }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthAtom(ctx, renames);
+  }
+
+  public findNames(): string[] {
+    return [];
+  }
+
+  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return new go(new C.Atom());
+  }
+
+  public prettyPrint(): string {
+    return 'Atom';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Quote extends Source {
+
+  constructor(
+    public location: Location,
+    public name: string,
+  ) { super(location); }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthQuote(ctx, renames, this.location, this.name);
+  }
+
+  public findNames(): string[] {
+    return [];
+  }
+
+  public prettyPrint(): string {
+    return `'${this.name}`;
   }
 
   public toString(): string {

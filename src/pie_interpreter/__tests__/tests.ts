@@ -382,7 +382,7 @@ describe("Atom and Pair tests", () => {
     expect(normType(initCtx, src)).toEqual(actual);
   });
 
-  it("", () => {
+  it("test", () => {
     const src = normalize(`(the (Pi ((x (-> Trivial Absurd)) (y (-> Trivial Absurd))) (= (-> Trivial Absurd) x y)) (lambda (f g) (ind-Absurd (f sole) (= (-> Trivial Absurd) f g))))`);
     const actual = `(the
                  (Π (x (Π (x Trivial) Absurd))
@@ -400,27 +400,139 @@ describe("Atom and Pair tests", () => {
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-/*   it("", () => {
-    const src = normalize(``);
-    const actual = ``
+  it("", () => {
+    const src = normalize(`(the (= Nat 0 0) (same 0))`);
+    const actual = `(the (= Nat zero zero) (same zero))`
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
   it("", () => {
-    const src = normalize(``);
-    const actual = ``
+    const src = normalize(`(the (Pi ((n Nat)
+                                          (m Nat))
+                                         (-> (= Nat n m)
+                                             (= Nat m n)))
+                                     (lambda (n m n=m)
+                                       (replace n=m
+                                                (lambda (k)
+                                                  (= Nat k n))
+                                                (same n))))`);
+    const actual = `(the (Π (n Nat)
+                       (Π (m Nat)
+                         (Π (x (= Nat n m))
+                           (= Nat m n))))
+                     (λ (n)
+                       (λ (m)
+                         (λ (n=m)
+                           (replace n=m
+                                    (λ (k)
+                                      (= Nat k n))
+                                    (same n))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
   it("", () => {
-    const src = normalize(``);
-    const actual = ``
+    const src = normalize(`(replace (the (= Nat 4 4) (same 4))
+                                         (lambda (k)
+                                           (= Nat k 4))
+                                         (same 4))`);
+    const actual = `(the (= Nat
+                        (add1 (add1 (add1 (add1 zero))))
+                        (add1 (add1 (add1 (add1 zero)))))
+                     (same (add1 (add1 (add1 (add1 zero))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
   it("", () => {
-    const src = normalize(``);
-    const actual = ``
+    const src = normalize(`(iter-Nat 2
+                                          3
+                                          (λ (ih)
+                                            (add1 ih)))`);
+    const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
+    expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
+  });
+
+  it("", () => {
+    const src = normalize(`(the (-> Nat Nat
+                                 Nat)
+                             (lambda (x y)
+                               (iter-Nat x
+                                         y
+                                         (λ (n-1)
+                                           (add1 n-1)))))`);
+    const actual = `(the
+                 (Π (x Nat)
+                   (Π (x₁ Nat)
+                     Nat))
+                 (λ (x)
+                   (λ (y)
+                     (iter-Nat x
+                               (the Nat y)
+                               (λ (n-1)
+                                 (add1 n-1))))))`;
+    expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
+  });
+
+  it("", () => {
+    const src = normalize(`(the (-> Nat Nat Nat)
+                             (lambda (x y)
+                               (rec-Nat x
+                                        y
+                                        (λ (n-1 ih)
+                                          (add1 ih)))))`);
+    const actual = `(the
+                 (Π (x Nat)
+                   (Π (x₁ Nat)
+                     Nat))
+                 (λ (x)
+                   (λ (y)
+                     (rec-Nat x
+                              (the Nat y)
+                              (λ (n-1)
+                                (λ (ih)
+                                  (add1 ih)))))))`;
+    expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
+  });
+/* 
+  it("", () => {
+    const src = normalize(`(rec-Nat 2 3 (λ (n-1 ih) (add1 ih)))`);
+    const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
+    expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
+  });
+
+  it("", () => {
+    const src = normalize(`((the (Pi ((A U) (B U))
+                    (-> (Either A B)
+                        (Either B A)))
+                (lambda (A B e)
+                  (ind-Either e
+                              (lambda (_) (Either B A))
+                              (lambda (x) (right x))
+                              (lambda (x) (left x)))))
+           Nat Trivial (left 2))`);
+    const actual = `(the (Either Trivial Nat) (right (add1 (add1 zero))))`;
+    expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
+  });
+
+  it("", () => {
+    const src = normalize(`((the (Pi ((A U) (B U))
+                    (-> (Either A B)
+                        (Either B A)))
+                (lambda (A B e)
+                  (ind-Either e
+                              (lambda (_) (Either B A))
+                              (lambda (x) (right x))
+                              (lambda (x) (left x)))))
+           Nat)`);
+    const actual = `(the
+   (Π (B U) (Π (x (Either Nat B)) (Either B Nat)))
+   (λ (B)
+     (λ (e)
+       (ind-Either
+        e
+        (λ (_) (Either B Nat))
+        (λ (x) (right x))
+        (λ (x) (left x))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   }); */
+
 }); 

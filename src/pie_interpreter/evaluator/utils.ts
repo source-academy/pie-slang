@@ -179,5 +179,5 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
   } else if (valueNow instanceof V.Neutral) {
     return valueNow.neutral.readBackNeutral(context);
   }
-  throw new Error(`Cannot read back ${JSON.stringify(valueNow)} : ${JSON.stringify(typeNow)}`);
+  throw new Error(`Cannot read back ${valueNow} : ${typeNow}`);
 }
