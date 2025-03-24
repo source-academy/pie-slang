@@ -218,85 +218,7 @@ export class Zero extends Source {
 
 }
 
-export class Name extends Source {
 
-  constructor(
-    public location: Location,
-    public name: string,
-  ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthName(ctx, renames, this.location, this.name);
-  }
-
-  public findNames(): string[] {
-    return [this.name];
-  }
-
-  public prettyPrint(): string {
-    return this.name;
-  }
-
-  public toString(): string {
-    return this.prettyPrint();
-  }
-
-}
-
-export class Atom extends Source {
-
-  constructor(
-    public location: Location,
-  ) { super(location); }
-
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthAtom(ctx, renames);
-  }
-
-  public findNames(): string[] {
-    return [];
-  }
-
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
-    return new go(new C.Atom());
-  }
-
-  public prettyPrint(): string {
-    return 'Atom';
-  }
-
-  public toString(): string {
-    return this.prettyPrint();
-  }
-
-}
-
-export class Quote extends Source {
-
-  constructor(
-    public location: Location,
-    public name: string,
-  ) { super(location); }
-
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthQuote(ctx, renames, this.location, this.name);
-  }
-
-  public findNames(): string[] {
-    return [];
-  }
-
-  public prettyPrint(): string {
-    return `'${this.name}`;
-  }
-
-  public toString(): string {
-    return this.prettyPrint();
-  }
-
-}
-
-// Natural number operations
 export class Add1 extends Source {
   
   constructor(
@@ -805,6 +727,84 @@ export class Sigma extends Source {
 
 }
 
+export class Name extends Source {
+
+  constructor(
+    public location: Location,
+    public name: string,
+  ) { super(location); }
+  
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthName(ctx, renames, this.location, this.name);
+  }
+
+  public findNames(): string[] {
+    return [this.name];
+  }
+
+  public prettyPrint(): string {
+    return this.name;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Atom extends Source {
+
+  constructor(
+    public location: Location,
+  ) { super(location); }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthAtom(ctx, renames);
+  }
+
+  public findNames(): string[] {
+    return [];
+  }
+
+  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    return new go(new C.Atom());
+  }
+
+  public prettyPrint(): string {
+    return 'Atom';
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class Quote extends Source {
+
+  constructor(
+    public location: Location,
+    public name: string,
+  ) { super(location); }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthQuote(ctx, renames, this.location, this.name);
+  }
+
+  public findNames(): string[] {
+    return [];
+  }
+
+  public prettyPrint(): string {
+    return `'${this.name}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
 export class Pair extends Source {
 
   constructor(
@@ -1026,7 +1026,7 @@ export class Nil extends Source {
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const typeNow = type.now();
     if (typeNow instanceof V.List) {
-      return new go('nil');
+      return new go(new C.Nil());
     } else {
       return new stop(
         this.location, 
@@ -1088,7 +1088,7 @@ export class List extends Source {
   public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
     const Eout = new PerhapsM<C.Core>('Eout');
     return goOn(
-      [[Eout, () => this.getType(ctx, renames)]],
+      [[Eout, () => this.entryType.isType(ctx, renames)]],
       () => new go(new C.List(Eout.value))
     );
   }
@@ -1243,7 +1243,7 @@ export class IndAbsurd extends Source {
   }
 
   public prettyPrint(): string {
-    return `(ind-absurd 
+    return `(ind-Absurd 
               ${this.target.prettyPrint()} 
               ${this.motive.prettyPrint()})`;
   }

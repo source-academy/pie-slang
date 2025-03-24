@@ -28,9 +28,18 @@ export function isNorm(obj: any): obj is Norm {
 
 // Base class for all Neutral types
 export abstract class Neutral {
+
   constructor() { } 
 
   public abstract readBackNeutral(context: Context): C.Core;
+
+  public toString(): string {
+    return "Neutral";
+  }
+
+  public prettyPrint(): string {
+    return "Neutral";
+  }
 }
 
 export class Variable extends Neutral {

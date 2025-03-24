@@ -163,7 +163,7 @@ export class WhichNat extends Core {
   }
 
   public prettyPrint(): string {
-    return `(which-nat ${this.target.prettyPrint()} 
+    return `(which-Nat ${this.target.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
   }
@@ -192,7 +192,7 @@ export class IterNat extends Core {
   }
 
   public prettyPrint(): string {
-    return `(iter-nat ${this.target.prettyPrint()} 
+    return `(iter-Nat ${this.target.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
   }
@@ -221,7 +221,7 @@ export class RecNat extends Core {
   }
 
   public prettyPrint(): string {
-    return `(rec-nat ${this.target.prettyPrint()} 
+    return `(rec-Nat ${this.target.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
   }
@@ -251,7 +251,7 @@ export class IndNat extends Core {
   }
 
   public prettyPrint(): string {
-    return `(ind-nat ${this.target.prettyPrint()} 
+    return `(ind-Nat ${this.target.prettyPrint()} 
               ${this.motive.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
@@ -443,7 +443,7 @@ export class ListCons extends Core {
 
   public valOf(env: Environment): V.Value {
     const head = this.head.toLazy(env);
-    const tail = this.tail.toLazy(env);;
+    const tail = this.tail.toLazy(env);
     return new V.ListCons(head, tail);
   }
 
@@ -511,7 +511,7 @@ export class RecList extends Core {
   }
 
   public prettyPrint(): string {
-    return `(rec-list ${this.target.prettyPrint()} 
+    return `(rec-List ${this.target.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
   }
@@ -541,7 +541,7 @@ export class IndList extends Core {
   }
 
   public prettyPrint(): string {
-    return `(ind-list ${this.target.prettyPrint()} 
+    return `(ind-List ${this.target.prettyPrint()} 
               ${this.motive.prettyPrint()} 
               ${this.base.prettyPrint()} 
               ${this.step.prettyPrint()})`;
@@ -616,7 +616,7 @@ export class IndAbsurd extends Core {
   }
 
   public prettyPrint(): string {
-    return `(ind-absurd 
+    return `(ind-Absurd 
               ${this.target.prettyPrint()} 
               ${this.motive.prettyPrint()})`;
   }

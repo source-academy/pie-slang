@@ -676,6 +676,4 @@ export class pieDeclarationParser {
       return Parser.parseElements(ast);
     }
   }
-
-
 }
