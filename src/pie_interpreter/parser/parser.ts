@@ -629,7 +629,7 @@ export class Definition {
   constructor (
     public location: Location,
     public name: string,
-    public value: S.Source
+    public expr: S.Source
   ) {}
 }
 
