@@ -13,20 +13,35 @@ export function evaluatePie(str) {
   for (const ast of astList) {
     const src = pieDeclarationParser.parseDeclaration(ast);
     let result;
+    // console.log(util.inspect(src, false, null, true));
     if (src instanceof Claim) {
       result = addClaimToContext(ctx, src.name, src.location, src.type);
+      if (result instanceof go) {
+        ctx = result.result;
+      } else {
+        throw new Error("" + result.where + result.message);
+      }
     } else if (src instanceof Definition) {
       result = addDefineToContext(ctx, src.name, src.location, src.expr);
+      if (result instanceof go) {
+        ctx = result.result;
+      } else {
+        throw new Error("" + result.where + result.message);
+      }
     } else if (src instanceof SamenessCheck) {
       result = checkSame(ctx, src.location, src.type, src.left, src.right);
+      if (result instanceof go) {
+        ctx = result.result;
+      } else {
+        throw new Error("" + result.where + result.message);
+      }
     } else {
       result = normType(ctx, src);
       if (result instanceof go) {
         prettyPrint(result.result);
-      } 
-    }
-    if (result instanceof stop) {
-      throw new Error("" + result.where + result.message);
+      } else {
+        throw new Error("" + result.where + result.message);
+      }
     }
 
   } 
