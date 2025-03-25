@@ -7,9 +7,10 @@ import * as util from 'util';
 import { Location } from './utils/locations';
 
 
-export function evaluatePie(str) {
+export function evaluatePie(str){
   const astList = schemeParse(str);
   let ctx = initCtx;
+  let output = "";
   for (const ast of astList) {
     const src = pieDeclarationParser.parseDeclaration(ast);
     let result;
@@ -38,12 +39,12 @@ export function evaluatePie(str) {
     } else {
       result = normType(ctx, src);
       if (result instanceof go) {
-        prettyPrint(result.result);
+        output += prettyPrint(result.result);
       } else {
         throw new Error("" + result.where + result.message);
       }
     }
-
+    return output;
   } 
 // import { BasicEvaluator } from "../../conductor/src/conductor/runner";
 // import { IRunnerPlugin } from "../../conductor/src/conductor/runner/types";
