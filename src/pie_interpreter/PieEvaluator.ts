@@ -15,8 +15,8 @@ export class PieEvaluator extends BasicEvaluator {
     async evaluateChunk(chunk: string): Promise<void> {
         this.executionCount++;
         try {
-            evaluatePie(chunk);
-            this.conductor.sendOutput(`Chunk ${this.executionCount} evaluated!`);
+            let rep = evaluatePie(chunk);
+            this.conductor.sendOutput(`Result of expression: ${rep}`);
         } catch (error) {
             // Handle errors and send them to the REPL
             if (error instanceof Error) {
