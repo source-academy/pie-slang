@@ -1,7 +1,6 @@
 import 'jest';
-import * as util from 'util';
 
-import {evaluatePie} from '../main'
+import { evaluatePie } from '../main'
 
 describe("demo", () => {
   it("Pie demo", () => {
@@ -14,6 +13,6 @@ describe("demo", () => {
 (λ (A D)
 (λ (p)
 (cons (cdr p) (car p)))))`
-    console.log(util.inspect(evaluatePie(src), false, null, true));
+    console.log(evaluatePie(src));
   });
 });
