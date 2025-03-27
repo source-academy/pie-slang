@@ -1,7 +1,8 @@
-import { bindFree, Context } from "../utils/context";
 import * as C from "./core";
-import { Environment } from "../utils/environment";
 import * as N from "./neutral";
+
+import { bindFree, Context } from "../utils/context";
+import { Environment } from "../utils/environment";
 import { Closure } from "./utils";
 import { fresh } from "./utils";
 import { readBack } from "../evaluator/utils";

@@ -1,12 +1,12 @@
+import * as S from "../types/source";
+
 import { SchemeLexer } from "../../scheme_parser/transpiler/lexer/scheme-lexer";
 import { SchemeParser } from "../../scheme_parser/transpiler/parser/scheme-parser";
-import { Extended, Atomic, Expression,  } from '../../scheme_parser/transpiler/types/nodes/scheme-node-types';
-import { Location, Syntax } from "../utils/locations";
-import * as S from "../types/source";
-import { Location as Loc, Position } from '../../scheme_parser/transpiler/types/location';
-import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
-import * as util from 'util';
 
+import { Extended, Atomic, Expression } from '../../scheme_parser/transpiler/types/nodes/scheme-node-types';
+import { Location, Syntax } from "../utils/locations";
+import { Location as Loc } from '../../scheme_parser/transpiler/types/location';
+import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
 
 type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
 
@@ -61,10 +61,10 @@ export function schemeParse(stx: string): Extended.List[] {
 
 export class Parser {
   public static parsePie(stx: string): S.Source {
-    return this.parseElements(schemeParse(stx)[0]); 
+    return Parser.parseElements(schemeParse(stx)[0]); 
   }
 
-  static parseElements(element: Element): S.Source {
+  public static parseElements(element: Element): S.Source {
     const parsee = getValue(element);
     if (parsee === 'U') {
       return makeU(locationToSyntax('U', element.location));
@@ -629,7 +629,7 @@ export class Definition {
   constructor (
     public location: Location,
     public name: string,
-    public value: S.Source
+    public expr: S.Source
   ) {}
 }
 

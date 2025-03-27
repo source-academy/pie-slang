@@ -1,27 +1,32 @@
 import 'jest';
 
-import { Parser} from '../parser/parser';
-import * as util from 'util';
-import { go } from '../types/utils';
-import { initCtx } from '../utils/context';
-import { normType, represent } from '../typechecker/represent';
-import * as C from '../types/core';
-import { prettyPrint } from '../unparser/pretty';
+import { evaluatePie } from '../main'
 
-import {schemeParse} from '../parser/parser'
-// import {evaluatePie} from '../index'
-
-describe("demo", () => {
-  it("Pie demo", () => {
+describe("demos", () => {
+  it("Flip pair", () => {
     const src = `(claim flip
-(Π ((A U)
-(D U))
-(→ (Pair A D)
-(Pair D A))))
-(define flip
-(λ (A D)
-(λ (p)
-(cons (cdr p) (car p)))))`
-    // console.log(util.inspect(evaluatePie(src), false, null, true));
+                    (Π ((A U)
+                        (D U))
+                      (→ (Pair A D) (Pair D A))))
+                  (define flip
+                    (λ (A D)
+                      (λ (p)
+                        (cons (cdr p) (car p)))))
+                  (flip Atom Atom (cons 'hello 'world))`;
+    console.log(evaluatePie(src));
+  });
+
+  it("Addition over nats", () => {
+    const src =  `(claim addNat
+                    (-> Nat Nat Nat)) 
+                  (define addNat 
+                    (lambda (x y) 
+                      (ind-Nat x 
+                        (lambda (x) Nat)
+                        y 
+                        (lambda (n-1 ih) (add1 ih)))))
+                  (addNat 3 4)
+                  (addNat 3 0)`;
+    console.log(evaluatePie(src));
   });
 });

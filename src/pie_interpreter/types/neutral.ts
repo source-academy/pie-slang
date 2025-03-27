@@ -1,6 +1,7 @@
+import * as C from "./core";
+
 import { Value, Pi, Absurd } from "./value";
 import { SourceLocation } from "../utils/locations";
-import * as C from "./core";
 import { Context } from "../utils/context";
 import { readBack } from "../evaluator/utils";
 

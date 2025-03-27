@@ -1,16 +1,13 @@
 import 'jest';
 
 import { Parser } from '../parser/parser';
-import * as util from 'util';
 import { go } from '../types/utils';
 import { initCtx } from '../utils/context';
 import { normType, represent } from '../typechecker/represent';
 import * as C from '../types/core';
-import { prettyPrint } from '../unparser/pretty';
-import { parsePie } from '../main';
 
 
-
+const parsePie = Parser.parsePie;
 function normalize(src: string): string {
   return src.replace(/\s+/g, ' ').trim();
 }
@@ -490,15 +487,15 @@ describe("Atom and Pair tests", () => {
                                 (λ (ih)
                                   (add1 ih)))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
-  });
-/* 
+  }); 
+
   it("", () => {
     const src = normalize(`(rec-Nat 2 3 (λ (n-1 ih) (add1 ih)))`);
     const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  /* it("", () => {
     const src = normalize(`((the (Pi ((A U) (B U))
                     (-> (Either A B)
                         (Either B A)))

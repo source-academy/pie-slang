@@ -1,6 +1,7 @@
 import * as C from "../types/core";
 import * as S from "../types/source";
 import * as V from "../types/value";
+
 import {
   go, Perhaps, stop, Message, freshBinder, PerhapsM, goOn,
   fresh, FirstOrderClosure, HigherOrderClosure,
@@ -1092,7 +1093,8 @@ export class synthesizer {
         const result = valInContext(context, vout.value.type).now();
         if (result instanceof V.Vec) {
           const [T, len] = [result.entryType, result.length];
-          if (len instanceof V.Add1) {
+          const lenNow = len.now();
+          if (lenNow instanceof V.Add1) {
             return new go(
               new C.The(
                 T.readBackType(context),
@@ -1125,8 +1127,9 @@ export class synthesizer {
         const result = valInContext(context, vout.value.type).now();
         if (result instanceof V.Vec) {
           const [T, len] = [result.entryType, result.length];
-          if (len instanceof V.Add1) {
-            const len_minus_1 = len.smaller;
+          const lenNow = len.now();
+          if (lenNow instanceof V.Add1) {
+            const len_minus_1 = lenNow.smaller;
             return new go(
               new C.The(
                 new C.Vec(
@@ -1357,15 +1360,16 @@ export class synthesizer {
             const argout = new PerhapsM<C.Core>('argout');
             return goOn(
               [[argout, () => arg.check(context, r, A)]],
-              () => new go(
-                new C.The(
-                  c.valOfClosure(valInContext(context, argout.value)).readBackType(context),
-                  new C.Application(
-                    fout.value.expr,
-                    argout.value
+              () => 
+                new go(
+                  new C.The(
+                    c.valOfClosure(valInContext(context, argout.value)).readBackType(context),
+                    new C.Application(
+                      fout.value.expr,
+                      argout.value
+                    )
                   )
                 )
-              )
             );
           } else {
             return new stop(

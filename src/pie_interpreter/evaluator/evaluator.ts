@@ -1,4 +1,3 @@
-import * as util from "util";
 import * as V from "../types/value";
 import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
@@ -27,7 +26,7 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`doApp: invalid input ${util.inspect([operatorNow, operand])}`);
+  throw new Error(`doApp: invalid input ${[operatorNow, operand]}`);
 }
 
 export function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
@@ -54,7 +53,7 @@ export function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, st
       );
     }
   }
-  throw new Error(`invalid input for whichNat ${util.inspect([target, baseType, base, step])}`);
+  throw new Error(`invalid input for whichNat ${[target, baseType, base, step]}`);
 }
 
 export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
@@ -82,7 +81,7 @@ export function doIterNat(target: V.Value, baseType: V.Value, base: V.Value, ste
       );
     }
   }
-  throw new Error(`invalid input for iterNat ${util.inspect([target, baseType, base, step])}`);
+  throw new Error(`invalid input for iterNat ${[target, baseType, base, step]}`);
 }
 
 export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
@@ -91,35 +90,38 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
     return base;
   } else if (targetNow instanceof V.Add1) {
     return doApp(
-      step,
-      doRecNat(targetNow.smaller, baseType, base, step)
+      doApp(step, targetNow.smaller),
+      doRecNat(targetNow.smaller, baseType, base, step),
     );
   } else if (targetNow instanceof V.Neutral) {
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
-      return new V.Neutral(baseType, new N.RecNat(
-        targetNow.neutral,
-        new N.Norm(baseType, base),
-        new N.Norm(
-          new V.Pi(
-            "n-1",
-            new V.Nat(),
-            new HigherOrderClosure(
-              (_) => new V.Pi(
-                "ih",
-                baseType,
-                new HigherOrderClosure(
-                  (_) => baseType
+      return new V.Neutral(
+        baseType, 
+        new N.RecNat(
+          targetNow.neutral,
+          new N.Norm(baseType, base),
+          new N.Norm(
+            new V.Pi(
+              "n-1",
+              new V.Nat(),
+              new HigherOrderClosure(
+                (_) => new V.Pi(
+                  "ih",
+                  baseType,
+                  new HigherOrderClosure(
+                    (_) => baseType
+                  )
                 )
               )
-            )
-          ),
-          step
+            ),
+            step
+          )
         )
-      ));
+      );
     }
   }
-  throw new Error(`invalid input for recNat ${util.inspect([target, baseType, base, step])}`);
+  throw new Error(`invalid input for recNat ${[target, baseType, base, step]}`);
 
 }
 
@@ -165,7 +167,7 @@ export function doIndNat(target: V.Value, motive: V.Value, base: V.Value, step: 
       );
     }
   }
-  throw new Error(`invalid input for indNat ${util.inspect([target, motive, base, step])}`);
+  throw new Error(`invalid input for indNat ${[target, motive, base, step]}`);
 
 }
 
@@ -182,7 +184,7 @@ export function doCar(pair: V.Value): V.Value {
       return new V.Neutral(sigma.carType, new N.Car(neutral));
     }
   }
-  throw new Error(`invalid input for car ${util.inspect(pair)}`);
+  throw new Error(`invalid input for car ${pair}`);
 
 }
 
@@ -203,7 +205,7 @@ export function doCdr(pair: V.Value): V.Value {
     }
 
   }
-  throw new Error(`invalid input for cdr ${util.inspect(pair)}`);
+  throw new Error(`invalid input for cdr ${pair}`);
 
 }
 
@@ -265,7 +267,7 @@ export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step:
       );
     }
   }
-  throw new Error(`invalid input for indList ${util.inspect([targetNow, motive, base, step])}`);
+  throw new Error(`invalid input for indList ${[targetNow, motive, base, step]}`);
 
 }
 
@@ -318,7 +320,7 @@ export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, ste
       );
     }
   }
-  throw new Error(`invalid input for recList ${util.inspect([targetNow, baseType, base, step])}`);
+  throw new Error(`invalid input for recList ${[targetNow, baseType, base, step]}`);
 
 }
 
@@ -337,7 +339,7 @@ export function doIndAbsurd(target: V.Value, motive: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`invalid input for indAbsurd ${util.inspect([target, motive])}`);
+  throw new Error(`invalid input for indAbsurd ${[target, motive]}`);
 }
 
 
@@ -371,7 +373,7 @@ export function doReplace(target: V.Value, motive: V.Value, base: V.Value): V.Va
       );
     }
   }
-  throw new Error(`invalid input for replace ${util.inspect([target, motive, base])}`);
+  throw new Error(`invalid input for replace ${[target, motive, base]}`);
 
 }
 
@@ -433,7 +435,7 @@ export function doTrans(target1: V.Value, target2: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`invalid input for do-trans: ${util.inspect([target1, target2])}`);
+  throw new Error(`invalid input for do-trans: ${[target1, target2]}`);
 }
 
 
@@ -468,7 +470,7 @@ export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`invalid input for cong ${util.inspect([target, base, func])}`);
+  throw new Error(`invalid input for cong ${[target, base, func]}`);
 }
 
 export function doSymm(target: V.Value): V.Value {
@@ -488,7 +490,7 @@ export function doSymm(target: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`invalid input for symm ${util.inspect(target)}`);
+  throw new Error(`invalid input for symm ${target}`);
 }
 
 
@@ -531,7 +533,7 @@ export function doIndEqual(target: V.Value, motive: V.Value, base: V.Value): V.V
       );
     }
   }
-  throw new Error(`invalid input for indEqual ${util.inspect([target, motive, base])}`);
+  throw new Error(`invalid input for indEqual ${[target, motive, base]}`);
 }
 
 export function doHead(target: V.Value): V.Value {
@@ -550,7 +552,7 @@ export function doHead(target: V.Value): V.Value {
       }
     }
   }
-  throw new Error(`invalid input for head ${util.inspect(target)}`);
+  throw new Error(`invalid input for head ${target}`);
 }
 
 
@@ -575,7 +577,7 @@ export function doTail(target: V.Value): V.Value {
       }
     }
   }
-  throw new Error(`invalid input for tail ${util.inspect(target)}`);
+  throw new Error(`invalid input for tail ${target}`);
 }
 
 export function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
@@ -706,7 +708,7 @@ export function doIndVec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Va
       )
     );
   } else {
-    throw new Error(`invalid input for indVec ${util.inspect([len, vec, motive, base, step])}`);
+    throw new Error(`invalid input for indVec ${[len, vec, motive, base, step]}`);
   }
 }
 
@@ -755,5 +757,5 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
       )
     }
   }
-  throw new Error(`invalid input for indEither: ${util.inspect([target, motive, left, right])}`);
+  throw new Error(`invalid input for indEither: ${[target, motive, left, right]}`);
 }
