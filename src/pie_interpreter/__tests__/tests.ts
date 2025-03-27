@@ -1,14 +1,10 @@
 import 'jest';
 
 import { Parser } from '../parser/parser';
-import * as util from 'util';
 import { go } from '../types/utils';
 import { initCtx } from '../utils/context';
 import { normType, represent } from '../typechecker/represent';
 import * as C from '../types/core';
-import { prettyPrint } from '../unparser/pretty';
-
-
 
 
 const parsePie = Parser.parsePie;

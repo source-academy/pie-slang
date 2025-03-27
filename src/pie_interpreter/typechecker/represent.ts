@@ -1,8 +1,8 @@
-import { Context, valInContext} from '../utils/context';
-import { Source } from '../types/source';
-import * as util from 'util';
 import * as C from '../types/core';
 import * as V from '../types/value';
+
+import { Context, valInContext} from '../utils/context';
+import { Source } from '../types/source';
 import { go, goOn, Perhaps, PerhapsM } from '../types/utils';
 import { readBack } from '../evaluator/utils';
 import { Location } from '../utils/locations';

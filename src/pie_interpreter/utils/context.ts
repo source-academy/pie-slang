@@ -1,6 +1,7 @@
-import { Neutral, Value } from '../types/value';
-import { Location } from './locations';
 import * as C from '../types/core';
+import { Neutral, Value } from '../types/value';
+
+import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
 import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
@@ -91,7 +92,7 @@ export function removeClaimFromContext(ctx: Context, name: string): Context {
   return ctx;
 }
 
-export function addDefineToContext(ctx: Context,fun: string, funLoc: Location, expr: Source): Perhaps<Context> {
+export function addDefineToContext(ctx: Context, fun: string, funLoc: Location, expr: Source): Perhaps<Context> {
   const typeOut = new PerhapsM<Value>("typeOut");
   const exprOut = new PerhapsM<C.Core>("exprOut");
   return goOn(
@@ -130,8 +131,6 @@ export function contextToEnvironment(ctx: Context): Environment {
   }
   return env;
 }
-
-
 
 
 export const initCtx: Context = new Map();
