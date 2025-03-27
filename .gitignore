@@ -1,10 +1,15 @@
 *.css
-*.js
+.DS_Store
+*.cjs
+*.rkt
 *~
 *#
+.travis.yml
+COPYING
+LICENSE
 
 compiled
 /doc
 /node_modules
-
+/conductor
 /.vscode/
