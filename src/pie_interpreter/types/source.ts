@@ -1560,7 +1560,8 @@ export class VecNil extends Source {
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const typeNow = type.now();
     if (typeNow instanceof V.Vec) {
-      if (typeNow.length instanceof V.Zero) {
+      const lenNow = typeNow.length.now();
+      if (lenNow instanceof V.Zero) {
         return new go('vecnil');
       } else {
         return new stop(this.location,
@@ -1604,10 +1605,11 @@ export class VecCons extends Source {
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const typeNow = type.now();
     if (typeNow instanceof V.Vec) {
-      if (typeNow.length instanceof V.Add1) {
+      const lenNow = typeNow.length.now();
+      if (lenNow instanceof V.Add1) {
         const hout = new PerhapsM<C.Core>("hout");
         const tout = new PerhapsM<C.Core>("tout");
-        const n_minus_1 = typeNow.length.smaller;
+        const n_minus_1 = lenNow.smaller;
         return goOn(
           [
             [hout, () => this.x.check(ctx, renames, typeNow.entryType)],

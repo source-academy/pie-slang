@@ -1,6 +1,7 @@
-import { Neutral, Value } from '../types/value';
-import { Location } from './locations';
 import * as C from '../types/core';
+import { Neutral, Value } from '../types/value';
+
+import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
 import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
@@ -31,17 +32,17 @@ export function readBackContext(ctx: Context): SerializableContext {
   const result = new Map();
   for (const [x, binder] of ctx) {
     if (binder instanceof Free) {
-      result.set(x, ['free', binder.type.readBackType(this)]);
+      result.set(x, ['free', binder.type.readBackType(ctx)]);
     } else if (binder instanceof Define) {
       result.set(x,
         ['def',
-          binder.type.readBackType(this),
-          readBack(this, binder.type, binder.value)
+          binder.type.readBackType(ctx),
+          readBack(ctx, binder.type, binder.value)
         ]
       );
     } else if (binder instanceof Claim) {
       result.set(x,
-        ['claim', binder.type.readBackType(this)]);
+        ['claim', binder.type.readBackType(ctx)]);
     }
   }
   return result;
@@ -74,7 +75,7 @@ export function addClaimToContext(ctx: Context, fun: string, funLoc: Location, t
   return goOn(
     [
       [new PerhapsM("_"), () => nameNotUsed(ctx, funLoc, fun)],
-      [typeOut, () => type.isType(this, new Map())]
+      [typeOut, () => type.isType(ctx, new Map())]
     ],
     () => new go(
       extendContext(
@@ -91,25 +92,25 @@ export function removeClaimFromContext(ctx: Context, name: string): Context {
   return ctx;
 }
 
-export function addDefineToContext(fun: string, funLoc: Location, expr: Source): Perhaps<Context> {
+export function addDefineToContext(ctx: Context, fun: string, funLoc: Location, expr: Source): Perhaps<Context> {
   const typeOut = new PerhapsM<Value>("typeOut");
   const exprOut = new PerhapsM<C.Core>("exprOut");
   return goOn(
     [
-      [typeOut, () => this.getClaim(funLoc, fun)],
+      [typeOut, () => getClaim(ctx, funLoc, fun)],
       [exprOut,
         () => expr.check(
-          this,
+          ctx,
           new Map(),
           typeOut.value)
       ]
     ],
     () => new go(
       bindVal(
-        this.removeClaimFromContext(fun),
+        removeClaimFromContext(ctx, fun),
         fun,
         typeOut.value,
-        this.valInContext(exprOut.value)
+        valInContext(ctx, exprOut.value)
       )
     )
   )
@@ -130,8 +131,6 @@ export function contextToEnvironment(ctx: Context): Environment {
   }
   return env;
 }
-
-
 
 
 export const initCtx: Context = new Map();
@@ -176,7 +175,7 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 // Function to bind a free variable in a context
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
   if (ctx.has(varName)) {
-    // CHANGE: REMOVE THIS LOOP AFTER FIXING THE BUG
+    // CHANGE: REMOVE ctx LOOP AFTER FIXING THE BUG
     for (const [x, binder] of ctx) {
       if (x === varName) {
         //console.log(`binding ${varName} to ${binder}`);

@@ -6,9 +6,6 @@ export function alphaEquiv(e1: C.Core, e2: C.Core): boolean {
   return alphaEquivAux(0, new Map(), new Map(), e1, e2);
 }
 
-//-------------------------------------------------------------------------------------------//
-
-// ### Helpers ###
 
 type Bindings = Map<string, number>;
 
