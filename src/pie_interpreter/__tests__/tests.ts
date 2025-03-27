@@ -487,15 +487,15 @@ describe("Atom and Pair tests", () => {
                                 (λ (ih)
                                   (add1 ih)))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
-  });
-/* 
+  }); 
+
   it("", () => {
     const src = normalize(`(rec-Nat 2 3 (λ (n-1 ih) (add1 ih)))`);
     const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  /* it("", () => {
     const src = normalize(`((the (Pi ((A U) (B U))
                     (-> (Either A B)
                         (Either B A)))

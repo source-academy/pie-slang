@@ -4,7 +4,6 @@ import * as N from '../types/neutral';
 import { fresh } from '../types/utils';
 import { bindFree, Context } from '../utils/context';
 import { doApp, doCar, doCdr } from "./evaluator";
-import * as util from 'util';
 
 /**
  *   ## Call-by-need evaluation ##

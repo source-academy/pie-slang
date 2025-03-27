@@ -90,32 +90,35 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
     return base;
   } else if (targetNow instanceof V.Add1) {
     return doApp(
-      step,
-      doRecNat(targetNow.smaller, baseType, base, step)
+      doApp(step, targetNow.smaller),
+      doRecNat(targetNow.smaller, baseType, base, step),
     );
   } else if (targetNow instanceof V.Neutral) {
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
-      return new V.Neutral(baseType, new N.RecNat(
-        targetNow.neutral,
-        new N.Norm(baseType, base),
-        new N.Norm(
-          new V.Pi(
-            "n-1",
-            new V.Nat(),
-            new HigherOrderClosure(
-              (_) => new V.Pi(
-                "ih",
-                baseType,
-                new HigherOrderClosure(
-                  (_) => baseType
+      return new V.Neutral(
+        baseType, 
+        new N.RecNat(
+          targetNow.neutral,
+          new N.Norm(baseType, base),
+          new N.Norm(
+            new V.Pi(
+              "n-1",
+              new V.Nat(),
+              new HigherOrderClosure(
+                (_) => new V.Pi(
+                  "ih",
+                  baseType,
+                  new HigherOrderClosure(
+                    (_) => baseType
+                  )
                 )
               )
-            )
-          ),
-          step
+            ),
+            step
+          )
         )
-      ));
+      );
     }
   }
   throw new Error(`invalid input for recNat ${[target, baseType, base, step]}`);
