@@ -30,16 +30,14 @@ export function isNorm(obj: any): obj is Norm {
 // Base class for all Neutral types
 export abstract class Neutral {
 
-  constructor() { } 
+  constructor() { }
 
   public abstract readBackNeutral(context: Context): C.Core;
 
-  public toString(): string {
-    return "Neutral";
-  }
+  public abstract prettyPrint();
 
-  public prettyPrint(): string {
-    return "Neutral";
+  public toString() {
+    return this.prettyPrint();
   }
 }
 
@@ -50,6 +48,10 @@ export class Variable extends Neutral {
 
   public readBackNeutral(context: Context): C.Core {
     return new C.VarName(this.name);
+  }
+
+  public prettyPrint() {
+    return `N-${this.name}`;
   }
 }
 
@@ -62,6 +64,10 @@ export class TODO extends Neutral {
     return new C.TODO(
       this.where, this.type.readBackType(context)
     );
+  }
+
+  public prettyPrint() {
+    return `N-TODO`;
   }
 }
 
@@ -80,12 +86,18 @@ export class WhichNat extends Neutral {
       readBack(context, this.step.type, this.step.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-WhichNat`;
+  }
+
 }
 
 export class IterNat extends Neutral {
   constructor(public target: Neutral, public base: Norm, public step: Norm) {
     super();
   }
+
   public readBackNeutral(context: Context): C.Core {
     return new C.IterNat(
       this.target.readBackNeutral(context),
@@ -96,9 +108,14 @@ export class IterNat extends Neutral {
       readBack(context, this.step.type, this.step.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IterNat`;
+  }
 }
 
 export class RecNat extends Neutral {
+
   constructor(public target: Neutral, public base: Norm, public step: Norm) {
     super();
   }
@@ -112,6 +129,10 @@ export class RecNat extends Neutral {
       ),
       readBack(context, this.step.type, this.step.value)
     );
+  }
+
+  public prettyPrint() {
+    return `N-RecNat`;
   }
 }
 
@@ -133,6 +154,11 @@ export class IndNat extends Neutral {
       readBack(context, this.step.type, this.step.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IndNat`;
+  }
+
 }
 
 export class Car extends Neutral {
@@ -143,6 +169,10 @@ export class Car extends Neutral {
   public readBackNeutral(context: Context): C.Core {
     return new C.Car(this.target.readBackNeutral(context));
   }
+
+  public prettyPrint() {
+    return `N-Car`;
+  }
 }
 
 export class Cdr extends Neutral {
@@ -152,6 +182,10 @@ export class Cdr extends Neutral {
 
   public readBackNeutral(context: Context): C.Core {
     return new C.Cdr(this.target.readBackNeutral(context));
+  }
+
+  public prettyPrint() {
+    return `N-Cdr`;
   }
 }
 
@@ -170,6 +204,10 @@ export class RecList extends Neutral {
       readBack(context, this.step.type, this.step.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-RecList`;
+  }
 }
 
 export class IndList extends Neutral {
@@ -185,9 +223,14 @@ export class IndList extends Neutral {
       readBack(context, this.step.type, this.step.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IndList`;
+  }
 }
 
 export class IndAbsurd extends Neutral {
+
   constructor(public target: Neutral, public motive: Norm) {
     super();
   }
@@ -202,6 +245,11 @@ export class IndAbsurd extends Neutral {
       readBack(context, this.motive.type, this.motive.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IndAbsurd`;
+  }
+
 }
 
 export class Replace extends Neutral {
@@ -216,6 +264,10 @@ export class Replace extends Neutral {
       readBack(context, this.base.type, this.base.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-Replace`;
+  }
 }
 
 export class Trans1 extends Neutral {
@@ -228,6 +280,10 @@ export class Trans1 extends Neutral {
       this.target1.readBackNeutral(context),
       readBack(context, this.target2.type, this.target2.value)
     );
+  }
+
+  public prettyPrint() {
+    return `N-Trans1`;
   }
 }
 
@@ -242,6 +298,10 @@ export class Trans2 extends Neutral {
       this.target2.readBackNeutral(context)
     )
   }
+
+  public prettyPrint() {
+    return `N-Trans2`;
+  }
 }
 
 export class Trans12 extends Neutral {
@@ -255,6 +315,11 @@ export class Trans12 extends Neutral {
       this.target2.readBackNeutral(context)
     )
   }
+
+  public prettyPrint() {
+    return `N-Trans12`;
+  }
+
 }
 
 export class Cong extends Neutral {
@@ -277,6 +342,11 @@ export class Cong extends Neutral {
       throw new Error("Cong applied to non-Pi type.");
     }
   }
+
+  public prettyPrint() {
+    return `N-Cong`;
+  }
+
 }
 
 export class Symm extends Neutral {
@@ -287,6 +357,11 @@ export class Symm extends Neutral {
   public readBackNeutral(context: Context): C.Core {
     return new C.Symm(this.target.readBackNeutral(context));
   }
+
+  public prettyPrint() {
+    return `N-Symm`;
+  }
+
 }
 
 export class IndEqual extends Neutral {
@@ -301,6 +376,11 @@ export class IndEqual extends Neutral {
       readBack(context, this.base.type, this.base.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IndEqual`;
+  }
+
 }
 
 export class Head extends Neutral {
@@ -311,6 +391,11 @@ export class Head extends Neutral {
   public readBackNeutral(context: Context): C.Core {
     return new C.Head(this.target.readBackNeutral(context));
   }
+
+  public prettyPrint() {
+    return `N-Head`;
+  }
+
 }
 
 export class Tail extends Neutral {
@@ -321,6 +406,11 @@ export class Tail extends Neutral {
   public readBackNeutral(context: Context): C.Core {
     return new C.Tail(this.target.readBackNeutral(context));
   }
+
+  public prettyPrint() {
+    return `N-Tail`;
+  }
+
 }
 
 export class IndVec1 extends Neutral {
@@ -335,13 +425,17 @@ export class IndVec1 extends Neutral {
   }
 
   public readBackNeutral(context: Context): C.Core {
-      return new C.IndVec(
-        this.length.readBackNeutral(context),
-        readBack(context, this.target.type, this.target.value),
-        readBack(context, this.motive.type, this.motive.value),
-        readBack(context, this.base.type, this.base.value),
-        readBack(context, this.step.type, this.step.value
+    return new C.IndVec(
+      this.length.readBackNeutral(context),
+      readBack(context, this.target.type, this.target.value),
+      readBack(context, this.motive.type, this.motive.value),
+      readBack(context, this.base.type, this.base.value),
+      readBack(context, this.step.type, this.step.value
       ));
+  }
+
+  public prettyPrint() {
+    return `N-IndVec1`;
   }
 }
 
@@ -365,6 +459,11 @@ export class IndVec2 extends Neutral {
       readBack(context, this.step.type, this.step.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IndVec2`;
+  }
+
 }
 
 export class IndVec12 extends Neutral {
@@ -387,6 +486,11 @@ export class IndVec12 extends Neutral {
       readBack(context, this.step.type, this.step.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IndVec12`;
+  }
+
 }
 
 export class IndEither extends Neutral {
@@ -407,9 +511,14 @@ export class IndEither extends Neutral {
       readBack(context, this.baseRight.type, this.baseRight.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-IndEither`;
+  }
 }
 
 export class Application extends Neutral {
+
   constructor(public operator: Neutral, public operand: Norm) {
     super();
   }
@@ -420,6 +529,11 @@ export class Application extends Neutral {
       readBack(context, this.operand.type, this.operand.value)
     );
   }
+
+  public prettyPrint() {
+    return `N-Application`;
+  }
+
 }
 
 // Predicate function to check if an object is Neutral

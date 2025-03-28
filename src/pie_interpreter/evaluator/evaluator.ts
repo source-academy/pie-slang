@@ -10,6 +10,12 @@ import { natEqual } from './utils';
   the corresponding eliminator.
 */
 
+/**
+ * 
+ * @param operator 
+ * @param operand 
+ * @returns result of applying operator to operand
+ */
 export function doApp(operator: V.Value, operand: V.Value): V.Value {
   const operatorNow = operator.now();
   if (operatorNow instanceof V.Lambda) {
@@ -29,6 +35,14 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
   throw new Error(`doApp: invalid input ${[operatorNow, operand]}`);
 }
 
+/**
+ * 
+ * @param target 
+ * @param baseType 
+ * @param base 
+ * @param step 
+ * @returns result of applying whichNat eliminator
+ */
 export function doWhichNat(target: V.Value, baseType: V.Value, base: V.Value, step: V.Value): V.Value {
   const targetNow = target.now();
   if (targetNow instanceof V.Zero) {

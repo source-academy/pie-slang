@@ -151,17 +151,17 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
     return new C.Same(
       readBack(context, typeNow.type, valueNow.value));
   } else if (typeNow instanceof V.Vec
-    && typeNow.length instanceof V.Zero
-    && valueNow instanceof V.VecNil) {
+    && typeNow.length.now() instanceof V.Zero) {
     return new C.VecNil();
   } else if (typeNow instanceof V.Vec
-    && typeNow.length instanceof V.Add1
+    && typeNow.length.now() instanceof V.Add1
     && valueNow instanceof V.VecCons) {
+    const lenNow = typeNow.length.now() as V.Add1;
     return new C.VecCons(
       readBack(context, typeNow.entryType, valueNow.head),
       readBack(
         context,
-        new V.Vec(typeNow.entryType, typeNow.length.smaller),
+        new V.Vec(typeNow.entryType, lenNow.smaller),
         valueNow.tail
       )
     );
