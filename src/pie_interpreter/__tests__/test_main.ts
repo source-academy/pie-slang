@@ -29,4 +29,13 @@ describe("demos", () => {
                   (addNat 3 0)`;
     console.log(evaluatePie(src));
   });
+
+  it("construct vector", () => {
+    const src =  `(claim more-expectations (Vec Atom 3))
+                  (define more-expectations 
+                      (vec:: 'need-induction
+                          (vec:: 'understood-induction
+                              (vec:: 'built-function vecnil))))`;
+    console.log(evaluatePie(src));
+  });
 });

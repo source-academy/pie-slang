@@ -150,21 +150,22 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
     && valueNow instanceof V.Same) {
     return new C.Same(
       readBack(context, typeNow.type, valueNow.value));
-  } else if (typeNow instanceof V.Vec
-    && typeNow.length instanceof V.Zero
-    && valueNow instanceof V.VecNil) {
-    return new C.VecNil();
-  } else if (typeNow instanceof V.Vec
-    && typeNow.length instanceof V.Add1
-    && valueNow instanceof V.VecCons) {
-    return new C.VecCons(
-      readBack(context, typeNow.entryType, valueNow.head),
-      readBack(
-        context,
-        new V.Vec(typeNow.entryType, typeNow.length.smaller),
-        valueNow.tail
-      )
-    );
+  } else if (typeNow instanceof V.Vec) {
+    const lenNow = typeNow.length.now();
+    if (lenNow instanceof V.Zero
+      && valueNow instanceof V.VecNil) {
+      return new C.VecNil();
+    } else if (lenNow instanceof V.Add1
+      && valueNow instanceof V.VecCons) {
+      return new C.VecCons(
+        readBack(context, typeNow.entryType, valueNow.head),
+        readBack(
+          context,
+          new V.Vec(typeNow.entryType, lenNow.smaller),
+          valueNow.tail
+        )
+      );
+    }
   } else if (typeNow instanceof V.Either
     && valueNow instanceof V.Left) {
     return new C.Left(
