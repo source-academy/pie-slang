@@ -524,7 +524,7 @@ export class Neutral extends Value {
   }
 
   public prettyPrint(): string {
-    return `(neutral ${this.type.prettyPrint()} ${this.neutral.prettyPrint()})`;
+    return `(Neutral ${this.type.prettyPrint()} ${this.neutral.prettyPrint()})`;
   }
 
   public toString(): string {
