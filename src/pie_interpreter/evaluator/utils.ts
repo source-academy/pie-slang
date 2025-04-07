@@ -152,17 +152,17 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
     return new C.Same(
       readBack(context, typeNow.type, valueNow.value));
   } else if (typeNow instanceof V.Vec
-    && typeNow.length instanceof V.Zero
+    && typeNow.length.now() instanceof V.Zero
     && valueNow instanceof V.VecNil) {
     return new C.VecNil();
   } else if (typeNow instanceof V.Vec
-    && typeNow.length instanceof V.Add1
+    && typeNow.length.now() instanceof V.Add1
     && valueNow instanceof V.VecCons) {
     return new C.VecCons(
       readBack(context, typeNow.entryType, valueNow.head),
       readBack(
         context,
-        new V.Vec(typeNow.entryType, typeNow.length.smaller),
+        new V.Vec(typeNow.entryType, (typeNow.length.now() as V.Add1).smaller),
         valueNow.tail
       )
     );
@@ -179,5 +179,6 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
   } else if (valueNow instanceof V.Neutral) {
     return valueNow.neutral.readBackNeutral(context);
   }
-  throw new Error(`Cannot read back ${valueNow} : ${typeNow}`);
+  
+  throw new Error(`Cannot read back ${valueNow.prettyPrint()} : ${typeNow.prettyPrint()}`);
 }
