@@ -1527,7 +1527,7 @@ export class Vec extends Source {
     const Eout = new PerhapsM<C.Core>("Eout");
     const lenout = new PerhapsM<C.Core>('lenout');
     return goOn(
-      [[Eout, () => this.isType(ctx, renames)],
+      [[Eout, () => this.type.isType(ctx, renames)],
       [lenout, () => this.length.check(ctx, renames, new V.Nat())]],
       () => new go(new C.Vec(Eout.value, lenout.value))
     );
