@@ -335,12 +335,12 @@ export class synthesizer {
           context,
           r,
           new V.Pi(
-            'n-1',
+            'n_minus_1',
             new V.Nat(),
             new HigherOrderClosure(
               (n_minus_1) =>
                 new V.Pi(
-                  'x',
+                  'ih',
                   doApp(motval.value, n_minus_1),
                   new HigherOrderClosure(
                     (_) => doApp(motval.value, new V.Add1(n_minus_1))
