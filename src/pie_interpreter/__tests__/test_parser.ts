@@ -1,6 +1,6 @@
 import 'jest';
 import * as util from 'util';
-import { schemeParse, Parser, pieDeclarationParser, Claim, Declaration, SamenessCheck} from '../parser/parser';
+import { schemeParse, Parser, pieDeclarationParser, Claim, Declaration, SamenessCheck, } from '../parser/parser';
 
 function testParser(input: string) {
   const parser = new Parser();
@@ -8,7 +8,15 @@ function testParser(input: string) {
 }
 
 test("Test parsing result atom", () => {
-  const input = '(claim identity (-> Atom Atom))';
+  const input = `
+(define-tactically even-or-odd
+((intro n)
+(exact (same n))))
+`
+const ast = schemeParse(input);
+  console.log(util.inspect(ast, false, null, true));
+  console.log(util.inspect(pieDeclarationParser.parseDeclaration(ast[0]), false, null, true));
+
   // console.log(util.inspect(schemeParse(input), false, null, true));
   // console.log(util.inspect(pieDeclarationParser.parseDeclaration(input), false, null, true));
   //DELETEME console.log(util.inspect(testParser(input), false, null, true));

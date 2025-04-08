@@ -7,6 +7,7 @@ import { Extended, Atomic, Expression } from '../../scheme_parser/transpiler/typ
 import { Location, Syntax } from "../utils/locations";
 import { Location as Loc } from '../../scheme_parser/transpiler/types/location';
 import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
+import { ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
 
 type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
 
@@ -413,7 +414,25 @@ export class Parser {
     }
     throw new Error('Unexpected element: ' + element);
   }
+
+  public static parseToTactics(element: Element): Tactic {
+    const parsee = getValue(element);
+    if (parsee === 'exact') {
+      return makeExact(
+        locationToSyntax('exact', element.location),
+        this.parseElements((element as Extended.List).elements[1] as Element)
+      );
+    } else if (parsee === 'intro') {
+      return makeIntro(
+        locationToSyntax('intro', element.location),
+        ((element as Extended.List).elements[1] as Atomic.Symbol).value
+      );
+    }
+    throw new Error('Unexpected tactic: ' + element);
+  }
 }
+
+
 
 // ### Helper functions for parsing the AST
 
@@ -617,6 +636,14 @@ function makeTODO(stx: Syntax): S.Source {
   return new S.TODO(syntaxToLocation(stx));
 }
 
+function makeIntro(stx: Syntax, name: string): Tactic {
+  return new IntroTactic(syntaxToLocation(stx), name);
+}
+
+function makeExact(stx: Syntax, expr: S.Source): Tactic {
+  return new ExactTactic(syntaxToLocation(stx), expr);
+}
+
 export class Claim {
   constructor (
     public location: Location,
@@ -642,9 +669,17 @@ export class SamenessCheck {
   ) {}
 }
 
+export class DefineTactically {
+  constructor (
+    public location: Location,
+    public name: string,
+    public tactics: Tactic[]
+  ) {}
+}
 
 
-export type Declaration = Claim | Definition | SamenessCheck | S.Source;
+
+export type Declaration = Claim | Definition | SamenessCheck | DefineTactically|S.Source;
 
 
 export class pieDeclarationParser {
@@ -671,6 +706,13 @@ export class pieDeclarationParser {
         Parser.parseElements(elements[1] as Element),
         Parser.parseElements(elements[2] as Element),
         Parser.parseElements(elements[3] as Element)
+      );
+    } else if (parsee === 'define-tactically') {
+      let elements = (ast as Extended.List).elements;
+      return new DefineTactically(
+        syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
+        getValue(elements[1] as Element),
+        (elements[2] as Extended.List).elements.map((x: Expression) => Parser.parseToTactics(x as Element))
       );
     } else {
       return Parser.parseElements(ast);
