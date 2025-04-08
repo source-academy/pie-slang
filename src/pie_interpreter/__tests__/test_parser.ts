@@ -1,5 +1,4 @@
 import 'jest';
-import * as util from 'util';
 import { schemeParse, Parser, pieDeclarationParser, Claim, Declaration, SamenessCheck, } from '../parser/parser';
 
 function testParser(input: string) {
@@ -14,8 +13,6 @@ test("Test parsing result atom", () => {
 (exact (same n))))
 `
 const ast = schemeParse(input);
-  console.log(util.inspect(ast, false, null, true));
-  console.log(util.inspect(pieDeclarationParser.parseDeclaration(ast[0]), false, null, true));
 
   // console.log(util.inspect(schemeParse(input), false, null, true));
   // console.log(util.inspect(pieDeclarationParser.parseDeclaration(input), false, null, true));
