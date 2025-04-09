@@ -68,7 +68,7 @@ describe("Pie language tests", () => {
                    (ind-List
                     ns
                     (λ (_) Nat)
-                    zero
+                    0
                     (λ (x)
                       (λ (y) (λ (z) (ind-Nat x (λ (n) Nat) z (λ (_) (λ (q) (add1 q))))))))))`
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
@@ -89,7 +89,7 @@ describe("Pie language tests", () => {
                                              z
                                              (lambda (_ q)
                                                (add1 q)))))`);
-    const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
+    const actual = `(the Nat 5)`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
@@ -158,7 +158,7 @@ describe("Higher-order function tests", () => {
                          Nat))
                      (λ (x)
                        (λ (f)
-                         (f (add1 zero)))))`;
+                         (f 1))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
@@ -378,6 +378,7 @@ describe("Atom and Pair tests", () => {
     expect(normType(initCtx, src)).toEqual(actual);
   });
 
+
   it("test", () => {
     const src = normalize(`(the (Pi ((x (-> Trivial Absurd)) (y (-> Trivial Absurd))) (= (-> Trivial Absurd) x y)) (lambda (f g) (ind-Absurd (f sole) (= (-> Trivial Absurd) f g))))`);
     const actual = `(the
@@ -398,7 +399,7 @@ describe("Atom and Pair tests", () => {
 
   it("", () => {
     const src = normalize(`(the (= Nat 0 0) (same 0))`);
-    const actual = `(the (= Nat zero zero) (same zero))`
+    const actual = `(the (= Nat 0 0) (same 0))`
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
@@ -431,10 +432,7 @@ describe("Atom and Pair tests", () => {
                                          (lambda (k)
                                            (= Nat k 4))
                                          (same 4))`);
-    const actual = `(the (= Nat
-                        (add1 (add1 (add1 (add1 zero))))
-                        (add1 (add1 (add1 (add1 zero)))))
-                     (same (add1 (add1 (add1 (add1 zero))))))`;
+    const actual = `(the (= Nat 4 4) (same 4))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
@@ -443,7 +441,7 @@ describe("Atom and Pair tests", () => {
                                           3
                                           (λ (ih)
                                             (add1 ih)))`);
-    const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
+    const actual = `(the Nat 5)`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
@@ -487,15 +485,15 @@ describe("Atom and Pair tests", () => {
                                 (λ (ih)
                                   (add1 ih)))))))`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
-  });
-/* 
+  }); 
+
   it("", () => {
     const src = normalize(`(rec-Nat 2 3 (λ (n-1 ih) (add1 ih)))`);
-    const actual = `(the Nat (add1 (add1 (add1 (add1 (add1 zero))))))`;
+    const actual = `(the Nat 5)`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  /* it("", () => {
     const src = normalize(`((the (Pi ((A U) (B U))
                     (-> (Either A B)
                         (Either B A)))

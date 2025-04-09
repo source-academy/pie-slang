@@ -1527,7 +1527,7 @@ export class Vec extends Source {
     const Eout = new PerhapsM<C.Core>("Eout");
     const lenout = new PerhapsM<C.Core>('lenout');
     return goOn(
-      [[Eout, () => this.isType(ctx, renames)],
+      [[Eout, () => this.type.isType(ctx, renames)],
       [lenout, () => this.length.check(ctx, renames, new V.Nat())]],
       () => new go(new C.Vec(Eout.value, lenout.value))
     );
@@ -1562,7 +1562,7 @@ export class VecNil extends Source {
     if (typeNow instanceof V.Vec) {
       const lenNow = typeNow.length.now();
       if (lenNow instanceof V.Zero) {
-        return new go('vecnil');
+        return new go(new C.VecNil());
       } else {
         return new stop(this.location,
           new Message([`vecnil requires a Vec type with length ZERO, but was used as a: 
