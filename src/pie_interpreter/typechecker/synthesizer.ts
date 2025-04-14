@@ -1360,15 +1360,16 @@ export class synthesizer {
             const argout = new PerhapsM<C.Core>('argout');
             return goOn(
               [[argout, () => arg.check(context, r, A)]],
-              () => new go(
-                new C.The(
-                  c.valOfClosure(valInContext(context, argout.value)).readBackType(context),
-                  new C.Application(
-                    fout.value.expr,
-                    argout.value
+              () => 
+                new go(
+                  new C.The(
+                    c.valOfClosure(valInContext(context, argout.value)).readBackType(context),
+                    new C.Application(
+                      fout.value.expr,
+                      argout.value
+                    )
                   )
                 )
-              )
             );
           } else {
             return new stop(

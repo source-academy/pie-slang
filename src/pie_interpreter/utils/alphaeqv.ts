@@ -17,7 +17,7 @@ function bind(b: Bindings, x: string, lvl: number): Bindings {
 
 function findBinding(x: string, b: Bindings): number {
   if (b.has(x)) {
-    b.get(x)!;
+    return b.get(x)!;
   }
   // x is not bound, return -1.
   return FV;  

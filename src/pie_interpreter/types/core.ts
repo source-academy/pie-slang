@@ -4,8 +4,8 @@ import * as N from './neutral';
 import * as Evaluator from '../evaluator/evaluator';
 import { Environment, getValueFromEnvironment} from '../utils/environment';
 import { SourceLocation } from '../utils/locations';
-
 import { FirstOrderClosure, isVarName } from './utils';
+
 
 
 /*
@@ -92,7 +92,7 @@ export class Zero extends Core {
   }
 
   public prettyPrint(): string {
-    return 'zero';
+    return '0';
   }
 
   public toString(): string {
@@ -101,29 +101,6 @@ export class Zero extends Core {
 
 }
 
-export class VarName extends Core {
-
-  constructor(
-    public name: string
-  ) { super() }
-
-  public valOf(env: Environment): V.Value {
-    if (isVarName(this.name)) {
-      return getValueFromEnvironment(env, this.name);
-    } else {
-      throw new Error(`{this.name} is not a valid variable name`);
-    }
-  }
-
-  public prettyPrint(): string {
-    return this.name;
-  }
-
-  public toString(): string {
-    return this.prettyPrint();
-  }
-
-}
 
 export class Add1 extends Core {
 
@@ -136,6 +113,9 @@ export class Add1 extends Core {
   }
 
   public prettyPrint(): string {
+    if (!isNaN(Number(this.n.prettyPrint()))) {
+      return `${Number(this.n.prettyPrint()) + 1}`;
+    }
     return `(add1 ${this.n.prettyPrint()})`;
   }
 
@@ -1070,6 +1050,30 @@ export class Application extends Core {
 
   public prettyPrint(): string {
     return `(${this.fun.prettyPrint()} ${this.arg.prettyPrint()})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+
+}
+
+export class VarName extends Core {
+
+  constructor(
+    public name: string
+  ) { super() }
+
+  public valOf(env: Environment): V.Value {
+    if (isVarName(this.name)) {
+      return getValueFromEnvironment(env, this.name);
+    } else {
+      throw new Error(`{this.name} is not a valid variable name`);
+    }
+  }
+
+  public prettyPrint(): string {
+    return this.name;
   }
 
   public toString(): string {
