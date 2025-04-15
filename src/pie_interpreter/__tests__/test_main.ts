@@ -5,110 +5,110 @@ import {evaluatePie} from '../main'
 describe("demo", () => {
   it("Pie demo", () => {
     const src = 
-    `(claim +
-  (→ Nat Nat
-    Nat))
+//     `(claim +
+//   (→ Nat Nat
+//     Nat))
 
-(claim step-plus
-  (→ Nat
-    Nat))
+// (claim step-plus
+//   (→ Nat
+//     Nat))
 
-(define step-plus
-  (λ (n-1)
-    (add1 n-1 ) ))
+// (define step-plus
+//   (λ (n-1)
+//     (add1 n-1 ) ))
 
-(define +
-  (λ (n j)
-    (iter-Nat n
-      j
-      step-plus)))
+// (define +
+//   (λ (n j)
+//     (iter-Nat n
+//       j
+//       step-plus)))
 
-(claim incr
-  (→ Nat
-    Nat))
+// (claim incr
+//   (→ Nat
+//     Nat))
 
-(define incr
-  (λ (n)
-    (iter-Nat n
-      1
-      (+ 1))))
+// (define incr
+//   (λ (n)
+//     (iter-Nat n
+//       1
+//       (+ 1))))
 
-(claim incr=add1
-  (Π ((n Nat))
-    (= Nat (incr n) (add1 n))))
+// (claim incr=add1
+//   (Π ((n Nat))
+//     (= Nat (incr n) (add1 n))))
 
-(claim base-incr=add1
-  ( = Nat (incr zero) (add1 zero)))
+// (claim base-incr=add1
+//   ( = Nat (incr zero) (add1 zero)))
 
-(define base-incr=add1
-  (same (add1 zero)))
+// (define base-incr=add1
+//   (same (add1 zero)))
 
-(claim mot-incr=add1
-  (→ Nat
-    U))
+// (claim mot-incr=add1
+//   (→ Nat
+//     U))
 
-(define mot-incr=add1
-  (λ (k)
-    ( = Nat (incr k) (add1 k))))
+// (define mot-incr=add1
+//   (λ (k)
+//     ( = Nat (incr k) (add1 k))))
 
-(claim step-incr=add1
-  (Π ((n-1 Nat))
-      (→ (= Nat (incr n-1) (add1 n-1))
-         (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))
-  #;(Π ((n-1 Nat))
-    (→ (mot-incr=add1 n-1)
-       (mot-incr=add1 (add1 n-1)))))
+// (claim step-incr=add1
+//   (Π ((n-1 Nat))
+//       (→ (= Nat (incr n-1) (add1 n-1))
+//          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))
+//   #;(Π ((n-1 Nat))
+//     (→ (mot-incr=add1 n-1)
+//        (mot-incr=add1 (add1 n-1)))))
 
-(claim claim-63
-  (= U
-    (Π ((n-1 Nat))
-      (→ (mot-incr=add1 n-1)
-        (mot-incr=add1 (add1 n-1))))
-    (Π ((n-1 Nat))
-      (→ (= Nat (incr n-1) (add1 n-1))
-         (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))))
+// (claim claim-63
+//   (= U
+//     (Π ((n-1 Nat))
+//       (→ (mot-incr=add1 n-1)
+//         (mot-incr=add1 (add1 n-1))))
+//     (Π ((n-1 Nat))
+//       (→ (= Nat (incr n-1) (add1 n-1))
+//          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))))
 
-(define claim-63
-  (same (Π ((n-1 Nat))
-      (→ (mot-incr=add1 n-1)
-        (mot-incr=add1 (add1 n-1))))))
+// (define claim-63
+//   (same (Π ((n-1 Nat))
+//       (→ (mot-incr=add1 n-1)
+//         (mot-incr=add1 (add1 n-1))))))
 
-(claim claim-69
-  (= U
-    (Π ((n-1 Nat))
-      (→ (= Nat (incr n-1) (add1 n-1))
-         (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))
-    (Π ((n-1 Nat))
-      (→ (= Nat (incr n-1) (add1 n-1))
-        (= Nat (add1 (incr n-1)) (add1 (add1 n-1)))))))
+// (claim claim-69
+//   (= U
+//     (Π ((n-1 Nat))
+//       (→ (= Nat (incr n-1) (add1 n-1))
+//          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))
+//     (Π ((n-1 Nat))
+//       (→ (= Nat (incr n-1) (add1 n-1))
+//         (= Nat (add1 (incr n-1)) (add1 (add1 n-1)))))))
 
-(claim claim-68
-  (Pi ((n-1 Nat))
-    (= Nat (incr (add1 n-1))
-           (add1 (incr n-1)))))
+// (claim claim-68
+//   (Pi ((n-1 Nat))
+//     (= Nat (incr (add1 n-1))
+//            (add1 (incr n-1)))))
 
-(define claim-68
-  (lambda (n-1)
-    (same (add1 (incr n-1)))))
+// (define claim-68
+//   (lambda (n-1)
+//     (same (add1 (incr n-1)))))
 
-(define claim-69
-  (same
-    (Π ((n-1 Nat))
-      (→ (= Nat (incr n-1) (add1 n-1))
-         (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))))
+// (define claim-69
+//   (same
+//     (Π ((n-1 Nat))
+//       (→ (= Nat (incr n-1) (add1 n-1))
+//          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))))
 
-(define step-incr=add1
-  (λ (n-1)
-    (λ (incr=add1n-1)
-      (cong incr=add1n-1 (+ 1)))))
+// (define step-incr=add1
+//   (λ (n-1)
+//     (λ (incr=add1n-1)
+//       (cong incr=add1n-1 (+ 1)))))
 
-(define incr=add1
-  (λ (n)
-    (ind-Nat n
-      mot-incr=add1
-      base-incr=add1
-      step-incr=add1
-     ))) `
+// (define incr=add1
+//   (λ (n)
+//     (ind-Nat n
+//       mot-incr=add1
+//       base-incr=add1
+//       step-incr=add1
+//      ))) `
 // (claim peas
 // (Π ((how-many-peas Nat))
 // (Vec Atom how-many-peas)))
@@ -138,124 +138,127 @@ describe("demo", () => {
 // vecnil
 // step-peas)))
 // `
-// `
-// (claim +
-// (→ Nat Nat
-// Nat))
+`
+(claim +
+  (→ Nat Nat
+    Nat))
 
-// (claim step-plus
-// (→ Nat
-// Nat))
-// (define step-plus
-// (λ (n-1)
-// (add1 n-1 ) ))
+(claim step-plus
+  (→ Nat
+    Nat))
 
-// (define +
-// (λ (n j)
-// (iter-Nat n
-// j
-// step-plus )))
+(define step-plus
+  (λ (n-1)
+    (add1 n-1 ) ))
 
-// (claim double
-// (→ Nat
-// Nat))
+(define +
+  (λ (n j)
+    (iter-Nat n
+      j
+      step-plus )))
 
-// (define double
-// (λ (n)
-// (iter-Nat n
-// 0
-// (+ 2))))
+(claim double
+  (→ Nat
+    Nat))
 
-// (claim twice
-// (→ Nat
-// Nat))
+(define double
+  (λ (n)
+    (iter-Nat n
+      0
+      (+ 2))))
 
-// (define twice
-// (λ (n)
-// (+ n n)))
+(claim twice
+  (→ Nat
+    Nat))
 
-// (claim twice=double
-// (Π ((n Nat))
-// (= Nat (twice n) (double n))))
+(define twice
+  (λ (n)
+    (+ n n)))
 
-// (claim add1+=+add1
-// (Π ((n Nat)
-// (j Nat))
-// (= Nat
-// (add1 (+ n j))
-// (+ n (add1 j)))))
 
-// (claim mot-add1+=+add1
-// (→ Nat Nat
-// U))
-// (define mot-add1+=+add1
-// (λ (j k)
-// (= Nat
-// (add1 (+ k j))
-// (+ k (add1 j)))))
 
-// (claim step-add1+=+add1
-// (Π ((j Nat)
-// (n-1 Nat))
-// (→ (mot-add1+=+add1 j
-// n-1)
-// (mot-add1+=+add1 j
-// (add1 n-1)))))
+(claim add1+=+add1
+  (Π ((n Nat)
+      (j Nat))
+  (= Nat
+    (add1 (+ n j))
+    (+ n (add1 j)))))
 
-// (define step-add1+=+add1
-// (λ (j n-1)
-// (λ (add1+=+add1n-1)
-// (cong add1+=+add1n-1
-// (+ 1)))))
+(claim mot-add1+=+add1
+  (→ Nat Nat
+    U))
 
-// (define add1+=+add1
-// (λ (n j)
-// (ind-Nat n
-// (mot-add1+=+add1 j)
-// (same (add1 j))
-// (step-add1+=+add1 j))))
+(define mot-add1+=+add1
+  (λ (j k)
+    (= Nat
+      (add1 (+ k j))
+      (+ k (add1 j)))))
 
-// (claim mot-twice=double
-// (→ Nat
-// U))
-// (define mot-twice=double
-// (λ (k)
-// (= Nat
-// (twice k)
-// (double k))))
+(claim step-add1+=+add1
+  (Π ((j Nat)
+    (n-1 Nat))
+  (→ (mot-add1+=+add1 j
+      n-1)
+    (mot-add1+=+add1 j
+      (add1 n-1)))))
 
-// (claim step-twice=double
-// (Π ((n-1 Nat))
-// (→ (mot-twice=double n-1)
-// (mot-twice=double (add1 n-1)))))
+(define step-add1+=+add1
+  (λ (j n-1)
+    (λ (add1+=+add1n-1)
+      (cong add1+=+add1n-1
+        (+ 1)))))
 
-// (claim mot-step-twice=double
-// (→ Nat Nat
-// U))
+(define add1+=+add1
+  (λ (n j)
+    (ind-Nat n
+      (mot-add1+=+add1 j)
+      (same (add1 j))
+      (step-add1+=+add1 j))))
 
-// (define mot-step-twice=double
-// (λ (n-1 k)
-// (= Nat
-// (add1
-// k)
-// (add1
-// (add1 (double n-1))))))
+(claim twice=double
+  (Π ((n Nat))
+    (= Nat (twice n) (double n))))
 
-// (define step-twice=double
-// (λ (n-1)
-// (λ (twice=doublen-1)
-// (replace (add1+=+add1 n-1 n-1)
-// (mot-step-twice=double n-1)
-// (cong twice=doublen-1
-// (+ 2))))))
+(claim mot-twice=double
+  (→ Nat
+    U))
 
-// (define twice=double
-// (λ (n)
-// (ind-Nat n
-// mot-twice=double
-// (same zero)
-// step-twice=double)))
-// `
+(define mot-twice=double
+  (λ (k)
+    (= Nat
+      (twice k)
+      (double k))))
+
+(claim step-twice=double
+  (Π ((n-1 Nat))
+    (→ (mot-twice=double n-1)
+      (mot-twice=double (add1 n-1)))))
+
+(claim mot-step-twice=double
+  (→ Nat Nat
+    U))
+
+(define mot-step-twice=double
+  (λ (n-1 k)
+    (= Nat
+      (add1 k)
+      (add1 (add1 (double n-1))))))
+
+(define step-twice=double
+  (λ (n-1)
+    (λ (twice=doublen-1)
+      (replace (add1+=+add1 n-1 n-1)
+        (mot-step-twice=double n-1)
+        (cong twice=doublen-1
+          (+ 2))))))
+
+(define twice=double
+  (λ (n)
+    (ind-Nat n
+    mot-twice=double
+    (same zero)
+    step-twice=double)))
+`
 
 // `
 // (claim +
@@ -299,6 +302,112 @@ describe("demo", () => {
 // (cons 0
 // (same 0)))
 
+    console.log(evaluatePie(src));
+  });
+});
+
+describe("False_demo", () => {
+  it("Pie demo", () => {
+    const src = 
+    `
+(claim =consequence
+  (→ Nat Nat
+    U))
+
+(define =consequence
+  (λ (n j)
+    (which-Nat n
+      (which-Nat j
+        Trivial
+  (λ (j-1)
+    Absurd))
+  (λ (n-1)
+    (which-Nat j
+      Absurd
+      (λ (j-1)
+      (= Nat n-1 j-1)))))))   
+
+(claim =consequence-same
+  (Π ((n Nat))
+    (=consequence n n)))
+
+(define =consequence-same
+  (λ (n)
+    (ind-Nat n
+      (λ (k)
+      (=consequence k k))
+        sole
+      (λ (n-1 =consequencen-1)
+        (same n-1)))))
+
+
+(claim use-Nat=
+  (Π ((n Nat)
+    (j Nat))
+      (→ (= Nat n j)
+        (=consequence n j))))
+
+(define use-Nat=
+  (λ (n j)
+    (λ (n=j)
+      (replace n=j
+        (λ (k)
+          (=consequence n k))
+          (=consequence-same n)))))        
+
+(claim zero-not-add1
+  (Π ((n Nat))
+    (→ (= Nat zero (add1 n))
+      Absurd)))
+
+(define zero-not-add1
+  (λ (n)
+    (use-Nat= zero (add1 n))))
+         `
+    console.log(evaluatePie(src));
+  });
+});
+
+describe("And_demo", () => {
+  it("Pie demo", () => {
+    const src = 
+    `
+(claim and-example
+  (Π ((n Nat))
+    (Pair (= Nat n n)
+      (= Nat (add1 n) (add1 n)))))
+
+(define and-example
+  (λ (n)
+    (cons (same n)  
+      (same (add1 n)))))
+         `
+    console.log(evaluatePie(src));
+  });
+});
+
+describe("Or_demo", () => {
+  it("Pie demo", () => {
+    const src = 
+    `
+(claim nat-zero-or-successor
+  (Π ((n Nat))
+    (Either (= Nat n 0)
+            (Σ ((m Nat))
+               (= Nat n (add1 m))))))
+
+(define nat-zero-or-successor
+  (λ (n)
+    (ind-Nat n
+      (λ (k)
+        (Either (= Nat k 0)
+                (Σ ((m Nat))
+                   (= Nat k (add1 m)))))
+      
+      (left (same 0))
+      (λ (n-1 ih)
+        (right (cons n-1 (same (add1 n-1))))))))
+         `
     console.log(evaluatePie(src));
   });
 });
