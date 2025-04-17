@@ -9,7 +9,6 @@ import { readBack } from '../evaluator/utils';
 import { Value } from '../types/value';
 
 export class ProofManager {
-  private activeProofs: Map<string, ProofState> = new Map();
   public currentState: ProofState | null = null;
 
   startProof(name: string, context: Context, location: Location): Perhaps<string> {
