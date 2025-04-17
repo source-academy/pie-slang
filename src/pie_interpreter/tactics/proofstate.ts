@@ -4,20 +4,14 @@ import { Core } from '../types/core';
 import { Value } from '../types/value';
 import { Location } from '../utils/locations';
 
-/**
- * Represents a single goal in a proof
- */
 export class Goal {
   constructor(
     public id: number,
-    public type: Value,  // The type we're trying to construct a term of
+    public type: Value,  
     public term?: Core   // The partial term constructed so far (if any)
   ) {}
 }
 
-/**
- * Represents the complete state of a proof in progress
- */
 export class ProofState {
   constructor(
     public location: Location,
@@ -37,9 +31,6 @@ export class ProofState {
     );
   }
 
-  /**
-   * Creates a copy of the current proof state
-   */
   clone(): ProofState {
     const newGoals = this.goals.map(g => new Goal(g.id, g.type, g.term));
     return new ProofState(
@@ -51,9 +42,6 @@ export class ProofState {
     );
   }
 
-  /**
-   * Records the current state in history and returns a new state
-   */
   checkpoint(): ProofState {
     const currentState = this.clone();
     const newState = this.clone();
@@ -61,9 +49,6 @@ export class ProofState {
     return newState;
   }
 
-  /**
-   * Check if the proof is complete (all goals are solved)
-   */
   isComplete(): boolean {
     return this.goals.length === 0;
   }

@@ -40,7 +40,7 @@ export function evaluatePie(str): string {
       message += (proofManager.startProof(src.name, ctx, src.location) as go<string>).result;
 
       for (const tactic of src.tactics) {
-        const result = proofManager.applyTactic(src.name, tactic);
+        const result = proofManager.applyTactic(tactic);
         if (result instanceof go) {
           message += result.result;
         } else if (result instanceof stop) {
