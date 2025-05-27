@@ -7,6 +7,7 @@ import { addClaimToContext, addDefineToContext, Define, initCtx } from './utils/
 import { Core } from './types/core';
 import { readBack } from './evaluator/utils';
 import { ProofManager } from './tactics/proofmanager';
+import {inspect} from 'util';
 
 export function evaluatePie(str): string {
   const astList = schemeParse(str);
@@ -37,8 +38,12 @@ export function evaluatePie(str): string {
     } else if (src instanceof DefineTactically) {
       const proofManager = new ProofManager();
       let message = ''
-      message += (proofManager.startProof(src.name, ctx, src.location) as go<string>).result;
-
+      const a = proofManager.startProof(src.name, ctx, src.location)
+      if (a instanceof go) {
+        message += a.result + '\n';
+      } else if (a instanceof stop) {
+        throw new Error("" + a.where + a.message);
+      }
       for (const tactic of src.tactics) {
         const result = proofManager.applyTactic(tactic);
         if (result instanceof go) {

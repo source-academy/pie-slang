@@ -16,6 +16,7 @@ export class ProofState {
   constructor(
     public location: Location,
     public context: Context,
+    public renaming: Map<string, string>,
     public goals: Goal[],
     public focusedGoal: number,  // Index of the currently active goal
     public proofHistory: ProofState[] = []  // For undo/redo functionality
@@ -25,6 +26,7 @@ export class ProofState {
     return new ProofState(
       location,
       context,
+      new Map(),
       [new Goal(0, theorem)],
       0,
       []
@@ -36,6 +38,7 @@ export class ProofState {
     return new ProofState(
       this.location,
       this.context,
+      this.renaming,
       newGoals,
       this.focusedGoal,
       [...this.proofHistory]

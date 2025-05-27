@@ -9,7 +9,7 @@ import { Name } from '../types/source';
 import { go } from '../types/utils';
 
 describe("demo", () => {
-  it("Pie demo", () => {
+  it("Basic", () => {
     const str = 
     `
 (claim +
@@ -33,29 +33,40 @@ step-+ )))
 (Π ((n Nat))
 (= Nat (+ 1 n) (add1 n))))
 
-(define-tactically +=add1
+(define-tactically +1=add1
  ((intro n)
   (exact (same (add1 n)))))
 `
-//  (define-tactically +=add1
-// ((intro n) 
-//  (exact (same (add1 n)))))
-// (define +1=add1
-// (λ (n)
-// (same (add1 n)))) 
     console.log(evaluatePie(str));
-    // const astList = schemeParse(str);
-    // const src = (pieDeclarationParser.parseDeclaration(astList[0]) as Claim);
-    // let ctx = initCtx;
-    // // const result = addClaimToContext(ctx, src.name, src.location, src.type);
-    // const proof = new ProofManager();
-    // const result0 = proof.startProof(src.name, src.type, ctx, src.location);
-    // const tactic0 = new IntroTactic(src.location, 'n');
-    // const result1 = proof.applyTactic(src.name, tactic0);
-    // const tactic1 = new ExactTactic(src.location, new Name(src.location, 'n'));
-    // const result2 = proof.applyTactic(src.name, tactic1);
-    // console.log((result0 as go<string>).result);
-    // console.log((result1 as go<string>).result);
-    // console.log((result2 as go<string>).result);
   });
+
+  it("Renaming0", () => {
+    const str = 
+    `
+    (claim renaming0 
+      (Π ((x Nat))
+        (Π ((x Nat))
+          Nat)))
+    
+    (define renaming0
+    (λ (x)
+      (λ (x)
+        x)))`
+    console.log(evaluatePie(str));
+  })
+
+  it("Renaming0-Tac", () => {
+    const str = 
+    `
+    (claim renaming0-tac 
+      (Π ((x Nat))
+        (Π ((x Nat))
+          Nat)))
+    
+    (define-tactically renaming0-tac
+    ((intro x)
+     (intro x)
+     (exact x)))`
+    console.log(evaluatePie(str));
+  })
 });

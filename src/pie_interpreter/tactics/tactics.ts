@@ -45,7 +45,7 @@ export class IntroTactic extends Tactic {
 
     if (!(goalType instanceof Pi)) {
       return new stop(state.location,
-        new Message([`Cannot introduce a variable for non-function type: ${goalType}`]));
+        new Message([`Cannot introduce a variable for non-function type: ${goalType.prettyPrint()}`]));
     }
 
     const newState = state.checkpoint();
@@ -82,21 +82,16 @@ export class ExactTactic extends Tactic {
     if (!currentGoal) {
       return new stop(state.location, new Message(["No current goal"]));
     }
-
-    const termResult = this.term.synth(state.context, new Map());
-    if (termResult instanceof stop) {
-      return termResult;
+    console.log('term', this.term.prettyPrint());
+    const goalType = currentGoal.type;
+    const result = this.term.check(state.context, state.renaming, goalType)
+    // const termResult = this.term.synth(state.context, new Map());
+    
+    if (result instanceof stop) {
+      return result;
     }
 
-    const { expr, type } = (termResult as go<any>).result;
-    const termType = type.valOf(contextToEnvironment(state.context));
-    const goalType = currentGoal.type;
-
-    sameType(state.context, state.location, termType, goalType);
-
     const newState = state.checkpoint();
-
-    currentGoal.term = expr;
 
     newState.goals.splice(newState.focusedGoal, 1);
 
