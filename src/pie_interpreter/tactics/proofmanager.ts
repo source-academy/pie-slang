@@ -47,13 +47,4 @@ export class ProofManager {
 
     return new go(response);
   }
-
-  private formatGoal(goal: Goal, context: Context): string {
-    try {
-      const typeStr = goal.type.readBackType(context).prettyPrint();
-      return typeStr;
-    } catch (error) {
-      return `<Error formatting goal: ${error.message}>`;
-    }
-  }
 }

@@ -390,23 +390,60 @@ describe("Or_demo", () => {
   it("Pie demo", () => {
     const src = 
     `
-(claim nat-zero-or-successor
-  (Π ((n Nat))
-    (Either (= Nat n 0)
-            (Σ ((m Nat))
-               (= Nat n (add1 m))))))
+(claim + (-> Nat Nat Nat))
+(define +
+  (lambda (i j)
+    (rec-Nat j
+      i
+      (lambda (j-1 sum-j-1)
+        (add1 sum-j-1)
+      )
+    )
+  )
+)
 
-(define nat-zero-or-successor
-  (λ (n)
+
+(claim zero+n=n
+  (Pi ((n Nat))
+    (= Nat (+ 0 n) n)))
+
+(claim mot-zero+n=n
+  (-> Nat U))
+
+(define mot-zero+n=n
+  (lambda (n)
+    (= Nat (+ 0 n) n)))
+
+(claim base-zero+n=n
+  (= Nat (+ 0 0) 0))
+
+(define base-zero+n=n
+  (same 0))
+
+(claim step-zero+n=n
+  (Pi ((n Nat))
+    (-> (= Nat (+ 0 n) n)
+        (= Nat (add1 (+ 0 n)) (add1 n)))))
+
+(claim +one
+  (-> Nat
+    Nat))
+
+(define +one
+  (lambda (n)
+    (add1 n)))
+
+(define step-zero+n=n
+  (lambda (n stepn-1)
+    (cong stepn-1
+      +one)))
+
+(define zero+n=n
+  (lambda (n)
     (ind-Nat n
-      (λ (k)
-        (Either (= Nat k 0)
-                (Σ ((m Nat))
-                   (= Nat k (add1 m)))))
-      
-      (left (same 0))
-      (λ (n-1 ih)
-        (right (cons n-1 (same (add1 n-1))))))))
+      mot-zero+n=n
+      base-zero+n=n
+      step-zero+n=n)))
          `
     console.log(evaluatePie(src));
   });

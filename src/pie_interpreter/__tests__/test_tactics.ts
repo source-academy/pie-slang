@@ -11,9 +11,38 @@ import { go } from '../types/utils';
 describe("demo", () => {
   it("Pie demo", () => {
     const str = 
-    `(claim identity (-> Nat Nat))
-    (define-tactically identity
-    ((intro n) (exact n)))`
+    `
+(claim +
+(→ Nat Nat
+Nat))
+
+(claim step-+
+(→ Nat
+Nat))
+(define step-+
+(λ ( +n-1)
+(add1 +n-1 ) ))
+
+(define +
+(λ (n j)
+(iter-Nat n
+j
+step-+ )))
+
+(claim +1=add1
+(Π ((n Nat))
+(= Nat (+ 1 n) (add1 n))))
+
+(define-tactically +=add1
+ ((intro n)
+  (exact (same (add1 n)))))
+`
+//  (define-tactically +=add1
+// ((intro n) 
+//  (exact (same (add1 n)))))
+// (define +1=add1
+// (λ (n)
+// (same (add1 n)))) 
     console.log(evaluatePie(str));
     // const astList = schemeParse(str);
     // const src = (pieDeclarationParser.parseDeclaration(astList[0]) as Claim);
