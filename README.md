@@ -6,7 +6,7 @@ To get started with the Pie interpreter:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/ZhangQixiang123/pie-slang.git
+   https://github.com/source-academy/pie-slang.git
    cd pie-slang
    ```
 
