@@ -3,6 +3,8 @@ import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
 import { natEqual } from './utils';
 
+//TODO: add else cases and throw errors
+
 /*
   ### The Evaluators ###
 

@@ -15,6 +15,7 @@ import { readBack } from '../evaluator/utils';
 import { synthesizer as Synth } from '../typechecker/synthesizer';
 import { fresh } from './utils';
 import { varType } from '../utils/context';
+import { inspect } from 'util';
 
 export abstract class Source {
 
@@ -1325,6 +1326,8 @@ export class Same extends Source {
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const typeNow = type.now();
+    console.log('context' + inspect(ctx, true, null, true))
+    console.log('typeNow' + inspect(typeNow, true, null, true))
     if (typeNow instanceof V.Equal) {
       const A = typeNow.type;
       const from = typeNow.from;
@@ -1349,7 +1352,7 @@ export class Same extends Source {
     } else {
       return new stop(
         this.location,
-        new Message([`same requires an Equal type, but was used as a: ${typeNow.readBackType(ctx)}.`])
+        new Message([`same requires an Equal type, but encounter: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }

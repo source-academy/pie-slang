@@ -26,9 +26,10 @@ export class ProofManager {
 
 
   public applyTactic(tactic: Tactic): Perhaps<string> {
+
     if (!this.currentState) {
       return new stop(tactic.location, new Message([`No proof has been initialized`]));
-    }
+    } 
 
     const newStateResult = tactic.apply(this.currentState);
     if (newStateResult instanceof stop) {
@@ -40,10 +41,11 @@ export class ProofManager {
     let response = `\nApplied tactic: ${tactic}`;
 
     const currentGoal = this.currentState.getCurrentGoal();
-    if (currentGoal) {
-      response += `\nCurrent goal: \n` + currentGoal.type.readBackType(this.currentState.context).prettyPrint();
-    } else if (this.currentState.isComplete()) {
+     if (this.currentState.isComplete()) {
+      console.log(inspect(this.currentState.getCurrentGoal(), true, null, true));
       response += "\nAll goals have been solved!";
+    } else {
+      response += `\nCurrent goal: \n` + currentGoal.type.readBackType(currentGoal.context).prettyPrint();
     }
 
     return new go(response);

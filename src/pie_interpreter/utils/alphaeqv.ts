@@ -29,11 +29,8 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: C.Core, e2: 
     const n1 = e1.name;
     const n2 = e2.name;
     if (isVarName(n1) && isVarName(n2)) {
-      console.log('b1' + inspect(b1, true, null, true))
-      console.log('b2' + inspect(b2, true, null, true))
       const xBinding = findBinding(n1, b1);
       const yBinding = findBinding(n2, b2);
-      console.log(xBinding, yBinding);
       // both bound
       if (xBinding !== FV && yBinding !== FV) {
         return xBinding === yBinding;
