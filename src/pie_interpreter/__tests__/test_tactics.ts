@@ -125,27 +125,26 @@ step-+ )))
 // });
 });
 
-// describe("EliminateTactic Tests", () => {
+describe("EliminateTactic Tests", () => {
   
-//   it("Simple Nat elimination - prove n = n", () => {
-//     const str = 
-//     `
-// (claim n=n
-//   (Π ((n Nat))
-//     (= Nat n n)))
+  it("Simple Nat elimination - prove n = n", () => {
+    const str = 
+    `
+(claim n=n
+  (Π ((n Nat))
+    (= Nat n n)))
 
-// (define-tactically n=n
-//   ((intro n)
-//    (elim n)
-//    ; After eliminate, we get 3 goals:
-//    ; 1. Motive: (Π (k Nat) U)  
-//    ; 2. Base: (motive zero)
-//    ; 3. Step: (Π (n-1 Nat) (→ (motive n-1) (motive (add1 n-1))))
-//    (exact (λ (k) (= Nat k k)))     ; Solve motive goal
-//    (exact (same zero))             ; Solve base case
-//    (intro n-1)                     ; Introduce variables for step case
-//    (intro ih)
-//    (exact (same (add1 n-1)))))     ; Solve step case
-// `;
-//     console.log(evaluatePie(str));
-//   });})
+(define-tactically n=n
+  ((intro n)
+   (elim n (λ (k) (= Nat k k)))
+   ; After eliminate, we get 3 goals:
+   ; 1. Motive: (Π (k Nat) U)  
+   ; 2. Base: (motive zero)
+   ; 3. Step: (Π (n-1 Nat) (→ (motive n-1) (motive (add1 n-1))))
+   (exact (same zero))             ; Solve base case
+   (intro n-1)                     ; Introduce variables for step case
+   (intro ih)
+   (exact (same (add1 n-1)))))     ; Solve step case
+`;
+    console.log(evaluatePie(str));
+  });})

@@ -52,7 +52,7 @@ export class IntroTactic extends Tactic {
 
     let newRenaming = currentGoal.renaming
     if (name !== goalType.argName) {
-      extendRenaming(newRenaming, goalType.argName, name);
+      extendRenaming(newRenaming, goalType.argName, name)
     }
 
     const newContext = extendContext(currentGoal.context, name, new Free(goalType.argType))
@@ -149,8 +149,9 @@ export class EliminateTactic extends Tactic {
 
       if (motiveRst instanceof stop) {
         return motiveRst;
-      } else {
-        const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, (motiveRst as go<Value>).result)
+      } else{
+        const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, 
+          (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context)))
         console.log("Eliminating Nat with motive:", inspect(rst, true, null, true))
         state.addGoal(
           rst.map((type) => {
@@ -159,6 +160,7 @@ export class EliminateTactic extends Tactic {
             );
             return newGoalNode;
           }))
+        return new go(state);
       }
 
     }
@@ -168,6 +170,10 @@ export class EliminateTactic extends Tactic {
     // For Nat elimination, we need:
     // 1. A base case: (motive zero)
     // 2. A step case: (Π (n-1 Nat) (→ (motive n-1) (motive (add1 n-1))))
+
+    console.log('Cur Context', inspect(context, true, null, true))
+    console.log('Motive Type', inspect(motiveType, true, null, true))
+    console.log(motiveType instanceof Value)
 
     const baseType = doApp(motiveType, new V.Zero());
 

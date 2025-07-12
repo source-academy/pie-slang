@@ -7,7 +7,7 @@ import { Extended, Atomic, Expression } from '../../scheme_parser/transpiler/typ
 import { Location, Syntax } from "../utils/locations";
 import { Location as Loc } from '../../scheme_parser/transpiler/types/location';
 import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
-import { ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
+import { EliminateTactic, ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
 
 type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
 
@@ -427,6 +427,12 @@ export class Parser {
         locationToSyntax('intro', element.location),
         ((element as Extended.List).elements[1] as Atomic.Symbol).value
       );
+    } else if (parsee === 'elim') {
+      return makeElim(
+        locationToSyntax('elim', element.location),
+        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
+        this.parseElements((element as Extended.List).elements[2] as Element)
+      );
     }
     throw new Error('Unexpected tactic: ' + element);
   }
@@ -642,6 +648,10 @@ function makeIntro(stx: Syntax, name: string): Tactic {
 
 function makeExact(stx: Syntax, expr: S.Source): Tactic {
   return new ExactTactic(syntaxToLocation(stx), expr);
+}
+
+function makeElim(stx: Syntax, target: string, motive: S.Source): Tactic {
+  return new EliminateTactic(syntaxToLocation(stx), target, motive);
 }
 
 export class Claim {
