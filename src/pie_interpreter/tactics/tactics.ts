@@ -163,29 +163,48 @@ export class EliminateTactic extends Tactic {
         return new go(state);
       }
 
+    } else if (targetType instanceof V.List) {
+      const listMotive = fresh(currentGoal.context, "motive")
+      const E = targetType.entryType
+      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+        new V.Pi(
+                            'xs',
+                            new V.List(E),
+                            new FirstOrderClosure(
+                              contextToEnvironment(currentGoal.context),
+                              'xs',
+                              new C.Universe()
+                            )
+                          ))
+      if (motiveRst instanceof stop) {
+        return motiveRst;
+      } else {
+        const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+        const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
+        console.log("Eliminating List with motive:", inspect(rst, true, null, true))
+        state.addGoal(
+          rst.map((type) => {
+            const newGoalNode = new GoalNode(
+              new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+            );
+            return newGoalNode;
+          }))
+        return new go(state);
+      }
     }
   }
 
   private eliminateNat(context: Context, r: Renaming, motiveType: Value): Value[] {
-    // For Nat elimination, we need:
     // 1. A base case: (motive zero)
-    // 2. A step case: (Π (n-1 Nat) (→ (motive n-1) (motive (add1 n-1))))
-
-    console.log('Cur Context', inspect(context, true, null, true))
-    console.log('Motive Type', inspect(motiveType, true, null, true))
-    console.log(motiveType instanceof Value)
-
     const baseType = doApp(motiveType, new V.Zero());
 
-    const stepVar = fresh(context, "n-1");
-    const ihVar = fresh(context, "ih");
-    
+    // 2. A step case: (Π (n-1 Nat) (→ (motive n-1) (motive (add1 n-1))))
     const stepType = new V.Pi(
-      stepVar,
+      fresh(context, "n-1"),
       new V.Nat(),
       new HigherOrderClosure((n_minus_1) => {
         return new V.Pi(
-          ihVar,
+          fresh(context, "ih"),
           doApp(motiveType, n_minus_1),
           new HigherOrderClosure((_) => 
             doApp(motiveType, new V.Add1(n_minus_1))
@@ -195,6 +214,33 @@ export class EliminateTactic extends Tactic {
     ); 
     
     return [baseType, stepType]
+  }
+
+  private eliminateList(context: Context, r: Renaming, motiveType: Value, entryType: Value): Value[] {
+    //1. A base case: (motive nil)
+    const baseType = doApp(motiveType, new V.Nil());
+
+    //2. A step case: (Π (x E) (Π (xs (V.List E)) (→ (motive xs) (motive (cons x xs)))))
+    const stepZType = new V.Pi(
+                      fresh(context, "x"),
+                      entryType,
+                      new HigherOrderClosure(
+                        (x) => new V.Pi(
+                          fresh(context, "xs"),
+                          new V.List(entryType),
+                          new HigherOrderClosure(
+                            (xs) => new V.Pi(
+                              fresh(context, "ih"),
+                              doApp(motiveType, xs),
+                              new HigherOrderClosure(
+                                (_) => doApp(motiveType, new V.ListCons(x, xs))
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+    return [baseType, stepZType];
   }
 
   
