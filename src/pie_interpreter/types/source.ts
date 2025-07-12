@@ -59,7 +59,7 @@ export abstract class Source {
               () => varType(ctx, this.location, this.name)]
           ],
           () => {
-            new stop(this.location, new Message([`Expected , but given ${otherTv.value.readBackType(ctx)}`]));
+            new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
           }
         );
       } else {
@@ -1325,9 +1325,7 @@ export class Same extends Source {
   }
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
-    const typeNow = type.now();
-    console.log('context' + inspect(ctx, true, null, true))
-    console.log('typeNow' + inspect(typeNow, true, null, true))
+    const typeNow = type.now()
     if (typeNow instanceof V.Equal) {
       const A = typeNow.type;
       const from = typeNow.from;

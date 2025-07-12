@@ -12,6 +12,7 @@ import { extendRenaming, Renaming, sameType } from '../typechecker/utils';
 import { Location } from '../utils/locations';
 import * as V from '../types/value';
 import * as C from '../types/core';
+import { inspect } from 'util';
 
 export abstract class Tactic {
   constructor(public location: Location) { }
@@ -54,7 +55,7 @@ export class IntroTactic extends Tactic {
       extendRenaming(newRenaming, goalType.argName, name);
     }
 
-    const newContext = extendContext(currentGoal.context, name, new Claim(goalType.argType))
+    const newContext = extendContext(currentGoal.context, name, new Free(goalType.argType))
 
     const newGoalType = goalType.resultType.valOfClosure(
       new Neutral(goalType.argType, new Variable(name))
@@ -83,6 +84,7 @@ export class ExactTactic extends Tactic {
   }
   apply(state: ProofState): Perhaps<ProofState> {
 
+    console.log(inspect(state, true, null, true))
     const currentGoal = state.currentGoal.goal
     const goalType = currentGoal.type
     const result = this.term.check(currentGoal.context, currentGoal.renaming, goalType)
@@ -148,7 +150,8 @@ export class EliminateTactic extends Tactic {
       if (motiveRst instanceof stop) {
         return motiveRst;
       } else {
-        const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, (motiveRst as go<Value>).result);
+        const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, (motiveRst as go<Value>).result)
+        console.log("Eliminating Nat with motive:", inspect(rst, true, null, true))
         state.addGoal(
           rst.map((type) => {
             const newGoalNode = new GoalNode(
