@@ -61,9 +61,6 @@ export class IntroTactic extends Tactic {
       new Neutral(goalType.argType, new Variable(name))
     );
 
-    
-    
-
     const newGoalNode = new GoalNode(new Goal(state.generateGoalId(), newGoalType, newContext, newRenaming))
     state.addGoal([newGoalNode])
 
@@ -82,6 +79,7 @@ export class ExactTactic extends Tactic {
   toString(): string {
     return `exact ${this.term.prettyPrint()}`;
   }
+  
   apply(state: ProofState): Perhaps<ProofState> {
 
     console.log(inspect(state, true, null, true))
@@ -101,7 +99,7 @@ export class ExactTactic extends Tactic {
   }
 }
 
-export class EliminateTactic extends Tactic {
+export class EliminateNatTactic extends Tactic {
   constructor(
     public location: Location,
     private target: string,
@@ -111,8 +109,7 @@ export class EliminateTactic extends Tactic {
   }
 
   toString(): string {
-    return `eliminate ${this.target}
-     to prove ${this.motive.prettyPrint()}`;
+    return `elim-nat ${this.target} to prove ${this.motive.prettyPrint()}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -122,7 +119,6 @@ export class EliminateTactic extends Tactic {
     }
 
     const currentGoal = state.currentGoal.goal
-    const goalType = currentGoal.type;
 
     const targetType_temp = currentGoal.context.get(this.target);
 
@@ -137,60 +133,33 @@ export class EliminateTactic extends Tactic {
       throw new Error(`Expected target to be a free variable`);
     }
 
-    if (targetType instanceof Nat) {
-      const name = fresh(currentGoal.context, "n");
-      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-        new Pi(
-          name,
-          new V.Nat(),
-          new HigherOrderClosure((_) => new V.Universe())
-        )
+    if (!(targetType instanceof Nat)) {
+      return new stop(state.location, new Message([`Cannot eliminate non-Nat type: ${targetType.prettyPrint()}`]));
+    }
+
+    const name = fresh(currentGoal.context, "n");
+    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+      new Pi(
+        name,
+        new V.Nat(),
+        new HigherOrderClosure((_) => new V.Universe())
       )
+    )
 
-      if (motiveRst instanceof stop) {
-        return motiveRst;
-      } else{
-        const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, 
-          (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context)))
-        console.log("Eliminating Nat with motive:", inspect(rst, true, null, true))
-        state.addGoal(
-          rst.map((type) => {
-            const newGoalNode = new GoalNode(
-              new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
-            );
-            return newGoalNode;
-          }))
-        return new go(state);
-      }
-
-    } else if (targetType instanceof V.List) {
-      const listMotive = fresh(currentGoal.context, "motive")
-      const E = targetType.entryType
-      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-        new V.Pi(
-                            'xs',
-                            new V.List(E),
-                            new FirstOrderClosure(
-                              contextToEnvironment(currentGoal.context),
-                              'xs',
-                              new C.Universe()
-                            )
-                          ))
-      if (motiveRst instanceof stop) {
-        return motiveRst;
-      } else {
-        const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
-        const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
-        console.log("Eliminating List with motive:", inspect(rst, true, null, true))
-        state.addGoal(
-          rst.map((type) => {
-            const newGoalNode = new GoalNode(
-              new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
-            );
-            return newGoalNode;
-          }))
-        return new go(state);
-      }
+    if (motiveRst instanceof stop) {
+      return motiveRst;
+    } else {
+      const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, 
+        (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context)))
+      console.log("Eliminating Nat with motive:", inspect(rst, true, null, true))
+      state.addGoal(
+        rst.map((type) => {
+          const newGoalNode = new GoalNode(
+            new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+          );
+          return newGoalNode;
+        }))
+      return new go(state);
     }
   }
 
@@ -215,33 +184,101 @@ export class EliminateTactic extends Tactic {
     
     return [baseType, stepType]
   }
+}
+
+export class EliminateListTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private target: string,
+    private motive: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `elim-list ${this.target} to prove ${this.motive.prettyPrint()}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal_temp = state.getCurrentGoal()
+    if (currentGoal_temp instanceof stop) {
+      return currentGoal_temp;
+    }
+
+    const currentGoal = state.currentGoal.goal
+
+    const targetType_temp = currentGoal.context.get(this.target);
+
+    if (!targetType_temp) {
+      return new stop(state.location, new Message([`target not found in current context: ${this.target}`]));
+    }
+
+    let targetType
+    if (targetType_temp instanceof Free) {
+      targetType = targetType_temp.type.now()
+    } else {
+      throw new Error(`Expected target to be a free variable`);
+    }
+
+    // Check that target is actually a List
+    if (!(targetType instanceof V.List)) {
+      return new stop(state.location, new Message([`Cannot eliminate non-List type: ${targetType.prettyPrint()}`]));
+    }
+
+    const listMotive = fresh(currentGoal.context, "motive")
+    const E = targetType.entryType
+    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+      new V.Pi(
+        'xs',
+        new V.List(E),
+        new FirstOrderClosure(
+          contextToEnvironment(currentGoal.context),
+          'xs',
+          new C.Universe()
+        )
+      ))
+    
+    if (motiveRst instanceof stop) {
+      return motiveRst;
+    } else {
+      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
+      console.log("Eliminating List with motive:", inspect(rst, true, null, true))
+      state.addGoal(
+        rst.map((type) => {
+          const newGoalNode = new GoalNode(
+            new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+          );
+          return newGoalNode;
+        }))
+      return new go(state);
+    }
+  }
 
   private eliminateList(context: Context, r: Renaming, motiveType: Value, entryType: Value): Value[] {
     //1. A base case: (motive nil)
     const baseType = doApp(motiveType, new V.Nil());
 
     //2. A step case: (Π (x E) (Π (xs (V.List E)) (→ (motive xs) (motive (cons x xs)))))
-    const stepZType = new V.Pi(
-                      fresh(context, "x"),
-                      entryType,
-                      new HigherOrderClosure(
-                        (x) => new V.Pi(
-                          fresh(context, "xs"),
-                          new V.List(entryType),
-                          new HigherOrderClosure(
-                            (xs) => new V.Pi(
-                              fresh(context, "ih"),
-                              doApp(motiveType, xs),
-                              new HigherOrderClosure(
-                                (_) => doApp(motiveType, new V.ListCons(x, xs))
-                              )
-                            )
-                          )
-                        )
-                      )
-                    )
-    return [baseType, stepZType];
+    const stepType = new V.Pi(
+      fresh(context, "x"),
+      entryType,
+      new HigherOrderClosure(
+        (x) => new V.Pi(
+          fresh(context, "xs"),
+          new V.List(entryType),
+          new HigherOrderClosure(
+            (xs) => new V.Pi(
+              fresh(context, "ih"),
+              doApp(motiveType, xs),
+              new HigherOrderClosure(
+                (_) => doApp(motiveType, new V.ListCons(x, xs))
+              )
+            )
+          )
+        )
+      )
+    )
+    return [baseType, stepType];
   }
-
-  
 }
