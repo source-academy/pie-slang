@@ -5,10 +5,10 @@ import { Core, Universe } from '../types/core';
 import { Value, Lambda, Pi, Neutral, Nat } from '../types/value';
 import { bindFree, Claim, Context, contextToEnvironment, extendContext, Free, valInContext } from '../utils/context';
 import { readBack } from '../evaluator/utils';
-import { doApp } from '../evaluator/evaluator';
+import { doApp, indVecStepType } from '../evaluator/evaluator';
 import { fresh } from '../types/utils';
 import { Variable } from '../types/neutral';
-import { extendRenaming, Renaming, sameType } from '../typechecker/utils';
+import { convert, extendRenaming, Renaming, sameType } from '../typechecker/utils';
 import { Location } from '../utils/locations';
 import * as V from '../types/value';
 import * as C from '../types/core';
@@ -279,6 +279,101 @@ export class EliminateListTactic extends Tactic {
         )
       )
     )
+    return [baseType, stepType];
+  }
+}
+
+export class EliminateVecTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private target: string,
+    private motive: Source,
+    private length: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `elim-list ${this.target} to prove ${this.motive.prettyPrint()}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal_temp = state.getCurrentGoal()
+    if (currentGoal_temp instanceof stop) {
+      return currentGoal_temp;
+    }
+
+    const currentGoal = state.currentGoal.goal
+
+    const targetType_temp = currentGoal.context.get(this.target);
+
+    if (!targetType_temp) {
+      return new stop(state.location, new Message([`target not found in current context: ${this.target}`]));
+    }
+
+    let targetType
+    if (targetType_temp instanceof Free) {
+      targetType = targetType_temp.type.now()
+    } else {
+      throw new Error(`Expected target to be a free variable`);
+    }
+
+    // Check that target is actually a List
+    if (!(targetType instanceof V.Vec)) {
+      return new stop(state.location, new Message([`Cannot eliminate non-Vec type: ${targetType.prettyPrint()}`]));
+    }
+
+    const lenout = this.length.check(currentGoal.context, currentGoal.renaming, new V.Nat())
+
+    if (lenout instanceof stop) {
+      return lenout;
+    }
+
+    const [E, len2v] = [targetType.entryType, targetType.length]
+    convert(
+      currentGoal.context, this.location, new V.Nat(),
+      valInContext(currentGoal.context, (lenout as go<Core>).result), 
+      len2v
+    )
+    const vecMotive = fresh(currentGoal.context, "motive")
+    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+      new V.Pi(
+                        'k',
+                        new V.Nat(),
+                        new HigherOrderClosure(
+                          (k) => new V.Pi(
+                            'es',
+                            new V.Vec(E, k),
+                            new HigherOrderClosure(
+                              (_) => new V.Universe()
+                            )
+                          )
+                        )
+                      ))
+    
+    if (motiveRst instanceof stop) {
+      return motiveRst;
+    } else {
+      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      const rst = this.eliminateVec(currentGoal.context, currentGoal.renaming, motiveType, E);
+      console.log("Eliminating Vec with motive:", inspect(rst, true, null, true))
+      state.addGoal(
+        rst.map((type) => {
+          const newGoalNode = new GoalNode(
+            new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+          );
+          return newGoalNode;
+        }))
+      return new go(state);
+    }
+  }
+
+  private eliminateVec(context: Context, r: Renaming, motiveType: Value, entryType: Value): Value[] {
+    //1. A base case: (motive nil)
+    const baseType = doApp(motiveType, new V.Nil());
+
+    //2. A step case: 
+    const stepType = indVecStepType(entryType, motiveType)
     return [baseType, stepType];
   }
 }

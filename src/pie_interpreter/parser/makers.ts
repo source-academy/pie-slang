@@ -2,7 +2,7 @@ import { Syntax } from "../utils/locations";
 import * as S from "../types/source";
 import { syntaxToLocation } from "./parser";
 import { SiteBinder, TypedBinder } from "../types/utils";
-import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
+import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic } from "../tactics/tactics";
 
 
 export function makeU(stx: Syntax): S.Source {
@@ -433,8 +433,8 @@ export function makeElimList(stx: Syntax, target: string, motive: S.Source): Tac
 
 }
 
-// export function makeElimVec(stx: Syntax, target: string, motive: S.Source): Tactic {
+export function makeElimVec(stx: Syntax, target: string, motive: S.Source, length: S.Source): Tactic {
 
-//   return new EliminateTactic(syntaxToLocation(stx), target, motive);
+  return new EliminateVecTactic(syntaxToLocation(stx), target, motive, length);
 
-// }
+}

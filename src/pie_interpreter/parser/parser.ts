@@ -440,6 +440,12 @@ export class Parser {
         ((element as Extended.List).elements[1] as Atomic.Symbol).value,
         this.parseElements((element as Extended.List).elements[2] as Element)
       );
+    } else if (parsee === 'elimVec') {
+      return Maker.makeElimVec(
+        locationToSyntax('elimVec', element.location),
+        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
+        this.parseElements((element as Extended.List).elements[2] as Element),
+        this.parseElements((element as Extended.List).elements[3] as Element))
     }
     throw new Error('Unexpected tactic: ' + element);
 }
