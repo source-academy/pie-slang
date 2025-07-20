@@ -160,9 +160,6 @@ export class Free extends Binder {
 }
 
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
-
-  console.log('context', inspect(ctx, true, null, true));
-  console.log('context', inspect(ctx.get(x), true, null, true));
   if (ctx.size === 0) {
     throw new Error(`Unknown variable ${x}`);
   }

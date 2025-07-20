@@ -1563,7 +1563,7 @@ export class VecNil extends Source {
     if (typeNow instanceof V.Vec) {
       const lenNow = typeNow.length.now();
       if (lenNow instanceof V.Zero) {
-        return new go('vecnil');
+        return new go(new C.VecNil());
       } else {
         return new stop(this.location,
           new Message([`vecnil requires a Vec type with length ZERO, but was used as a: 

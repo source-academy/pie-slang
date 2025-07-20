@@ -136,7 +136,7 @@ describe("EliminateTactic Tests", () => {
 
 (define-tactically n=n
   ((intro n)
-   (elim n (λ (k) (= Nat k k)))
+   (elimNat n (λ (k) (= Nat k k)))
    ; After eliminate, we get 3 goals:
    ; 1. Motive: (Π (k Nat) U)  
    ; 2. Base: (motive zero)
@@ -146,5 +146,12 @@ describe("EliminateTactic Tests", () => {
    (intro ih)
    (exact (same (add1 n-1)))))     ; Solve step case
 `;
+    console.log(evaluatePie(str));});
+
+  it("Simple List elimination", () => {
+    const str = `
+
+`;
     console.log(evaluatePie(str));
-  });})
+  });
+});

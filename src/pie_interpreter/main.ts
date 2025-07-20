@@ -67,12 +67,9 @@ export function evaluatePie(str): string {
     let output = "";
     for (const [name, binder] of ctx) {
       if (binder instanceof Define) {
-        // console.log(name + " : " + prettyPrintCore(binder.type.readBackType(ctx)));
-        // console.log(name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)));
         output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
         output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";
       } else {
-        // console.log(name + " : " + prettyPrintCore(binder.type.readBackType(ctx)));
         output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
       }
     }

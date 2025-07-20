@@ -356,7 +356,6 @@ export class EliminateVecTactic extends Tactic {
     } else {
       const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
       const rst = this.eliminateVec(currentGoal.context, currentGoal.renaming, motiveType, E);
-      console.log("Eliminating Vec with motive:", inspect(rst, true, null, true))
       state.addGoal(
         rst.map((type) => {
           const newGoalNode = new GoalNode(
@@ -369,10 +368,7 @@ export class EliminateVecTactic extends Tactic {
   }
 
   private eliminateVec(context: Context, r: Renaming, motiveType: Value, entryType: Value): Value[] {
-    //1. A base case: (motive nil)
-    const baseType = doApp(motiveType, new V.Nil());
-
-    //2. A step case: 
+    const baseType = doApp(doApp(motiveType, new V.Zero()), new V.VecNil())
     const stepType = indVecStepType(entryType, motiveType)
     return [baseType, stepType];
   }
