@@ -434,7 +434,7 @@ export class EliminateEqualTactic extends Tactic {
       return motiveRst;
     } else {
       const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
-      const rst = [doApp(doApp(motiveType, tov), new V.Same(fromv))];
+      const rst = [doApp(doApp(motiveType, fromv), new V.Same(fromv))];
       state.addGoal(
         rst.map((type) => {
           const newGoalNode = new GoalNode(
