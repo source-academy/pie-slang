@@ -68,7 +68,7 @@ export function convert(ctx: Context, where: Location, type: Value, from: Value,
   } else {
     return new stop(
       where,
-      new Message([`The terms ${from} and ${to} are not the same ${type}.`])
+      new Message([`The terms ${from.prettyPrint()} and ${to.prettyPrint()} are not the same ${type.prettyPrint()}.`])
     );
   }
 }

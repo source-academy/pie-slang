@@ -373,3 +373,76 @@ export class EliminateVecTactic extends Tactic {
     return [baseType, stepType];
   }
 }
+
+export class EliminateEqualTactic extends Tactic {
+  constructor(
+    public location: Location,
+    public target: string,
+    public motive: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `elim-equal ${this.target} with motive ${this.motive.prettyPrint()}`;
+  }
+
+  public apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal_temp = state.getCurrentGoal()
+    if (currentGoal_temp instanceof stop) {
+      return currentGoal_temp;
+    }
+
+    const currentGoal = state.currentGoal.goal
+
+    const targetType_temp = currentGoal.context.get(this.target);
+
+    if (!targetType_temp) {
+      return new stop(state.location, new Message([`target not found in current context: ${this.target}`]));
+    }
+
+    let targetType
+    if (targetType_temp instanceof Free) {
+      targetType = targetType_temp.type.now()
+    } else {
+      throw new Error(`Expected target to be a free variable`);
+    }
+
+    if (!(targetType instanceof V.Equal)) {
+      return new stop(state.location, new Message([`Cannot eliminate non-Equal type: ${targetType.prettyPrint()}`]));
+    }
+
+    const [Av, fromv, tov] = [targetType.type, targetType.from, targetType.to]
+
+    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+      new V.Pi(
+                          'to',
+                          Av,
+                          new HigherOrderClosure(
+                            (to) => new V.Pi(
+                              'p',
+                              new V.Equal(Av, fromv, to),
+                              new HigherOrderClosure(
+                                (_) => new V.Universe()
+                              )
+                            )
+                          )
+                        )
+    )
+
+    if (motiveRst instanceof stop) {
+      return motiveRst;
+    } else {
+      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      const rst = [doApp(doApp(motiveType, tov), new V.Same(fromv))];
+      state.addGoal(
+        rst.map((type) => {
+          const newGoalNode = new GoalNode(
+            new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+          );
+          return newGoalNode;
+        }))
+      return new go(state);
+    }
+  }
+}
