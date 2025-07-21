@@ -3,7 +3,7 @@ import { Perhaps, go, stop, Message, FirstOrderClosure, HigherOrderClosure } fro
 import { Source } from '../types/source';
 import { Core, Universe } from '../types/core';
 import { Value, Lambda, Pi, Neutral, Nat } from '../types/value';
-import { bindFree, Claim, Context, contextToEnvironment, extendContext, Free, valInContext } from '../utils/context';
+import { bindFree, Claim, Context, contextToEnvironment, Define, extendContext, Free, valInContext } from '../utils/context';
 import { readBack } from '../evaluator/utils';
 import { doApp, indVecStepType } from '../evaluator/evaluator';
 import { fresh } from '../types/utils';
@@ -94,6 +94,57 @@ export class ExactTactic extends Tactic {
     state.currentGoal.isComplete = true;
 
     state.nextGoal()
+
+    return new go(state);
+  }
+}
+
+export class ExistsTactic extends Tactic {
+  constructor(
+    public location: Location,
+    public value: Source,
+    private varName?: string
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `exists ${this.varName || ""}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal = state.currentGoal.goal
+    const goalType = currentGoal.type;
+
+    if (!(goalType instanceof V.Sigma)) {
+      return new stop(state.location,
+        new Message([`Cannot use exists on non-product type: ${goalType.prettyPrint()}`]));
+    }
+
+    const name = this.varName || goalType.carName || fresh(currentGoal.context, "x");
+
+    let newRenaming = currentGoal.renaming
+    if (name !== goalType.carName) {
+      extendRenaming(newRenaming, goalType.carName, name)
+    }
+
+    const result_temp = this.value.check(currentGoal.context, currentGoal.renaming, goalType.carType);
+
+    if (result_temp instanceof stop) {
+      return result_temp;
+    }
+
+    const result = (result_temp as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+
+    const newContext = extendContext(currentGoal.context, name, new Define(goalType.carType, result));
+
+
+    const newGoalType = goalType.cdrType.valOfClosure(
+      result
+    );
+
+    const newGoalNode = new GoalNode(new Goal(state.generateGoalId(), newGoalType, newContext, newRenaming))
+    state.addGoal([newGoalNode])
 
     return new go(state);
   }

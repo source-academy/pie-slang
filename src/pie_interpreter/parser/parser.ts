@@ -428,6 +428,12 @@ export class Parser {
         locationToSyntax('intro', element.location),
         ((element as Extended.List).elements[1] as Atomic.Symbol).value
       );
+    } else if (parsee === 'exists') {
+      return Maker.makeExists(
+        locationToSyntax('exists', element.location),
+        this.parseElements((element as Extended.List).elements[1] as Element),
+        ((element as Extended.List).elements[2] as Atomic.Symbol).value
+      );
     } else if (parsee === 'elimNat') {
       return Maker.makeElimNat(
         locationToSyntax('elimNat', element.location),

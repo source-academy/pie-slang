@@ -2,7 +2,7 @@ import { Syntax } from "../utils/locations";
 import * as S from "../types/source";
 import { syntaxToLocation } from "./parser";
 import { SiteBinder, TypedBinder } from "../types/utils";
-import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic, EliminateEqualTactic } from "../tactics/tactics";
+import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic, EliminateEqualTactic, ExistsTactic } from "../tactics/tactics";
 
 
 export function makeU(stx: Syntax): S.Source {
@@ -405,7 +405,7 @@ export function makeTODO(stx: Syntax): S.Source {
 
 
 
-export function makeIntro(stx: Syntax, name: string): Tactic {
+export function makeIntro(stx: Syntax, name?: string): Tactic {
 
   return new IntroTactic(syntaxToLocation(stx), name);
 
@@ -416,6 +416,12 @@ export function makeIntro(stx: Syntax, name: string): Tactic {
 export function makeExact(stx: Syntax, expr: S.Source): Tactic {
 
   return new ExactTactic(syntaxToLocation(stx), expr);
+
+}
+
+export function makeExists(stx: Syntax, value: S.Source, name?: string): Tactic {
+
+  return new ExistsTactic(syntaxToLocation(stx), value, name);
 
 }
 
