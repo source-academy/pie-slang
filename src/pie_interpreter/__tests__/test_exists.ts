@@ -50,5 +50,6 @@ U ))
  (exact (same 0))))
 
 `
-    const result = evaluatePie(src);})
+    const result = evaluatePie(src);
+    console.log(result);})
   })
