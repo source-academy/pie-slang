@@ -675,3 +675,54 @@ export class SpiltTactic extends Tactic {
     return new go(state);
   }
 }
+
+export class EliminateAbsurdTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private target: string,
+    private motive: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `elim-absurd ${this.target} with motive ${this.motive.prettyPrint()}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+
+    const targetType_temp = currentGoal.context.get(this.target);
+
+    if (!targetType_temp) {
+      return new stop(state.location, new Message([`target not found in current context: ${this.target}`]));
+    }
+
+    let targetType: Value;
+    if (targetType_temp instanceof Free) {
+      targetType = targetType_temp.type.now();
+    } else {
+      throw new Error(`Expected target to be a free variable`);
+    }
+
+    if (!(targetType instanceof V.Absurd)) {
+      return new stop(state.location, new Message([`Cannot eliminate non-Absurd type: ${targetType.prettyPrint()}`]));
+    }
+
+    const motiveRst = this.motive.check(
+      currentGoal.context, 
+      currentGoal.renaming, 
+      new V.Universe()
+    );
+
+    if (motiveRst instanceof stop) {
+      return motiveRst;
+    } else {
+      state.currentGoal.isComplete = true;
+
+    state.nextGoal()
+
+    return new go(state);
+    }
+  }
+}

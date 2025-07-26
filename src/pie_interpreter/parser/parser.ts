@@ -475,7 +475,13 @@ export class Parser {
       return Maker.makeSplit(
         locationToSyntax('split', element.location)
       );
-    }
+    } else if (parsee === 'elimAbsurd') {
+      return Maker.makeElimAbsurd(
+        locationToSyntax('elimAbsurd', element.location),
+        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
+        this.parseElements((element as Extended.List).elements[2] as Element)
+      );
+    } 
     throw new Error('Unexpected tactic: ' + element);
 }
 }

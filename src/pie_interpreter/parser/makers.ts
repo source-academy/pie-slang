@@ -2,7 +2,7 @@ import { Syntax } from "../utils/locations";
 import * as S from "../types/source";
 import { syntaxToLocation } from "./parser";
 import { SiteBinder, TypedBinder } from "../types/utils";
-import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic, EliminateEqualTactic, ExistsTactic, LeftTactic, RightTactic, EliminateEitherTactic, SpiltTactic } from "../tactics/tactics";
+import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic, EliminateEqualTactic, ExistsTactic, LeftTactic, RightTactic, EliminateEitherTactic, SpiltTactic, EliminateAbsurdTactic } from "../tactics/tactics";
 
 
 export function makeU(stx: Syntax): S.Source {
@@ -472,7 +472,12 @@ export function makeElimEither(stx: Syntax, target: string, motive: S.Source): T
 export function makeSplit(stx: Syntax) {
 
   return new SpiltTactic(syntaxToLocation(stx));
-  
+
 }
 
+export function makeElimAbsurd(stx: Syntax, target: string, motive: S.Source): Tactic {
+
+  return new EliminateAbsurdTactic(syntaxToLocation(stx), target, motive);
+
+}
 
