@@ -5,7 +5,7 @@ import { Core, Universe } from '../types/core';
 import { Value, Lambda, Pi, Neutral, Nat } from '../types/value';
 import { bindFree, Claim, Context, contextToEnvironment, Define, extendContext, Free, valInContext } from '../utils/context';
 import { readBack } from '../evaluator/utils';
-import { doApp, indVecStepType } from '../evaluator/evaluator';
+import { doApp, doCar, indVecStepType } from '../evaluator/evaluator';
 import { fresh } from '../types/utils';
 import { Variable } from '../types/neutral';
 import { convert, extendRenaming, Renaming, sameType } from '../typechecker/utils';
@@ -628,3 +628,50 @@ export class EliminateEitherTactic extends Tactic {
   }
 }
 
+export class SpiltTactic extends Tactic {
+  constructor(
+    location: Location
+  ) {
+    super(location);
+  } 
+
+  toString(): string {
+    return `split`;
+  }
+
+  public apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal = (state. getCurrentGoal() as go<Goal>).result
+
+    if (!(currentGoal.type.now() instanceof V.Sigma)) {
+      return new stop(state.location, new Message([`"split" expected goal type to be Sigma, but got: ${currentGoal.type.prettyPrint()}`]));
+    }
+
+    const pairType = currentGoal.type.now() as V.Sigma;
+    const carType = pairType.carType.now();
+    const cdrType = pairType.cdrType.valOfClosure(
+      pairType
+    );
+
+    state.addGoal(
+      [
+        new GoalNode(
+          new Goal(
+            state.generateGoalId(),
+            carType,
+            currentGoal.context,
+            currentGoal.renaming
+          )
+        ),
+        new GoalNode(
+          new Goal(
+            state.generateGoalId(),
+            cdrType,
+            currentGoal.context,
+            currentGoal.renaming
+          )
+        )
+      ]
+    )
+    return new go(state);
+  }
+}

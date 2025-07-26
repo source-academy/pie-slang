@@ -161,7 +161,7 @@ export class Free extends Binder {
 
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
   if (ctx.size === 0) {
-    throw new Error(`Unknown variable ${x}`);
+    throw new Error(`The context ${JSON.stringify(ctx)} is empty, but we are looking for ${x}`);
   }
   for (const [y, binder] of ctx.entries()) {
     if (binder instanceof Claim) {

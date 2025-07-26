@@ -471,6 +471,10 @@ export class Parser {
         ((element as Extended.List).elements[1] as Atomic.Symbol).value,
         this.parseElements((element as Extended.List).elements[2] as Element)
       );
+    } else if (parsee === 'split') {
+      return Maker.makeSplit(
+        locationToSyntax('split', element.location)
+      );
     }
     throw new Error('Unexpected tactic: ' + element);
 }
