@@ -45,7 +45,8 @@ export class ProofManager {
       console.log(inspect(this.currentState.getCurrentGoal(), true, null, true));
       response += "\nAll goals have been solved!";
     } else {
-      response += `\nCurrent goal: \n` + currentGoal.type.readBackType(currentGoal.context).prettyPrint();
+      const curGoal = (currentGoal as go<Goal>).result
+      response += `\nCurrent goal: \n` + curGoal.type.readBackType(curGoal.context).prettyPrint();
     }
 
     return new go(response);

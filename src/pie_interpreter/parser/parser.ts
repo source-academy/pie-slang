@@ -457,6 +457,20 @@ export class Parser {
         locationToSyntax('elimEqual', element.location),
         ((element as Extended.List).elements[1] as Atomic.Symbol).value,
         this.parseElements((element as Extended.List).elements[2] as Element));
+    } else if (parsee === 'left') {
+      return Maker.makeLeftTactic(
+        locationToSyntax('left', element.location)
+      );
+    } else if (parsee === 'right') {
+      return Maker.makeRightTactic(
+        locationToSyntax('right', element.location)
+      );
+    } else if (parsee === 'elimEither') {
+      return Maker.makeElimEither(
+        locationToSyntax('elimEither', element.location),
+        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
+        this.parseElements((element as Extended.List).elements[2] as Element)
+      );
     }
     throw new Error('Unexpected tactic: ' + element);
 }

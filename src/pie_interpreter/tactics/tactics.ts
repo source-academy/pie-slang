@@ -79,11 +79,9 @@ export class ExactTactic extends Tactic {
   toString(): string {
     return `exact ${this.term.prettyPrint()}`;
   }
-  
-  apply(state: ProofState): Perhaps<ProofState> {
 
-    console.log(inspect(state, true, null, true))
-    const currentGoal = state.currentGoal.goal
+  apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
     const goalType = currentGoal.type
     const result = this.term.check(currentGoal.context, currentGoal.renaming, goalType)
 
@@ -113,7 +111,7 @@ export class ExistsTactic extends Tactic {
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
-    const currentGoal = state.currentGoal.goal
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
     const goalType = currentGoal.type;
 
     if (!(goalType instanceof V.Sigma)) {
@@ -164,13 +162,7 @@ export class EliminateNatTactic extends Tactic {
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
-    const currentGoal_temp = state.getCurrentGoal()
-    if (currentGoal_temp instanceof stop) {
-      return currentGoal_temp;
-    }
-
-    const currentGoal = state.currentGoal.goal
-
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
     const targetType_temp = currentGoal.context.get(this.target);
 
     if (!targetType_temp) {
@@ -200,7 +192,7 @@ export class EliminateNatTactic extends Tactic {
     if (motiveRst instanceof stop) {
       return motiveRst;
     } else {
-      const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, 
+      const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming,
         (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context)))
       console.log("Eliminating Nat with motive:", inspect(rst, true, null, true))
       state.addGoal(
@@ -226,13 +218,13 @@ export class EliminateNatTactic extends Tactic {
         return new V.Pi(
           fresh(context, "ih"),
           doApp(motiveType, n_minus_1),
-          new HigherOrderClosure((_) => 
+          new HigherOrderClosure((_) =>
             doApp(motiveType, new V.Add1(n_minus_1))
           )
         );
       })
-    ); 
-    
+    );
+
     return [baseType, stepType]
   }
 }
@@ -251,12 +243,7 @@ export class EliminateListTactic extends Tactic {
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
-    const currentGoal_temp = state.getCurrentGoal()
-    if (currentGoal_temp instanceof stop) {
-      return currentGoal_temp;
-    }
-
-    const currentGoal = state.currentGoal.goal
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
 
     const targetType_temp = currentGoal.context.get(this.target);
 
@@ -288,7 +275,7 @@ export class EliminateListTactic extends Tactic {
           new C.Universe()
         )
       ))
-    
+
     if (motiveRst instanceof stop) {
       return motiveRst;
     } else {
@@ -349,12 +336,7 @@ export class EliminateVecTactic extends Tactic {
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
-    const currentGoal_temp = state.getCurrentGoal()
-    if (currentGoal_temp instanceof stop) {
-      return currentGoal_temp;
-    }
-
-    const currentGoal = state.currentGoal.goal
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
 
     const targetType_temp = currentGoal.context.get(this.target);
 
@@ -383,25 +365,25 @@ export class EliminateVecTactic extends Tactic {
     const [E, len2v] = [targetType.entryType, targetType.length]
     convert(
       currentGoal.context, this.location, new V.Nat(),
-      valInContext(currentGoal.context, (lenout as go<Core>).result), 
+      valInContext(currentGoal.context, (lenout as go<Core>).result),
       len2v
     )
     const vecMotive = fresh(currentGoal.context, "motive")
     const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
       new V.Pi(
-                        'k',
-                        new V.Nat(),
-                        new HigherOrderClosure(
-                          (k) => new V.Pi(
-                            'es',
-                            new V.Vec(E, k),
-                            new HigherOrderClosure(
-                              (_) => new V.Universe()
-                            )
-                          )
-                        )
-                      ))
-    
+        'k',
+        new V.Nat(),
+        new HigherOrderClosure(
+          (k) => new V.Pi(
+            'es',
+            new V.Vec(E, k),
+            new HigherOrderClosure(
+              (_) => new V.Universe()
+            )
+          )
+        )
+      ))
+
     if (motiveRst instanceof stop) {
       return motiveRst;
     } else {
@@ -439,13 +421,7 @@ export class EliminateEqualTactic extends Tactic {
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
-    const currentGoal_temp = state.getCurrentGoal()
-    if (currentGoal_temp instanceof stop) {
-      return currentGoal_temp;
-    }
-
-    const currentGoal = state.currentGoal.goal
-
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
     const targetType_temp = currentGoal.context.get(this.target);
 
     if (!targetType_temp) {
@@ -467,18 +443,18 @@ export class EliminateEqualTactic extends Tactic {
 
     const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
       new V.Pi(
-                          'to',
-                          Av,
-                          new HigherOrderClosure(
-                            (to) => new V.Pi(
-                              'p',
-                              new V.Equal(Av, fromv, to),
-                              new HigherOrderClosure(
-                                (_) => new V.Universe()
-                              )
-                            )
-                          )
-                        )
+        'to',
+        Av,
+        new HigherOrderClosure(
+          (to) => new V.Pi(
+            'p',
+            new V.Equal(Av, fromv, to),
+            new HigherOrderClosure(
+              (_) => new V.Universe()
+            )
+          )
+        )
+      )
     )
 
     if (motiveRst instanceof stop) {
@@ -497,3 +473,158 @@ export class EliminateEqualTactic extends Tactic {
     }
   }
 }
+
+export class LeftTactic extends Tactic {
+  constructor(
+    public location: Location,
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `left`;
+  }
+
+  public apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+
+    console.log(inspect(currentGoal, true, null, true))
+
+    if (!(currentGoal.type.now() instanceof V.Either)) {
+      return new stop(state.location, new Message([`"left" expected goal type to be Either, but got: ${currentGoal.type.prettyPrint()}`]));
+    }
+
+    const leftType = (currentGoal.type as V.Either).leftType.now();
+
+    state.addGoal([new GoalNode(
+      new Goal(
+        state.generateGoalId(),
+        leftType,
+        currentGoal.context,
+        currentGoal.renaming
+      )
+    )]);
+    return new go(state);
+  }
+}
+
+export class RightTactic extends Tactic {
+  constructor(
+    public location: Location,
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `right`;
+  }
+
+  public apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+
+    console.log(inspect(currentGoal, true, null, true))
+
+    if (!(currentGoal.type.now() instanceof V.Either)) {
+      return new stop(state.location, new Message([`"right" expected goal type to be Either, but got: ${currentGoal.type.prettyPrint()}`]));
+    }
+
+    const rightType = (currentGoal.type as V.Either).rightType.now();
+
+    state.addGoal([new GoalNode(
+      new Goal(
+        state.generateGoalId(),
+        rightType,
+        currentGoal.context,
+        currentGoal.renaming
+      )
+    )]);
+    return new go(state);
+  }
+}
+
+export class EliminateEitherTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private target: string,
+    private motive: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `elim-either ${this.target} with motive ${this.motive.prettyPrint()}`;
+  }
+
+  public apply(state: ProofState): Perhaps<ProofState> {
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result
+    const targetType_temp = currentGoal.context.get(this.target)
+    if (!targetType_temp) {
+      return new stop(state.location, new Message([`target not found in current context: ${this.target}`]));
+    }
+
+    let targetType
+    if (targetType_temp instanceof Free) {
+      targetType = targetType_temp.type.now()
+    } else {
+      throw new Error(`Expected target to be a free variable`);
+    }
+
+    if (!(targetType instanceof V.Either)) {
+      return new stop(state.location, new Message([`Cannot eliminate non-Either type: ${targetType.prettyPrint()}`]));
+    }
+
+    const [Lv, Rv] = [targetType.leftType, targetType.rightType]
+
+    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+      new V.Pi(
+        'x',
+        new V.Either(Lv, Rv),
+        new HigherOrderClosure(
+          (_) => new V.Universe()
+        )
+      )
+    )
+
+    if (motiveRst instanceof stop) {
+      return motiveRst;
+    } else {
+      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      const leftType = new V.Pi(
+        'x',
+        Lv,
+        new HigherOrderClosure(
+          (x) => doApp(motiveType, new V.Left(x))
+        )
+      )
+      const rightType = new V.Pi(
+        'x',
+        Rv,
+        new HigherOrderClosure(
+          (x) => doApp(motiveType, new V.Right(x))
+        )
+      )
+
+      state.addGoal(
+        [
+          new GoalNode(
+            new Goal(
+              state.generateGoalId(),
+              leftType,
+              currentGoal.context,
+              currentGoal.renaming
+            )
+          ),
+          new GoalNode(
+            new Goal(
+              state.generateGoalId(),
+              rightType,
+              currentGoal.context,
+              currentGoal.renaming
+            )
+          )
+        ]);
+      return new go(state);
+    }
+  }
+}
+

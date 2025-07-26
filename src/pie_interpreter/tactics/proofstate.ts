@@ -4,10 +4,12 @@ import { Core } from '../types/core';
 import { Value } from '../types/value';
 import { Location } from '../utils/locations';
 import { Free } from '../utils/context';  // Add this import
-import { fresh } from '../types/utils';
+import { fresh, go, Perhaps, stop } from '../types/utils';
 import { Renaming } from '../typechecker/utils';
 
 type GoalId = string;
+
+//TODO: Add location
 
 export class Goal {
   constructor(
@@ -115,8 +117,11 @@ export class ProofState {
     return this.goalTree.isComplete;
   }
 
-  getCurrentGoal(): Goal {
-    return this.currentGoal.goal;
+  getCurrentGoal(): Perhaps<Goal> {
+    if (this.currentGoal === null) {
+      throw new Error("No current goal available.")
+    }
+    return new go(this.currentGoal.goal);
   }
 
   visualizeTree(): string {
