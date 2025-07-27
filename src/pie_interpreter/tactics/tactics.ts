@@ -83,6 +83,9 @@ export class ExactTactic extends Tactic {
   apply(state: ProofState): Perhaps<ProofState> {
     const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
     const goalType = currentGoal.type
+
+    console.log("goalType:", goalType.prettyPrint())
+    console.log("term:", this.term.prettyPrint())
     const result = this.term.check(currentGoal.context, currentGoal.renaming, goalType)
 
     if (result instanceof stop) {
@@ -194,7 +197,6 @@ export class EliminateNatTactic extends Tactic {
     } else {
       const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming,
         (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context)))
-      console.log("Eliminating Nat with motive:", inspect(rst, true, null, true))
       state.addGoal(
         rst.map((type) => {
           const newGoalNode = new GoalNode(
@@ -521,9 +523,6 @@ export class RightTactic extends Tactic {
 
   public apply(state: ProofState): Perhaps<ProofState> {
     const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
-
-    console.log(inspect(currentGoal, true, null, true))
-
     if (!(currentGoal.type.now() instanceof V.Either)) {
       return new stop(state.location, new Message([`"right" expected goal type to be Either, but got: ${currentGoal.type.prettyPrint()}`]));
     }
