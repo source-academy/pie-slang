@@ -83,6 +83,9 @@ export function isPieKeywords(str : string) : boolean {
 
 export class Message {
   constructor(public message: Array<String|Core>) { }
+  public toString(): string {
+    return this.message.map(m => typeof m === 'string' ? m : (m as Core).prettyPrint()).join(' ');
+  }
 }
 
 export abstract class Perhaps<T> { 

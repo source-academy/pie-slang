@@ -2,6 +2,9 @@ import * as V from "../types/value";
 import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
 import { natEqual } from './utils';
+import { inspect } from "util";
+
+//TODO: add else cases and throw errors
 
 /*
   ### The Evaluators ###
@@ -575,23 +578,23 @@ export function doTail(target: V.Value): V.Value {
   if (targetNow instanceof V.VecCons) {
     return targetNow.tail;
   } else if (targetNow instanceof V.Neutral &&
-    targetNow.type instanceof V.Vec &&
-    targetNow.type.length instanceof V.Add1) {
+    targetNow.type.now() instanceof V.Vec &&
+    ((targetNow.type.now() as V.Vec).length).now() instanceof V.Add1) {
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Vec) {
       const lengthNow = typeNow.length.now();
       if (lengthNow instanceof V.Add1) {
         return new V.Neutral(
           new V.Vec(
-            targetNow.type.entryType,
-            targetNow.type.length.smaller
+            (targetNow.type.now() as V.Vec).entryType,
+            ((targetNow.type.now() as V.Vec).length.now() as V.Add1).smaller
           ),
           new N.Tail(targetNow.neutral)
         );
       }
     }
   }
-  throw new Error(`invalid input for tail ${target}`);
+  throw new Error(`invalid input for tail ${target.prettyPrint()}`);
 }
 
 export function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
@@ -601,7 +604,7 @@ export function indVecStepType(Ev: V.Value, mot: V.Value): V.Value {
     new HigherOrderClosure(
       (k) => new V.Pi(
         "e",
-        new V.Vec(Ev, k),
+        Ev,
         new HigherOrderClosure(
           (e) => new V.Pi(
             "es",
@@ -650,8 +653,8 @@ export function doIndVec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Va
       )
     );
   } else if (lenNow instanceof V.Neutral && vecNow instanceof V.Neutral
-    && lenNow.type instanceof V.Nat && vecNow.type instanceof V.Vec) {
-    const entryType = vecNow.type.entryType;
+    && lenNow.type.now() instanceof V.Nat && vecNow.type.now() instanceof V.Vec) {
+    const entryType = (vecNow.type.now() as V.Vec).entryType;
     return new V.Neutral(
       doApp(doApp(motive, len), vec),
       new N.IndVec12(
@@ -681,11 +684,11 @@ export function doIndVec(len: V.Value, vec: V.Value, motive: V.Value, base: V.Va
         ),
         new N.Norm(
           indVecStepType(
-            vecNow.type.entryType, motive), step)
+            (vecNow.type.now() as V.Vec).entryType, motive), step)
       )
     );
-  } else if (natEqual(lenNow, len) && vecNow instanceof V.Neutral && vecNow.type instanceof V.Vec) {
-    const entryType = vecNow.type.entryType;
+  } else if (natEqual(lenNow, len) && vecNow instanceof V.Neutral && (vecNow.type.now()) instanceof V.Vec) {
+    const entryType = (vecNow.type.now() as V.Vec).entryType;
     return new V.Neutral(
       doApp(doApp(motive, len), vec),
       new N.IndVec2(
