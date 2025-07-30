@@ -42,7 +42,6 @@ export class ProofManager {
 
     const currentGoal = this.currentState.getCurrentGoal();
      if (this.currentState.isComplete()) {
-      console.log(inspect(this.currentState.getCurrentGoal(), true, null, true));
       response += "\nAll goals have been solved!";
     } else {
       const curGoal = (currentGoal as go<Goal>).result

@@ -489,9 +489,6 @@ export class LeftTactic extends Tactic {
 
   public apply(state: ProofState): Perhaps<ProofState> {
     const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
-
-    console.log(inspect(currentGoal, true, null, true))
-
     if (!(currentGoal.type.now() instanceof V.Either)) {
       return new stop(state.location, new Message([`"left" expected goal type to be Either, but got: ${currentGoal.type.prettyPrint()}`]));
     }
