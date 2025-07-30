@@ -15,6 +15,7 @@ import { readBack } from '../evaluator/utils';
 import { synthesizer as Synth } from '../typechecker/synthesizer';
 import { fresh } from './utils';
 import { varType } from '../utils/context';
+import { inspect } from 'util';
 
 export abstract class Source {
 
@@ -58,7 +59,7 @@ export abstract class Source {
               () => varType(ctx, this.location, this.name)]
           ],
           () => {
-            new stop(this.location, new Message([`Expected , but given ${otherTv.value.readBackType(ctx)}`]));
+            new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
           }
         );
       } else {
@@ -1324,7 +1325,7 @@ export class Same extends Source {
   }
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
-    const typeNow = type.now();
+    const typeNow = type.now()
     if (typeNow instanceof V.Equal) {
       const A = typeNow.type;
       const from = typeNow.from;
@@ -1349,7 +1350,7 @@ export class Same extends Source {
     } else {
       return new stop(
         this.location,
-        new Message([`same requires an Equal type, but was used as a: ${typeNow.readBackType(ctx)}.`])
+        new Message([`same requires an Equal type, but encounter: ${typeNow.readBackType(ctx)}.`])
       );
     }
   }

@@ -7,7 +7,13 @@ function testParser(input: string) {
 }
 
 test("Test parsing result atom", () => {
-  const input = '(claim identity (-> Atom Atom))';
+  const input = `
+(define-tactically even-or-odd
+((intro n)
+(exact (same n))))
+`
+const ast = schemeParse(input);
+
   // console.log(util.inspect(schemeParse(input), false, null, true));
   // console.log(util.inspect(pieDeclarationParser.parseDeclaration(input), false, null, true));
   //DELETEME console.log(util.inspect(testParser(input), false, null, true));

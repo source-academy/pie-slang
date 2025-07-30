@@ -7,6 +7,7 @@ import { Context, SerializableContext } from "../utils/context";
 import { go, stop, Perhaps, Message } from "../types/utils";
 import { alphaEquiv } from "../utils/alphaeqv";
 import { readBack } from "../evaluator/utils";
+import { inspect } from "util";
 
 
 type What = 'definition'
@@ -67,7 +68,7 @@ export function convert(ctx: Context, where: Location, type: Value, from: Value,
   } else {
     return new stop(
       where,
-      new Message([`The terms ${from} and ${to} are not the same ${type}.`])
+      new Message([`The terms ${from.prettyPrint()} and ${to.prettyPrint()} are not the same ${type.prettyPrint()}.`])
     );
   }
 }

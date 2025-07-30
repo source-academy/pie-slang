@@ -1,10 +1,12 @@
-import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck } from './parser/parser'
-import { checkSame, represent } from './typechecker/represent';
+import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from './parser/parser'
+import { checkSame, normType, represent } from './typechecker/represent';
 import { go, stop } from './types/utils';
 import { prettyPrintCore } from './unparser/pretty';
 import { addClaimToContext, addDefineToContext, Define, initCtx } from './utils/context';
 import { The } from './types/core';
 import { readBack } from './evaluator/utils';
+import { ProofManager } from './tactics/proofmanager';
+import {inspect} from 'util';
 
 export function evaluatePie(str): string {
   const astList = schemeParse(str);
@@ -33,6 +35,25 @@ export function evaluatePie(str): string {
       } else if (result instanceof stop) {
         throw new Error("" + result.where + result.message);
       }
+    } else if (src instanceof DefineTactically) {
+      const proofManager = new ProofManager();
+      let message = ''
+      const a = proofManager.startProof(src.name, ctx, src.location)
+      if (a instanceof go) {
+        message += a.result + '\n';
+      } else if (a instanceof stop) {
+        throw new Error("" + a.where + a.message);
+      }
+      for (const tactic of src.tactics) {
+        const result = proofManager.applyTactic(tactic);
+        if (result instanceof go) {
+          message += result.result;
+        } else if (result instanceof stop) {
+          throw new Error("" + result.where + result.message);
+        }
+
+      }
+      return message;
     } else {
       const result = represent(ctx, src);
       if (result instanceof go) {
@@ -43,17 +64,14 @@ export function evaluatePie(str): string {
       }
     }
   }
-  
-  for (const [name, binder] of ctx) {
-    if (binder instanceof Define) {
-      // console.log(name + " : " + prettyPrintCore(binder.type.readBackType(ctx)));
-      // console.log(name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)));
-      output += `${name}: ${prettyPrintCore(binder.type.readBackType(ctx))}\n`;
-      output += `${name}= ${prettyPrintCore(readBack(ctx, binder.type, binder.value))}\n`
-    } else {
-      // console.log(name + " : " + prettyPrintCore(binder.type.readBackType(ctx)));
-      output += `${name}: ${prettyPrintCore(binder.type.readBackType(ctx))} \n`;
+    for (const [name, binder] of ctx) {
+      if (binder instanceof Define) {
+        output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
+        output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";
+      } else {
+        output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
+      }
     }
-  }
-  return output;
+    return output;
+  
 }
