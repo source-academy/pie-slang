@@ -3,7 +3,7 @@ import { Token } from "../types/tokens/token";
 import { Position } from "estree";
 
 function extractLine(source: string, pos: Position): string {
-  let lines = source.split("\n");
+  const lines = source.split("\n");
   return lines[pos.line - 1];
 }
 

@@ -71,8 +71,8 @@ export class Parser {
     if (parsee === 'U') {
       return Maker.makeU(locationToSyntax('U', element.location));
     } else if (parsee === 'the') {
-      let elements = (element as Extended.List).elements;
-      let loc = element.location;
+      const elements = (element as Extended.List).elements;
+      const loc = element.location;
       return Maker.makeThe(
         locationToSyntax('the', loc),
         this.parseElements(elements[1] as Element),
@@ -88,8 +88,8 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[1] as Element)
       );
     } else if (parsee === '->' || parsee === '→') {
-      let elements = (element as Extended.List).elements;
-      let loc = element.location;
+      const elements = (element as Extended.List).elements;
+      const loc = element.location;
       return Maker.makeArrow(
         locationToSyntax('->', loc),
         [
@@ -99,10 +99,10 @@ export class Parser {
         ]
       );
     } else if (parsee === 'lambda' || parsee === 'λ') {
-      let elements = (element as Extended.List).elements;
-      let loc = element.location;
-      let args = elements[1] as Extended.List;
-      let body = elements[2] as Element;
+      const elements = (element as Extended.List).elements;
+      const loc = element.location;
+      const args = elements[1] as Extended.List;
+      const body = elements[2] as Element;
       return Maker.makeLambda(
         locationToSyntax('λ', loc),
         args.elements.map(
@@ -114,20 +114,20 @@ export class Parser {
         this.parseElements(body)
       );
     } else if (parsee === 'Pi' || parsee === 'Π') {
-      let elements = (element as Extended.List).elements;
-      let args = elements[1] as Extended.List;
-      let body = elements[2] as Element;
+      const elements = (element as Extended.List).elements;
+      const args = elements[1] as Extended.List;
+      const body = elements[2] as Element;
 
       // Get first binding pair
-      let firstPair = args.elements[0] as Extended.List;
-      let x0 = firstPair.elements[0] as Element;
-      let A0 = firstPair.elements[1] as Element;
+      const firstPair = args.elements[0] as Extended.List;
+      const x0 = firstPair.elements[0] as Element;
+      const A0 = firstPair.elements[1] as Element;
 
       // Process remaining binding pairs
-      let remainingPairs = args.elements.slice(1) as Extended.List[];
-      let processedPairs = remainingPairs.map(pair => {
-        let x = pair.elements[0] as Element;
-        let A = pair.elements[1] as Element;
+      const remainingPairs = args.elements.slice(1) as Extended.List[];
+      const processedPairs = remainingPairs.map(pair => {
+        const x = pair.elements[0] as Element;
+        const A = pair.elements[1] as Element;
         return new TypedBinder(
           syntaxToSiteBinder(elementToSyntax(x, pair.location)),
           this.parseElements(A)
@@ -145,20 +145,20 @@ export class Parser {
         this.parseElements(body)
       );
     } else if (parsee === 'Sigma' || parsee === 'Σ') {
-      let elements = (element as Extended.List).elements;
-      let args = elements[1] as Extended.List;
-      let body = elements[2] as Element;
+      const elements = (element as Extended.List).elements;
+      const args = elements[1] as Extended.List;
+      const body = elements[2] as Element;
 
       // Get first binding pair
-      let firstPair = args.elements[0] as Extended.List;
-      let x0 = firstPair.elements[0] as Element;
-      let A0 = firstPair.elements[1] as Element;
+      const firstPair = args.elements[0] as Extended.List;
+      const x0 = firstPair.elements[0] as Element;
+      const A0 = firstPair.elements[1] as Element;
 
       // Process remaining binding pairs
-      let remainingPairs = args.elements.slice(1) as Extended.List[];
-      let processedPairs = remainingPairs.map(pair => {
-        let x = pair.elements[0] as Element;
-        let A = pair.elements[1] as Element;
+      const remainingPairs = args.elements.slice(1) as Extended.List[];
+      const processedPairs = remainingPairs.map(pair => {
+        const x = pair.elements[0] as Element;
+        const A = pair.elements[1] as Element;
         return new TypedBinder(
           syntaxToSiteBinder(elementToSyntax(x, pair.location)),
           this.parseElements(A)
@@ -175,14 +175,14 @@ export class Parser {
         ),
         this.parseElements(body));
     } else if (parsee === 'Pair') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makePair(
         locationToSyntax('Pair', element.location),
         this.parseElements(elements[1] as Element),
         this.parseElements(elements[2] as Element)
       );
     } else if (parsee === 'cons') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeCons(
         locationToSyntax('Cons', element.location),
         this.parseElements(elements[1] as Element),
@@ -199,7 +199,7 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[1] as Element)
       );
     } else if (parsee === 'which-Nat') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeWhichNat(
         locationToSyntax('which-Nat', element.location),
         this.parseElements(elements[1] as Element),
@@ -207,7 +207,7 @@ export class Parser {
         this.parseElements(elements[3] as Element),
       );
     } else if (parsee === 'iter-Nat') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeIterNat(
         locationToSyntax('iter-Nat', element.location),
         this.parseElements(elements[1] as Element),
@@ -215,7 +215,7 @@ export class Parser {
         this.parseElements(elements[3] as Element),
       );
     } else if (parsee === 'rec-Nat') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeRecNat(
         locationToSyntax('rec-Nat', element.location),
         this.parseElements(elements[1] as Element),
@@ -223,7 +223,7 @@ export class Parser {
         this.parseElements(elements[3] as Element),
       );
     } else if (parsee === 'ind-Nat') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeIndNat(
         locationToSyntax('ind-Nat', element.location),
         this.parseElements(elements[1] as Element),
@@ -250,14 +250,14 @@ export class Parser {
     } else if (parsee === 'nil') {
       return Maker.makeNil(locationToSyntax('nil', element.location));
     } else if (parsee === '::') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeListCons(
         locationToSyntax('::', element.location),
         this.parseElements(elements[1] as Element),
         this.parseElements(elements[2] as Element),
       );
     } else if (parsee === 'rec-List') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeRecList(
         locationToSyntax('rec-List', element.location),
         this.parseElements(elements[1] as Element),
@@ -265,7 +265,7 @@ export class Parser {
         this.parseElements(elements[3] as Element),
       );
     } else if (parsee === 'ind-List') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeIndList(
         locationToSyntax('ind-List', element.location),
         this.parseElements(elements[1] as Element),
@@ -274,7 +274,7 @@ export class Parser {
         this.parseElements(elements[4] as Element),
       );
     } else if (parsee === '=') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeEqual(
         locationToSyntax('=', element.location),
         this.parseElements(elements[1] as Element),
@@ -287,7 +287,7 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[1] as Element)
       );
     } else if (parsee === 'replace') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeReplace(
         locationToSyntax('replace', element.location),
         this.parseElements(elements[1] as Element),
@@ -295,21 +295,21 @@ export class Parser {
         this.parseElements(elements[3] as Element),
       );
     } else if (parsee === 'trans') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeTrans(
         locationToSyntax('trans', element.location),
         this.parseElements(elements[1] as Element),
         this.parseElements(elements[2] as Element),
       );
     } else if (parsee === 'cong') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeCong(
         locationToSyntax('cong', element.location),
         this.parseElements(elements[1] as Element),
         this.parseElements(elements[2] as Element),
       );
     } else if (parsee === 'ind-=') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeIndEqual(
         locationToSyntax('ind-=', element.location),
         this.parseElements(elements[1] as Element),
@@ -322,7 +322,7 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[1] as Element),
       );
     } else if (parsee === 'Vec') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeVec(
         locationToSyntax('Vec', element.location),
         this.parseElements(elements[1] as Element),
@@ -333,7 +333,7 @@ export class Parser {
         locationToSyntax('vecnil', element.location),
       );
     } else if (parsee === 'vec::') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeVecCons(
         locationToSyntax('vec::', element.location),
         this.parseElements(elements[1] as Element),
@@ -350,7 +350,7 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[1] as Element),
       );
     } else if (parsee === 'ind-Vec') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeIndVec(
         locationToSyntax('ind-Vec', element.location),
         this.parseElements(elements[1] as Element),
@@ -360,7 +360,7 @@ export class Parser {
         this.parseElements(elements[5] as Element),
       );
     } else if (parsee === 'Either') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeEither(
         locationToSyntax('Either', element.location),
         this.parseElements(elements[1] as Element),
@@ -378,7 +378,7 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[1] as Element),
       );
     } else if (parsee === 'ind-Either') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeIndEither(
         locationToSyntax('ind-Either', element.location),
         this.parseElements(elements[1] as Element),
@@ -391,7 +391,7 @@ export class Parser {
         locationToSyntax('Absurd', element.location),
       );
     } else if (parsee === 'ind-Absurd') {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeIndAbsurd(
         locationToSyntax('ind-Absurd', element.location),
         this.parseElements(elements[1] as Element),
@@ -400,7 +400,7 @@ export class Parser {
     } else if (parsee === 'TODO') {
       return Maker.makeTODO(locationToSyntax('TODO', element.location));
     } else if (element instanceof Extended.List && (element as Extended.List).elements.length > 1) {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeApp(
         locationToSyntax('App', element.location),
         this.parseElements(elements[0] as Element),
@@ -532,21 +532,21 @@ export class pieDeclarationParser {
   public static parseDeclaration(ast: Extended.List): Declaration {
     const parsee = getValue(ast);
     if (parsee === 'claim') {
-      let elements = (ast as Extended.List).elements;
+      const elements = (ast as Extended.List).elements;
       return new Claim(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
         getValue(elements[1] as Element),
         Parser.parseElements(elements[2] as Element)
       );
     } else if (parsee === 'define') {
-      let elements = (ast as Extended.List).elements;
+      const elements = (ast as Extended.List).elements;
       return new Definition(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
         getValue(elements[1] as Element),
         Parser.parseElements(elements[2] as Element)
       );
     } else if (parsee === 'check-same') {
-      let elements = (ast as Extended.List).elements;
+      const elements = (ast as Extended.List).elements;
       return new SamenessCheck(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
         Parser.parseElements(elements[1] as Element),
@@ -554,7 +554,7 @@ export class pieDeclarationParser {
         Parser.parseElements(elements[3] as Element)
       );
     } else if (parsee === 'define-tactically') {
-      let elements = (ast as Extended.List).elements;
+      const elements = (ast as Extended.List).elements;
       return new DefineTactically(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
         getValue(elements[1] as Element),

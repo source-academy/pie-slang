@@ -156,7 +156,7 @@ export class ProofState {
       return true
     }
 
-    let cur_parent = this.currentGoal.parent;
+    const cur_parent = this.currentGoal.parent;
     const nextGoal = this.nextGoalAux(cur_parent);
     if (nextGoal === null) {
       return true
