@@ -6,7 +6,6 @@ import { addClaimToContext, addDefineToContext, Define, initCtx } from './utils/
 import { The } from './types/core';
 import { readBack } from './evaluator/utils';
 import { ProofManager } from './tactics/proofmanager';
-import {inspect} from 'util';
 
 export function evaluatePie(str): string {
   const astList = schemeParse(str);
