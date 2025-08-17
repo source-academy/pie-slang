@@ -13,7 +13,7 @@ export class PieEvaluator extends BasicEvaluator {
   async evaluateChunk(chunk: string): Promise<void> {
     this.executionCount++;
     try {
-      let result = evaluatePie(chunk);
+      const result = evaluatePie(chunk);
       this.conductor.sendOutput(`Result of expression: execution ${result}`);
     } catch (error) {
       // Handle errors and send them to the REPL

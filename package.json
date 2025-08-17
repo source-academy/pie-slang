@@ -40,7 +40,9 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
   },
   "type": "module"
 }

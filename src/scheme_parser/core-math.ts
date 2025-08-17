@@ -83,7 +83,7 @@ class RealMatch extends Match {
     }
 
     // recursively build the exponent
-    let exponent = (
+    const exponent = (
       this.exponent ? this.exponent.build() : SchemeReal.INEXACT_ZERO
     ).coerce();
 
@@ -307,7 +307,7 @@ export function isComplex(value: string): ComplexMatch {
   if (splitPoint === -1) {
     // the value may be purely imaginary
 
-    let imaginaryPart = value.slice(0, -1);
+    const imaginaryPart = value.slice(0, -1);
 
     const imaginaryMatch = universalMatch(imaginaryPart, NumberType.REAL);
 
@@ -376,7 +376,7 @@ export function stringIsSchemeNumber(value: string): boolean {
 // If a simplified rational number has a denominator of 1, it will convert to an integer.
 
 // We are assured that the string passed to this function is a valid number.
-export let make_number = (value: string): SchemeNumber => {
+export const make_number = (value: string): SchemeNumber => {
   const match = universalMatch(value, NumberType.COMPLEX);
   if (!match.result) {
     throw new Error("Invalid number");
@@ -1085,7 +1085,7 @@ export const numerator = (n: SchemeNumber): SchemeNumber => {
       multiplier *= 10;
     }
     let numerator = val * multiplier;
-    let denominator = multiplier;
+    const denominator = multiplier;
     // simplify the fraction
     const gcd = (a: number, b: number): number => {
       if (b === 0) {
@@ -1135,7 +1135,7 @@ export const denominator = (n: SchemeNumber): SchemeNumber => {
     while (!Number.isInteger(val * multiplier)) {
       multiplier *= 10;
     }
-    let numerator = val * multiplier;
+    const numerator = val * multiplier;
     let denominator = multiplier;
     // simplify the fraction
     const gcd = (a: number, b: number): number => {
@@ -1165,7 +1165,7 @@ export const exact = (n: SchemeNumber): SchemeNumber => {
     // by multiplying it by a power of 10 until it becomes an integer
     // and then dividing by the same power of 10
     let multiplier = 1;
-    let val = n.coerce();
+    const val = n.coerce();
     while (!Number.isInteger(val * multiplier)) {
       multiplier *= 10;
     }
@@ -1301,7 +1301,7 @@ export const sqrt = (n: SchemeNumber): SchemeNumber => {
 
     return SchemePolar.build(newMag, newAngle).toCartesian();
   }
-  let value = n.coerce();
+  const value = n.coerce();
 
   if (value < 0) {
     return SchemeComplex.build(

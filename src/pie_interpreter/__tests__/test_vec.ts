@@ -4,8 +4,8 @@
 import { evaluatePie } from "../main";
 
 describe('basic test cases', () => {
-    it('first of one', () => {
-        const src = `
+  it('first of one', () => {
+    const src = `
         (claim first-of-one
 (Π ((E U ))
 (→ (Vec E 1)
@@ -14,12 +14,12 @@ E)))
 (λ (E)
 (λ (es)
 (head es))))`
-        console.log(evaluatePie(src))
-    })
+    console.log(evaluatePie(src))
+  })
 
-    it('first', () => {
-        const src = 
-        `(claim first
+  it('first', () => {
+    const src =
+      `(claim first
 (Π ((E U )
 (l Nat))
 (→ (Vec E (add1 l))
@@ -29,12 +29,12 @@ E)))
 (λ (E l)
 (λ (es)
 (head es))))`
-        console.log(evaluatePie(src));
-    })
+    console.log(evaluatePie(src));
+  })
 
-    it('rest', () => {
-        const src = 
-        `(claim rest
+  it('rest', () => {
+    const src =
+      `(claim rest
 (Π ((E U )
 (l Nat))
 (→ (Vec E (add1 l))
@@ -44,12 +44,12 @@ E)))
 (λ (E l)
 (λ (es)
 (tail es))))`
-        console.log(evaluatePie(src));
-    })
+    console.log(evaluatePie(src));
+  })
 
-    it('peas', () => {
-        const src = 
-        `
+  it('peas', () => {
+    const src =
+      `
 (claim peas
 (Π ((how-many-peas Nat))
 (Vec Atom how-many-peas)))
@@ -78,13 +78,13 @@ mot-peas
 vecnil
 step-peas)))
 `
-    })
+  })
 })
 
 describe('ind-Vec test cases', () => {
-    it('vecnil case', () => {
-        const src = 
-        `(claim vec-length
+  it('vecnil case', () => {
+    const src =
+      `(claim vec-length
   (Pi ((E U) (l Nat) )
     (-> (Vec E l)
         Nat)))
@@ -120,7 +120,7 @@ describe('ind-Vec test cases', () => {
     (mot-length E)
     zero
     (step-length E)))))`
-        console.log(evaluatePie(src));
-    })
+    console.log(evaluatePie(src));
+  })
 });
 

@@ -1,7 +1,6 @@
 import * as C from '../types/core';
 import { isVarName } from '../types/utils';
 import { SourceLocation } from './locations';
-import { inspect } from 'util'
 
 export function alphaEquiv(e1: C.Core, e2: C.Core): boolean {
   return alphaEquivAux(0, new Map(), new Map(), e1, e2);

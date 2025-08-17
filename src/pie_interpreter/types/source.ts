@@ -15,7 +15,6 @@ import { readBack } from '../evaluator/utils';
 import { synthesizer as Synth } from '../typechecker/synthesizer';
 import { fresh } from './utils';
 import { varType } from '../utils/context';
-import { inspect } from 'util';
 
 export abstract class Source {
 
