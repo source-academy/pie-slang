@@ -2,7 +2,7 @@ import * as V from "./value";
 import * as N from './neutral';
 
 import * as Evaluator from '../evaluator/evaluator';
-import { Environment, getValueFromEnvironment} from '../utils/environment';
+import { Environment, getValueFromEnvironment } from '../utils/environment';
 import { SourceLocation } from '../utils/locations';
 import { FirstOrderClosure, isVarName } from './utils';
 
@@ -254,7 +254,7 @@ export class Pi extends Core {
 
   public valOf(env: Environment): V.Value {
     const typeVal = this.type.toLazy(env);
-    return new V.Pi(this.name, typeVal, 
+    return new V.Pi(this.name, typeVal,
       new FirstOrderClosure(env, this.name, this.body)
     );
   }
@@ -278,7 +278,7 @@ export class Lambda extends Core {
   ) { super() }
 
   public valOf(env: Environment): V.Value {
-    return new V.Lambda(this.param, 
+    return new V.Lambda(this.param,
       new FirstOrderClosure(env, this.param, this.body));
   }
 
@@ -337,7 +337,7 @@ export class Sigma extends Core {
 
   public valOf(env: Environment): V.Value {
     const typeVal = this.type.toLazy(env);
-    return new V.Sigma(this.name, typeVal, 
+    return new V.Sigma(this.name, typeVal,
       new FirstOrderClosure(env, this.name, this.body));
   }
 
@@ -534,7 +534,7 @@ export class IndList extends Core {
 }
 
 export class Trivial extends Core {
-  
+
   public valOf(env: Environment): V.Value {
     return new V.Trivial();
   }
@@ -626,7 +626,7 @@ export class Equal extends Core {
   public prettyPrint(): string {
     return `(= ${this.type.prettyPrint()} 
               ${this.left.prettyPrint()} 
-              ${this.right.prettyPrint()})`;  
+              ${this.right.prettyPrint()})`;
   }
 
   public toString(): string {
@@ -754,7 +754,7 @@ export class Symm extends Core {
 }
 
 export class IndEqual extends Core {
-  
+
   constructor(
     public target: Core,
     public motive: Core,
@@ -789,7 +789,7 @@ export class Vec extends Core {
 
   public valOf(env: Environment): V.Value {
     return new V.Vec(
-      this.type.toLazy(env), 
+      this.type.toLazy(env),
       this.length.toLazy(env)
     );
   }
@@ -937,7 +937,7 @@ export class Either extends Core {
   public toString(): string {
     return this.prettyPrint();
   }
-  
+
 }
 
 export class Left extends Core {
@@ -1080,4 +1080,72 @@ export class VarName extends Core {
     return this.prettyPrint();
   }
 
+}
+
+export class InductiveType extends Core {
+  public valOf(env: Environment): V.Value {
+    return new V.InductiveType(
+      this.typeName,
+      this.parameters.map(p => p.toLazy(env)),
+      this.indices.map(i => i.toLazy(env)),
+    );
+  }
+  constructor(
+    public typeName: string,
+    public parameters: Core[],
+    public indices: Core[],
+  ) { super(); }
+
+  public prettyPrint(): string {
+    return `${this.typeName}${this.parameters.length > 0 ? ' ' + this.parameters.map(p => p.prettyPrint()).join(' ') : ''}${this.indices.length > 0 ? ' ' + this.indices.map(i => i.prettyPrint()).join(' ') : ''}`;
+  }
+}
+
+export class Constructor extends Core {
+
+  constructor(
+    public name: string,
+    public type: Core,
+    public args: Core[],
+    public index: number,
+    public recursive_args: Core[]
+  ) { super(); }
+
+  public valOf(env: Environment): V.Value {
+    return new V.Constructor(
+      this.name,
+      this.type.toLazy(env),
+      this.args.map(a => a.toLazy(env)),
+      this.index,
+      this.recursive_args.map(a => a.toLazy(env))
+    )
+  }
+
+  public prettyPrint(): string {
+    const args = this.args.map(a => a.prettyPrint()).join(' ');
+    return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
+  }
+}
+
+export class Eliminator extends Core {
+
+  constructor(
+    public typeName: string,
+    public target: Core,
+    public motive: Core,
+    public methods: Core[]
+  ) { super(); }
+
+  public valOf(env: Environment): V.Value {
+    return Evaluator.doEliminator(
+      this.typeName,
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.methods.map(m => m.toLazy(env))
+    );
+  }
+  public prettyPrint(): string {
+    const methods = this.methods.map(m => m.prettyPrint()).join(' ');
+    return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+  }
 }

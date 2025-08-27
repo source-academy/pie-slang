@@ -30,16 +30,16 @@ export class synthesizer {
     );
   }
 
-  public static synthArrow(context: Context, r: Renaming, location: Location, arg1 : S.Source, arg2 : S.Source, args : S.Source[]): Perhaps<C.The> {
+  public static synthArrow(context: Context, r: Renaming, location: Location, arg1: S.Source, arg2: S.Source, args: S.Source[]): Perhaps<C.The> {
     if (args.length === 0) {
       const z = freshBinder(context, arg2, 'x');
       const Aout = new PerhapsM<C.Core>("Aout");
       const Bout = new PerhapsM<C.Core>('Bout');
       return goOn(
         [
-          [Aout, () => 
+          [Aout, () =>
             arg1.check(context, r, new V.Universe())],
-          [Bout, () => 
+          [Bout, () =>
             arg2.check(
               bindFree(context, z, valInContext(context, Aout.value)),
               r,
@@ -68,11 +68,11 @@ export class synthesizer {
           [Aout, () => arg1.check(context, r, new V.Universe())],
           [tout, () =>
             new S.Arrow(notForInfo(location), arg2, first, rest)
-                .check(
-                  bindFree(context, z, valInContext(context, Aout.value)),
-                  r,
-                  new V.Universe()
-                )
+              .check(
+                bindFree(context, z, valInContext(context, Aout.value)),
+                r,
+                new V.Universe()
+              )
           ]
         ],
         () => {
@@ -316,7 +316,7 @@ export class synthesizer {
     return goOn(
       [
         [tgtout, () => target.check(context, r, new V.Nat())],
-        [motout, () => motive.check(context, r, 
+        [motout, () => motive.check(context, r,
           new V.Pi(
             'n',
             new V.Nat(),
@@ -384,12 +384,12 @@ export class synthesizer {
     return goOn(
       [
         [Aout, () => first.check(context, r, new V.Universe())],
-        [Dout, () => 
+        [Dout, () =>
           second.check(
             bindFree(context, a, valInContext(context, Aout.value)),
             r,
             new V.Universe()
-        )],
+          )],
       ],
       () => new go<C.The>(
         new C.The(
@@ -446,7 +446,7 @@ export class synthesizer {
       return goOn(
         [
           [Aout, () => type.check(context, r, new V.Universe())],
-          [Dout, () => 
+          [Dout, () =>
             new S.Sigma(
               notForInfo(location),
               rest,
@@ -564,7 +564,7 @@ export class synthesizer {
     )
   }
 
-  public static synthIndList(context: Context, r: Renaming, 
+  public static synthIndList(context: Context, r: Renaming,
     location: Location, target: S.Source, motive: S.Source, base: S.Source, step: S.Source,): Perhaps<C.The> {
     const tgtout = new PerhapsM<C.The>('tgtout');
     const motout = new PerhapsM<C.Core>('motout');
@@ -583,7 +583,7 @@ export class synthesizer {
           return goOn(
             [
               [
-                motout, 
+                motout,
                 () => motive.check(
                   context,
                   r,
@@ -654,7 +654,7 @@ export class synthesizer {
   }
 
 
-  public static synthRecList(context: Context, r: Renaming, 
+  public static synthRecList(context: Context, r: Renaming,
     location: Location, target: S.Source, base: S.Source, step: S.Source,): Perhaps<C.The> {
     const tgtout = new PerhapsM<C.The>('tgtout');
     return goOn(
@@ -671,7 +671,7 @@ export class synthesizer {
             [
               [bout, () => base.synth(context, r)],
               [btval, () => new go(valInContext(context, bout.value.type))],
-              [sout, () => 
+              [sout, () =>
                 step.check(
                   context,
                   r,
@@ -742,7 +742,7 @@ export class synthesizer {
     return goOn(
       [
         [fstout, () => x.synth(context, r)],
-        [restout, () => 
+        [restout, () =>
           xs.check(
             context,
             r,
@@ -1014,7 +1014,7 @@ export class synthesizer {
           const [Av, fromv, tov] = [result.type, result.from, result.to];
           return goOn(
             [
-              [motout, () => 
+              [motout, () =>
                 motive.check(
                   context,
                   r,
@@ -1034,7 +1034,7 @@ export class synthesizer {
                 )
               ],
               [motv, () => new go(valInContext(context, motout.value))],
-              [baseout, () => 
+              [baseout, () =>
                 base.check(
                   context,
                   r,
@@ -1157,7 +1157,7 @@ export class synthesizer {
   }
 
   public static synthIndVec(context: Context, r: Renaming, location: Location,
-      length: S.Source, target: S.Source, motive: S.Source, base: S.Source, step: S.Source): Perhaps<C.The> {
+    length: S.Source, target: S.Source, motive: S.Source, base: S.Source, step: S.Source): Perhaps<C.The> {
     const lenout = new PerhapsM<C.Core>('lenout');
     const lenv = new PerhapsM<V.Value>('lenv');
     const vecout = new PerhapsM<C.The>('vecout');
@@ -1255,7 +1255,7 @@ export class synthesizer {
 
 
   public static synthIndEither(context: Context, r: Renaming, location: Location, target: S.Source,
-      motive: S.Source, baseLeft: S.Source, baseRight: S.Source,): Perhaps<C.The> {
+    motive: S.Source, baseLeft: S.Source, baseRight: S.Source,): Perhaps<C.The> {
     const tgtout = new PerhapsM<C.The>('tgtout');
     const motout = new PerhapsM<C.Core>('motout');
     const motval = new PerhapsM<V.Value>('motval');
@@ -1269,7 +1269,7 @@ export class synthesizer {
           const [Lv, Rv] = [result.leftType, result.rightType];
           return goOn(
             [
-              [motout, () => 
+              [motout, () =>
                 motive.check(
                   context,
                   r,
@@ -1360,7 +1360,7 @@ export class synthesizer {
             const argout = new PerhapsM<C.Core>('argout');
             return goOn(
               [[argout, () => arg.check(context, r, A)]],
-              () => 
+              () =>
                 new go(
                   new C.The(
                     c.valOfClosure(valInContext(context, argout.value)).readBackType(context),
@@ -1489,4 +1489,69 @@ export class synthesizer {
       );
     }
   }
+
+  public static synthDefineDatatype(
+    ctx: Context,
+    renames: Renaming,
+    datatype: S.DefineDatatype
+  ): Perhaps<C.The> {
+
+    let checkAndBuildTypes = (initialType: V.Value, binder: TypedBinder[]): Perhaps<V.Value> => {
+      let normalizedType = []
+      for (const param of binder) {
+        const paramCheck = param.type.check(ctx, renames, new V.Universe());
+        if (paramCheck instanceof stop) return paramCheck;
+        normalizedType.push((paramCheck as go<C.Core>).result);
+      }
+
+      let cur_Type = initialType
+      for (let i = normalizedType.length - 1; i >= 0; i--) {
+        const paramType = normalizedType[i];
+        const paramName = binder[i].findNames();
+        const currentTType = cur_Type;
+        cur_Type = new V.Pi(
+          paramName,
+          valInContext(ctx, paramType),
+          new HigherOrderClosure((v: V.Value) => currentTType)
+        );
+      }
+
+      return new go(cur_Type);
+
+    }
+
+    const normalizedResultTypeTemp = datatype.resultType.check(ctx, renames, new V.Universe());
+
+    if (normalizedResultTypeTemp instanceof stop) return normalizedResultTypeTemp;
+
+    const normalizedIndicesTemp = checkAndBuildTypes(
+      (normalizedResultTypeTemp as go<V.Value>).result, datatype.indices);
+
+    if (normalizedIndicesTemp instanceof stop) return normalizedIndicesTemp;
+
+    const normalizedParametersTemp =
+    checkAndBuildTypes((normalizedIndicesTemp as go<V.Value>).result, datatype.parameters);
+
+    let normalizedConstructor: V.Value[] = []
+
+    for (const constructor of datatype.constructors) {
+      const normalizedResultType = (constructor as S.Constructor).resultType.check(ctx, renames, new V.Universe());
+      if (normalizedResultType instanceof stop) return normalizedResultType;
+      const normalizedConstructorTypeTemp = checkAndBuildTypes(
+        (normalizedResultType as go<V.Value>).result,
+        constructor.args
+      );
+
+      if (normalizedConstructorTypeTemp instanceof stop) return normalizedConstructorTypeTemp;
+
+      normalizedConstructor.push((normalizedConstructorTypeTemp as go<V.Value>).result);
+    }
+
+
+
+
+
+  }
+
+
 }

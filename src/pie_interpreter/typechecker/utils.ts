@@ -97,3 +97,4 @@ function isAlphabetic(char: string): boolean {
 export function makeApp(a: Source, b: Source, cs: Source[]): Source {
   return new Application(a.location, a, b, cs);
 }
+

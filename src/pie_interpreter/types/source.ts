@@ -1948,3 +1948,89 @@ export class Application extends Source {
     return this.prettyPrint();
   }
 }
+
+export class DefineDatatype extends Source {
+  constructor(
+    public location: Location,
+    public typeName: string,
+    public parameters: TypedBinder[],  // Type parameters [A : Type]
+    public indices: TypedBinder[],     // Index parameters [i : Nat] 
+    public resultType: Source,         // The result universe (Type)
+    public constructors: Constructor[] // Data constructors
+  ) { super(location); }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthDefineDatatype(ctx, renames, this);
+  }
+
+  public findNames(): string[] {
+    const names = [this.typeName];
+    names.push(...this.parameters.flatMap(p => p.findNames()));
+    names.push(...this.indices.flatMap(i => i.findNames()));
+    names.push(...this.resultType.findNames());
+    names.push(...this.constructors.flatMap(c => c.findNames()));
+    return names;
+  }
+
+  public prettyPrint(): string {
+    const params = this.parameters.map(p => `[${p.prettyPrint()}]`).join(' ');
+    const indices = this.indices.map(i => `[${i.prettyPrint()}]`).join(' ');
+    const ctors = this.constructors.map(c => c.prettyPrint()).join('\n  ');
+    return `(define-datatype ${this.typeName} ${params} : ${indices} ${this.resultType.prettyPrint()}
+  ${ctors})`;
+  }
+}
+
+export class Constructor extends Source {
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+  constructor(
+    public location: Location,
+    public name: string,
+    public args: TypedBinder[], // Constructor args
+    public resultType: Source        // Type the constructor produces
+  ) {
+    super(location);
+  }
+
+  public findNames(): string[] {
+    const names = [this.name];
+    names.push(...this.args.flatMap(a => a.findNames()));
+    names.push(...this.resultType.findNames());
+    return names;
+  }
+
+  public prettyPrint(): string {
+    const args = this.args.map(a => `[${a.prettyPrint()}]`).join(' ');
+    return `[${this.name} ${args} : ${this.resultType.prettyPrint()}]`;
+  }
+}
+
+// Generic eliminator for user-defined inductive types
+export class GenericEliminator extends Source {
+  constructor(
+    public location: Location,
+    public typeName: string,
+    public target: Source,
+    public motive: Source,
+    public methods: Source[]
+  ) { super(location); }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+
+  public findNames(): string[] {
+    const names = [this.typeName];
+    names.push(...this.target.findNames());
+    names.push(...this.motive.findNames());
+    names.push(...this.methods.flatMap(m => m.findNames()));
+    return names;
+  }
+
+  public prettyPrint(): string {
+    const methods = this.methods.map(m => m.prettyPrint()).join(' ');
+    return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+  }
+}

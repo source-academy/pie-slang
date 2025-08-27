@@ -622,3 +622,51 @@ export class Absurd extends Value {
   }
   
 }
+
+export class InductiveType extends Value {
+  constructor(
+    public name: string,
+    public parameters: Value[],
+    public indices: Value[],
+  ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.InductiveType(
+      this.name,
+      this.parameters.map(p => p.readBackType(context)),
+      this.indices.map(i => i.readBackType(context)),
+    )
+  }
+
+  public prettyPrint(): string {
+    return `InductiveType ${this.name}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class Constructor extends Value {
+
+  constructor(
+    public name: string,
+    public type: Value,
+    public args: Value[],
+    public index: number,
+    public recursive_args: Value[],
+  ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    throw new Error("No readBackType for Constructor.");
+  }
+
+  public prettyPrint(): string {
+    const args = this.args.map(a => a.prettyPrint()).join(' ');
+    return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
