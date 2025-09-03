@@ -13,7 +13,7 @@ import { notForInfo } from "../utils/locations";
 import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
 import { readBack } from '../evaluator/utils';
 import { Location } from '../utils/locations';
-import { ConstructorType, DefineDatatype } from '../types/source';
+import { ConstructorType} from '../types/source';
 import { alphaEquiv } from "../utils/alphaeqv";
 
 
@@ -1492,181 +1492,182 @@ export class synthesizer {
     }
   }
 
-  public static synthDataType(context: Context, r: Renaming, datatype: S.DefineDatatype): Perhaps<C.The> {
+
+//   public static synthDataType(context: Context, r: Renaming, datatype: S.DefineDatatype): Perhaps<C.The> {
     
-  }
+//   }
 
-  public static GenerateConstructor(
-    ctx: Context,
-    renames: Renaming,
-    datatype: S.DefineDatatype
-  ): Perhaps<C.The> {
+//   public static GenerateConstructor(
+//     ctx: Context,
+//     renames: Renaming,
+//     datatype: S.DefineDatatype
+//   ): Perhaps<C.The> {
 
-    let buildConstructorApplication = (constructorName: string, argNames: string[], datatypeName: string, parameters: C.Core[], indices: C.Core[]): C.Core => {
-      let result: C.Core = new C.VarName(datatypeName);
+//     let buildConstructorApplication = (constructorName: string, argNames: string[], datatypeName: string, parameters: C.Core[], indices: C.Core[]): C.Core => {
+//       let result: C.Core = new C.VarName(datatypeName);
       
-      // Apply parameters
-      for (const param of parameters) {
-        result = new C.Application(result, param);
-      }
+//       // Apply parameters
+//       for (const param of parameters) {
+//         result = new C.Application(result, param);
+//       }
       
-      // Apply indices  
-      for (const index of indices) {
-        result = new C.Application(result, index);
-      }
+//       // Apply indices  
+//       for (const index of indices) {
+//         result = new C.Application(result, index);
+//       }
       
-      // Apply constructor
-      let constructorApp: C.Core = new C.VarName(constructorName);
-      for (const argName of argNames) {
-        constructorApp = new C.Application(constructorApp, new C.VarName(argName));
-      }
+//       // Apply constructor
+//       let constructorApp: C.Core = new C.VarName(constructorName);
+//       for (const argName of argNames) {
+//         constructorApp = new C.Application(constructorApp, new C.VarName(argName));
+//       }
       
-      return constructorApp;
-    };
+//       return constructorApp;
+//     };
 
-    let generateMethodType = (
-      constructorName: string,
-      argTypes: C.Core[], 
-      rec_args: C.Core[], 
-      resultType: C.Core,
-      motive: C.Core,
-      datatypeName: string,
-      parameters: C.Core[],
-      indices: C.Core[]
-    ): C.Core => {
-      let argNames: string[] = [];
-      let recArgNames: string[] = [];
+//     let generateMethodType = (
+//       constructorName: string,
+//       argTypes: C.Core[], 
+//       rec_args: C.Core[], 
+//       resultType: C.Core,
+//       motive: C.Core,
+//       datatypeName: string,
+//       parameters: C.Core[],
+//       indices: C.Core[]
+//     ): C.Core => {
+//       let argNames: string[] = [];
+//       let recArgNames: string[] = [];
       
-      // Generate argument names
-      for (let i = 0; i < argTypes.length; i++) {
-        argNames.push(fresh(ctx, `arg_${i}`));
-      }
+//       // Generate argument names
+//       for (let i = 0; i < argTypes.length; i++) {
+//         argNames.push(fresh(ctx, `arg_${i}`));
+//       }
       
-      // Generate inductive hypothesis names  
-      for (let i = 0; i < rec_args.length; i++) {
-        recArgNames.push(fresh(ctx, `ih_${i}`));
-      }
+//       // Generate inductive hypothesis names  
+//       for (let i = 0; i < rec_args.length; i++) {
+//         recArgNames.push(fresh(ctx, `ih_${i}`));
+//       }
       
-      // Build the constructor application
-      const constructorApp = buildConstructorApplication(constructorName, argNames, datatypeName, parameters, indices);
+//       // Build the constructor application
+//       const constructorApp = buildConstructorApplication(constructorName, argNames, datatypeName, parameters, indices);
       
-      // Final result type: motive applied to constructor application
-      let methodType: C.Core = new C.Application(motive, constructorApp);
+//       // Final result type: motive applied to constructor application
+//       let methodType: C.Core = new C.Application(motive, constructorApp);
       
-      // Add inductive hypotheses (right to left)
-      for (let i = rec_args.length - 1; i >= 0; i--) {
-        const ihName = recArgNames[i];
-        const recArgApp = new C.Application(motive, new C.VarName(argNames[i])); // Apply motive to recursive argument
+//       // Add inductive hypotheses (right to left)
+//       for (let i = rec_args.length - 1; i >= 0; i--) {
+//         const ihName = recArgNames[i];
+//         const recArgApp = new C.Application(motive, new C.VarName(argNames[i])); // Apply motive to recursive argument
         
-        methodType = new C.Pi(
-          ihName,
-          recArgApp,
-          methodType
-        );
-      }
+//         methodType = new C.Pi(
+//           ihName,
+//           recArgApp,
+//           methodType
+//         );
+//       }
       
-      // Add constructor arguments (right to left)
-      for (let i = argTypes.length - 1; i >= 0; i--) {
-        const argName = argNames[i];
-        methodType = new C.Pi(
-          argName,
-          argTypes[i],
-          methodType
-        );
-      }
+//       // Add constructor arguments (right to left)
+//       for (let i = argTypes.length - 1; i >= 0; i--) {
+//         const argName = argNames[i];
+//         methodType = new C.Pi(
+//           argName,
+//           argTypes[i],
+//           methodType
+//         );
+//       }
       
-      return methodType;
-    };
-    const resultType = new PerhapsM<C.Core>('resultType');
-    const parameters = new PerhapsM<C.Core[]>('parameters');
-    const indices = new PerhapsM<C.Core[]>('indices');
-    const constructorTypes = new PerhapsM<C.Core[]>('constructorTypes');
-    const eliminatorTypes = new PerhapsM<C.Core[]>('eliminatorTypes');
+//       return methodType;
+//     };
+//     const resultType = new PerhapsM<C.Core>('resultType');
+//     const parameters = new PerhapsM<C.Core[]>('parameters');
+//     const indices = new PerhapsM<C.Core[]>('indices');
+//     const constructorTypes = new PerhapsM<C.Core[]>('constructorTypes');
+//     const eliminatorTypes = new PerhapsM<C.Core[]>('eliminatorTypes');
 
-    return goOn(
-      [
-        [resultType, () => datatype.resultType.check(ctx, renames, new V.Universe())],
-        [parameters, () => datatype.parameters.map((param) => param.type.check(ctx, renames, new V.Universe()))],
-        [indices, () => datatype.indices.map((index) => index.type.check(ctx, renames, new V.Universe()))],
-        [constructorTypes, () => datatype.constructors.map((constructor) => this.checkConstructorType(ctx, renames, constructor as S.ConstructorType))],
-        [eliminatorTypes, () => {
-          const resultTypeResult = resultType.value;
-          const parametersResults = parameters.value;
-          const indicesResults = indices.value;
-          const constructorTypesResults = constructorTypes.value;
-          const motiveType = new C.Pi(
-            'test_input_fst',
-            resultTypeResult,
-            new C.Universe()
-          )
+//     return goOn(
+//       [
+//         [resultType, () => datatype.resultType.check(ctx, renames, new V.Universe())],
+//         [parameters, () => datatype.parameters.map((param) => param.type.check(ctx, renames, new V.Universe()))],
+//         [indices, () => datatype.indices.map((index) => index.type.check(ctx, renames, new V.Universe()))],
+//         [constructorTypes, () => datatype.constructors.map((constructor) => this.checkConstructorType(ctx, renames, constructor as S.ConstructorType))],
+//         [eliminatorTypes, () => {
+//           const resultTypeResult = resultType.value;
+//           const parametersResults = parameters.value;
+//           const indicesResults = indices.value;
+//           const constructorTypesResults = constructorTypes.value;
+//           const motiveType = new C.Pi(
+//             'test_input_fst',
+//             resultTypeResult,
+//             new C.Universe()
+//           )
 
           
 
 
-        }]
-      ],
-      () => new go(
-        new C.The(
-          new C.Universe(),
-          new C.InductiveType(
-            datatype.typeName,
-            parameters.value,
-            indices.value
-          )
-        )
-      )
-    );
+//         }]
+//       ],
+//       () => new go(
+//         new C.The(
+//           new C.Universe(),
+//           new C.InductiveType(
+//             datatype.typeName,
+//             parameters.value,
+//             indices.value
+//           )
+//         )
+//       )
+//     );
 
-  }
+//   }
 
-  public static checkConstructorType(ctx: Context, renames: Renaming, ConstructorType: S.ConstructorType): Perhaps<C.Core> {
-    const normalizedResultTypeTemp = ConstructorType.resultType.check(ctx, renames, new V.Universe());
+//   public static checkConstructorType(ctx: Context, renames: Renaming, ConstructorType: S.ConstructorType): Perhaps<C.Core> {
+//     const normalizedResultTypeTemp = ConstructorType.resultType.check(ctx, renames, new V.Universe());
 
-    let binder = ConstructorType.args;
+//     let binder = ConstructorType.args;
 
-    let normalizedType = []
-    for (const param of binder) {
-      const paramCheck = param.type.check(ctx, renames, new V.Universe());
-      if (paramCheck instanceof stop) return paramCheck;
-      normalizedType.push((paramCheck as go<C.Core>).result);
-    }
+//     let normalizedType = []
+//     for (const param of binder) {
+//       const paramCheck = param.type.check(ctx, renames, new V.Universe());
+//       if (paramCheck instanceof stop) return paramCheck;
+//       normalizedType.push((paramCheck as go<C.Core>).result);
+//     }
 
-    let recur_args = []
-    let normalizedResultType = (normalizedResultTypeTemp as go<C.Core>).result
+//     let recur_args = []
+//     let normalizedResultType = (normalizedResultTypeTemp as go<C.Core>).result
 
-    for (const arg of normalizedType) {
-      if (alphaEquiv(arg, normalizedResultType)) {
-        recur_args.push(arg);
-      }
-    }
+//     for (const arg of normalizedType) {
+//       if (alphaEquiv(arg, normalizedResultType)) {
+//         recur_args.push(arg);
+//       }
+//     }
 
-    return new go(new C.ConstructorType(
-      normalizedType,
-      recur_args,
-      (normalizedResultTypeTemp as go<C.Core>).result
-    ));
-  }
-}
+//     return new go(new C.ConstructorType(
+//       normalizedType,
+//       recur_args,
+//       (normalizedResultTypeTemp as go<C.Core>).result
+//     ));
+//   }
+// }
 
-function checkAndBuildTypes(ctx: Context, renames: Renaming, initialType: C.Core, binder: TypedBinder[]): Perhaps<C.Core> {
-  let normalizedType = []
-  for (const param of binder) {
-    const paramCheck = param.type.check(ctx, renames, new V.Universe());
-    if (paramCheck instanceof stop) return paramCheck;
-    normalizedType.push((paramCheck as go<C.Core>).result);
-  }
+// function checkAndBuildTypes(ctx: Context, renames: Renaming, initialType: C.Core, binder: TypedBinder[]): Perhaps<C.Core> {
+//   let normalizedType = []
+//   for (const param of binder) {
+//     const paramCheck = param.type.check(ctx, renames, new V.Universe());
+//     if (paramCheck instanceof stop) return paramCheck;
+//     normalizedType.push((paramCheck as go<C.Core>).result);
+//   }
 
-  let cur_Type = initialType
-  for (let i = normalizedType.length - 1; i >= 0; i--) {
-    const paramType = normalizedType[i];
-    const paramName = binder[i].findNames();
-    const currentTType = cur_Type;
-    cur_Type = new V.Pi(
-      paramName,
-      valInContext(ctx, paramType),
-      new HigherOrderClosure((v: V.Value) => currentTType)
-    );
-  }
+//   let cur_Type = initialType
+//   for (let i = normalizedType.length - 1; i >= 0; i--) {
+//     const paramType = normalizedType[i];
+//     const paramName = binder[i].findNames();
+//     const currentTType = cur_Type;
+//     cur_Type = new V.Pi(
+//       paramName,
+//       valInContext(ctx, paramType),
+//       new HigherOrderClosure((v: V.Value) => currentTType)
+//     );
+//   }
 
-  return new go(cur_Type);
+//   return new go(cur_Type);
 }

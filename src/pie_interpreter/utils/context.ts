@@ -8,6 +8,7 @@ import { readBack } from '../evaluator/utils';
 import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
 import { inspect } from 'util';
+import { Eliminator } from '../types/core';
 /*
     ## Contexts ##
     A context maps free variable names to binders.
@@ -184,6 +185,14 @@ export class ConstructorBinder extends Binder {
   constructor(
     public name: string, 
     public type: Constructor) {
+      super()
+    }
+}
+
+export class EliminatorBinder extends Binder {
+  constructor(
+    public name: string, 
+    public type: Value) {
       super()
     }
 }

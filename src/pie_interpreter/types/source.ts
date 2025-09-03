@@ -1949,37 +1949,37 @@ export class Application extends Source {
   }
 }
 
-export class InductiveDatatype extends Source {
-  constructor(
-    public location: Location,
-    public typeName: string,
-    public parameters: TypedBinder[],  // Type parameters [A : Type]
-    public indices: TypedBinder[],     // Index parameters [i : Nat] 
-    public resultType: Source,         // The result universe (Type)
-    public constructors: ConstructorType[] // Data constructors
-  ) { super(location); }
+// export class InductiveDatatype extends Source {
+//   constructor(
+//     public location: Location,
+//     public typeName: string,
+//     public parameters: TypedBinder[],  // Type parameters [A : Type]
+//     public indices: TypedBinder[],     // Index parameters [i : Nat] 
+//     public resultType: Source,         // The result universe (Type)
+//     public constructors: ConstructorType[] // Data constructors
+//   ) { super(location); }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthDefineDatatype(ctx, renames, this);
-  }
+//   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+//     return Synth.synthDefineDatatype(ctx, renames, this);
+//   }
 
-  public findNames(): string[] {
-    const names = [this.typeName];
-    names.push(...this.parameters.flatMap(p => p.findNames()));
-    names.push(...this.indices.flatMap(i => i.findNames()));
-    names.push(...this.resultType.findNames());
-    names.push(...this.constructors.flatMap(c => c.findNames()));
-    return names;
-  }
+//   public findNames(): string[] {
+//     const names = [this.typeName];
+//     names.push(...this.parameters.flatMap(p => p.findNames()));
+//     names.push(...this.indices.flatMap(i => i.findNames()));
+//     names.push(...this.resultType.findNames());
+//     names.push(...this.constructors.flatMap(c => c.findNames()));
+//     return names;
+//   }
 
-  public prettyPrint(): string {
-    const params = this.parameters.map(p => `[${p.prettyPrint()}]`).join(' ');
-    const indices = this.indices.map(i => `[${i.prettyPrint()}]`).join(' ');
-    const ctors = this.constructors.map(c => c.prettyPrint()).join('\n  ');
-    return `(define-datatype ${this.typeName} ${params} : ${indices} ${this.resultType.prettyPrint()}
-  ${ctors})`;
-  }
-}
+//   public prettyPrint(): string {
+//     const params = this.parameters.map(p => `[${p.prettyPrint()}]`).join(' ');
+//     const indices = this.indices.map(i => `[${i.prettyPrint()}]`).join(' ');
+//     const ctors = this.constructors.map(c => c.prettyPrint()).join('\n  ');
+//     return `(define-datatype ${this.typeName} ${params} : ${indices} ${this.resultType.prettyPrint()}
+//   ${ctors})`;
+//   }
+// }
 
 export class ConstructorType extends Source {
   constructor(

@@ -1094,8 +1094,8 @@ export class InductiveType extends Core {
     public typeName: string,
     public parameters: Core[],
     public indices: Core[],
-    public constructorTypes: Core[],
-    public eliminatorType: Core[]
+    // public constructorTypes: Core[],
+    // public eliminatorType: Core[]
   ) { super(); }
 
   public prettyPrint(): string {

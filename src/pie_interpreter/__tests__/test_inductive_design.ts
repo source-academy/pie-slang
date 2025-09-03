@@ -1,167 +1,132 @@
 import 'jest';
 import * as S from '../types/source';
-import { TypedBinder, SiteBinder } from '../types/utils';
+import * as V from '../types/value';
 import { Location, Syntax } from '../utils/locations';
 import { Position } from '../../scheme_parser/transpiler/types/location';
+import { DefineDatatypeSource, handleDefineDatatype } from '../typechecker/definedatatype';
+import { Context } from '../utils/context';
+import { go, stop } from '../types/utils';
 
 // Test location
 const testLoc = new Location(new Syntax(new Position(1, 1), new Position(1, 1), 'test'), false);
 
-describe("Inductive Types Design Test", () => {
+describe("DefineDatatype Test", () => {
   
-  it("should demonstrate ConstructorType vs Constructor distinction", () => {
+  it("should define a simple Bool datatype and add it to context", () => {
     
-    // ============================================
-    // STEP 1: Define List datatype using ConstructorType
-    // ============================================
+    // Create initial context
+    const ctx: Context = new Map();
     
-    const listDatatype = new S.DefineDatatype(
+    // Define simple Bool datatype using DefineDatatypeSource
+    const boolDatatype = new DefineDatatypeSource(
       testLoc,
-      "List",
-      // Parameters: [A : Type]
-      [new TypedBinder(new SiteBinder(testLoc, "A"), new S.Universe(testLoc))],
+      "Bool",
+      // Parameters: (none)
+      [],
       // Indices: (none)
       [], 
-      // Result type: Type
-      new S.Universe(testLoc),
-      // Constructors: ConstructorType[] (just signatures)
+      // Constructors with their argument types
       [
-        // nil : List A
-        new S.ConstructorType(
-          testLoc,
-          "nil",
-          [], // no arguments
-          new S.Application(
-            testLoc,
-            new S.Name(testLoc, "List"),
-            new S.Name(testLoc, "A"),
-            []
-          )
-        ),
+        // true : Bool
+        {
+          name: "true",
+          args: [] // no arguments
+        },
         
-        // cons : A -> List A -> List A  
-        new S.ConstructorType(
-          testLoc,
-          "cons",
-          [
-            new TypedBinder(new SiteBinder(testLoc, "head"), new S.Name(testLoc, "A")),
-            new TypedBinder(new SiteBinder(testLoc, "tail"), 
-              new S.Application(testLoc, new S.Name(testLoc, "List"), new S.Name(testLoc, "A"), [])
-            )
-          ],
-          new S.Application(testLoc, new S.Name(testLoc, "List"), new S.Name(testLoc, "A"), [])
-        )
-      ]
-    );
-    
-    // ============================================  
-    // STEP 2: Use Constructor for actual constructor calls
-    // ============================================
-    
-    // nil (no arguments)
-    const nilExpr = new S.Constructor(
-      testLoc,
-      "nil",
-      [], // no actual arguments
-      listDatatype
-    );
-    
-    // cons 42 nil  
-    const cons42Nil = new S.Constructor(
-      testLoc,
-      "cons", 
-      [
-        new S.Number(testLoc, 42),  // head argument
-        nilExpr                     // tail argument
+        // false : Bool
+        {
+          name: "false",
+          args: []
+        }
       ],
-      listDatatype
+      new V.Universe() // typeValue placeholder
     );
     
-    // cons 1 (cons 42 nil)
-    const nestedList = new S.Constructor(
+    // Handle the datatype definition - adds to context
+    const result = handleDefineDatatype(ctx, new Map(), boolDatatype);
+    
+    // Check that the definition succeeded
+    expect(result).toBeInstanceOf(go);
+    if (result instanceof stop) {
+      throw new Error(`Failed to define datatype: ${result.message}`);
+    }
+    
+    const updatedCtx = (result as go<Context>).result;
+    
+    // Debug: print what's in the context
+    console.log("Context keys:", Array.from(updatedCtx.keys()));
+    
+    // Test that datatype was added to context
+    expect(updatedCtx.has("Bool")).toBe(true);
+    
+    // Test that constructors were added to context
+    expect(updatedCtx.has("true")).toBe(true);
+    expect(updatedCtx.has("false")).toBe(true);
+    
+    // Test that eliminator was generated and added
+    expect(updatedCtx.has("elimBool")).toBe(true);
+    
+    // Test the structure of the DefineDatatypeSource
+    expect(boolDatatype.name).toBe("Bool");
+    expect(boolDatatype.parameters).toHaveLength(0);
+    expect(boolDatatype.indices).toHaveLength(0);
+    expect(boolDatatype.constructors).toHaveLength(2);
+    
+    // Test constructor definitions
+    const trueCtor = boolDatatype.constructors[0];
+    const falseCtor = boolDatatype.constructors[1];
+    
+    expect(trueCtor.name).toBe("true");
+    expect(trueCtor.args).toHaveLength(0);
+    
+    expect(falseCtor.name).toBe("false");
+    expect(falseCtor.args).toHaveLength(0);
+    
+    console.log("✅ Bool datatype successfully defined and added to context!");
+  });
+  
+  it("should define a Unit datatype with single constructor", () => {
+    // Create initial context
+    const ctx: Context = new Map();
+    
+    // Define Unit datatype (simple case with one constructor)
+    const unitDatatype = new DefineDatatypeSource(
       testLoc,
-      "cons",
+      "Unit",
+      [], // no parameters
+      [], // no indices
       [
-        new S.Number(testLoc, 1),   // head
-        cons42Nil                   // tail
+        // unit : Unit
+        {
+          name: "unit",
+          args: []
+        }
       ],
-      listDatatype
+      new V.Universe()
     );
     
-    // ============================================
-    // STEP 3: Eliminator usage
-    // ============================================
+    // Handle the datatype definition
+    const result = handleDefineDatatype(ctx, new Map(), unitDatatype);
     
-    const listLength = new S.GenericEliminator(
-      testLoc,
-      "List",
-      nestedList, // target: our nested list
-      // motive: List A -> Nat
-      new S.Lambda(
-        testLoc,
-        [new SiteBinder(testLoc, "xs")],
-        new S.Nat(testLoc)
-      ),
-      // methods: [nil-case, cons-case]
-      [
-        // nil case: 0
-        new S.Zero(testLoc),
-        
-        // cons case: λ head tail length_of_tail. add1 length_of_tail
-        new S.Lambda(
-          testLoc,
-          [
-            new SiteBinder(testLoc, "head"),
-            new SiteBinder(testLoc, "tail"),
-            new SiteBinder(testLoc, "length_of_tail")
-          ],
-          new S.Add1(testLoc, new S.Name(testLoc, "length_of_tail"))
-        )
-      ]
-    );
+    expect(result).toBeInstanceOf(go);
+    if (result instanceof stop) {
+      throw new Error(`Failed to define Unit datatype: ${result.message}`);
+    }
     
-    // ============================================
-    // STEP 4: Test the structure
-    // ============================================
+    const updatedCtx = (result as go<Context>).result;
     
-    // Test datatype definition structure
-    expect(listDatatype.typeName).toBe("List");
-    expect(listDatatype.constructors).toHaveLength(2);
+    // Test that all components were added to context
+    expect(updatedCtx.has("Unit")).toBe(true);
+    expect(updatedCtx.has("unit")).toBe(true);
+    expect(updatedCtx.has("elimUnit")).toBe(true);
     
-    // Test constructor types (in definition)
-    const nilCtorType = listDatatype.constructors[0];
-    const consCtorType = listDatatype.constructors[1];
+    // Test structure
+    expect(unitDatatype.name).toBe("Unit");
+    expect(unitDatatype.constructors).toHaveLength(1);
+    expect(unitDatatype.constructors[0].name).toBe("unit");
+    expect(unitDatatype.constructors[0].args).toHaveLength(0);
     
-    expect(nilCtorType).toBeInstanceOf(S.ConstructorType);
-    expect(nilCtorType.name).toBe("nil");
-    expect(nilCtorType.args).toHaveLength(0);
-    
-    expect(consCtorType).toBeInstanceOf(S.ConstructorType);
-    expect(consCtorType.name).toBe("cons");
-    expect(consCtorType.args).toHaveLength(2);
-    expect(consCtorType.args[0].binder.varName).toBe("head");
-    expect(consCtorType.args[1].binder.varName).toBe("tail");
-    
-    // Test constructor applications (in expressions)
-    expect(nilExpr).toBeInstanceOf(S.Constructor);
-    expect(nilExpr.name).toBe("nil");
-    expect(nilExpr.args).toHaveLength(0);
-    
-    expect(cons42Nil).toBeInstanceOf(S.Constructor);
-    expect(cons42Nil.name).toBe("cons");
-    expect(cons42Nil.args).toHaveLength(2);
-    expect(cons42Nil.args[0]).toBeInstanceOf(S.Number);
-    expect(cons42Nil.args[1]).toBeInstanceOf(S.Constructor); // nested constructor
-    
-    // Test eliminator structure
-    expect(listLength).toBeInstanceOf(S.GenericEliminator);
-    expect(listLength.typeName).toBe("List");
-    expect(listLength.target).toBeInstanceOf(S.Constructor);
-    expect(listLength.methods).toHaveLength(2);
-    
-    console.log("✅ Design structure is correct!");
-    console.log("ConstructorType used in definitions:", nilCtorType.constructor.name);
-    console.log("Constructor used in expressions:", nilExpr.constructor.name);
+    console.log("✅ Unit datatype successfully defined!");
   });
   
   // it("should demonstrate Vector with indices", () => {
