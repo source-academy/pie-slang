@@ -8,7 +8,7 @@ import { readBack } from './evaluator/utils';
 import { ProofManager } from './tactics/proofmanager';
 import {inspect} from 'util';
 
-export function evaluatePie(str): string {
+export function evaluatePie(str: string): string {
   const astList = schemeParse(str);
   let ctx = initCtx;
   let output = "";

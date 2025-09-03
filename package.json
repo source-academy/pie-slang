@@ -36,7 +36,8 @@
     "typescript-eslint": "^8.15.0"
   },
   "dependencies": {
-    "conductor": "https://github.com/source-academy/conductor.git#0.2.1"
+    "conductor": "https://github.com/source-academy/conductor.git#0.2.1",
+    "js-base64": "^3.7.8"
   },
   "scripts": {
     "build": "rollup -c",
