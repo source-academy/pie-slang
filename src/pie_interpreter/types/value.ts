@@ -651,7 +651,7 @@ export class Constructor extends Value {
 
   constructor(
     public name: string,
-    public type: Value,
+    public type: string,
     public args: Value[],
     public index: number,
     public recursive_args: Value[],
@@ -664,6 +664,46 @@ export class Constructor extends Value {
   public prettyPrint(): string {
     const args = this.args.map(a => a.prettyPrint()).join(' ');
     return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class ConstructorType extends Value {
+  constructor(
+    public argTypes: Value[],
+    public resultType: Value
+  ) {super()}
+  public readBackType(context: Context): C.Core {
+    return this.resultType.readBackType(context);
+  }
+  public prettyPrint(): string {
+    return `ConstructorType ${this.argTypes.map(a => a.prettyPrint()).join(' ')} ${this.resultType.prettyPrint()}`;
+  }
+
+}
+
+export class EliminatorType extends Value {
+  constructor(
+    public typeName: string,
+    public targetType: Value,
+    public motiveType: Value,
+    public methodTypes: Value[]
+  ) { super(); }
+
+  public readBackType(context: Context): C.Core {
+    return new C.EliminatorType(
+      this.typeName,
+      this.targetType.readBackType(context),
+      this.motiveType.readBackType(context),
+      this.methodTypes.map(m => m.readBackType(context))
+    );
+  }
+
+  public prettyPrint(): string {
+    return `EliminatorType ${this.typeName} ${this.targetType.prettyPrint()} ${this.motiveType.prettyPrint()} ${this.methodTypes.map(m => m.prettyPrint()).join(' ')}`;
   }
 
   public toString(): string {

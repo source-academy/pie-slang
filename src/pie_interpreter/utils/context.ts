@@ -1,11 +1,11 @@
 import * as C from '../types/core';
-import { Neutral, Value } from '../types/value';
+import { InductiveType, Neutral, Universe, Value, Constructor } from '../types/value';
 
 import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
 import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
-import { Source } from '../types/source';
+import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
 import { inspect } from 'util';
 /*
@@ -133,6 +133,14 @@ export function contextToEnvironment(ctx: Context): Environment {
   return env;
 }
 
+export function getInductiveType(ctx: Context, where: Location, name:string): Perhaps<InductiveDatatypeBinder> {
+  for (const [n, binder] of ctx) {
+    if (binder instanceof InductiveDatatypeBinder && n === name) {
+      return new go(binder);
+    }
+  }
+  return new stop(where, new Message([`No inductive type found for ${name} at ${where}`]));
+}
 
 export const initCtx: Context = new Map();
 
@@ -159,8 +167,29 @@ export class Free extends Binder {
   constructor(public type: Value) { super() }
 }
 
+export class InductiveDatatypePlaceholder extends Binder {
+  type: Value = new Universe();
+  constructor(public name: string) { super() }
+}
+
+export class InductiveDatatypeBinder extends Binder {
+  constructor(
+    public name: string, 
+    public type: InductiveType) {
+      super()
+    }
+}
+
+export class ConstructorBinder extends Binder {
+  constructor(
+    public name: string, 
+    public type: Constructor) {
+      super()
+    }
+}
+
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
-  if (ctx.size === 0) {
+  if (ctx.size === 0) { 
     throw new Error(`The context ${JSON.stringify(ctx)} is empty, but we are looking for ${x}`);
   }
   for (const [y, binder] of ctx.entries()) {

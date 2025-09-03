@@ -1094,6 +1094,8 @@ export class InductiveType extends Core {
     public typeName: string,
     public parameters: Core[],
     public indices: Core[],
+    public constructorTypes: Core[],
+    public eliminatorType: Core[]
   ) { super(); }
 
   public prettyPrint(): string {
@@ -1105,16 +1107,16 @@ export class Constructor extends Core {
 
   constructor(
     public name: string,
-    public type: Core,
+    public type: string,
     public args: Core[],
     public index: number,
     public recursive_args: Core[]
   ) { super(); }
 
-  public valOf(env: Environment): V.Value {
+  public valOf(env: Environment): V.Constructor {
     return new V.Constructor(
       this.name,
-      this.type.toLazy(env),
+      this.type,
       this.args.map(a => a.toLazy(env)),
       this.index,
       this.recursive_args.map(a => a.toLazy(env))
@@ -1124,6 +1126,26 @@ export class Constructor extends Core {
   public prettyPrint(): string {
     const args = this.args.map(a => a.prettyPrint()).join(' ');
     return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
+  }
+}
+
+export class ConstructorType extends Core {
+
+  constructor(
+    public argTypes: The[],
+    public rec_args: Core[],
+    public resultType: Core
+  ) { super(); }
+
+  public valOf(env: Environment): V.Value {
+    return new V.ConstructorType(
+      this.argTypes.map(a => a.toLazy(env)),
+      this.resultType.toLazy(env) 
+    );
+  }
+
+  public prettyPrint(): string {
+    return `ConstructorType ${this.argTypes.map(a => a.prettyPrint()).join(' ')} ${this.resultType.prettyPrint()}`;
   }
 }
 
@@ -1147,5 +1169,28 @@ export class Eliminator extends Core {
   public prettyPrint(): string {
     const methods = this.methods.map(m => m.prettyPrint()).join(' ');
     return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+  }
+}
+
+export class EliminatorType extends Core {
+
+  constructor(
+    public typeName: string,
+    public targetType: Core,
+    public motiveType: Core,
+    public methodTypes: Core[]
+  ) { super(); }
+
+  public valOf(env: Environment): V.Value {
+    return new V.EliminatorType(
+      this.typeName,
+      this.targetType.toLazy(env),
+      this.motiveType.toLazy(env),
+      this.methodTypes.map(m => m.toLazy(env))
+    );
+  }
+
+  public prettyPrint(): string {
+    return `EliminatorType ${this.typeName} ${this.targetType.prettyPrint()} ${this.motiveType.prettyPrint()} ${this.methodTypes.map(m => m.prettyPrint()).join(' ')}`;
   }
 }

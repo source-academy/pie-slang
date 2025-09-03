@@ -1949,14 +1949,14 @@ export class Application extends Source {
   }
 }
 
-export class DefineDatatype extends Source {
+export class InductiveDatatype extends Source {
   constructor(
     public location: Location,
     public typeName: string,
     public parameters: TypedBinder[],  // Type parameters [A : Type]
     public indices: TypedBinder[],     // Index parameters [i : Nat] 
     public resultType: Source,         // The result universe (Type)
-    public constructors: Constructor[] // Data constructors
+    public constructors: ConstructorType[] // Data constructors
   ) { super(location); }
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
@@ -1981,6 +1981,31 @@ export class DefineDatatype extends Source {
   }
 }
 
+export class ConstructorType extends Source {
+  constructor(
+    public location: Location,
+    public name: string,
+    public args: TypedBinder[], // Constructor args
+    public resultType: Source        // Type the constructor produces
+  ) {
+    super(location);
+  }
+
+  public findNames(): string[] {
+    const names = [this.name];
+    names.push(...this.args.flatMap(a => a.findNames()));
+    names.push(...this.resultType.findNames());
+    return names;
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+  
+}
+
 export class Constructor extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
@@ -1988,7 +2013,7 @@ export class Constructor extends Source {
   constructor(
     public location: Location,
     public name: string,
-    public args: TypedBinder[], // Constructor args
+    public args: Source[], // Constructor args
     public resultType: Source        // Type the constructor produces
   ) {
     super(location);
@@ -2033,4 +2058,22 @@ export class GenericEliminator extends Source {
     const methods = this.methods.map(m => m.prettyPrint()).join(' ');
     return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
   }
+}
+
+export class InductiveTypeInfo extends Source {
+
+  constructor(
+    public location: Location,
+    public name: string
+  ) {super(location);}
+  public findNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+  
 }

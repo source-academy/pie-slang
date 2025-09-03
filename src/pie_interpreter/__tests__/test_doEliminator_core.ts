@@ -25,7 +25,7 @@ export function createListExample(): {
   // Create List constructors
   const nilConstructor = new C.Constructor(
     "List",
-    listType, // type: List A
+    "List", // type: List A
     [],  // no arguments
     0,   // constructor index
     []
@@ -35,7 +35,7 @@ export function createListExample(): {
   // Create cons 3 nil
   const cons3Nil = new C.Constructor(
     "List",
-    listType,
+    "List",
     [
       new C.Add1(new C.Add1(new C.Add1(new C.Zero()))),
       nilConstructor
@@ -47,7 +47,7 @@ export function createListExample(): {
   // Create cons 2 (cons 3 nil)
   const cons2 = new C.Constructor(
     "List",
-    listType,
+    "List",
     [new C.Add1(new C.Add1(new C.Zero())), cons3Nil], // 2, (cons 3 nil)
     1,
     [cons3Nil]
