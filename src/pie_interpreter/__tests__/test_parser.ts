@@ -14,4 +14,3 @@ test("Test parsing result atom", () => {
 `;
 
 });
-

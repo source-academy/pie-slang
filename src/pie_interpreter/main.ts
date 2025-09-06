@@ -63,14 +63,14 @@ export function evaluatePie(str): string {
       }
     }
   }
-    for (const [name, binder] of ctx) {
-      if (binder instanceof Define) {
-        output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
-        output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";
-      } else {
-        output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
-      }
+  for (const [name, binder] of ctx) {
+    if (binder instanceof Define) {
+      output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
+      output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";
+    } else {
+      output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
     }
-    return output;
-  
+  }
+  return output;
+
 }
