@@ -2,7 +2,7 @@ import * as V from "./value";
 import * as N from './neutral';
 
 import * as Evaluator from '../evaluator/evaluator';
-import { Environment, getValueFromEnvironment} from '../utils/environment';
+import { Environment, getValueFromEnvironment } from '../utils/environment';
 import { SourceLocation } from '../utils/locations';
 import { FirstOrderClosure, isVarName } from './utils';
 
@@ -113,8 +113,10 @@ export class Add1 extends Core {
   }
 
   public prettyPrint(): string {
-    if (!isNaN(Number(this.n.prettyPrint()))) {
-      return `${Number(this.n.prettyPrint()) + 1}`;
+    const n = Number(this.n.prettyPrint());
+
+    if (!isNaN(n)) {
+      return `${n + 1}`;
     }
     return `(add1 ${this.n.prettyPrint()})`;
   }
@@ -254,7 +256,7 @@ export class Pi extends Core {
 
   public valOf(env: Environment): V.Value {
     const typeVal = this.type.toLazy(env);
-    return new V.Pi(this.name, typeVal, 
+    return new V.Pi(this.name, typeVal,
       new FirstOrderClosure(env, this.name, this.body)
     );
   }
@@ -278,7 +280,7 @@ export class Lambda extends Core {
   ) { super() }
 
   public valOf(env: Environment): V.Value {
-    return new V.Lambda(this.param, 
+    return new V.Lambda(this.param,
       new FirstOrderClosure(env, this.param, this.body));
   }
 
@@ -337,7 +339,7 @@ export class Sigma extends Core {
 
   public valOf(env: Environment): V.Value {
     const typeVal = this.type.toLazy(env);
-    return new V.Sigma(this.name, typeVal, 
+    return new V.Sigma(this.name, typeVal,
       new FirstOrderClosure(env, this.name, this.body));
   }
 
@@ -534,7 +536,7 @@ export class IndList extends Core {
 }
 
 export class Trivial extends Core {
-  
+
   public valOf(env: Environment): V.Value {
     return new V.Trivial();
   }
@@ -626,7 +628,7 @@ export class Equal extends Core {
   public prettyPrint(): string {
     return `(= ${this.type.prettyPrint()} 
               ${this.left.prettyPrint()} 
-              ${this.right.prettyPrint()})`;  
+              ${this.right.prettyPrint()})`;
   }
 
   public toString(): string {
@@ -754,7 +756,7 @@ export class Symm extends Core {
 }
 
 export class IndEqual extends Core {
-  
+
   constructor(
     public target: Core,
     public motive: Core,
@@ -789,7 +791,7 @@ export class Vec extends Core {
 
   public valOf(env: Environment): V.Value {
     return new V.Vec(
-      this.type.toLazy(env), 
+      this.type.toLazy(env),
       this.length.toLazy(env)
     );
   }
@@ -937,7 +939,7 @@ export class Either extends Core {
   public toString(): string {
     return this.prettyPrint();
   }
-  
+
 }
 
 export class Left extends Core {

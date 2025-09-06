@@ -113,7 +113,7 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
       return new V.Neutral(
-        baseType, 
+        baseType,
         new N.RecNat(
           targetNow.neutral,
           new N.Norm(baseType, base),

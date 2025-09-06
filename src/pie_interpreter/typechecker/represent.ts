@@ -1,7 +1,7 @@
 import * as C from '../types/core';
 import * as V from '../types/value';
 
-import { Context, valInContext} from '../utils/context';
+import { Context, valInContext } from '../utils/context';
 import { Source } from '../types/source';
 import { go, goOn, Perhaps, PerhapsM } from '../types/utils';
 import { readBack } from '../evaluator/utils';
