@@ -52,7 +52,8 @@ connection.onInitialize((params: InitializeParams) => {
 			textDocumentSync: TextDocumentSyncKind.Incremental,
 			// Tell the client that this server supports code completion.
 			completionProvider: {
-				resolveProvider: true
+				resolveProvider: true,
+				triggerCharacters: ['(', ' ', '-']  // Add this line
 			},
 			diagnosticProvider: {
 				interFileDependencies: false,
@@ -301,6 +302,8 @@ const PIE_KEYWORDS: CompletionItem[] = [
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+		connection.console.log('Completion requested!');
+		connection.console.log(`Returning ${PIE_KEYWORDS.length} keywords`);
 		return PIE_KEYWORDS;
 	}
 );

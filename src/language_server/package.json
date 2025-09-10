@@ -16,7 +16,7 @@
 	"activationEvents": [
 		"onLanguage:pie"
 	],
-	"main": "./out/client/src/extension",
+	"main": "./out/client/src/extension.js",
 	"contributes": {
 		"languages": [
 			{
@@ -57,6 +57,11 @@
 		"lint": "eslint",
 		"test": "jest"
 	},
+	"dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11"
+  },
 	"devDependencies": {
 		"@eslint/js": "^9.13.0",
 		"@stylistic/eslint-plugin": "^2.9.0",
