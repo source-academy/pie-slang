@@ -28,8 +28,9 @@ connection.onInitialize((params) => {
             // Tell the client that this server supports code completion.
             completionProvider: {
                 resolveProvider: true,
-                triggerCharacters: ['(', ' ', '-'] // Add this line
+                triggerCharacters: ['(', ' '] // Add this line
             },
+            hoverProvider: true,
             diagnosticProvider: {
                 interFileDependencies: false,
                 workspaceDiagnostics: false
@@ -64,6 +65,57 @@ const defaultSettings = { maxNumberOfProblems: 1000 };
 let globalSettings = defaultSettings;
 // Cache the settings of all open documents
 const documentSettings = new Map();
+// Track user-defined symbols per document
+const documentSymbols = new Map();
+// Parse document to extract user-defined symbols
+function extractUserDefinedSymbols(document) {
+    const text = document.getText();
+    const symbols = new Map();
+    // Regular expressions for Pie constructs
+    const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+    const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+(.+?)\)/g;
+    const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+    // Extract definitions
+    let match;
+    while ((match = definePattern.exec(text)) !== null) {
+        const name = match[1];
+        if (!symbols.has(name)) {
+            symbols.set(name, {
+                label: name,
+                kind: node_1.CompletionItemKind.Function,
+                detail: 'User-defined function',
+                documentation: `Defined in this file`
+            });
+        }
+    }
+    // Extract claims (with type information)
+    while ((match = claimPattern.exec(text)) !== null) {
+        const name = match[1];
+        const type = match[2];
+        symbols.set(name, {
+            label: name,
+            kind: node_1.CompletionItemKind.Function,
+            detail: type,
+            documentation: `User-defined: ${name}\nType: ${type}`
+        });
+    }
+    // Extract tactical definitions
+    while ((match = defineTacticallyPattern.exec(text)) !== null) {
+        const name = match[1];
+        if (!symbols.has(name)) {
+            symbols.set(name, {
+                label: name,
+                kind: node_1.CompletionItemKind.Function,
+                detail: 'User-defined (tactical)',
+                documentation: `Defined tactically in this file`
+            });
+        }
+    }
+    // Also extract lambda parameters in the current scope
+    // This is more complex and would need proper s-expression parsing
+    // For now, we'll do a simple extraction of common patterns
+    return symbols;
+}
 connection.onDidChangeConfiguration(change => {
     if (hasConfigurationCapability) {
         // Reset all cached document settings
@@ -85,7 +137,10 @@ function getDocumentSettings(resource) {
     if (!result) {
         result = connection.workspace.getConfiguration({
             scopeUri: resource,
-            section: 'PieLanguageServer'
+            section: 'languageServerExample'
+        }).then((config) => {
+            // Make sure we always return valid settings, even if config is null
+            return config || defaultSettings;
         });
         documentSettings.set(resource, result);
     }
@@ -93,6 +148,7 @@ function getDocumentSettings(resource) {
 }
 // Only keep settings for open documents
 documents.onDidClose(e => {
+    documentSymbols.delete(e.document.uri);
     documentSettings.delete(e.document.uri);
 });
 connection.languages.diagnostics.on(async (params) => {
@@ -104,60 +160,19 @@ connection.languages.diagnostics.on(async (params) => {
         };
     }
     else {
-        // We don't know the document. We can either try to read it from disk
-        // or we don't report problems for it.
         return {
             kind: node_1.DocumentDiagnosticReportKind.Full,
             items: []
         };
     }
 });
-// The content of a text document has changed. This event is emitted
-// when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
+    const symbols = extractUserDefinedSymbols(change.document);
+    documentSymbols.set(change.document.uri, symbols);
     validateTextDocument(change.document);
 });
 async function validateTextDocument(textDocument) {
-    // In this simple example we get the settings for every validate run.
-    const settings = await getDocumentSettings(textDocument.uri);
-    // The validator creates diagnostics for all uppercase words length 2 and more
-    const text = textDocument.getText();
-    const pattern = /\b[A-Z]{2,}\b/g;
-    let m;
-    let problems = 0;
-    const diagnostics = [];
-    while ((m = pattern.exec(text)) && problems < settings.maxNumberOfProblems) {
-        problems++;
-        const diagnostic = {
-            severity: node_1.DiagnosticSeverity.Warning,
-            range: {
-                start: textDocument.positionAt(m.index),
-                end: textDocument.positionAt(m.index + m[0].length)
-            },
-            message: `${m[0]} is all uppercase.`,
-            source: 'ex'
-        };
-        if (hasDiagnosticRelatedInformationCapability) {
-            diagnostic.relatedInformation = [
-                {
-                    location: {
-                        uri: textDocument.uri,
-                        range: Object.assign({}, diagnostic.range)
-                    },
-                    message: 'Spelling matters'
-                },
-                {
-                    location: {
-                        uri: textDocument.uri,
-                        range: Object.assign({}, diagnostic.range)
-                    },
-                    message: 'Particularly for names'
-                }
-            ];
-        }
-        diagnostics.push(diagnostic);
-    }
-    return diagnostics;
+    return [];
 }
 connection.onDidChangeWatchedFiles(_change => {
     // Monitored files have change in VSCode
@@ -244,13 +259,41 @@ const PIE_KEYWORDS = [
     { label: 'split', kind: node_1.CompletionItemKind.Method, data: 64 }
 ];
 // This handler provides the initial list of the completion items.
-connection.onCompletion((_textDocumentPosition) => {
-    connection.console.log('Completion requested!');
-    connection.console.log(`Returning ${PIE_KEYWORDS.length} keywords`);
-    return PIE_KEYWORDS;
+connection.onCompletion((params) => {
+    connection.console.log('===== COMPLETION TRIGGERED =====');
+    connection.console.log(`Document: ${params.textDocument.uri}`);
+    connection.console.log(`Position: ${params.position.line}:${params.position.character}`);
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        return PIE_KEYWORDS;
+    }
+    // Get or extract user symbols for this document
+    let userSymbols = documentSymbols.get(params.textDocument.uri);
+    if (!userSymbols) {
+        userSymbols = extractUserDefinedSymbols(document);
+        documentSymbols.set(params.textDocument.uri, userSymbols);
+    }
+    // Combine built-in keywords with user-defined symbols
+    const allCompletions = [...PIE_KEYWORDS];
+    // Add user-defined symbols
+    userSymbols.forEach((item, name) => {
+        // Check if we're not trying to complete the definition itself
+        const position = params.position;
+        const line = document.getText({
+            start: { line: position.line, character: 0 },
+            end: position
+        });
+        // Don't suggest the name if we're currently defining it
+        if (!line.includes(`(define ${name}`) &&
+            !line.includes(`(claim ${name}`) &&
+            !line.includes(`(define-tactically ${name}`)) {
+            allCompletions.push(item);
+        }
+    });
+    connection.console.log(`Returning ${allCompletions.length} completions (${PIE_KEYWORDS.length} built-in, ${userSymbols.size} user-defined)`);
+    return allCompletions;
 });
-// This handler resolves additional information for the item selected in
-// the completion list.
+// This handler resolves additional information for the item selected in the completion list.
 connection.onCompletionResolve((item) => {
     switch (item.data) {
         case 1: // U
@@ -499,6 +542,267 @@ connection.onCompletionResolve((item) => {
             break;
     }
     return item;
+});
+const PIE_HOVER_INFO = new Map([
+    // Types
+    ['U', {
+            summary: 'The universe of types',
+            details: 'U is the type of types. Any type (like Nat, Atom, or (Pair Nat Atom)) has type U.',
+            examples: '(the U Nat)\n(the U (-> Nat Nat))'
+        }],
+    ['Nat', {
+            summary: 'Natural numbers',
+            details: 'The type of natural numbers, built from zero and add1.',
+            examples: '(the Nat zero)\n(the Nat (add1 (add1 zero)))'
+        }],
+    ['Atom', {
+            summary: 'Atomic symbols',
+            details: 'The type of quoted symbols.',
+            examples: "(the Atom 'foo)\n(the Atom 'bar)"
+        }],
+    ['List', {
+            summary: 'List type constructor',
+            details: 'Lists are either nil or constructed with :: (cons).',
+            examples: '(the (List Nat) nil)\n(the (List Nat) (:: 1 (:: 2 nil)))'
+        }],
+    ['Vec', {
+            summary: 'Length-indexed vectors',
+            details: 'Vectors are lists with their length in the type.',
+            examples: '(the (Vec Nat zero) vecnil)\n(the (Vec Nat (add1 zero)) (vec:: 1 vecnil))'
+        }],
+    ['Pair', {
+            summary: 'Product type',
+            details: 'Non-dependent pairs of values.',
+            examples: '(the (Pair Nat Atom) (cons 1 \'foo))'
+        }],
+    ['Sigma', {
+            summary: 'Dependent pair type',
+            details: 'Dependent pairs where the type of the second component can depend on the first.',
+            examples: '(the (Sigma ((n Nat)) (Vec Atom n)) (cons 2 (vec:: \'a (vec:: \'b vecnil))))'
+        }],
+    ['Pi', {
+            summary: 'Dependent function type',
+            details: 'Function type where the output type can depend on the input value.',
+            examples: '(the (Pi ((n Nat)) (Vec Atom n)) (lambda (n) ...))'
+        }],
+    ['Either', {
+            summary: 'Sum type',
+            details: 'A value of Either L R is either a left L or a right R.',
+            examples: '(the (Either Nat Atom) (left 5))\n(the (Either Nat Atom) (right \'foo))'
+        }],
+    ['Trivial', {
+            summary: 'Unit type',
+            details: 'The type with exactly one value: sole.',
+            examples: '(the Trivial sole)'
+        }],
+    ['Absurd', {
+            summary: 'Empty type',
+            details: 'The type with no values. Represents falsity in propositions.',
+            examples: '(the (-> Absurd Nat) (lambda (x) (ind-Absurd x Nat)))'
+        }],
+    // Constructors
+    ['zero', {
+            summary: 'Natural number zero',
+            details: 'The base case for natural numbers.',
+            examples: '(the Nat zero)'
+        }],
+    ['add1', {
+            summary: 'Successor function',
+            details: 'Constructs the next natural number.',
+            examples: '(the Nat (add1 zero)) ; represents 1'
+        }],
+    ['nil', {
+            summary: 'Empty list',
+            details: 'The empty list for any element type.',
+            examples: '(the (List Nat) nil)'
+        }],
+    ['cons', {
+            summary: 'Pair constructor',
+            details: 'Constructs a pair from two values.',
+            examples: '(the (Pair Nat Atom) (cons 1 \'foo))'
+        }],
+    ['car', {
+            summary: 'First projection',
+            details: 'Extracts the first element of a pair.',
+            examples: '(car (cons 1 \'foo)) ; evaluates to 1'
+        }],
+    ['cdr', {
+            summary: 'Second projection',
+            details: 'Extracts the second element of a pair.',
+            examples: '(cdr (cons 1 \'foo)) ; evaluates to \'foo'
+        }],
+    ['sole', {
+            summary: 'Unit value',
+            details: 'The only inhabitant of Trivial.',
+            examples: '(the Trivial sole)'
+        }],
+    ['same', {
+            summary: 'Equality constructor',
+            details: 'Constructs a proof that something equals itself.',
+            examples: '(the (= Nat 2 2) (same 2))'
+        }],
+    ['left', {
+            summary: 'Left injection',
+            details: 'Injects a value into the left side of an Either.',
+            examples: '(the (Either Nat Atom) (left 5))'
+        }],
+    ['right', {
+            summary: 'Right injection',
+            details: 'Injects a value into the right side of an Either.',
+            examples: '(the (Either Nat Atom) (right \'foo))'
+        }],
+    // Core operations
+    ['lambda', {
+            summary: 'Function abstraction',
+            details: 'Creates an anonymous function.',
+            examples: '(lambda (x) (add1 x))'
+        }],
+    ['λ', {
+            summary: 'Function abstraction (Unicode)',
+            details: 'Unicode version of lambda.',
+            examples: '(λ (x) (add1 x))'
+        }],
+    ['the', {
+            summary: 'Type annotation',
+            details: 'Explicitly specifies the type of an expression.',
+            examples: '(the Nat 5)\n(the (-> Nat Nat) (lambda (x) x))'
+        }],
+    ['claim', {
+            summary: 'Type declaration',
+            details: 'Declares the type of a definition.',
+            examples: '(claim identity (Pi ((A U)) (-> A A)))'
+        }],
+    ['define', {
+            summary: 'Value definition',
+            details: 'Defines a named value.',
+            examples: '(define identity (lambda (A) (lambda (x) x)))'
+        }],
+    ['check-same', {
+            summary: 'Type and value equality check',
+            details: 'Verifies two expressions have the same type and normalize to the same value.',
+            examples: '(check-same Nat (add1 (add1 zero)) 2)'
+        }],
+    // Eliminators
+    ['which-Nat', {
+            summary: 'Natural number case analysis',
+            details: 'Pattern matching on natural numbers.',
+            examples: '(which-Nat n\n  zero-case\n  (lambda (n-1) add1-case))'
+        }],
+    ['iter-Nat', {
+            summary: 'Natural number iteration',
+            details: 'Iterates a function n times.',
+            examples: '(iter-Nat n\n  base\n  step-function)'
+        }],
+    ['rec-Nat', {
+            summary: 'Natural number recursion',
+            details: 'Primitive recursion on natural numbers.',
+            examples: '(rec-Nat n\n  base\n  (lambda (n-1 rec-n-1) step))'
+        }],
+    ['ind-Nat', {
+            summary: 'Natural number induction',
+            details: 'Induction principle for natural numbers.',
+            examples: '(ind-Nat n\n  motive\n  base\n  (lambda (n-1 ih) step))'
+        }],
+    ['replace', {
+            summary: 'Equality substitution',
+            details: 'Replaces equals for equals in a type.',
+            examples: '(replace target\n  proof-of-equality\n  (lambda (x) motive))'
+        }],
+    ['trans', {
+            summary: 'Transitivity of equality',
+            details: 'Chains equality proofs.',
+            examples: '(trans proof-a=b proof-b=c)'
+        }],
+    ['cong', {
+            summary: 'Congruence of equality',
+            details: 'Applies a function to both sides of an equality.',
+            examples: '(cong proof-a=b function)'
+        }],
+    ['symm', {
+            summary: 'Symmetry of equality',
+            details: 'Reverses an equality proof.',
+            examples: '(symm proof-a=b)'
+        }],
+    // Special
+    ['TODO', {
+            summary: 'Placeholder for incomplete code',
+            details: 'Indicates a hole to be filled in later.',
+            examples: '(define my-function TODO)'
+        }],
+    ['->', {
+            summary: 'Function type',
+            details: 'Non-dependent function type.',
+            examples: '(the (-> Nat Nat) (lambda (x) (add1 x)))'
+        }],
+    ['→', {
+            summary: 'Function type (Unicode)',
+            details: 'Unicode version of ->.',
+            examples: '(the (→ Nat Nat) (λ (x) (add1 x)))'
+        }]
+]);
+connection.onHover((params) => {
+    connection.console.log(`Hover requested at ${params.position.line}:${params.position.character}`);
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        return null;
+    }
+    // Get the word at the hover position
+    const text = document.getText();
+    const offset = document.offsetAt(params.position);
+    // Find word boundaries
+    let start = offset;
+    let end = offset;
+    // Move start backwards to find word beginning
+    while (start > 0 && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[start - 1])) {
+        start--;
+    }
+    // Handle special case for quoted atoms
+    if (start > 0 && text[start - 1] === "'") {
+        start--;
+    }
+    // Move end forward to find word ending
+    while (end < text.length && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[end])) {
+        end++;
+    }
+    const word = text.substring(start, end);
+    connection.console.log(`Hovering over word: "${word}"`);
+    // Look up hover information
+    const hoverInfo = PIE_HOVER_INFO.get(word);
+    if (!hoverInfo) {
+        // Check if it's a number
+        if (/^\d+$/.test(word)) {
+            return {
+                contents: {
+                    kind: node_1.MarkupKind.Markdown,
+                    value: `**Natural number literal**\n\nRepresents the Nat value ${word}`
+                }
+            };
+        }
+        // Check if it's a quoted atom
+        if (word.startsWith("'")) {
+            return {
+                contents: {
+                    kind: node_1.MarkupKind.Markdown,
+                    value: `**Quoted atom**\n\nType: \`Atom\`\n\nValue: \`${word}\``
+                }
+            };
+        }
+        return null;
+    }
+    // Build hover content
+    let hoverContent = `**${word}**\n\n${hoverInfo.summary}`;
+    if (hoverInfo.details) {
+        hoverContent += `\n\n${hoverInfo.details}`;
+    }
+    if (hoverInfo.examples) {
+        hoverContent += `\n\n**Examples:**\n\`\`\`pie\n${hoverInfo.examples}\n\`\`\``;
+    }
+    return {
+        contents: {
+            kind: node_1.MarkupKind.Markdown,
+            value: hoverContent
+        }
+    };
 });
 // Make the text document manager listen on the connection
 // for open, change and close text document events

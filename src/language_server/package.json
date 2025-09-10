@@ -26,6 +26,13 @@
 				"configuration": "./language-configuration.json"
 			}
 		],
+		"grammars": [
+    	{
+      	"language": "pie",
+      	"scopeName": "source.pie",
+      	"path": "./syntaxes/pie.tmLanguage.json"
+    	}
+  	],
 		"configuration": {
 			"type": "object",
 			"title": "Example configuration",
