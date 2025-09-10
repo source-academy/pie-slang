@@ -14,10 +14,18 @@
 		"vscode": "^1.103.0"
 	},
 	"activationEvents": [
-		"onLanguage:plaintext"
+		"onLanguage:pie"
 	],
 	"main": "./out/client/src/extension",
 	"contributes": {
+		"languages": [
+			{
+				"id": "pie",
+				"aliases": ["Pie", "pie"],
+				"extensions": [".pie"],
+				"configuration": "./language-configuration.json"
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "Example configuration",
