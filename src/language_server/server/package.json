@@ -1,5 +1,5 @@
 {
-	"name": "pie-lsp-server",
+	"name": "pie-lsp",
 	"description": "Pie language server in node.",
 	"version": "1.0.0",
 	"author": "Source Academy",

@@ -16,7 +16,7 @@
 	"activationEvents": [
 		"onLanguage:pie"
 	],
-	"main": "./out/client/src/extension.js",
+	"main": "./out/client/src/extension",
 	"contributes": {
 		"languages": [
 			{

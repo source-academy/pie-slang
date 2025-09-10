@@ -5,12 +5,15 @@ const vscode_languageserver_textdocument_1 = require("vscode-languageserver-text
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = (0, node_1.createConnection)(node_1.ProposedFeatures.all);
+connection.console.log('Pie Language Server starting...');
+console.error('Pie Language Server starting via console.error...'); // This might show up in different places
 // Create a simple text document manager.
 const documents = new node_1.TextDocuments(vscode_languageserver_textdocument_1.TextDocument);
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 connection.onInitialize((params) => {
+    connection.console.log('Server: onInitialize called'); // for test useage
     const capabilities = params.capabilities;
     // Does the client support the `workspace/configuration` request?
     // If not, we fall back using global settings.
@@ -24,7 +27,8 @@ connection.onInitialize((params) => {
             textDocumentSync: node_1.TextDocumentSyncKind.Incremental,
             // Tell the client that this server supports code completion.
             completionProvider: {
-                resolveProvider: true
+                resolveProvider: true,
+                triggerCharacters: ['(', ' ', '-'] // Add this line
             },
             diagnosticProvider: {
                 interFileDependencies: false,
@@ -51,6 +55,7 @@ connection.onInitialized(() => {
             connection.console.log('Workspace folder change event received.');
         });
     }
+    connection.console.log('Server: onInitialized called');
 });
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the client provided in this example
@@ -80,7 +85,7 @@ function getDocumentSettings(resource) {
     if (!result) {
         result = connection.workspace.getConfiguration({
             scopeUri: resource,
-            section: 'languageServerExample'
+            section: 'PieLanguageServer'
         });
         documentSettings.set(resource, result);
     }
@@ -240,6 +245,8 @@ const PIE_KEYWORDS = [
 ];
 // This handler provides the initial list of the completion items.
 connection.onCompletion((_textDocumentPosition) => {
+    connection.console.log('Completion requested!');
+    connection.console.log(`Returning ${PIE_KEYWORDS.length} keywords`);
     return PIE_KEYWORDS;
 });
 // This handler resolves additional information for the item selected in

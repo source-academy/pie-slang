@@ -23,6 +23,9 @@ import {
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);
 
+connection.console.log('Pie Language Server starting...');
+console.error('Pie Language Server starting via console.error...'); // This might show up in different places
+
 // Create a simple text document manager.
 const documents = new TextDocuments(TextDocument);
 
@@ -31,6 +34,7 @@ let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
 connection.onInitialize((params: InitializeParams) => {
+	connection.console.log('Server: onInitialize called'); // for test useage
 	const capabilities = params.capabilities;
 
 	// Does the client support the `workspace/configuration` request?
@@ -81,6 +85,7 @@ connection.onInitialized(() => {
 			connection.console.log('Workspace folder change event received.');
 		});
 	}
+	connection.console.log('Server: onInitialized called');
 });
 
 // The example settings
@@ -120,7 +125,7 @@ function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
 	if (!result) {
 		result = connection.workspace.getConfiguration({
 			scopeUri: resource,
-			section: 'languageServerExample'
+			section: 'PieLanguageServer'
 		});
 		documentSettings.set(resource, result);
 	}
