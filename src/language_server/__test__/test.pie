@@ -1,0 +1,9 @@
+(+ 1 2)
+
+(define greeting "HELLO WORLD")
+
+(lambda (x y) 
+  (+ x y))
+  
+UPPERCASE_TEST
+lowercase_test
