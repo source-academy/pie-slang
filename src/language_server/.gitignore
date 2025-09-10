@@ -9,9 +9,11 @@ COPYING
 LICENSE
 yarn.lock
 package-lock.json
-.js
-.js.map
-.vsix
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
+*.vsix
 
 compiled
 /doc
@@ -19,3 +21,9 @@ compiled
 /conductor
 /.vscode/
 /dist
+
+# Compiled TypeScript files
+**/*.js
+**/*.js.map
+**/*.d.ts
+**/*.d.ts.map
