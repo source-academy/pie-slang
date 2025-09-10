@@ -1,0 +1,22 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "ES2024",
+		"lib": [
+			"ES2024"
+		],
+		"outDir": "out",
+		"sourceMap": true,
+		"types": ["node", "vscode", "jest"],
+		"skipLibCheck": true
+	},
+	"include": [
+		"client/src/**/*",
+		"server/src/**/*"
+	],
+	"exclude": [
+		"node_modules",
+		".vscode-test",
+		"../../node_modules/@types/mocha"
+	]
+}
