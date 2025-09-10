@@ -24,8 +24,8 @@ function activate(context) {
     };
     // Options to control the language client
     let clientOptions = {
-        // Register the server for plain text documents
-        documentSelector: [{ scheme: 'file', language: 'plaintext' }],
+        // Register the server for pie documents
+        documentSelector: [{ scheme: 'file', language: 'pie' }],
         synchronize: {
             // Notify the server about file changes to '.clientrc files contained in the workspace
             fileEvents: vscode_1.workspace.createFileSystemWatcher('**/.clientrc')
