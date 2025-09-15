@@ -13,14 +13,11 @@ import {
 	InitializeResult,
 	DocumentDiagnosticReportKind,
 	type DocumentDiagnosticReport,
-
 	Hover,
-  HoverParams,
-  MarkupKind,
-
+	HoverParams,
+	MarkupKind,
 	Location,
 	Position,
-	Range,
 	DefinitionParams,
 } from 'vscode-languageserver/node';
 
@@ -28,13 +25,10 @@ import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
 
-import { pieDeclarationParser, Declaration, Claim, Definition, DefineTactically, schemeParse} from '../../../pie_interpreter/parser/parser';
-import { Context, initCtx, extendContext, Define, Claim as ContextClaim } from '../../../pie_interpreter/utils/context';
-import { go, stop, Message} from '../../../pie_interpreter/types/utils';
-import { Renaming } from '../../../pie_interpreter/typechecker/utils';
-import * as S from '../../../pie_interpreter/types/source';
-import { Location as PieLocation } from '../../../pie_interpreter/utils/locations';
-import { Core } from '../../../pie_interpreter/types/core';
+import { pieDeclarationParser, Declaration, Claim, Definition, DefineTactically, schemeParse } from '../../../pie_interpreter/parser/parser';
+import { Context, initCtx, addClaimToContext, addDefineToContext } from '../../../pie_interpreter/utils/context';
+import { go, stop } from '../../../pie_interpreter/types/utils';
+import { ProofManager } from '../../../pie_interpreter/tactics/proofmanager';
 
 
 // Interface for type checking results
@@ -48,95 +42,33 @@ interface SymbolDefinition {
 	name: string;
 	location: Location;
 	type: 'claim' | 'define' | 'define-tactically';
-	typeInfo?: string; // For claims, store the type
+	typeInfo?: string;
 }
 
-
-// Cache for type checking results to avoid re-checking unchanged content
-const typeCheckCache = new Map<string, { 
-    contentHash: string; 
-    result: TypeCheckResult
-}>();
-
-// Helper function to compute a simple hash of document content
-function computeContentHash(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-        const char = content.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return hash.toString();
-}
-
-// Convert Pie Location to LSP Range
-function pieLocationToLspRange(location: PieLocation, document: TextDocument): Range {
-    // If the location has source position information
-    if (location.syntax) {
-        const startPos: Position = {
-            line: location.syntax.start.line - 1, // LSP is 0-based, Pie might be 1-based
-            character: location.syntax.start.column
-        };
-        
-        const endPos: Position = {
-            line: location.syntax.end.line - 1,
-            character: location.syntax.end.column
-        };
-        
-        return { start: startPos, end: endPos };
-    }
-    
-    // Fallback: return a range covering the first character if no precise location
-    return {
-        start: { line: 0, character: 0 },
-        end: { line: 0, character: 1 }
-    };
-}
-
-// Convert Pie error message to human-readable string
-function messageToString(message: Message): string {
-    return message.message.map(part => {
-        if (typeof part === 'string') {
-            return part;
-        } else {
-            // If part is an object with prettyPrint method
-            return (part as Core).prettyPrint ? (part as Core).prettyPrint() : part.toString();
-        }
-    }).join(' ');
-}
-
-
-// Global storage for symbol definitions across all documents
-const symbolDefinitions = new Map<string, Map<string, SymbolDefinition>>();
-
-// Create a connection for the server, using Node's IPC as a transport.
-// Also include all preview / proposed LSP features.
+// Create a connection for the server
 const connection = createConnection(ProposedFeatures.all);
 
-connection.console.log('Pie Language Server starting...');
-console.error('Pie Language Server starting via console.error...');
+connection.console.log("this is a test message")
 
 // Create a simple text document manager.
-const documents = new TextDocuments(TextDocument);
+const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
+
+// Track user-defined symbols per document for go-to-definition and hover
+const symbolDefinitions = new Map<string, Map<string, SymbolDefinition>>();
 
 connection.onInitialize((params: InitializeParams) => {
-	connection.console.log('Server: onInitialize called'); // for test useage
 	const capabilities = params.capabilities;
 
+	// Does the client support the `workspace/configuration` request?
+	// If not, we fall back using global settings.
 	hasConfigurationCapability = !!(
 		capabilities.workspace && !!capabilities.workspace.configuration
 	);
 	hasWorkspaceFolderCapability = !!(
 		capabilities.workspace && !!capabilities.workspace.workspaceFolders
-	);
-	hasDiagnosticRelatedInformationCapability = !!(
-		capabilities.textDocument &&
-		capabilities.textDocument.publishDiagnostics &&
-		capabilities.textDocument.publishDiagnostics.relatedInformation
 	);
 
 	const result: InitializeResult = {
@@ -178,191 +110,24 @@ connection.onInitialized(() => {
 			connection.console.log('Workspace folder change event received.');
 		});
 	}
-	connection.console.log('Server: onInitialized called');
 });
 
 // The example settings
-interface ExampleSettings {
+interface Settings {
 	maxNumberOfProblems: number;
 }
 
-// The global settings, used when the `workspace/configuration` request is not supported by the client.
-// Please note that this is not the case when using this server with the client provided in this example
-// but could happen with other clients.
-const defaultSettings: ExampleSettings = { maxNumberOfProblems: 1000 };
-let globalSettings: ExampleSettings = defaultSettings;
 
 // Cache the settings of all open documents
-const documentSettings = new Map<string, Thenable<ExampleSettings>>();
+const documentSettings = new Map<string, Thenable<Settings>>();
 
 // Track user-defined symbols per document
 const documentSymbols = new Map<string, Map<string, CompletionItem>>();
 
-// Parse document to extract user-defined symbols
-function extractUserDefinedSymbols(document: TextDocument): Map<string, CompletionItem> {
-	const text = document.getText();
-	const symbols = new Map<string, CompletionItem>();
-	
-	// Regular expressions for Pie constructs
-	const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
-	const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+(.+?)\)/g;
-	const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
-	
-	// Extract definitions
-	let match;
-	while ((match = definePattern.exec(text)) !== null) {
-		const name = match[1];
-		if (!symbols.has(name)) {
-			symbols.set(name, {
-				label: name,
-				kind: CompletionItemKind.Function,
-				detail: 'User-defined function',
-				documentation: `Defined in this file`
-			});
-		}
-	}
-	
-	// Extract claims (with type information)
-	while ((match = claimPattern.exec(text)) !== null) {
-		const name = match[1];
-		const type = match[2];
-		symbols.set(name, {
-			label: name,
-			kind: CompletionItemKind.Function,
-			detail: type,
-			documentation: `User-defined: ${name}\nType: ${type}`
-		});
-	}
-	
-	// Extract tactical definitions
-	while ((match = defineTacticallyPattern.exec(text)) !== null) {
-		const name = match[1];
-		if (!symbols.has(name)) {
-			symbols.set(name, {
-				label: name,
-				kind: CompletionItemKind.Function,
-				detail: 'User-defined (tactical)',
-				documentation: `Defined tactically in this file`
-			});
-		}
-	}
-	
-	// Also extract lambda parameters in the current scope
-	// This is more complex and would need proper s-expression parsing
-	// For now, we'll do a simple extraction of common patterns
-	
-	return symbols;
-}
-
-
-function extractSymbolDefinitions(document: TextDocument): Map<string, SymbolDefinition> {
-	const text = document.getText();
-	const symbols = new Map<string, SymbolDefinition>();
-	const uri = document.uri;
-	
-	// More precise regex patterns that capture the entire construct
-	const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
-	const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+([^)]+)\)/g;
-	const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
-	
-	// Helper function to find the position of a match in the document
-	function getPositionFromOffset(offset: number): Position {
-		const beforeMatch = text.substring(0, offset);
-		const lines = beforeMatch.split('\n');
-		return {
-			line: lines.length - 1,
-			character: lines[lines.length - 1].length
-		};
-	}
-	
-	// Helper function to find the end position of a symbol name
-	function getEndPosition(startPos: Position, symbolName: string): Position {
-		return {
-			line: startPos.line,
-			character: startPos.character + symbolName.length
-		};
-	}
-	
-	// Extract define statements
-	let match;
-	while ((match = definePattern.exec(text)) !== null) {
-		const name = match[1];
-		const matchStart = match.index + match[0].indexOf(name); // Position of the symbol name
-		const startPos = getPositionFromOffset(matchStart);
-		const endPos = getEndPosition(startPos, name);
-		
-		symbols.set(name, {
-			name,
-			location: {
-				uri,
-				range: {
-					start: startPos,
-					end: endPos
-				}
-			},
-			type: 'define'
-		});
-	}
-	
-	// Reset regex lastIndex for reuse
-	claimPattern.lastIndex = 0;
-	
-	// Extract claim statements (with type information)
-	while ((match = claimPattern.exec(text)) !== null) {
-		const name = match[1];
-		const typeInfo = match[2].trim();
-		const matchStart = match.index + match[0].indexOf(name);
-		const startPos = getPositionFromOffset(matchStart);
-		const endPos = getEndPosition(startPos, name);
-		
-		symbols.set(name, {
-			name,
-			location: {
-				uri,
-				range: {
-					start: startPos,
-					end: endPos
-				}
-			},
-			type: 'claim',
-			typeInfo
-		});
-	}
-	
-	// Reset regex lastIndex for reuse
-	defineTacticallyPattern.lastIndex = 0;
-	
-	// Extract define-tactically statements
-	while ((match = defineTacticallyPattern.exec(text)) !== null) {
-		const name = match[1];
-		const matchStart = match.index + match[0].indexOf(name);
-		const startPos = getPositionFromOffset(matchStart);
-		const endPos = getEndPosition(startPos, name);
-		
-		symbols.set(name, {
-			name,
-			location: {
-				uri,
-				range: {
-					start: startPos,
-					end: endPos
-				}
-			},
-			type: 'define-tactically'
-		});
-	}
-	
-	return symbols;
-}
-
-connection.onDidChangeConfiguration(change => {
+connection.onDidChangeConfiguration(_change => {
 	if (hasConfigurationCapability) {
 		// Reset all cached document settings
 		documentSettings.clear();
-	} else {
-		globalSettings = (
-			(change.settings.languageServerExample || defaultSettings)
-		);
 	}
 	// Refresh the diagnostics since the `maxNumberOfProblems` could have changed.
 	// We could optimize things here and re-fetch the setting first can compare it
@@ -370,738 +135,188 @@ connection.onDidChangeConfiguration(change => {
 	connection.languages.diagnostics.refresh();
 });
 
+
+// The content of a text document has changed. This event is emitted
+// when the text document first opened or when its content has changed.
+documents.onDidChangeContent(change => {
+	connection.console.log('Document content changed');
+	
+	// Extract user-defined symbols for completion
+	const symbols = extractUserDefinedSymbols(change.document);
+	documentSymbols.set(change.document.uri, symbols);
+	
+	// Extract symbol definitions for go-to-definition and hover
+	const definitions = extractSymbolDefinitions(change.document);
+	symbolDefinitions.set(change.document.uri, definitions);
+	
+	// Perform type checking and send diagnostics
+	validateTextDocument(change.document);
+});
+
+
 // Only keep settings for open documents
 documents.onDidClose(e => {
-	documentSymbols.delete(e.document.uri);
 	documentSettings.delete(e.document.uri);
+	documentSymbols.delete(e.document.uri);
+	symbolDefinitions.delete(e.document.uri);
 });
 
+// Extract symbols when document is opened
+documents.onDidOpen(change => {
+	connection.console.log('Document opened: ' + change.document.uri);
 
-connection.languages.diagnostics.on(async (params) => {
-	const document = documents.get(params.textDocument.uri);
-	if (document !== undefined) {
-		return {
-			kind: DocumentDiagnosticReportKind.Full,
-			items: await validateTextDocument(document)
-		} satisfies DocumentDiagnosticReport;
-	} else {
-		return {
-			kind: DocumentDiagnosticReportKind.Full,
-			items: []
-		} satisfies DocumentDiagnosticReport;
-	}
+	// Extract user-defined symbols for completion
+	const symbols = extractUserDefinedSymbols(change.document);
+	documentSymbols.set(change.document.uri, symbols);
+
+	// Extract symbol definitions for go-to-definition and hover
+	const definitions = extractSymbolDefinitions(change.document);
+	symbolDefinitions.set(change.document.uri, definitions);
+
+	// Perform initial validation
+	validateTextDocument(change.document);
 });
 
-// Update the document change handler to trigger validation
-documents.onDidChangeContent(change => {
-    // Clear cache for changed document
-    typeCheckCache.delete(change.document.uri);
-    
-    // Extract symbols (existing functionality)
-    const symbols = extractUserDefinedSymbols(change.document);
-    documentSymbols.set(change.document.uri, symbols);
-    
-    // Trigger validation which will show diagnostics
-    validateTextDocument(change.document).then(diagnostics => {
-        connection.console.log(`Validation complete for ${change.document.uri}: ${diagnostics.length} issues`);
-    }).catch(error => {
-        connection.console.error(`Validation failed for ${change.document.uri}: ${error.message}`);
-    });
-});
-
-// Handle document open events to initialize symbol tracking
-documents.onDidOpen(event => {
-	const uri = event.document.uri;
-	connection.console.log(`Document opened: ${uri}`);
-	
-	// Extract and store symbol definitions
-	const symbols = extractSymbolDefinitions(event.document);
-	symbolDefinitions.set(uri, symbols);
-	
-	connection.console.log(`Initialized ${symbols.size} symbols for ${uri}`);
-});
-
-// Clean up cache when file is closed
-documents.onDidClose(event => {
-    const uri = event.document.uri;
-    typeCheckCache.delete(uri);
-    documentSymbols.delete(uri);
-    documentSettings.delete(uri);
-});
-
-// Updated validateTextDocument function to replace the existing empty one
-async function validateTextDocument(textDocument: TextDocument): Promise<Diagnostic[]> {
-    const uri = textDocument.uri;
-    const contentHash = computeContentHash(textDocument.getText());
-    
-    // Check cache first
-    const cached = typeCheckCache.get(uri);
-    if (cached && cached.contentHash === contentHash) {
-        return cached.result.diagnostics;
-    }
-    
-    // Perform type checking
-    const result = typeCheckPieDocument(textDocument);
-    
-    // Cache the result
-    typeCheckCache.set(uri, { contentHash, result });
-    
-    connection.console.log(`Type checked ${uri}: found ${result.diagnostics.length} diagnostics`);
-    
-    return result.diagnostics;
-}
-
-connection.onDidChangeWatchedFiles(_change => {
-	// Monitored files have change in VSCode
-	connection.console.log('We received a file change event');
-});
-
-
-// Define Pie language keywords for auto-completion
-const PIE_KEYWORDS: CompletionItem[] = [
-	// Core types
-	{ label: 'U', kind: CompletionItemKind.Keyword, data: 1 },
-	{ label: 'Nat', kind: CompletionItemKind.TypeParameter, data: 2 },
-	{ label: 'zero', kind: CompletionItemKind.Constructor, data: 3 },
-	{ label: 'add1', kind: CompletionItemKind.Constructor, data: 4 },
-	{ label: 'Atom', kind: CompletionItemKind.TypeParameter, data: 5 },
-	{ label: 'Trivial', kind: CompletionItemKind.TypeParameter, data: 6 },
-	{ label: 'sole', kind: CompletionItemKind.Constructor, data: 7 },
-	{ label: 'Absurd', kind: CompletionItemKind.TypeParameter, data: 8 },
-	
-	// Function types
-	{ label: '->', kind: CompletionItemKind.Operator, data: 9 },
-	{ label: '→', kind: CompletionItemKind.Operator, data: 10 },
-	{ label: 'Pi', kind: CompletionItemKind.Keyword, data: 11 },
-	{ label: 'Π', kind: CompletionItemKind.Keyword, data: 12 },
-	{ label: 'lambda', kind: CompletionItemKind.Keyword, data: 13 },
-	{ label: 'λ', kind: CompletionItemKind.Keyword, data: 14 },
-	{ label: 'the', kind: CompletionItemKind.Keyword, data: 15 },
-	
-	// Product/Pair types
-	{ label: 'Sigma', kind: CompletionItemKind.Keyword, data: 16 },
-	{ label: 'Σ', kind: CompletionItemKind.Keyword, data: 17 },
-	{ label: 'Pair', kind: CompletionItemKind.TypeParameter, data: 18 },
-	{ label: 'cons', kind: CompletionItemKind.Constructor, data: 19 },
-	{ label: 'car', kind: CompletionItemKind.Function, data: 20 },
-	{ label: 'cdr', kind: CompletionItemKind.Function, data: 21 },
-	
-	// List types
-	{ label: 'List', kind: CompletionItemKind.TypeParameter, data: 22 },
-	{ label: 'nil', kind: CompletionItemKind.Constructor, data: 23 },
-	{ label: '::', kind: CompletionItemKind.Operator, data: 24 },
-	
-	// Vector types
-	{ label: 'Vec', kind: CompletionItemKind.TypeParameter, data: 25 },
-	{ label: 'vecnil', kind: CompletionItemKind.Constructor, data: 26 },
-	{ label: 'vec::', kind: CompletionItemKind.Operator, data: 27 },
-	{ label: 'head', kind: CompletionItemKind.Function, data: 28 },
-	{ label: 'tail', kind: CompletionItemKind.Function, data: 29 },
-	
-	// Sum types
-	{ label: 'Either', kind: CompletionItemKind.TypeParameter, data: 30 },
-	{ label: 'left', kind: CompletionItemKind.Constructor, data: 31 },
-	{ label: 'right', kind: CompletionItemKind.Constructor, data: 32 },
-	
-	// Equality types
-	{ label: '=', kind: CompletionItemKind.Operator, data: 33 },
-	{ label: 'same', kind: CompletionItemKind.Constructor, data: 34 },
-	
-	// Eliminators
-	{ label: 'which-Nat', kind: CompletionItemKind.Function, data: 35 },
-	{ label: 'iter-Nat', kind: CompletionItemKind.Function, data: 36 },
-	{ label: 'rec-Nat', kind: CompletionItemKind.Function, data: 37 },
-	{ label: 'ind-Nat', kind: CompletionItemKind.Function, data: 38 },
-	{ label: 'rec-List', kind: CompletionItemKind.Function, data: 39 },
-	{ label: 'ind-List', kind: CompletionItemKind.Function, data: 40 },
-	{ label: 'ind-Vec', kind: CompletionItemKind.Function, data: 41 },
-	{ label: 'ind-Either', kind: CompletionItemKind.Function, data: 42 },
-	{ label: 'ind-=', kind: CompletionItemKind.Function, data: 43 },
-	{ label: 'ind-Absurd', kind: CompletionItemKind.Function, data: 44 },
-	
-	// Equality operations
-	{ label: 'replace', kind: CompletionItemKind.Function, data: 45 },
-	{ label: 'trans', kind: CompletionItemKind.Function, data: 46 },
-	{ label: 'cong', kind: CompletionItemKind.Function, data: 47 },
-	{ label: 'symm', kind: CompletionItemKind.Function, data: 48 },
-	
-	// Quoted atoms
-	{ label: 'quote', kind: CompletionItemKind.Constructor, data: 49 },
-	
-	// Development aid
-	{ label: 'TODO', kind: CompletionItemKind.Keyword, data: 50 },
-	
-	// Top-level declarations
-	{ label: 'claim', kind: CompletionItemKind.Keyword, data: 51 },
-	{ label: 'define', kind: CompletionItemKind.Keyword, data: 52 },
-	{ label: 'check-same', kind: CompletionItemKind.Keyword, data: 53 },
-	{ label: 'define-tactically', kind: CompletionItemKind.Keyword, data: 54 },
-	
-	// Tactics
-	{ label: 'exact', kind: CompletionItemKind.Method, data: 55 },
-	{ label: 'intro', kind: CompletionItemKind.Method, data: 56 },
-	{ label: 'exists', kind: CompletionItemKind.Method, data: 57 },
-	{ label: 'elimNat', kind: CompletionItemKind.Method, data: 58 },
-	{ label: 'elimList', kind: CompletionItemKind.Method, data: 59 },
-	{ label: 'elimVec', kind: CompletionItemKind.Method, data: 60 },
-	{ label: 'elimEqual', kind: CompletionItemKind.Method, data: 61 },
-	{ label: 'elimEither', kind: CompletionItemKind.Method, data: 62 },
-	{ label: 'elimAbsurd', kind: CompletionItemKind.Method, data: 63 },
-	{ label: 'split', kind: CompletionItemKind.Method, data: 64 }
-];
-
-// This handler provides the initial list of the completion items.
-connection.onCompletion(
-	(params: TextDocumentPositionParams): CompletionItem[] => {
-		connection.console.log('===== COMPLETION TRIGGERED =====');
-		connection.console.log(`Document: ${params.textDocument.uri}`);
-		connection.console.log(`Position: ${params.position.line}:${params.position.character}`);
-		
-		const document = documents.get(params.textDocument.uri);
-		if (!document) {
-			return PIE_KEYWORDS;
-		}
-		
-		// Get or extract user symbols for this document
-		let userSymbols = documentSymbols.get(params.textDocument.uri);
-		if (!userSymbols) {
-			userSymbols = extractUserDefinedSymbols(document);
-			documentSymbols.set(params.textDocument.uri, userSymbols);
-		}
-		
-		// Combine built-in keywords with user-defined symbols
-		const allCompletions = [...PIE_KEYWORDS];
-		
-		// Add user-defined symbols
-		userSymbols.forEach((item, name) => {
-			// Check if we're not trying to complete the definition itself
-			const position = params.position;
-			const line = document.getText({
-				start: { line: position.line, character: 0 },
-				end: position
-			});
-			
-			// Don't suggest the name if we're currently defining it
-			if (!line.includes(`(define ${name}`) && 
-			    !line.includes(`(claim ${name}`) && 
-			    !line.includes(`(define-tactically ${name}`)) {
-				allCompletions.push(item);
-			}
-		});
-		
-		connection.console.log(`Returning ${allCompletions.length} completions (${PIE_KEYWORDS.length} built-in, ${userSymbols.size} user-defined)`);
-		
-		return allCompletions;
-	}
-);
-
-
-// Function to get the word at a given position
-function getWordAtPosition(document: TextDocument, position: Position): string | null {
-	const text = document.getText();
-	const lines = text.split('\n');
-	
-	if (position.line >= lines.length) {
-		return null;
-	}
-	
-	const line = lines[position.line];
-	const character = position.character;
-	
-	if (character >= line.length) {
-		return null;
-	}
-	
-	// Define what constitutes a valid Pie identifier character
-	const identifierRegex = /[a-zA-Z0-9\-_!?*+=<>]/;
-	
-	// Find the start of the word
-	let start = character;
-	while (start > 0 && identifierRegex.test(line[start - 1])) {
-		start--;
-	}
-	
-	// Find the end of the word
-	let end = character;
-	while (end < line.length && identifierRegex.test(line[end])) {
-		end++;
-	}
-	
-	// Return the word if it's not empty and starts with a letter
-	const word = line.substring(start, end);
-	if (word.length > 0 && /[a-zA-Z]/.test(word[0])) {
-		return word;
-	}
-	
-	return null;
-}
-
-// Handler for Go to Definition requests
-connection.onDefinition((params: DefinitionParams): Location[] => {
-	connection.console.log('===== GO TO DEFINITION TRIGGERED =====');
-	connection.console.log(`Document: ${params.textDocument.uri}`);
-	connection.console.log(`Position: ${params.position.line}:${params.position.character}`);
-	
-	const document = documents.get(params.textDocument.uri);
-	if (!document) {
-		connection.console.log('Document not found');
-		return [];
-	}
-	
-	// Get the word at the cursor position
-	const word = getWordAtPosition(document, params.position);
-	if (!word) {
-		connection.console.log('No word found at position');
-		return [];
-	}
-	
-	connection.console.log(`Looking for definition of: ${word}`);
-	
-	// First, check the current document for definitions
-	const currentDocSymbols = symbolDefinitions.get(params.textDocument.uri);
-	if (currentDocSymbols && currentDocSymbols.has(word)) {
-		const definition = currentDocSymbols.get(word)!;
-		connection.console.log(`Found definition in current document: ${definition.type}`);
-		return [definition.location];
-	}
-	
-	// Then check all other documents (for workspace-wide definitions)
-	for (const [uri, symbols] of symbolDefinitions) {
-		if (uri !== params.textDocument.uri && symbols.has(word)) {
-			const definition = symbols.get(word)!;
-			connection.console.log(`Found definition in document ${uri}: ${definition.type}`);
-			return [definition.location];
-		}
-	}
-	
-	connection.console.log(`No definition found for: ${word}`);
-	return [];
-});
-
-// This handler resolves additional information for the item selected in the completion list.
-connection.onCompletionResolve(
-	(item: CompletionItem): CompletionItem => {
-		switch (item.data) {
-			case 1: // U
-				item.detail = 'Type universe';
-				item.documentation = 'The type of types in Pie';
-				break;
-			case 2: // Nat
-				item.detail = 'Natural number type';
-				item.documentation = 'The type of natural numbers (zero, add1 zero, add1 (add1 zero), ...)';
-				break;
-			case 3: // zero
-				item.detail = 'Natural number constructor';
-				item.documentation = 'The natural number zero';
-				break;
-			case 4: // add1
-				item.detail = 'Natural number constructor';
-				item.documentation = 'Successor function for natural numbers';
-				break;
-			case 5: // Atom
-				item.detail = 'Atomic symbol type';
-				item.documentation = 'The type of atomic symbols like \'foo, \'bar';
-				break;
-			case 6: // Trivial
-				item.detail = 'Unit type';
-				item.documentation = 'The type with exactly one value: sole';
-				break;
-			case 7: // sole
-				item.detail = 'Unit value constructor';
-				item.documentation = 'The only value of type Trivial';
-				break;
-			case 8: // Absurd
-				item.detail = 'Empty type';
-				item.documentation = 'The type with no values (false proposition)';
-				break;
-			case 9: // ->
-			case 10: // →
-				item.detail = 'Function type constructor';
-				item.documentation = 'Non-dependent function type A -> B';
-				break;
-			case 11: // Pi
-			case 12: // Π
-				item.detail = 'Dependent function type';
-				item.documentation = 'Dependent function type (Pi ((x A)) B) where B may depend on x';
-				break;
-			case 13: // lambda
-			case 14: // λ
-				item.detail = 'Lambda abstraction';
-				item.documentation = 'Creates a function (lambda (x) body)';
-				break;
-			case 15: // the
-				item.detail = 'Type annotation';
-				item.documentation = 'Explicitly annotates the type of an expression (the T expr)';
-				break;
-			case 16: // Sigma
-			case 17: // Σ
-				item.detail = 'Dependent pair type';
-				item.documentation = 'Dependent pair type (Sigma ((x A)) B) where B may depend on x';
-				break;
-			case 18: // Pair
-				item.detail = 'Simple pair type';
-				item.documentation = 'Non-dependent pair type (Pair A B)';
-				break;
-			case 19: // cons
-				item.detail = 'Pair constructor';
-				item.documentation = 'Creates a pair (cons a b)';
-				break;
-			case 20: // car
-				item.detail = 'First projection';
-				item.documentation = 'Gets the first element of a pair';
-				break;
-			case 21: // cdr
-				item.detail = 'Second projection';
-				item.documentation = 'Gets the second element of a pair';
-				break;
-			case 22: // List
-				item.detail = 'List type constructor';
-				item.documentation = 'The type of lists with elements of type A';
-				break;
-			case 23: // nil
-				item.detail = 'Empty list constructor';
-				item.documentation = 'The empty list';
-				break;
-			case 24: // ::
-				item.detail = 'List cons operator';
-				item.documentation = 'Prepends an element to a list (:: h t)';
-				break;
-			case 25: // Vec
-				item.detail = 'Vector type constructor';
-				item.documentation = 'The type of vectors with length n and elements of type A';
-				break;
-			case 26: // vecnil
-				item.detail = 'Empty vector constructor';
-				item.documentation = 'The empty vector of length zero';
-				break;
-			case 27: // vec::
-				item.detail = 'Vector cons operator';
-				item.documentation = 'Prepends an element to a vector (vec:: h t)';
-				break;
-			case 28: // head
-				item.detail = 'Vector head accessor';
-				item.documentation = 'Gets the first element of a non-empty vector';
-				break;
-			case 29: // tail
-				item.detail = 'Vector tail accessor';
-				item.documentation = 'Gets the tail of a non-empty vector';
-				break;
-			case 30: // Either
-				item.detail = 'Sum type constructor';
-				item.documentation = 'The type representing choice between two alternatives';
-				break;
-			case 31: // left
-				item.detail = 'Left injection constructor';
-				item.documentation = 'Injects a value into the left side of Either';
-				break;
-			case 32: // right
-				item.detail = 'Right injection constructor';
-				item.documentation = 'Injects a value into the right side of Either';
-				break;
-			case 33: // =
-				item.detail = 'Equality type constructor';
-				item.documentation = 'The type of equality proofs between two values';
-				break;
-			case 34: // same
-				item.detail = 'Reflexivity constructor';
-				item.documentation = 'The proof that any value is equal to itself';
-				break;
-			case 35: // which-Nat
-				item.detail = 'Natural number eliminator';
-				item.documentation = 'Case analysis on natural numbers';
-				break;
-			case 36: // iter-Nat
-				item.detail = 'Natural number iterator';
-				item.documentation = 'Iterates a function over natural numbers';
-				break;
-			case 37: // rec-Nat
-				item.detail = 'Natural number recursion';
-				item.documentation = 'Primitive recursion over natural numbers';
-				break;
-			case 38: // ind-Nat
-				item.detail = 'Natural number induction';
-				item.documentation = 'Induction principle for natural numbers';
-				break;
-			case 39: // rec-List
-				item.detail = 'List recursion';
-				item.documentation = 'Recursion principle for lists';
-				break;
-			case 40: // ind-List
-				item.detail = 'List induction';
-				item.documentation = 'Induction principle for lists';
-				break;
-			case 41: // ind-Vec
-				item.detail = 'Vector induction';
-				item.documentation = 'Induction principle for vectors';
-				break;
-			case 42: // ind-Either
-				item.detail = 'Either elimination';
-				item.documentation = 'Case analysis on Either types';
-				break;
-			case 43: // ind-=
-				item.detail = 'Equality elimination';
-				item.documentation = 'Elimination principle for equality proofs';
-				break;
-			case 44: // ind-Absurd
-				item.detail = 'Absurd elimination';
-				item.documentation = 'Ex falso principle - from false, anything follows';
-				break;
-			case 45: // replace
-				item.detail = 'Equality substitution';
-				item.documentation = 'Substitutes equals for equals in a type';
-				break;
-			case 46: // trans
-				item.detail = 'Equality transitivity';
-				item.documentation = 'If a = b and b = c, then a = c';
-				break;
-			case 47: // cong
-				item.detail = 'Equality congruence';
-				item.documentation = 'If a = b, then f(a) = f(b)';
-				break;
-			case 48: // symm
-				item.detail = 'Equality symmetry';
-				item.documentation = 'If a = b, then b = a';
-				break;
-			case 49: // quote
-				item.detail = 'Quote constructor';
-				item.documentation = 'Creates an atomic symbol (quote symbol)';
-				break;
-			case 50: // TODO
-				item.detail = 'Development placeholder';
-				item.documentation = 'Placeholder for incomplete proofs or definitions';
-				break;
-			case 51: // claim
-				item.detail = 'Type declaration';
-				item.documentation = 'Declares the type of a name (claim name type)';
-				break;
-			case 52: // define
-				item.detail = 'Value definition';
-				item.documentation = 'Defines the value of a name (define name body)';
-				break;
-			case 53: // check-same
-				item.detail = 'Sameness checking';
-				item.documentation = 'Checks if two expressions have the same type and normal form';
-				break;
-			case 54: // define-tactically
-				item.detail = 'Tactical definition';
-				item.documentation = 'Defines a value using tactics';
-				break;
-			case 55: // exact
-				item.detail = 'Exact tactic';
-				item.documentation = 'Provides an exact proof term';
-				break;
-			case 56: // intro
-				item.detail = 'Introduction tactic';
-				item.documentation = 'Introduces lambda or Pi variables';
-				break;
-			case 57: // exists
-				item.detail = 'Existential tactic';
-				item.documentation = 'Provides witness for Sigma types';
-				break;
-			case 58: // elimNat
-				item.detail = 'Natural elimination tactic';
-				item.documentation = 'Eliminates natural numbers tactically';
-				break;
-			case 59: // elimList
-				item.detail = 'List elimination tactic';
-				item.documentation = 'Eliminates lists tactically';
-				break;
-			case 60: // elimVec
-				item.detail = 'Vector elimination tactic';
-				item.documentation = 'Eliminates vectors tactically';
-				break;
-			case 61: // elimEqual
-				item.detail = 'Equality elimination tactic';
-				item.documentation = 'Eliminates equality proofs tactically';
-				break;
-			case 62: // elimEither
-				item.detail = 'Either elimination tactic';
-				item.documentation = 'Eliminates Either types tactically';
-				break;
-			case 63: // elimAbsurd
-				item.detail = 'Absurd elimination tactic';
-				item.documentation = 'Eliminates Absurd tactically (ex falso)';
-				break;
-			case 64: // split
-				item.detail = 'Split tactic';
-				item.documentation = 'Splits Sigma/product goals';
-				break;
-		}
-		return item;
-	}
-);
-
-const PIE_HOVER_INFO: Map<string, { summary: string; details: string; examples?: string }> = new Map([
-  // Types
-  ['U', {
-    summary: 'The universe of types',
-    details: 'U is the type of types. Any type (like Nat, Atom, or (Pair Nat Atom)) has type U.',
-    examples: '(the U Nat)\n(the U (-> Nat Nat))'
-  }],
+// Built-in Pie symbols with hover information
+const PIE_HOVER_INFO = new Map([
+  // Natural numbers
   ['Nat', {
     summary: 'Natural numbers',
-    details: 'The type of natural numbers, built from zero and add1.',
-    examples: '(the Nat zero)\n(the Nat (add1 (add1 zero)))'
+    details: 'The type of natural numbers (0, 1, 2, ...)',
+    examples: '(the Nat 5)'
   }],
-  ['Atom', {
-    summary: 'Atomic symbols',
-    details: 'The type of quoted symbols.',
-    examples: "(the Atom 'foo)\n(the Atom 'bar)"
-  }],
-  ['List', {
-    summary: 'List type constructor',
-    details: 'Lists are either nil or constructed with :: (cons).',
-    examples: '(the (List Nat) nil)\n(the (List Nat) (:: 1 (:: 2 nil)))'
-  }],
-  ['Vec', {
-    summary: 'Length-indexed vectors',
-    details: 'Vectors are lists with their length in the type.',
-    examples: '(the (Vec Nat zero) vecnil)\n(the (Vec Nat (add1 zero)) (vec:: 1 vecnil))'
-  }],
-  ['Pair', {
-    summary: 'Product type',
-    details: 'Non-dependent pairs of values.',
-    examples: '(the (Pair Nat Atom) (cons 1 \'foo))'
-  }],
-  ['Sigma', {
-    summary: 'Dependent pair type',
-    details: 'Dependent pairs where the type of the second component can depend on the first.',
-    examples: '(the (Sigma ((n Nat)) (Vec Atom n)) (cons 2 (vec:: \'a (vec:: \'b vecnil))))'
-  }],
-  ['Pi', {
-    summary: 'Dependent function type',
-    details: 'Function type where the output type can depend on the input value.',
-    examples: '(the (Pi ((n Nat)) (Vec Atom n)) (lambda (n) ...))'
-  }],
-  ['Either', {
-    summary: 'Sum type',
-    details: 'A value of Either L R is either a left L or a right R.',
-    examples: '(the (Either Nat Atom) (left 5))\n(the (Either Nat Atom) (right \'foo))'
-  }],
-  ['Trivial', {
-    summary: 'Unit type',
-    details: 'The type with exactly one value: sole.',
-    examples: '(the Trivial sole)'
-  }],
-  ['Absurd', {
-    summary: 'Empty type',
-    details: 'The type with no values. Represents falsity in propositions.',
-    examples: '(the (-> Absurd Nat) (lambda (x) (ind-Absurd x Nat)))'
-  }],
-  
-  // Constructors
   ['zero', {
-    summary: 'Natural number zero',
-    details: 'The base case for natural numbers.',
+    summary: 'Zero',
+    details: 'The natural number zero.',
     examples: '(the Nat zero)'
   }],
   ['add1', {
-    summary: 'Successor function',
-    details: 'Constructs the next natural number.',
-    examples: '(the Nat (add1 zero)) ; represents 1'
+    summary: 'Add one',
+    details: 'Adds one to a natural number.',
+    examples: '(add1 3) ; evaluates to 4'
+  }],
+  
+  // Atoms
+  ['Atom', {
+    summary: 'Atomic values',
+    details: 'The type of indivisible values (quoted symbols).',
+    examples: "(the Atom 'hello)"
+  }],
+  ['quote', {
+    summary: 'Quote an atom',
+    details: 'Creates an atomic value.',
+    examples: "(quote hello) ; same as 'hello"
+  }],
+  
+  // Lists
+  ['List', {
+    summary: 'Lists',
+    details: 'A list type constructor.',
+    examples: '(List Nat) ; type of lists of natural numbers'
   }],
   ['nil', {
     summary: 'Empty list',
-    details: 'The empty list for any element type.',
+    details: 'The empty list.',
     examples: '(the (List Nat) nil)'
   }],
-  ['cons', {
-    summary: 'Pair constructor',
-    details: 'Constructs a pair from two values.',
-    examples: '(the (Pair Nat Atom) (cons 1 \'foo))'
-  }],
-  ['car', {
-    summary: 'First projection',
-    details: 'Extracts the first element of a pair.',
-    examples: '(car (cons 1 \'foo)) ; evaluates to 1'
-  }],
-  ['cdr', {
-    summary: 'Second projection',
-    details: 'Extracts the second element of a pair.',
-    examples: '(cdr (cons 1 \'foo)) ; evaluates to \'foo'
-  }],
-  ['sole', {
-    summary: 'Unit value',
-    details: 'The only inhabitant of Trivial.',
-    examples: '(the Trivial sole)'
-  }],
-  ['same', {
-    summary: 'Equality constructor',
-    details: 'Constructs a proof that something equals itself.',
-    examples: '(the (= Nat 2 2) (same 2))'
-  }],
-  ['left', {
-    summary: 'Left injection',
-    details: 'Injects a value into the left side of an Either.',
-    examples: '(the (Either Nat Atom) (left 5))'
-  }],
-  ['right', {
-    summary: 'Right injection',
-    details: 'Injects a value into the right side of an Either.',
-    examples: '(the (Either Nat Atom) (right \'foo))'
+  ['::',  {
+    summary: 'List constructor',
+    details: 'Adds an element to the front of a list.',
+    examples: '(:: 1 (:: 2 nil))'
   }],
   
-  // Core operations
+  // Functions
   ['lambda', {
-    summary: 'Function abstraction',
+    summary: 'Lambda expression',
     details: 'Creates an anonymous function.',
     examples: '(lambda (x) (add1 x))'
   }],
   ['λ', {
-    summary: 'Function abstraction (Unicode)',
+    summary: 'Lambda expression (Unicode)',
     details: 'Unicode version of lambda.',
     examples: '(λ (x) (add1 x))'
   }],
+  
+  // Types
   ['the', {
     summary: 'Type annotation',
-    details: 'Explicitly specifies the type of an expression.',
-    examples: '(the Nat 5)\n(the (-> Nat Nat) (lambda (x) x))'
+    details: 'Asserts that an expression has a particular type.',
+    examples: '(the Nat 5)'
   }],
-  ['claim', {
-    summary: 'Type declaration',
-    details: 'Declares the type of a definition.',
-    examples: '(claim identity (Pi ((A U)) (-> A A)))'
+  ['Universe', {
+    summary: 'Type of types',
+    details: 'The type of types.',
+    examples: '(the Universe Nat)'
   }],
-  ['define', {
-    summary: 'Value definition',
-    details: 'Defines a named value.',
-    examples: '(define identity (lambda (A) (lambda (x) x)))'
-  }],
-  ['check-same', {
-    summary: 'Type and value equality check',
-    details: 'Verifies two expressions have the same type and normalize to the same value.',
-    examples: '(check-same Nat (add1 (add1 zero)) 2)'
+  ['U', {
+    summary: 'Type of types (short)',
+    details: 'Short form of Universe.',
+    examples: '(the U Nat)'
   }],
   
-  // Eliminators
-  ['which-Nat', {
-    summary: 'Natural number case analysis',
-    details: 'Pattern matching on natural numbers.',
-    examples: '(which-Nat n\n  zero-case\n  (lambda (n-1) add1-case))'
+  // Dependent types
+  ['Pi', {
+    summary: 'Dependent function type',
+    details: 'Creates a dependent function type.',
+    examples: '(Pi ((n Nat)) (Vec Nat n))'
   }],
-  ['iter-Nat', {
-    summary: 'Natural number iteration',
-    details: 'Iterates a function n times.',
-    examples: '(iter-Nat n\n  base\n  step-function)'
+  ['Π', {
+    summary: 'Dependent function type (Unicode)',
+    details: 'Unicode version of Pi.',
+    examples: '(Π ((n Nat)) (Vec Nat n))'
   }],
-  ['rec-Nat', {
-    summary: 'Natural number recursion',
-    details: 'Primitive recursion on natural numbers.',
-    examples: '(rec-Nat n\n  base\n  (lambda (n-1 rec-n-1) step))'
+  ['Sigma', {
+    summary: 'Dependent pair type',
+    details: 'Creates a dependent pair type.',
+    examples: '(Sigma ((A U)) (List A))'
   }],
-  ['ind-Nat', {
-    summary: 'Natural number induction',
-    details: 'Induction principle for natural numbers.',
-    examples: '(ind-Nat n\n  motive\n  base\n  (lambda (n-1 ih) step))'
+  ['Σ', {
+    summary: 'Dependent pair type (Unicode)',
+    details: 'Unicode version of Sigma.',
+    examples: '(Σ ((A U)) (List A))'
+  }],
+  
+  // Pairs
+  ['Pair', {
+    summary: 'Pair type',
+    details: 'Type of pairs (non-dependent).',
+    examples: '(Pair Nat Atom)'
+  }],
+  ['cons', {
+    summary: 'Pair constructor',
+    details: 'Creates a pair.',
+    examples: '(cons 1 2)'
+  }],
+  ['car', {
+    summary: 'First element of pair',
+    details: 'Extracts the first element of a pair.',
+    examples: '(car (cons 1 2)) ; evaluates to 1'
+  }],
+  ['cdr', {
+    summary: 'Second element of pair',
+    details: 'Extracts the second element of a pair.',
+    examples: '(cdr (cons 1 2)) ; evaluates to 2'
+  }],
+  
+  // Equality
+  ['=', {
+    summary: 'Equality type',
+    details: 'Type of equality proofs.',
+    examples: '(= Nat 1 1)'
+  }],
+  ['same', {
+    summary: 'Reflexivity of equality',
+    details: 'Proof that something equals itself.',
+    examples: '(same 5)'
   }],
   ['replace', {
-    summary: 'Equality substitution',
-    details: 'Replaces equals for equals in a type.',
-    examples: '(replace target\n  proof-of-equality\n  (lambda (x) motive))'
+    summary: 'Substitution of equals for equals',
+    details: 'Uses an equality proof to replace equals for equals.',
+    examples: '(replace proof-a=b target motive)'
   }],
   ['trans', {
     summary: 'Transitivity of equality',
-    details: 'Chains equality proofs.',
+    details: 'Combines two equality proofs.',
     examples: '(trans proof-a=b proof-b=c)'
   }],
   ['cong', {
@@ -1133,7 +348,167 @@ const PIE_HOVER_INFO: Map<string, { summary: string; details: string; examples?:
   }]
 ]);
 
+// Parse document to extract user-defined symbols
+function extractUserDefinedSymbols(document: TextDocument): Map<string, CompletionItem> {
+	const text = document.getText();
+	const symbols = new Map<string, CompletionItem>();
+	
+	// Regular expressions for Pie constructs
+	const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+	const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+(.+?)\)/g;
+	const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+	
+	// Extract define symbols
+	let match: RegExpExecArray | null;
+	while ((match = definePattern.exec(text)) !== null) {
+		const symbolName = match[1];
+		symbols.set(symbolName, {
+			label: symbolName,
+			kind: CompletionItemKind.Function,
+			detail: 'User-defined function'
+		});
+	}
+	
+	// Extract claim symbols
+	while ((match = claimPattern.exec(text)) !== null) {
+		const symbolName = match[1];
+		const typeSpec = match[2];
+		symbols.set(symbolName, {
+			label: symbolName,
+			kind: CompletionItemKind.Variable,
+			detail: `Claimed type: ${typeSpec}`
+		});
+	}
+	
+	// Extract define-tactically symbols
+	while ((match = defineTacticallyPattern.exec(text)) !== null) {
+		const symbolName = match[1];
+		symbols.set(symbolName, {
+			label: symbolName,
+			kind: CompletionItemKind.Function,
+			detail: 'Tactically defined function'
+		});
+	}
+	
+	return symbols;
+}
+
+// Extract symbol definitions for go-to-definition and hover
+function extractSymbolDefinitions(document: TextDocument): Map<string, SymbolDefinition> {
+	const text = document.getText();
+	const lines = text.split('\n');
+	const symbols = new Map<string, SymbolDefinition>();
+	
+	// Regular expressions for Pie constructs with line tracking
+	const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/;
+	const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+(.+?)\)/;
+	const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/;
+	
+	lines.forEach((line, lineIndex) => {
+		// Check for define
+		let match = definePattern.exec(line);
+		if (match) {
+			const symbolName = match[1];
+			const startCol = line.indexOf(symbolName);
+			symbols.set(symbolName, {
+				name: symbolName,
+				location: {
+					uri: document.uri,
+					range: {
+						start: { line: lineIndex, character: startCol },
+						end: { line: lineIndex, character: startCol + symbolName.length }
+					}
+				},
+				type: 'define'
+			});
+		}
+		
+		// Check for claim
+		match = claimPattern.exec(line);
+		if (match) {
+			const symbolName = match[1];
+			const typeSpec = match[2];
+			const startCol = line.indexOf(symbolName);
+			symbols.set(symbolName, {
+				name: symbolName,
+				location: {
+					uri: document.uri,
+					range: {
+						start: { line: lineIndex, character: startCol },
+						end: { line: lineIndex, character: startCol + symbolName.length }
+					}
+				},
+				type: 'claim',
+				typeInfo: typeSpec
+			});
+		}
+		
+		// Check for define-tactically
+		match = defineTacticallyPattern.exec(line);
+		if (match) {
+			const symbolName = match[1];
+			const startCol = line.indexOf(symbolName);
+			symbols.set(symbolName, {
+				name: symbolName,
+				location: {
+					uri: document.uri,
+					range: {
+						start: { line: lineIndex, character: startCol },
+						end: { line: lineIndex, character: startCol + symbolName.length }
+					}
+				},
+				type: 'define-tactically'
+			});
+		}
+	});
+	
+	return symbols;
+}
+
+// Get word at cursor position
+function getWordAtPosition(document: TextDocument, position: Position): string | null {
+	const text = document.getText();
+	const lines = text.split('\n');
+	
+	if (position.line >= lines.length) {
+		return null;
+	}
+	
+	const line = lines[position.line];
+	const character = position.character;
+	
+	if (character >= line.length) {
+		return null;
+	}
+	
+	// Define what constitutes an identifier in Pie
+	const identifierRegex = /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/;
+	
+	// Find the start of the word
+	let start = character;
+	while (start > 0 && identifierRegex.test(line[start - 1])) {
+		start--;
+	}
+	
+	// Find the end of the word
+	let end = character;
+	while (end < line.length && identifierRegex.test(line[end])) {
+		end++;
+	}
+	
+	// Return the word if it's not empty and starts with a letter
+	const word = line.substring(start, end);
+	if (word.length > 0 && /[a-zA-Z]/.test(word[0])) {
+		return word;
+	}
+	
+	return null;
+}
+
+// Fix: Single, complete hover handler
 connection.onHover((params: HoverParams): Hover | null => {
+	connection.console.log(`Hover requested at ${params.position.line}:${params.position.character}`);
+	
 	const document = documents.get(params.textDocument.uri);
 	if (!document) {
 		return null;
@@ -1144,7 +519,9 @@ connection.onHover((params: HoverParams): Hover | null => {
 		return null;
 	}
 	
-	// Check for user-defined symbol
+	connection.console.log(`Hovering over word: "${word}"`);
+	
+	// Check for user-defined symbol first
 	const currentDocSymbols = symbolDefinitions.get(params.textDocument.uri);
 	let definition: SymbolDefinition | undefined;
 	
@@ -1152,7 +529,7 @@ connection.onHover((params: HoverParams): Hover | null => {
 		definition = currentDocSymbols.get(word);
 	} else {
 		// Check other documents
-		for (const [uri, symbols] of symbolDefinitions) {
+		for (const [, symbols] of symbolDefinitions) {
 			if (symbols.has(word)) {
 				definition = symbols.get(word);
 				break;
@@ -1167,8 +544,9 @@ connection.onHover((params: HoverParams): Hover | null => {
 		if (definition.typeInfo) {
 			hoverText += `Signature: \`${definition.typeInfo}\`\n`;
 		}
-		
-		hoverText += `Defined in: ${definition.location.uri}\n`;
+
+		const fileName = definition.location.uri.split('/').pop() || definition.location.uri;
+		hoverText += `Defined in: ${fileName}\n`;
 		hoverText += `Location: Line ${definition.location.range.start.line + 1}, Column ${definition.location.range.start.character + 1}`;
 		
 		return {
@@ -1179,88 +557,169 @@ connection.onHover((params: HoverParams): Hover | null => {
 		};
 	}
 	
-	// Fall back to built-in hover info if available
-
-	(params: HoverParams): Hover | null => {
-    connection.console.log(`Hover requested at ${params.position.line}:${params.position.character}`);
-    
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return null;
-    }
-    
-    // Get the word at the hover position
-    const text = document.getText();
-    const offset = document.offsetAt(params.position);
-    
-    // Find word boundaries
-    let start = offset;
-    let end = offset;
-    
-    // Move start backwards to find word beginning
-    while (start > 0 && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[start - 1])) {
-      start--;
-    }
-    
-    // Handle special case for quoted atoms
-    if (start > 0 && text[start - 1] === "'") {
-      start--;
-    }
-    
-    // Move end forward to find word ending
-    while (end < text.length && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[end])) {
-      end++;
-    }
-    
-    const word = text.substring(start, end);
-    connection.console.log(`Hovering over word: "${word}"`);
-    
-    // Look up hover information
-    const hoverInfo = PIE_HOVER_INFO.get(word);
-    if (!hoverInfo) {
-      // Check if it's a number
-      if (/^\d+$/.test(word)) {
-        return {
-          contents: {
-            kind: MarkupKind.Markdown,
-            value: `**Natural number literal**\n\nRepresents the Nat value ${word}`
-          }
-        };
-      }
-      
-      // Check if it's a quoted atom
-      if (word.startsWith("'")) {
-        return {
-          contents: {
-            kind: MarkupKind.Markdown,
-            value: `**Quoted atom**\n\nType: \`Atom\`\n\nValue: \`${word}\``
-          }
-        };
-      }
-      
-      return null;
-    }
-    
-    // Build hover content
-    let hoverContent = `**${word}**\n\n${hoverInfo.summary}`;
-    
-    if (hoverInfo.details) {
-      hoverContent += `\n\n${hoverInfo.details}`;
-    }
-    
-    if (hoverInfo.examples) {
-      hoverContent += `\n\n**Examples:**\n\`\`\`pie\n${hoverInfo.examples}\n\`\`\``;
-    }
-    
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: hoverContent
-      }
-    };
-  }
+	// Fall back to built-in hover info
+	const hoverInfo = PIE_HOVER_INFO.get(word);
+	if (hoverInfo) {
+		let hoverContent = `**${word}**\n\n${hoverInfo.summary}`;
+		
+		if (hoverInfo.details) {
+			hoverContent += `\n\n${hoverInfo.details}`;
+		}
+		
+		if (hoverInfo.examples) {
+			hoverContent += `\n\n**Examples:**\n\`\`\`pie\n${hoverInfo.examples}\n\`\`\``;
+		}
+		
+		return {
+			contents: {
+				kind: MarkupKind.Markdown,
+				value: hoverContent
+			}
+		};
+	}
+	
+	// Check if it's a number
+	if (/^\d+$/.test(word)) {
+		return {
+			contents: {
+				kind: MarkupKind.Markdown,
+				value: `**Natural number literal**\n\nRepresents the Nat value ${word}`
+			}
+		};
+	}
+	
+	// Check if it's a quoted atom
+	if (word.startsWith("'")) {
+		return {
+			contents: {
+				kind: MarkupKind.Markdown,
+				value: `**Quoted atom**\n\nType: \`Atom\`\n\nValue: \`${word}\``
+			}
+		};
+	}
+	
 	return null;
 });
+
+// Handler for Go to Definition requests
+connection.onDefinition((params: DefinitionParams): Location[] => {
+	connection.console.log('===== GO TO DEFINITION TRIGGERED =====');
+	connection.console.log(`Document: ${params.textDocument.uri}`);
+	connection.console.log(`Position: ${params.position.line}:${params.position.character}`);
+	
+	const document = documents.get(params.textDocument.uri);
+	if (!document) {
+		connection.console.log('Document not found');
+		return [];
+	}
+	
+	// Get the word at the cursor position
+	const word = getWordAtPosition(document, params.position);
+	if (!word) {
+		connection.console.log('No word found at position');
+		return [];
+	}
+	
+	connection.console.log(`Looking for definition of: ${word}`);
+	
+	// First, check the current document for definitions
+	const currentDocSymbols = symbolDefinitions.get(params.textDocument.uri);
+	if (currentDocSymbols && currentDocSymbols.has(word)) {
+		const definition = currentDocSymbols.get(word)!;
+		connection.console.log(`Found definition in current document: ${definition.type}`);
+		return [definition.location];
+	}
+
+	// Then check all other documents (for workspace-wide definitions)
+	for (const [documentUri, symbols] of symbolDefinitions) {
+		if (documentUri !== params.textDocument.uri && symbols.has(word)) {
+			const definition = symbols.get(word)!;
+			connection.console.log(`Found definition in document ${documentUri}: ${definition.type}`);
+			return [definition.location];
+		}
+	}
+	
+	connection.console.log(`No definition found for: ${word}`);
+	return [];
+});
+
+// Built-in Pie completions
+const PIE_COMPLETIONS: CompletionItem[] = [
+	// Basic types
+	{ label: 'Nat', kind: CompletionItemKind.TypeParameter, detail: 'Natural numbers' },
+	{ label: 'Atom', kind: CompletionItemKind.TypeParameter, detail: 'Atomic values' },
+	{ label: 'Universe', kind: CompletionItemKind.TypeParameter, detail: 'Type of types' },
+	{ label: 'U', kind: CompletionItemKind.TypeParameter, detail: 'Type of types (short)' },
+	
+	// Constructors
+	{ label: 'zero', kind: CompletionItemKind.Value, detail: 'Natural number zero' },
+	{ label: 'add1', kind: CompletionItemKind.Function, detail: 'Add one to a natural number' },
+	{ label: 'nil', kind: CompletionItemKind.Value, detail: 'Empty list' },
+	{ label: '::', kind: CompletionItemKind.Function, detail: 'List constructor' },
+	{ label: 'cons', kind: CompletionItemKind.Function, detail: 'Pair constructor' },
+	{ label: 'same', kind: CompletionItemKind.Function, detail: 'Reflexivity of equality' },
+	
+	// Functions
+	{ label: 'lambda', kind: CompletionItemKind.Keyword, detail: 'Anonymous function' },
+	{ label: 'λ', kind: CompletionItemKind.Keyword, detail: 'Anonymous function (Unicode)' },
+	{ label: 'the', kind: CompletionItemKind.Keyword, detail: 'Type annotation' },
+	{ label: 'car', kind: CompletionItemKind.Function, detail: 'First element of pair' },
+	{ label: 'cdr', kind: CompletionItemKind.Function, detail: 'Second element of pair' },
+	
+	// Dependent types
+	{ label: 'Pi', kind: CompletionItemKind.TypeParameter, detail: 'Dependent function type' },
+	{ label: 'Π', kind: CompletionItemKind.TypeParameter, detail: 'Dependent function type (Unicode)' },
+	{ label: 'Sigma', kind: CompletionItemKind.TypeParameter, detail: 'Dependent pair type' },
+	{ label: 'Σ', kind: CompletionItemKind.TypeParameter, detail: 'Dependent pair type (Unicode)' },
+	
+	// Type constructors
+	{ label: 'List', kind: CompletionItemKind.TypeParameter, detail: 'List type constructor' },
+	{ label: 'Pair', kind: CompletionItemKind.TypeParameter, detail: 'Pair type constructor' },
+	{ label: '->', kind: CompletionItemKind.TypeParameter, detail: 'Function type' },
+	{ label: '→', kind: CompletionItemKind.TypeParameter, detail: 'Function type (Unicode)' },
+	{ label: '=', kind: CompletionItemKind.TypeParameter, detail: 'Equality type' },
+	
+	// Equality functions
+	{ label: 'replace', kind: CompletionItemKind.Function, detail: 'Substitution of equals for equals' },
+	{ label: 'trans', kind: CompletionItemKind.Function, detail: 'Transitivity of equality' },
+	{ label: 'cong', kind: CompletionItemKind.Function, detail: 'Congruence of equality' },
+	{ label: 'symm', kind: CompletionItemKind.Function, detail: 'Symmetry of equality' },
+	
+	// Special
+	{ label: 'TODO', kind: CompletionItemKind.Snippet, detail: 'Placeholder for incomplete code' },
+	
+	// Top-level forms
+	{ label: 'define', kind: CompletionItemKind.Keyword, detail: 'Define a function or value' },
+	{ label: 'claim', kind: CompletionItemKind.Keyword, detail: 'Claim the type of a name' },
+	{ label: 'define-tactically', kind: CompletionItemKind.Keyword, detail: 'Define using tactics' }
+];
+
+// This handler provides the initial list of completion items.
+connection.onCompletion(
+	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+		const document = documents.get(_textDocumentPosition.textDocument.uri);
+		if (!document) {
+			return PIE_COMPLETIONS;
+		}
+		
+		// Get user-defined symbols for this document
+		const userSymbols = documentSymbols.get(_textDocumentPosition.textDocument.uri);
+		
+		if (userSymbols) {
+			// Combine built-in completions with user-defined symbols
+			return [...PIE_COMPLETIONS, ...Array.from(userSymbols.values())];
+		}
+		
+		return PIE_COMPLETIONS;
+	}
+);
+
+// This handler resolves additional information for the item selected in the completion list.
+connection.onCompletionResolve(
+	(item: CompletionItem): CompletionItem => {
+		return item;
+	}
+);
 
 // Main function to type check a Pie document and return diagnostics
 function typeCheckPieDocument(document: TextDocument): TypeCheckResult {
@@ -1275,25 +734,24 @@ function typeCheckPieDocument(document: TextDocument): TypeCheckResult {
         // Process each declaration
         for (const decl of declarations) {
             const declResult = processDeclaration(decl, context, document);
-            
-            if (declResult.diagnostics.length > 0) {
-                diagnostics.push(...declResult.diagnostics);
-            }
-            
-            // Update context with successful declarations for subsequent type checking
+            diagnostics.push(...declResult.diagnostics);
             context = declResult.context;
         }
         
-    } catch (parseError) {
-        // Handle parse errors
+    } catch (error) {
+        // Handle parsing errors - try to get location from error if available
+        let range = { start: { line: 0, character: 0 }, end: { line: 0, character: 100 } };
+
+        // Check if error has location information
+        if (error && typeof error === 'object' && 'location' in error) {
+            range = locationToRange((error as any).location);
+        }
+
         const diagnostic: Diagnostic = {
             severity: DiagnosticSeverity.Error,
-            range: {
-                start: { line: 0, character: 0 },
-                end: { line: 0, character: text.length }
-            },
-            message: `Parse error: ${parseError}`,
-            source: 'pie-type-checker'
+            range,
+            message: `Parse error: ${error}`,
+            source: 'Pie Language Server'
         };
         diagnostics.push(diagnostic);
     }
@@ -1301,268 +759,253 @@ function typeCheckPieDocument(document: TextDocument): TypeCheckResult {
     return { diagnostics, context };
 }
 
-// Parse the document into individual declarations
+// Parse Pie declarations from text
 function parsePieDeclarations(text: string): Declaration[] {
     const declarations: Declaration[] = [];
-    
+
     try {
-        // Use your existing scheme parser to get the AST
-        const asts = schemeParse(text);
-        
-        for (const ast of asts) {
-            try {
-                const declaration = pieDeclarationParser.parseDeclaration(ast);
-                declarations.push(declaration);
-            } catch (error) {
-                // Individual declaration parse error - we'll handle this in processDeclaration
-                console.error('Failed to parse declaration:', error);
-            }
+        // First parse with scheme parser to get AST nodes
+        const astList = schemeParse(text);
+
+        // Then parse each AST node as a declaration
+        for (const ast of astList) {
+            const declaration = pieDeclarationParser.parseDeclaration(ast);
+            declarations.push(declaration);
         }
-        
     } catch (error) {
-        console.error('Failed to parse document:', error);
         throw error;
     }
-    
+
     return declarations;
 }
 
-// Process a single declaration and return diagnostics + updated context
-function processDeclaration(
-    declaration: Declaration, 
-    context: Context, 
-    document: TextDocument
-): { diagnostics: Diagnostic[]; context: Context } {
+// Helper function to convert Pie location to VS Code range
+function locationToRange(location: any): { start: { line: number, character: number }, end: { line: number, character: number } } {
+    if (location && location.syntax) {
+        return {
+            start: { line: location.syntax.start.line, character: location.syntax.start.column },
+            end: { line: location.syntax.end.line, character: location.syntax.end.column }
+        };
+    }
+    // Fallback to first line if no location info
+    return {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 10 }
+    };
+}
+
+// Process a single declaration for type checking
+function processDeclaration(decl: Declaration, context: Context, _document: TextDocument): TypeCheckResult {
     const diagnostics: Diagnostic[] = [];
     let newContext = context;
-    
+
     try {
-        if (declaration instanceof Claim) {
-            const result = processClaimDeclaration(declaration, context, document);
-            diagnostics.push(...result.diagnostics);
-            newContext = result.context;
-            
-        } else if (declaration instanceof Definition) {
-            const result = processDefinitionDeclaration(declaration, context, document);
-            diagnostics.push(...result.diagnostics);
-            newContext = result.context;
-            
-        } else if (declaration instanceof DefineTactically) {
-            const result = processDefineTacticallyDeclaration(declaration, context, document);
-            diagnostics.push(...result.diagnostics);
-            newContext = result.context;
-            
-        } else if (declaration instanceof S.Source) {
-            // Handle standalone expressions
-            const result = processExpressionDeclaration(declaration, context, document);
-            diagnostics.push(...result.diagnostics);
-            // Don't update context for standalone expressions
-            
+        if (decl instanceof Claim) {
+            // Process claim declaration
+            newContext = processClaimDeclaration(decl, context, diagnostics);
+        } else if (decl instanceof Definition) {
+            // Process define declaration
+            newContext = processDefineDeclaration(decl, context, diagnostics);
+        } else if (decl instanceof DefineTactically) {
+            // Process define-tactically declaration
+            newContext = processDefineTacticallyDeclaration(decl, context, diagnostics);
+        } else {
+            // Unknown declaration type or Source expression
+            const range = (decl as any).location ? locationToRange((decl as any).location) : locationToRange(null);
+            const diagnostic: Diagnostic = {
+                severity: DiagnosticSeverity.Warning,
+                range,
+                message: `Unknown declaration type or unhandled expression`,
+                source: 'Pie Language Server'
+            };
+            diagnostics.push(diagnostic);
         }
-        
     } catch (error) {
+        const range = (decl as any).location ? locationToRange((decl as any).location) : locationToRange(null);
         const diagnostic: Diagnostic = {
             severity: DiagnosticSeverity.Error,
-            range: pieLocationToLspRange(declaration.location, document),
+            range,
             message: `Error processing declaration: ${error}`,
-            source: 'pie-type-checker'
+            source: 'Pie Language Server'
         };
         diagnostics.push(diagnostic);
     }
-    
+
     return { diagnostics, context: newContext };
 }
 
 // Process claim declarations
-function processClaimDeclaration(
-    claim: Claim, 
-    context: Context, 
-    document: TextDocument
-): { diagnostics: Diagnostic[]; context: Context } {
-    const diagnostics: Diagnostic[] = [];
-    let newContext = context;
-    
+function processClaimDeclaration(claim: Claim, context: Context, diagnostics: Diagnostic[]): Context {
     try {
-        // Type check the type expression
-        const renames: Renaming = new Map();
-        const typeResult = claim.type.isType(context, renames);
-        
-        if (typeResult instanceof stop) {
+        const result = addClaimToContext(context, claim.name, claim.location, claim.type);
+        if (result instanceof go) {
+            return result.result;
+        } else if (result instanceof stop) {
             const diagnostic: Diagnostic = {
                 severity: DiagnosticSeverity.Error,
-                range: pieLocationToLspRange(typeResult.where, document),
-                message: `Type error in claim: ${messageToString(typeResult.message)}`,
-                source: 'pie-type-checker'
+                range: {
+                    start: { line: result.where.syntax.start.line, character: result.where.syntax.start.column },
+                    end: { line: result.where.syntax.end.line, character: result.where.syntax.end.column }
+                },
+                message: `${result.message}`,
+                source: 'Pie Language Server'
             };
             diagnostics.push(diagnostic);
-        } else if (typeResult instanceof go) {
-            // Successfully type checked - add to context
-            const typeCore = typeResult.result;
-            const typeValue = typeCore.valOf(contextToEnvironment(context));
-            newContext = extendContext(context, claim.name, new ContextClaim(typeValue));
+            return context;
         }
-        
+        return context;
     } catch (error) {
+        const range = locationToRange(claim.location);
         const diagnostic: Diagnostic = {
             severity: DiagnosticSeverity.Error,
-            range: pieLocationToLspRange(claim.location, document),
-            message: `Error in claim ${claim.name}: ${error}`,
-            source: 'pie-type-checker'
+            range,
+            message: `Error in claim '${claim.name}': ${error}`,
+            source: 'Pie Language Server'
         };
         diagnostics.push(diagnostic);
+        return context;
     }
-    
-    return { diagnostics, context: newContext };
 }
 
-// Process definition declarations
-function processDefinitionDeclaration(
-    definition: Definition, 
-    context: Context, 
-    document: TextDocument
-): { diagnostics: Diagnostic[]; context: Context } {
-    const diagnostics: Diagnostic[] = [];
-    let newContext = context;
-    
+// Process define declarations
+function processDefineDeclaration(define: Definition, context: Context, diagnostics: Diagnostic[]): Context {
     try {
-        // Check if there's a corresponding claim
-        const claimBinding = context.get(definition.name);
-        
-        if (!(claimBinding instanceof ContextClaim)) {
+        const result = addDefineToContext(context, define.name, define.location, define.expr);
+        if (result instanceof go) {
+            return result.result;
+        } else if (result instanceof stop) {
             const diagnostic: Diagnostic = {
                 severity: DiagnosticSeverity.Error,
-                range: pieLocationToLspRange(definition.location, document),
-                message: `No claim found for definition: ${definition.name}`,
-                source: 'pie-type-checker'
+                range: {
+                    start: { line: result.where.syntax.start.line, character: result.where.syntax.start.column },
+                    end: { line: result.where.syntax.end.line, character: result.where.syntax.end.column }
+                },
+                message: `${result.message}`,
+                source: 'Pie Language Server'
             };
             diagnostics.push(diagnostic);
-            return { diagnostics, context };
+            return context;
         }
-        
-        // Type check the definition against the claimed type
-        const renames: Renaming = new Map();
-        const checkResult = definition.expr.check(context, renames, claimBinding.type);
-        
-        if (checkResult instanceof stop) {
-            const diagnostic: Diagnostic = {
-                severity: DiagnosticSeverity.Error,
-                range: pieLocationToLspRange(checkResult.where, document),
-                message: `Type error in definition ${definition.name}: ${messageToString(checkResult.message)}`,
-                source: 'pie-type-checker'
-            };
-            diagnostics.push(diagnostic);
-        } else if (checkResult instanceof go) {
-            // Successfully type checked - update context to replace claim with definition
-            const definitionCore = checkResult.result;
-            const definitionValue = definitionCore.valOf(contextToEnvironment(context));
-            newContext = extendContext(context, definition.name, new Define(claimBinding.type, definitionValue));
-        }
-        
+        return context;
     } catch (error) {
+        const range = locationToRange(define.location);
         const diagnostic: Diagnostic = {
             severity: DiagnosticSeverity.Error,
-            range: pieLocationToLspRange(definition.location, document),
-            message: `Error in definition ${definition.name}: ${error}`,
-            source: 'pie-type-checker'
+            range,
+            message: `Error in definition '${define.name}': ${error}`,
+            source: 'Pie Language Server'
         };
         diagnostics.push(diagnostic);
+        return context;
     }
-    
-    return { diagnostics, context: newContext };
 }
 
 // Process define-tactically declarations
-function processDefineTacticallyDeclaration(
-    defineTactically: DefineTactically, 
-    context: Context, 
-    document: TextDocument
-): { diagnostics: Diagnostic[]; context: Context } {
-    const diagnostics: Diagnostic[] = [];
-    let newContext = context;
-    
-    // For now, we'll do basic validation - full tactical proof checking would be more complex
+function processDefineTacticallyDeclaration(defineTactically: DefineTactically, context: Context, diagnostics: Diagnostic[]): Context {
     try {
-        const claimBinding = context.get(defineTactically.name);
-        
-        if (!(claimBinding instanceof ContextClaim)) {
+        const proofManager = new ProofManager();
+
+        // Start the proof
+        const startResult = proofManager.startProof(defineTactically.name, context, defineTactically.location);
+        if (startResult instanceof stop) {
             const diagnostic: Diagnostic = {
                 severity: DiagnosticSeverity.Error,
-                range: pieLocationToLspRange(defineTactically.location, document),
-                message: `No claim found for tactical definition: ${defineTactically.name}`,
-                source: 'pie-type-checker'
+                range: {
+                    start: { line: startResult.where.syntax.start.line, character: startResult.where.syntax.start.column },
+                    end: { line: startResult.where.syntax.end.line, character: startResult.where.syntax.end.column }
+                },
+                message: `${startResult.message}`,
+                source: 'Pie Language Server'
             };
             diagnostics.push(diagnostic);
-            return { diagnostics, context };
+            return context;
         }
-        
-        // TODO: Implement tactical proof checking
-        // For now, just accept all tactical definitions as valid
-        const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Information,
-            range: pieLocationToLspRange(defineTactically.location, document),
-            message: `Tactical definition checking not yet implemented for: ${defineTactically.name}`,
-            source: 'pie-type-checker'
-        };
-        diagnostics.push(diagnostic);
-        
+
+        // Apply each tactic
+        for (const tactic of defineTactically.tactics) {
+            const tacticResult = proofManager.applyTactic(tactic);
+            if (tacticResult instanceof stop) {
+                const diagnostic: Diagnostic = {
+                    severity: DiagnosticSeverity.Error,
+                    range: {
+                        start: { line: tacticResult.where.syntax.start.line, character: tacticResult.where.syntax.start.column },
+                        end: { line: tacticResult.where.syntax.end.line, character: tacticResult.where.syntax.end.column }
+                    },
+                    message: `Tactic error: ${tacticResult.message}`,
+                    source: 'Pie Language Server'
+                };
+                diagnostics.push(diagnostic);
+                return context;
+            }
+        }
+
+        // If we get here, the tactical definition succeeded
+        // For now, we'll return the original context as the proof manager
+        // doesn't expose its internal context directly
+        // TODO: Update this when ProofManager provides context access
+        return context;
     } catch (error) {
+        const range = locationToRange(defineTactically.location);
         const diagnostic: Diagnostic = {
             severity: DiagnosticSeverity.Error,
-            range: pieLocationToLspRange(defineTactically.location, document),
-            message: `Error in tactical definition ${defineTactically.name}: ${error}`,
-            source: 'pie-type-checker'
+            range,
+            message: `Error in tactical definition '${defineTactically.name}': ${error}`,
+            source: 'Pie Language Server'
         };
         diagnostics.push(diagnostic);
+        return context;
     }
-    
-    return { diagnostics, context: newContext };
-}
-
-// Process standalone expressions
-function processExpressionDeclaration(
-    expression: S.Source, 
-    context: Context, 
-    document: TextDocument
-): { diagnostics: Diagnostic[]; context: Context } {
-    const diagnostics: Diagnostic[] = [];
-    
-    try {
-        // Try to synthesize a type for the expression
-        const renames: Renaming = new Map();
-        const synthResult = expression.synth(context, renames);
-        
-        if (synthResult instanceof stop) {
-            const diagnostic: Diagnostic = {
-                severity: DiagnosticSeverity.Error,
-                range: pieLocationToLspRange(synthResult.where, document),
-                message: `Type error: ${messageToString(synthResult.message)}`,
-                source: 'pie-type-checker'
-            };
-            diagnostics.push(diagnostic);
-        }
-        // If successful, we don't need to report anything for standalone expressions
-        
-    } catch (error) {
-        const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: pieLocationToLspRange(expression.location, document),
-            message: `Error in expression: ${error}`,
-            source: 'pie-type-checker'
-        };
-        diagnostics.push(diagnostic);
-    }
-    
-    return { diagnostics, context };
-}
-
-// Helper to convert context to environment (you might need to adjust this)
-function contextToEnvironment(context: Context): any {
-    // This should convert your Context to an Environment for evaluation
-    // You'll need to implement this based on your existing context/environment system
-    return {}; // Placeholder
 }
 
 
+async function validateTextDocument(textDocument: TextDocument): Promise<void> {
+	// Perform type checking
+	const result = typeCheckPieDocument(textDocument);
+	let problems = 0;
+	const diagnostics: Diagnostic[] = [];
+
+	// Add type checking diagnostics
+	diagnostics.push(...result.diagnostics);
+	problems += result.diagnostics.length;
+
+	// Send the computed diagnostics to VSCode.
+	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+}
+
+connection.onDidChangeWatchedFiles(_change => {
+	// Monitored files have change in VSCode
+	connection.console.log('We received a file change event');
+});
+
+
+connection.onRequest('custom/documentSymbols', (params: { textDocument: { uri: string } }) => {
+	const symbols = symbolDefinitions.get(params.textDocument.uri);
+	if (symbols) {
+		return Array.from(symbols.entries()).map(([name, def]) => ({
+			name,
+			type: def.type,
+			location: def.location
+		}));
+	}
+	return [];
+});
+
+// Diagnostic provider
+connection.languages.diagnostics.on(async (params) => {
+	const document = documents.get(params.textDocument.uri);
+	if (document !== undefined) {
+		const result = typeCheckPieDocument(document);
+		return {
+			kind: DocumentDiagnosticReportKind.Full,
+			items: result.diagnostics
+		} satisfies DocumentDiagnosticReport;
+	} else {
+		return {
+			kind: DocumentDiagnosticReportKind.Full,
+			items: []
+		} satisfies DocumentDiagnosticReport;
+	}
+});
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

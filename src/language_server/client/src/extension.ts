@@ -16,7 +16,7 @@ export function activate(context: ExtensionContext) {
 
   try {
     // The server is implemented in node
-    let serverModule = context.asAbsolutePath(path.join('out', 'server', 'src', 'server.js'));
+    let serverModule = context.asAbsolutePath(path.join('out', 'src', 'language_server', 'server', 'src', 'server.js'));
     
     // Check if file exists
     const fs = require('fs');
