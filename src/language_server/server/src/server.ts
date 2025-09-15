@@ -27,7 +27,7 @@ import {
 const connection = createConnection(ProposedFeatures.all);
 
 connection.console.log('Pie Language Server starting...');
-console.error('Pie Language Server starting via console.error...'); // This might show up in different places
+console.error('Pie Language Server starting via console.error...');
 
 // Create a simple text document manager.
 const documents = new TextDocuments(TextDocument);
@@ -40,8 +40,6 @@ connection.onInitialize((params: InitializeParams) => {
 	connection.console.log('Server: onInitialize called'); // for test useage
 	const capabilities = params.capabilities;
 
-	// Does the client support the `workspace/configuration` request?
-	// If not, we fall back using global settings.
 	hasConfigurationCapability = !!(
 		capabilities.workspace && !!capabilities.workspace.configuration
 	);
@@ -60,9 +58,11 @@ connection.onInitialize((params: InitializeParams) => {
 			// Tell the client that this server supports code completion.
 			completionProvider: {
 				resolveProvider: true,
-				triggerCharacters: ['(', ' ']  // Add this line
+				triggerCharacters: ['(', ' '] // Trigger character
 			},
+			// Supports hover
 			hoverProvider: true,
+
 			diagnosticProvider: {
 				interFileDependencies: false,
 				workspaceDiagnostics: false
@@ -179,24 +179,6 @@ connection.onDidChangeConfiguration(change => {
 	// to the existing setting, but this is out of scope for this example.
 	connection.languages.diagnostics.refresh();
 });
-
-function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
-	if (!hasConfigurationCapability) {
-		return Promise.resolve(globalSettings);
-	}
-	let result = documentSettings.get(resource);
-	if (!result) {
-		result = connection.workspace.getConfiguration({
-			scopeUri: resource,
-			section: 'languageServerExample'
-		}).then((config) => {
-			// Make sure we always return valid settings, even if config is null
-			return config || defaultSettings;
-		});
-		documentSettings.set(resource, result);
-	}
-	return result;
-}
 
 // Only keep settings for open documents
 documents.onDidClose(e => {

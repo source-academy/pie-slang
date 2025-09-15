@@ -1,0 +1,37 @@
+export declare enum TokenType {
+    LEFT_PAREN = 0,
+    RIGHT_PAREN = 1,
+    LEFT_BRACKET = 2,
+    RIGHT_BRACKET = 3,
+    DOT = 4,
+    HASH_SEMICOLON = 5,
+    IDENTIFIER = 6,
+    NUMBER = 7,
+    BOOLEAN = 8,
+    STRING = 9,
+    IF = 10,
+    LET = 11,
+    COND = 12,
+    ELSE = 13,
+    DEFINE = 14,
+    LAMBDA = 15,
+    APOSTROPHE = 16,// Quote
+    BACKTICK = 17,// Quasiquote
+    COMMA = 18,// Unquote
+    COMMA_AT = 19,// Unquote-splicing
+    QUOTE = 20,
+    QUASIQUOTE = 21,
+    UNQUOTE = 22,
+    UNQUOTE_SPLICING = 23,
+    SET = 24,
+    BEGIN = 25,
+    DELAY = 26,
+    IMPORT = 27,
+    EXPORT = 28,
+    DEFINE_SYNTAX = 29,
+    SYNTAX_RULES = 30,
+    HASH_VECTOR = 31,// vector
+    VECTOR = 32,// depreciated, as i believe
+    EOF = 33
+}
+//# sourceMappingURL=token-type.d.ts.map

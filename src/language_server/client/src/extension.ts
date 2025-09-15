@@ -50,8 +50,7 @@ export function activate(context: ExtensionContext) {
       documentSelector: [
         { scheme: 'file', language: 'pie' },
         { scheme: 'untitled', language: 'pie' }  // Also support untitled files
-    ]
-      
+      ]
     };
 
     // Create the language client and start the client.

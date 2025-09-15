@@ -9,11 +9,14 @@ COPYING
 LICENSE
 yarn.lock
 package-lock.json
-
+.js
+.js.map
+.vsix
 
 compiled
 /doc
 /node_modules
+/src/language_server/node_modules
 /conductor
 /.vscode/
 /dist
