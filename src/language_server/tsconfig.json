@@ -1,22 +1,43 @@
 {
 	"compilerOptions": {
-		"module": "commonjs",
 		"target": "ES2024",
 		"lib": [
-			"ES2024"
+			"ES2024",
+			"WebWorker"
 		],
-		"outDir": "out",
+		"module": "commonjs",
+		"moduleResolution": "node",
 		"sourceMap": true,
-		"types": ["node", "vscode", "jest"],
-		"skipLibCheck": true
+		"strict": false,
+		"outDir": "out",
+		"rootDir": "../..",
+		"baseUrl": "../..",
+		"paths": {
+			"@pie_interpreter/*": ["src/pie_interpreter/*"],
+			"@scheme_parser/*": ["src/scheme_parser/*"],
+			"js-base64": ["src/language_server/node_modules/js-base64"]
+		},
+		"skipLibCheck": true,
+		"skipDefaultLibCheck": true,
+		"noEmitOnError": false,
+		"noImplicitAny": false,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"types": ["node", "vscode", "jest"]
 	},
 	"include": [
-		"client/src/**/*",
-		"server/src/**/*"
+		"client/src/**/*.ts",
+		"server/src/**/*.ts",
+		"../pie_interpreter/**/*.ts",
+		"../scheme_parser/**/*.ts"
 	],
 	"exclude": [
-		"node_modules",
-		".vscode-test",
-		"../../node_modules/@types/mocha"
+		"node_modules/**/*",
+		".vscode-test/**/*",
+		"**/*.test.ts",
+		"**/*.spec.ts",
+		"**/__tests__/**/*",
+		"../../node_modules/**/*",
+		"**/conductor/**/*"
 	]
 }

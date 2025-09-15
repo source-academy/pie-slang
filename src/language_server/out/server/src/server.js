@@ -1,12 +1,95 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_1 = require("vscode-languageserver/node");
 const vscode_languageserver_textdocument_1 = require("vscode-languageserver-textdocument");
+const parser_1 = require("../../pie_interpreter/parser/parser");
+const context_1 = require("../../pie_interpreter/utils/context");
+const utils_1 = require("../../pie_interpreter/types/utils");
+const S = __importStar(require("../../pie_interpreter/types/source"));
+// Cache for type checking results to avoid re-checking unchanged content
+const typeCheckCache = new Map();
+// Helper function to compute a simple hash of document content
+function computeContentHash(content) {
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString();
+}
+// Convert Pie Location to LSP Range
+function pieLocationToLspRange(location, document) {
+    // If the location has source position information
+    if (location.syntax) {
+        const startPos = {
+            line: location.syntax.start.line - 1, // LSP is 0-based, Pie might be 1-based
+            character: location.syntax.start.column
+        };
+        const endPos = {
+            line: location.syntax.end.line - 1,
+            character: location.syntax.end.column
+        };
+        return { start: startPos, end: endPos };
+    }
+    // Fallback: return a range covering the first character if no precise location
+    return {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 1 }
+    };
+}
+// Convert Pie error message to human-readable string
+function messageToString(message) {
+    return message.message.map(part => {
+        if (typeof part === 'string') {
+            return part;
+        }
+        else {
+            // If part is an object with prettyPrint method
+            return part.prettyPrint ? part.prettyPrint() : part.toString();
+        }
+    }).join(' ');
+}
+// Global storage for symbol definitions across all documents
+const symbolDefinitions = new Map();
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = (0, node_1.createConnection)(node_1.ProposedFeatures.all);
 connection.console.log('Pie Language Server starting...');
-console.error('Pie Language Server starting via console.error...'); // This might show up in different places
+console.error('Pie Language Server starting via console.error...');
 // Create a simple text document manager.
 const documents = new node_1.TextDocuments(vscode_languageserver_textdocument_1.TextDocument);
 let hasConfigurationCapability = false;
@@ -15,8 +98,6 @@ let hasDiagnosticRelatedInformationCapability = false;
 connection.onInitialize((params) => {
     connection.console.log('Server: onInitialize called'); // for test useage
     const capabilities = params.capabilities;
-    // Does the client support the `workspace/configuration` request?
-    // If not, we fall back using global settings.
     hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
     hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
     hasDiagnosticRelatedInformationCapability = !!(capabilities.textDocument &&
@@ -28,9 +109,12 @@ connection.onInitialize((params) => {
             // Tell the client that this server supports code completion.
             completionProvider: {
                 resolveProvider: true,
-                triggerCharacters: ['(', ' '] // Add this line
+                triggerCharacters: ['(', ' '] // Trigger character
             },
+            // Supports hover
             hoverProvider: true,
+            // Definition provider
+            definitionProvider: true,
             diagnosticProvider: {
                 interFileDependencies: false,
                 workspaceDiagnostics: false
@@ -116,6 +200,93 @@ function extractUserDefinedSymbols(document) {
     // For now, we'll do a simple extraction of common patterns
     return symbols;
 }
+function extractSymbolDefinitions(document) {
+    const text = document.getText();
+    const symbols = new Map();
+    const uri = document.uri;
+    // More precise regex patterns that capture the entire construct
+    const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+    const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+([^)]+)\)/g;
+    const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+    // Helper function to find the position of a match in the document
+    function getPositionFromOffset(offset) {
+        const beforeMatch = text.substring(0, offset);
+        const lines = beforeMatch.split('\n');
+        return {
+            line: lines.length - 1,
+            character: lines[lines.length - 1].length
+        };
+    }
+    // Helper function to find the end position of a symbol name
+    function getEndPosition(startPos, symbolName) {
+        return {
+            line: startPos.line,
+            character: startPos.character + symbolName.length
+        };
+    }
+    // Extract define statements
+    let match;
+    while ((match = definePattern.exec(text)) !== null) {
+        const name = match[1];
+        const matchStart = match.index + match[0].indexOf(name); // Position of the symbol name
+        const startPos = getPositionFromOffset(matchStart);
+        const endPos = getEndPosition(startPos, name);
+        symbols.set(name, {
+            name,
+            location: {
+                uri,
+                range: {
+                    start: startPos,
+                    end: endPos
+                }
+            },
+            type: 'define'
+        });
+    }
+    // Reset regex lastIndex for reuse
+    claimPattern.lastIndex = 0;
+    // Extract claim statements (with type information)
+    while ((match = claimPattern.exec(text)) !== null) {
+        const name = match[1];
+        const typeInfo = match[2].trim();
+        const matchStart = match.index + match[0].indexOf(name);
+        const startPos = getPositionFromOffset(matchStart);
+        const endPos = getEndPosition(startPos, name);
+        symbols.set(name, {
+            name,
+            location: {
+                uri,
+                range: {
+                    start: startPos,
+                    end: endPos
+                }
+            },
+            type: 'claim',
+            typeInfo
+        });
+    }
+    // Reset regex lastIndex for reuse
+    defineTacticallyPattern.lastIndex = 0;
+    // Extract define-tactically statements
+    while ((match = defineTacticallyPattern.exec(text)) !== null) {
+        const name = match[1];
+        const matchStart = match.index + match[0].indexOf(name);
+        const startPos = getPositionFromOffset(matchStart);
+        const endPos = getEndPosition(startPos, name);
+        symbols.set(name, {
+            name,
+            location: {
+                uri,
+                range: {
+                    start: startPos,
+                    end: endPos
+                }
+            },
+            type: 'define-tactically'
+        });
+    }
+    return symbols;
+}
 connection.onDidChangeConfiguration(change => {
     if (hasConfigurationCapability) {
         // Reset all cached document settings
@@ -129,23 +300,6 @@ connection.onDidChangeConfiguration(change => {
     // to the existing setting, but this is out of scope for this example.
     connection.languages.diagnostics.refresh();
 });
-function getDocumentSettings(resource) {
-    if (!hasConfigurationCapability) {
-        return Promise.resolve(globalSettings);
-    }
-    let result = documentSettings.get(resource);
-    if (!result) {
-        result = connection.workspace.getConfiguration({
-            scopeUri: resource,
-            section: 'languageServerExample'
-        }).then((config) => {
-            // Make sure we always return valid settings, even if config is null
-            return config || defaultSettings;
-        });
-        documentSettings.set(resource, result);
-    }
-    return result;
-}
 // Only keep settings for open documents
 documents.onDidClose(e => {
     documentSymbols.delete(e.document.uri);
@@ -166,13 +320,51 @@ connection.languages.diagnostics.on(async (params) => {
         };
     }
 });
+// Update the document change handler to trigger validation
 documents.onDidChangeContent(change => {
+    // Clear cache for changed document
+    typeCheckCache.delete(change.document.uri);
+    // Extract symbols (existing functionality)
     const symbols = extractUserDefinedSymbols(change.document);
     documentSymbols.set(change.document.uri, symbols);
-    validateTextDocument(change.document);
+    // Trigger validation which will show diagnostics
+    validateTextDocument(change.document).then(diagnostics => {
+        connection.console.log(`Validation complete for ${change.document.uri}: ${diagnostics.length} issues`);
+    }).catch(error => {
+        connection.console.error(`Validation failed for ${change.document.uri}: ${error.message}`);
+    });
 });
+// Handle document open events to initialize symbol tracking
+documents.onDidOpen(event => {
+    const uri = event.document.uri;
+    connection.console.log(`Document opened: ${uri}`);
+    // Extract and store symbol definitions
+    const symbols = extractSymbolDefinitions(event.document);
+    symbolDefinitions.set(uri, symbols);
+    connection.console.log(`Initialized ${symbols.size} symbols for ${uri}`);
+});
+// Clean up cache when file is closed
+documents.onDidClose(event => {
+    const uri = event.document.uri;
+    typeCheckCache.delete(uri);
+    documentSymbols.delete(uri);
+    documentSettings.delete(uri);
+});
+// Updated validateTextDocument function to replace the existing empty one
 async function validateTextDocument(textDocument) {
-    return [];
+    const uri = textDocument.uri;
+    const contentHash = computeContentHash(textDocument.getText());
+    // Check cache first
+    const cached = typeCheckCache.get(uri);
+    if (cached && cached.contentHash === contentHash) {
+        return cached.result.diagnostics;
+    }
+    // Perform type checking
+    const result = typeCheckPieDocument(textDocument);
+    // Cache the result
+    typeCheckCache.set(uri, { contentHash, result });
+    connection.console.log(`Type checked ${uri}: found ${result.diagnostics.length} diagnostics`);
+    return result.diagnostics;
 }
 connection.onDidChangeWatchedFiles(_change => {
     // Monitored files have change in VSCode
@@ -292,6 +484,72 @@ connection.onCompletion((params) => {
     });
     connection.console.log(`Returning ${allCompletions.length} completions (${PIE_KEYWORDS.length} built-in, ${userSymbols.size} user-defined)`);
     return allCompletions;
+});
+// Function to get the word at a given position
+function getWordAtPosition(document, position) {
+    const text = document.getText();
+    const lines = text.split('\n');
+    if (position.line >= lines.length) {
+        return null;
+    }
+    const line = lines[position.line];
+    const character = position.character;
+    if (character >= line.length) {
+        return null;
+    }
+    // Define what constitutes a valid Pie identifier character
+    const identifierRegex = /[a-zA-Z0-9\-_!?*+=<>]/;
+    // Find the start of the word
+    let start = character;
+    while (start > 0 && identifierRegex.test(line[start - 1])) {
+        start--;
+    }
+    // Find the end of the word
+    let end = character;
+    while (end < line.length && identifierRegex.test(line[end])) {
+        end++;
+    }
+    // Return the word if it's not empty and starts with a letter
+    const word = line.substring(start, end);
+    if (word.length > 0 && /[a-zA-Z]/.test(word[0])) {
+        return word;
+    }
+    return null;
+}
+// Handler for Go to Definition requests
+connection.onDefinition((params) => {
+    connection.console.log('===== GO TO DEFINITION TRIGGERED =====');
+    connection.console.log(`Document: ${params.textDocument.uri}`);
+    connection.console.log(`Position: ${params.position.line}:${params.position.character}`);
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        connection.console.log('Document not found');
+        return [];
+    }
+    // Get the word at the cursor position
+    const word = getWordAtPosition(document, params.position);
+    if (!word) {
+        connection.console.log('No word found at position');
+        return [];
+    }
+    connection.console.log(`Looking for definition of: ${word}`);
+    // First, check the current document for definitions
+    const currentDocSymbols = symbolDefinitions.get(params.textDocument.uri);
+    if (currentDocSymbols && currentDocSymbols.has(word)) {
+        const definition = currentDocSymbols.get(word);
+        connection.console.log(`Found definition in current document: ${definition.type}`);
+        return [definition.location];
+    }
+    // Then check all other documents (for workspace-wide definitions)
+    for (const [uri, symbols] of symbolDefinitions) {
+        if (uri !== params.textDocument.uri && symbols.has(word)) {
+            const definition = symbols.get(word);
+            connection.console.log(`Found definition in document ${uri}: ${definition.type}`);
+            return [definition.location];
+        }
+    }
+    connection.console.log(`No definition found for: ${word}`);
+    return [];
 });
 // This handler resolves additional information for the item selected in the completion list.
 connection.onCompletionResolve((item) => {
@@ -741,69 +999,360 @@ const PIE_HOVER_INFO = new Map([
         }]
 ]);
 connection.onHover((params) => {
-    connection.console.log(`Hover requested at ${params.position.line}:${params.position.character}`);
     const document = documents.get(params.textDocument.uri);
     if (!document) {
         return null;
     }
-    // Get the word at the hover position
-    const text = document.getText();
-    const offset = document.offsetAt(params.position);
-    // Find word boundaries
-    let start = offset;
-    let end = offset;
-    // Move start backwards to find word beginning
-    while (start > 0 && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[start - 1])) {
-        start--;
-    }
-    // Handle special case for quoted atoms
-    if (start > 0 && text[start - 1] === "'") {
-        start--;
-    }
-    // Move end forward to find word ending
-    while (end < text.length && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[end])) {
-        end++;
-    }
-    const word = text.substring(start, end);
-    connection.console.log(`Hovering over word: "${word}"`);
-    // Look up hover information
-    const hoverInfo = PIE_HOVER_INFO.get(word);
-    if (!hoverInfo) {
-        // Check if it's a number
-        if (/^\d+$/.test(word)) {
-            return {
-                contents: {
-                    kind: node_1.MarkupKind.Markdown,
-                    value: `**Natural number literal**\n\nRepresents the Nat value ${word}`
-                }
-            };
-        }
-        // Check if it's a quoted atom
-        if (word.startsWith("'")) {
-            return {
-                contents: {
-                    kind: node_1.MarkupKind.Markdown,
-                    value: `**Quoted atom**\n\nType: \`Atom\`\n\nValue: \`${word}\``
-                }
-            };
-        }
+    const word = getWordAtPosition(document, params.position);
+    if (!word) {
         return null;
     }
-    // Build hover content
-    let hoverContent = `**${word}**\n\n${hoverInfo.summary}`;
-    if (hoverInfo.details) {
-        hoverContent += `\n\n${hoverInfo.details}`;
+    // Check for user-defined symbol
+    const currentDocSymbols = symbolDefinitions.get(params.textDocument.uri);
+    let definition;
+    if (currentDocSymbols && currentDocSymbols.has(word)) {
+        definition = currentDocSymbols.get(word);
     }
-    if (hoverInfo.examples) {
-        hoverContent += `\n\n**Examples:**\n\`\`\`pie\n${hoverInfo.examples}\n\`\`\``;
-    }
-    return {
-        contents: {
-            kind: node_1.MarkupKind.Markdown,
-            value: hoverContent
+    else {
+        // Check other documents
+        for (const [uri, symbols] of symbolDefinitions) {
+            if (symbols.has(word)) {
+                definition = symbols.get(word);
+                break;
+            }
         }
+    }
+    if (definition) {
+        let hoverText = `**${word}**\n\n`;
+        hoverText += `Type: ${definition.type}\n`;
+        if (definition.typeInfo) {
+            hoverText += `Signature: \`${definition.typeInfo}\`\n`;
+        }
+        hoverText += `Defined in: ${definition.location.uri}\n`;
+        hoverText += `Location: Line ${definition.location.range.start.line + 1}, Column ${definition.location.range.start.character + 1}`;
+        return {
+            contents: {
+                kind: node_1.MarkupKind.Markdown,
+                value: hoverText
+            }
+        };
+    }
+    // Fall back to built-in hover info if available
+    (params) => {
+        connection.console.log(`Hover requested at ${params.position.line}:${params.position.character}`);
+        const document = documents.get(params.textDocument.uri);
+        if (!document) {
+            return null;
+        }
+        // Get the word at the hover position
+        const text = document.getText();
+        const offset = document.offsetAt(params.position);
+        // Find word boundaries
+        let start = offset;
+        let end = offset;
+        // Move start backwards to find word beginning
+        while (start > 0 && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[start - 1])) {
+            start--;
+        }
+        // Handle special case for quoted atoms
+        if (start > 0 && text[start - 1] === "'") {
+            start--;
+        }
+        // Move end forward to find word ending
+        while (end < text.length && /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/.test(text[end])) {
+            end++;
+        }
+        const word = text.substring(start, end);
+        connection.console.log(`Hovering over word: "${word}"`);
+        // Look up hover information
+        const hoverInfo = PIE_HOVER_INFO.get(word);
+        if (!hoverInfo) {
+            // Check if it's a number
+            if (/^\d+$/.test(word)) {
+                return {
+                    contents: {
+                        kind: node_1.MarkupKind.Markdown,
+                        value: `**Natural number literal**\n\nRepresents the Nat value ${word}`
+                    }
+                };
+            }
+            // Check if it's a quoted atom
+            if (word.startsWith("'")) {
+                return {
+                    contents: {
+                        kind: node_1.MarkupKind.Markdown,
+                        value: `**Quoted atom**\n\nType: \`Atom\`\n\nValue: \`${word}\``
+                    }
+                };
+            }
+            return null;
+        }
+        // Build hover content
+        let hoverContent = `**${word}**\n\n${hoverInfo.summary}`;
+        if (hoverInfo.details) {
+            hoverContent += `\n\n${hoverInfo.details}`;
+        }
+        if (hoverInfo.examples) {
+            hoverContent += `\n\n**Examples:**\n\`\`\`pie\n${hoverInfo.examples}\n\`\`\``;
+        }
+        return {
+            contents: {
+                kind: node_1.MarkupKind.Markdown,
+                value: hoverContent
+            }
+        };
     };
+    return null;
 });
+// Main function to type check a Pie document and return diagnostics
+function typeCheckPieDocument(document) {
+    const text = document.getText();
+    const diagnostics = [];
+    let context = context_1.initCtx;
+    try {
+        // Parse the document into declarations
+        const declarations = parsePieDeclarations(text);
+        // Process each declaration
+        for (const decl of declarations) {
+            const declResult = processDeclaration(decl, context, document);
+            if (declResult.diagnostics.length > 0) {
+                diagnostics.push(...declResult.diagnostics);
+            }
+            // Update context with successful declarations for subsequent type checking
+            context = declResult.context;
+        }
+    }
+    catch (parseError) {
+        // Handle parse errors
+        const diagnostic = {
+            severity: node_1.DiagnosticSeverity.Error,
+            range: {
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: text.length }
+            },
+            message: `Parse error: ${parseError}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    return { diagnostics, context };
+}
+// Parse the document into individual declarations
+function parsePieDeclarations(text) {
+    const declarations = [];
+    try {
+        // Use your existing scheme parser to get the AST
+        const asts = (0, parser_1.schemeParse)(text);
+        for (const ast of asts) {
+            try {
+                const declaration = parser_1.pieDeclarationParser.parseDeclaration(ast);
+                declarations.push(declaration);
+            }
+            catch (error) {
+                // Individual declaration parse error - we'll handle this in processDeclaration
+                console.error('Failed to parse declaration:', error);
+            }
+        }
+    }
+    catch (error) {
+        console.error('Failed to parse document:', error);
+        throw error;
+    }
+    return declarations;
+}
+// Process a single declaration and return diagnostics + updated context
+function processDeclaration(declaration, context, document) {
+    const diagnostics = [];
+    let newContext = context;
+    try {
+        if (declaration instanceof parser_1.Claim) {
+            const result = processClaimDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            newContext = result.context;
+        }
+        else if (declaration instanceof parser_1.Definition) {
+            const result = processDefinitionDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            newContext = result.context;
+        }
+        else if (declaration instanceof parser_1.DefineTactically) {
+            const result = processDefineTacticallyDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            newContext = result.context;
+        }
+        else if (declaration instanceof S.Source) {
+            // Handle standalone expressions
+            const result = processExpressionDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            // Don't update context for standalone expressions
+        }
+    }
+    catch (error) {
+        const diagnostic = {
+            severity: node_1.DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(declaration.location, document),
+            message: `Error processing declaration: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    return { diagnostics, context: newContext };
+}
+// Process claim declarations
+function processClaimDeclaration(claim, context, document) {
+    const diagnostics = [];
+    let newContext = context;
+    try {
+        // Type check the type expression
+        const renames = new Map();
+        const typeResult = claim.type.isType(context, renames);
+        if (typeResult instanceof utils_1.stop) {
+            const diagnostic = {
+                severity: node_1.DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(typeResult.where, document),
+                message: `Type error in claim: ${messageToString(typeResult.message)}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+        }
+        else if (typeResult instanceof utils_1.go) {
+            // Successfully type checked - add to context
+            const typeCore = typeResult.result;
+            const typeValue = typeCore.valOf(contextToEnvironment(context));
+            newContext = (0, context_1.extendContext)(context, claim.name, new context_1.Claim(typeValue));
+        }
+    }
+    catch (error) {
+        const diagnostic = {
+            severity: node_1.DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(claim.location, document),
+            message: `Error in claim ${claim.name}: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    return { diagnostics, context: newContext };
+}
+// Process definition declarations
+function processDefinitionDeclaration(definition, context, document) {
+    const diagnostics = [];
+    let newContext = context;
+    try {
+        // Check if there's a corresponding claim
+        const claimBinding = context.get(definition.name);
+        if (!(claimBinding instanceof context_1.Claim)) {
+            const diagnostic = {
+                severity: node_1.DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(definition.location, document),
+                message: `No claim found for definition: ${definition.name}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+            return { diagnostics, context };
+        }
+        // Type check the definition against the claimed type
+        const renames = new Map();
+        const checkResult = definition.expr.check(context, renames, claimBinding.type);
+        if (checkResult instanceof utils_1.stop) {
+            const diagnostic = {
+                severity: node_1.DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(checkResult.where, document),
+                message: `Type error in definition ${definition.name}: ${messageToString(checkResult.message)}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+        }
+        else if (checkResult instanceof utils_1.go) {
+            // Successfully type checked - update context to replace claim with definition
+            const definitionCore = checkResult.result;
+            const definitionValue = definitionCore.valOf(contextToEnvironment(context));
+            newContext = (0, context_1.extendContext)(context, definition.name, new context_1.Define(claimBinding.type, definitionValue));
+        }
+    }
+    catch (error) {
+        const diagnostic = {
+            severity: node_1.DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(definition.location, document),
+            message: `Error in definition ${definition.name}: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    return { diagnostics, context: newContext };
+}
+// Process define-tactically declarations
+function processDefineTacticallyDeclaration(defineTactically, context, document) {
+    const diagnostics = [];
+    let newContext = context;
+    // For now, we'll do basic validation - full tactical proof checking would be more complex
+    try {
+        const claimBinding = context.get(defineTactically.name);
+        if (!(claimBinding instanceof context_1.Claim)) {
+            const diagnostic = {
+                severity: node_1.DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(defineTactically.location, document),
+                message: `No claim found for tactical definition: ${defineTactically.name}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+            return { diagnostics, context };
+        }
+        // TODO: Implement tactical proof checking
+        // For now, just accept all tactical definitions as valid
+        const diagnostic = {
+            severity: node_1.DiagnosticSeverity.Information,
+            range: pieLocationToLspRange(defineTactically.location, document),
+            message: `Tactical definition checking not yet implemented for: ${defineTactically.name}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    catch (error) {
+        const diagnostic = {
+            severity: node_1.DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(defineTactically.location, document),
+            message: `Error in tactical definition ${defineTactically.name}: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    return { diagnostics, context: newContext };
+}
+// Process standalone expressions
+function processExpressionDeclaration(expression, context, document) {
+    const diagnostics = [];
+    try {
+        // Try to synthesize a type for the expression
+        const renames = new Map();
+        const synthResult = expression.synth(context, renames);
+        if (synthResult instanceof utils_1.stop) {
+            const diagnostic = {
+                severity: node_1.DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(synthResult.where, document),
+                message: `Type error: ${messageToString(synthResult.message)}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+        }
+        // If successful, we don't need to report anything for standalone expressions
+    }
+    catch (error) {
+        const diagnostic = {
+            severity: node_1.DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(expression.location, document),
+            message: `Error in expression: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    return { diagnostics, context };
+}
+// Helper to convert context to environment (you might need to adjust this)
+function contextToEnvironment(context) {
+    // This should convert your Context to an Environment for evaluation
+    // You'll need to implement this based on your existing context/environment system
+    return {}; // Placeholder
+}
 // Make the text document manager listen on the connection
 // for open, change and close text document events
 documents.listen(connection);

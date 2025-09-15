@@ -13,14 +13,101 @@ import {
 	InitializeResult,
 	DocumentDiagnosticReportKind,
 	type DocumentDiagnosticReport,
+
 	Hover,
   HoverParams,
-  MarkupKind
+  MarkupKind,
+
+	Location,
+	Position,
+	Range,
+	DefinitionParams,
 } from 'vscode-languageserver/node';
 
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
+
+import { pieDeclarationParser, Declaration, Claim, Definition, DefineTactically, schemeParse} from '../../../pie_interpreter/parser/parser';
+import { Context, initCtx, extendContext, Define, Claim as ContextClaim } from '../../../pie_interpreter/utils/context';
+import { go, stop, Message} from '../../../pie_interpreter/types/utils';
+import { Renaming } from '../../../pie_interpreter/typechecker/utils';
+import * as S from '../../../pie_interpreter/types/source';
+import { Location as PieLocation } from '../../../pie_interpreter/utils/locations';
+import { Core } from '../../../pie_interpreter/types/core';
+
+
+// Interface for type checking results
+interface TypeCheckResult {
+    diagnostics: Diagnostic[];
+    context: Context; // For use in subsequent type checking
+}
+
+// Interface to store symbol definition information
+interface SymbolDefinition {
+	name: string;
+	location: Location;
+	type: 'claim' | 'define' | 'define-tactically';
+	typeInfo?: string; // For claims, store the type
+}
+
+
+// Cache for type checking results to avoid re-checking unchanged content
+const typeCheckCache = new Map<string, { 
+    contentHash: string; 
+    result: TypeCheckResult
+}>();
+
+// Helper function to compute a simple hash of document content
+function computeContentHash(content: string): string {
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString();
+}
+
+// Convert Pie Location to LSP Range
+function pieLocationToLspRange(location: PieLocation, document: TextDocument): Range {
+    // If the location has source position information
+    if (location.syntax) {
+        const startPos: Position = {
+            line: location.syntax.start.line - 1, // LSP is 0-based, Pie might be 1-based
+            character: location.syntax.start.column
+        };
+        
+        const endPos: Position = {
+            line: location.syntax.end.line - 1,
+            character: location.syntax.end.column
+        };
+        
+        return { start: startPos, end: endPos };
+    }
+    
+    // Fallback: return a range covering the first character if no precise location
+    return {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 1 }
+    };
+}
+
+// Convert Pie error message to human-readable string
+function messageToString(message: Message): string {
+    return message.message.map(part => {
+        if (typeof part === 'string') {
+            return part;
+        } else {
+            // If part is an object with prettyPrint method
+            return (part as Core).prettyPrint ? (part as Core).prettyPrint() : part.toString();
+        }
+    }).join(' ');
+}
+
+
+// Global storage for symbol definitions across all documents
+const symbolDefinitions = new Map<string, Map<string, SymbolDefinition>>();
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -63,6 +150,8 @@ connection.onInitialize((params: InitializeParams) => {
 			// Supports hover
 			hoverProvider: true,
 
+			// Definition provider
+			definitionProvider: true,
 			diagnosticProvider: {
 				interFileDependencies: false,
 				workspaceDiagnostics: false
@@ -165,6 +254,107 @@ function extractUserDefinedSymbols(document: TextDocument): Map<string, Completi
 	return symbols;
 }
 
+
+function extractSymbolDefinitions(document: TextDocument): Map<string, SymbolDefinition> {
+	const text = document.getText();
+	const symbols = new Map<string, SymbolDefinition>();
+	const uri = document.uri;
+	
+	// More precise regex patterns that capture the entire construct
+	const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+	const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+([^)]+)\)/g;
+	const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/g;
+	
+	// Helper function to find the position of a match in the document
+	function getPositionFromOffset(offset: number): Position {
+		const beforeMatch = text.substring(0, offset);
+		const lines = beforeMatch.split('\n');
+		return {
+			line: lines.length - 1,
+			character: lines[lines.length - 1].length
+		};
+	}
+	
+	// Helper function to find the end position of a symbol name
+	function getEndPosition(startPos: Position, symbolName: string): Position {
+		return {
+			line: startPos.line,
+			character: startPos.character + symbolName.length
+		};
+	}
+	
+	// Extract define statements
+	let match;
+	while ((match = definePattern.exec(text)) !== null) {
+		const name = match[1];
+		const matchStart = match.index + match[0].indexOf(name); // Position of the symbol name
+		const startPos = getPositionFromOffset(matchStart);
+		const endPos = getEndPosition(startPos, name);
+		
+		symbols.set(name, {
+			name,
+			location: {
+				uri,
+				range: {
+					start: startPos,
+					end: endPos
+				}
+			},
+			type: 'define'
+		});
+	}
+	
+	// Reset regex lastIndex for reuse
+	claimPattern.lastIndex = 0;
+	
+	// Extract claim statements (with type information)
+	while ((match = claimPattern.exec(text)) !== null) {
+		const name = match[1];
+		const typeInfo = match[2].trim();
+		const matchStart = match.index + match[0].indexOf(name);
+		const startPos = getPositionFromOffset(matchStart);
+		const endPos = getEndPosition(startPos, name);
+		
+		symbols.set(name, {
+			name,
+			location: {
+				uri,
+				range: {
+					start: startPos,
+					end: endPos
+				}
+			},
+			type: 'claim',
+			typeInfo
+		});
+	}
+	
+	// Reset regex lastIndex for reuse
+	defineTacticallyPattern.lastIndex = 0;
+	
+	// Extract define-tactically statements
+	while ((match = defineTacticallyPattern.exec(text)) !== null) {
+		const name = match[1];
+		const matchStart = match.index + match[0].indexOf(name);
+		const startPos = getPositionFromOffset(matchStart);
+		const endPos = getEndPosition(startPos, name);
+		
+		symbols.set(name, {
+			name,
+			location: {
+				uri,
+				range: {
+					start: startPos,
+					end: endPos
+				}
+			},
+			type: 'define-tactically'
+		});
+	}
+	
+	return symbols;
+}
+
 connection.onDidChangeConfiguration(change => {
 	if (hasConfigurationCapability) {
 		// Reset all cached document settings
@@ -202,15 +392,63 @@ connection.languages.diagnostics.on(async (params) => {
 	}
 });
 
+// Update the document change handler to trigger validation
 documents.onDidChangeContent(change => {
-	const symbols = extractUserDefinedSymbols(change.document);
-	documentSymbols.set(change.document.uri, symbols);
-	
-	validateTextDocument(change.document);
+    // Clear cache for changed document
+    typeCheckCache.delete(change.document.uri);
+    
+    // Extract symbols (existing functionality)
+    const symbols = extractUserDefinedSymbols(change.document);
+    documentSymbols.set(change.document.uri, symbols);
+    
+    // Trigger validation which will show diagnostics
+    validateTextDocument(change.document).then(diagnostics => {
+        connection.console.log(`Validation complete for ${change.document.uri}: ${diagnostics.length} issues`);
+    }).catch(error => {
+        connection.console.error(`Validation failed for ${change.document.uri}: ${error.message}`);
+    });
 });
 
+// Handle document open events to initialize symbol tracking
+documents.onDidOpen(event => {
+	const uri = event.document.uri;
+	connection.console.log(`Document opened: ${uri}`);
+	
+	// Extract and store symbol definitions
+	const symbols = extractSymbolDefinitions(event.document);
+	symbolDefinitions.set(uri, symbols);
+	
+	connection.console.log(`Initialized ${symbols.size} symbols for ${uri}`);
+});
+
+// Clean up cache when file is closed
+documents.onDidClose(event => {
+    const uri = event.document.uri;
+    typeCheckCache.delete(uri);
+    documentSymbols.delete(uri);
+    documentSettings.delete(uri);
+});
+
+// Updated validateTextDocument function to replace the existing empty one
 async function validateTextDocument(textDocument: TextDocument): Promise<Diagnostic[]> {
-	return [];
+    const uri = textDocument.uri;
+    const contentHash = computeContentHash(textDocument.getText());
+    
+    // Check cache first
+    const cached = typeCheckCache.get(uri);
+    if (cached && cached.contentHash === contentHash) {
+        return cached.result.diagnostics;
+    }
+    
+    // Perform type checking
+    const result = typeCheckPieDocument(textDocument);
+    
+    // Cache the result
+    typeCheckCache.set(uri, { contentHash, result });
+    
+    connection.console.log(`Type checked ${uri}: found ${result.diagnostics.length} diagnostics`);
+    
+    return result.diagnostics;
 }
 
 connection.onDidChangeWatchedFiles(_change => {
@@ -357,6 +595,88 @@ connection.onCompletion(
 	}
 );
 
+
+// Function to get the word at a given position
+function getWordAtPosition(document: TextDocument, position: Position): string | null {
+	const text = document.getText();
+	const lines = text.split('\n');
+	
+	if (position.line >= lines.length) {
+		return null;
+	}
+	
+	const line = lines[position.line];
+	const character = position.character;
+	
+	if (character >= line.length) {
+		return null;
+	}
+	
+	// Define what constitutes a valid Pie identifier character
+	const identifierRegex = /[a-zA-Z0-9\-_!?*+=<>]/;
+	
+	// Find the start of the word
+	let start = character;
+	while (start > 0 && identifierRegex.test(line[start - 1])) {
+		start--;
+	}
+	
+	// Find the end of the word
+	let end = character;
+	while (end < line.length && identifierRegex.test(line[end])) {
+		end++;
+	}
+	
+	// Return the word if it's not empty and starts with a letter
+	const word = line.substring(start, end);
+	if (word.length > 0 && /[a-zA-Z]/.test(word[0])) {
+		return word;
+	}
+	
+	return null;
+}
+
+// Handler for Go to Definition requests
+connection.onDefinition((params: DefinitionParams): Location[] => {
+	connection.console.log('===== GO TO DEFINITION TRIGGERED =====');
+	connection.console.log(`Document: ${params.textDocument.uri}`);
+	connection.console.log(`Position: ${params.position.line}:${params.position.character}`);
+	
+	const document = documents.get(params.textDocument.uri);
+	if (!document) {
+		connection.console.log('Document not found');
+		return [];
+	}
+	
+	// Get the word at the cursor position
+	const word = getWordAtPosition(document, params.position);
+	if (!word) {
+		connection.console.log('No word found at position');
+		return [];
+	}
+	
+	connection.console.log(`Looking for definition of: ${word}`);
+	
+	// First, check the current document for definitions
+	const currentDocSymbols = symbolDefinitions.get(params.textDocument.uri);
+	if (currentDocSymbols && currentDocSymbols.has(word)) {
+		const definition = currentDocSymbols.get(word)!;
+		connection.console.log(`Found definition in current document: ${definition.type}`);
+		return [definition.location];
+	}
+	
+	// Then check all other documents (for workspace-wide definitions)
+	for (const [uri, symbols] of symbolDefinitions) {
+		if (uri !== params.textDocument.uri && symbols.has(word)) {
+			const definition = symbols.get(word)!;
+			connection.console.log(`Found definition in document ${uri}: ${definition.type}`);
+			return [definition.location];
+		}
+	}
+	
+	connection.console.log(`No definition found for: ${word}`);
+	return [];
+});
 
 // This handler resolves additional information for the item selected in the completion list.
 connection.onCompletionResolve(
@@ -813,8 +1133,55 @@ const PIE_HOVER_INFO: Map<string, { summary: string; details: string; examples?:
   }]
 ]);
 
-connection.onHover(
-  (params: HoverParams): Hover | null => {
+connection.onHover((params: HoverParams): Hover | null => {
+	const document = documents.get(params.textDocument.uri);
+	if (!document) {
+		return null;
+	}
+	
+	const word = getWordAtPosition(document, params.position);
+	if (!word) {
+		return null;
+	}
+	
+	// Check for user-defined symbol
+	const currentDocSymbols = symbolDefinitions.get(params.textDocument.uri);
+	let definition: SymbolDefinition | undefined;
+	
+	if (currentDocSymbols && currentDocSymbols.has(word)) {
+		definition = currentDocSymbols.get(word);
+	} else {
+		// Check other documents
+		for (const [uri, symbols] of symbolDefinitions) {
+			if (symbols.has(word)) {
+				definition = symbols.get(word);
+				break;
+			}
+		}
+	}
+	
+	if (definition) {
+		let hoverText = `**${word}**\n\n`;
+		hoverText += `Type: ${definition.type}\n`;
+		
+		if (definition.typeInfo) {
+			hoverText += `Signature: \`${definition.typeInfo}\`\n`;
+		}
+		
+		hoverText += `Defined in: ${definition.location.uri}\n`;
+		hoverText += `Location: Line ${definition.location.range.start.line + 1}, Column ${definition.location.range.start.character + 1}`;
+		
+		return {
+			contents: {
+				kind: MarkupKind.Markdown,
+				value: hoverText
+			}
+		};
+	}
+	
+	// Fall back to built-in hover info if available
+
+	(params: HoverParams): Hover | null => {
     connection.console.log(`Hover requested at ${params.position.line}:${params.position.character}`);
     
     const document = documents.get(params.textDocument.uri);
@@ -892,7 +1259,310 @@ connection.onHover(
       }
     };
   }
-);
+	return null;
+});
+
+// Main function to type check a Pie document and return diagnostics
+function typeCheckPieDocument(document: TextDocument): TypeCheckResult {
+    const text = document.getText();
+    const diagnostics: Diagnostic[] = [];
+    let context = initCtx;
+    
+    try {
+        // Parse the document into declarations
+        const declarations = parsePieDeclarations(text);
+        
+        // Process each declaration
+        for (const decl of declarations) {
+            const declResult = processDeclaration(decl, context, document);
+            
+            if (declResult.diagnostics.length > 0) {
+                diagnostics.push(...declResult.diagnostics);
+            }
+            
+            // Update context with successful declarations for subsequent type checking
+            context = declResult.context;
+        }
+        
+    } catch (parseError) {
+        // Handle parse errors
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Error,
+            range: {
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: text.length }
+            },
+            message: `Parse error: ${parseError}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    
+    return { diagnostics, context };
+}
+
+// Parse the document into individual declarations
+function parsePieDeclarations(text: string): Declaration[] {
+    const declarations: Declaration[] = [];
+    
+    try {
+        // Use your existing scheme parser to get the AST
+        const asts = schemeParse(text);
+        
+        for (const ast of asts) {
+            try {
+                const declaration = pieDeclarationParser.parseDeclaration(ast);
+                declarations.push(declaration);
+            } catch (error) {
+                // Individual declaration parse error - we'll handle this in processDeclaration
+                console.error('Failed to parse declaration:', error);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Failed to parse document:', error);
+        throw error;
+    }
+    
+    return declarations;
+}
+
+// Process a single declaration and return diagnostics + updated context
+function processDeclaration(
+    declaration: Declaration, 
+    context: Context, 
+    document: TextDocument
+): { diagnostics: Diagnostic[]; context: Context } {
+    const diagnostics: Diagnostic[] = [];
+    let newContext = context;
+    
+    try {
+        if (declaration instanceof Claim) {
+            const result = processClaimDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            newContext = result.context;
+            
+        } else if (declaration instanceof Definition) {
+            const result = processDefinitionDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            newContext = result.context;
+            
+        } else if (declaration instanceof DefineTactically) {
+            const result = processDefineTacticallyDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            newContext = result.context;
+            
+        } else if (declaration instanceof S.Source) {
+            // Handle standalone expressions
+            const result = processExpressionDeclaration(declaration, context, document);
+            diagnostics.push(...result.diagnostics);
+            // Don't update context for standalone expressions
+            
+        }
+        
+    } catch (error) {
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(declaration.location, document),
+            message: `Error processing declaration: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    
+    return { diagnostics, context: newContext };
+}
+
+// Process claim declarations
+function processClaimDeclaration(
+    claim: Claim, 
+    context: Context, 
+    document: TextDocument
+): { diagnostics: Diagnostic[]; context: Context } {
+    const diagnostics: Diagnostic[] = [];
+    let newContext = context;
+    
+    try {
+        // Type check the type expression
+        const renames: Renaming = new Map();
+        const typeResult = claim.type.isType(context, renames);
+        
+        if (typeResult instanceof stop) {
+            const diagnostic: Diagnostic = {
+                severity: DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(typeResult.where, document),
+                message: `Type error in claim: ${messageToString(typeResult.message)}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+        } else if (typeResult instanceof go) {
+            // Successfully type checked - add to context
+            const typeCore = typeResult.result;
+            const typeValue = typeCore.valOf(contextToEnvironment(context));
+            newContext = extendContext(context, claim.name, new ContextClaim(typeValue));
+        }
+        
+    } catch (error) {
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(claim.location, document),
+            message: `Error in claim ${claim.name}: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    
+    return { diagnostics, context: newContext };
+}
+
+// Process definition declarations
+function processDefinitionDeclaration(
+    definition: Definition, 
+    context: Context, 
+    document: TextDocument
+): { diagnostics: Diagnostic[]; context: Context } {
+    const diagnostics: Diagnostic[] = [];
+    let newContext = context;
+    
+    try {
+        // Check if there's a corresponding claim
+        const claimBinding = context.get(definition.name);
+        
+        if (!(claimBinding instanceof ContextClaim)) {
+            const diagnostic: Diagnostic = {
+                severity: DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(definition.location, document),
+                message: `No claim found for definition: ${definition.name}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+            return { diagnostics, context };
+        }
+        
+        // Type check the definition against the claimed type
+        const renames: Renaming = new Map();
+        const checkResult = definition.expr.check(context, renames, claimBinding.type);
+        
+        if (checkResult instanceof stop) {
+            const diagnostic: Diagnostic = {
+                severity: DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(checkResult.where, document),
+                message: `Type error in definition ${definition.name}: ${messageToString(checkResult.message)}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+        } else if (checkResult instanceof go) {
+            // Successfully type checked - update context to replace claim with definition
+            const definitionCore = checkResult.result;
+            const definitionValue = definitionCore.valOf(contextToEnvironment(context));
+            newContext = extendContext(context, definition.name, new Define(claimBinding.type, definitionValue));
+        }
+        
+    } catch (error) {
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(definition.location, document),
+            message: `Error in definition ${definition.name}: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    
+    return { diagnostics, context: newContext };
+}
+
+// Process define-tactically declarations
+function processDefineTacticallyDeclaration(
+    defineTactically: DefineTactically, 
+    context: Context, 
+    document: TextDocument
+): { diagnostics: Diagnostic[]; context: Context } {
+    const diagnostics: Diagnostic[] = [];
+    let newContext = context;
+    
+    // For now, we'll do basic validation - full tactical proof checking would be more complex
+    try {
+        const claimBinding = context.get(defineTactically.name);
+        
+        if (!(claimBinding instanceof ContextClaim)) {
+            const diagnostic: Diagnostic = {
+                severity: DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(defineTactically.location, document),
+                message: `No claim found for tactical definition: ${defineTactically.name}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+            return { diagnostics, context };
+        }
+        
+        // TODO: Implement tactical proof checking
+        // For now, just accept all tactical definitions as valid
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Information,
+            range: pieLocationToLspRange(defineTactically.location, document),
+            message: `Tactical definition checking not yet implemented for: ${defineTactically.name}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+        
+    } catch (error) {
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(defineTactically.location, document),
+            message: `Error in tactical definition ${defineTactically.name}: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    
+    return { diagnostics, context: newContext };
+}
+
+// Process standalone expressions
+function processExpressionDeclaration(
+    expression: S.Source, 
+    context: Context, 
+    document: TextDocument
+): { diagnostics: Diagnostic[]; context: Context } {
+    const diagnostics: Diagnostic[] = [];
+    
+    try {
+        // Try to synthesize a type for the expression
+        const renames: Renaming = new Map();
+        const synthResult = expression.synth(context, renames);
+        
+        if (synthResult instanceof stop) {
+            const diagnostic: Diagnostic = {
+                severity: DiagnosticSeverity.Error,
+                range: pieLocationToLspRange(synthResult.where, document),
+                message: `Type error: ${messageToString(synthResult.message)}`,
+                source: 'pie-type-checker'
+            };
+            diagnostics.push(diagnostic);
+        }
+        // If successful, we don't need to report anything for standalone expressions
+        
+    } catch (error) {
+        const diagnostic: Diagnostic = {
+            severity: DiagnosticSeverity.Error,
+            range: pieLocationToLspRange(expression.location, document),
+            message: `Error in expression: ${error}`,
+            source: 'pie-type-checker'
+        };
+        diagnostics.push(diagnostic);
+    }
+    
+    return { diagnostics, context };
+}
+
+// Helper to convert context to environment (you might need to adjust this)
+function contextToEnvironment(context: Context): any {
+    // This should convert your Context to an Environment for evaluation
+    // You'll need to implement this based on your existing context/environment system
+    return {}; // Placeholder
+}
+
+
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
