@@ -176,7 +176,7 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
   if (ctx.has(varName)) {
     // CHANGE: REMOVE ctx LOOP AFTER FIXING THE BUG
-    for (const [x, binder] of ctx) {
+    for (const [x, ] of ctx) {
       if (x === varName) {
         //console.log(`binding ${varName} to ${binder}`);
         return extendContext(ctx, varName, new Free(tv));
@@ -213,4 +213,3 @@ export function isSerializableContext(ctx: any): ctx is SerializableContext {
           );
   });
 }
-

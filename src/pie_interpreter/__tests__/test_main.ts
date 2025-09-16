@@ -499,6 +499,8 @@ describe("Or_demo", () => {
   it("list length", () => {
     const src =
       `
+    (claim mot-replicate (-> U Nat U))
+    (define mot-replicate (lambda (E k) (Vec E k)))
     (claim step-replicate 
       (Pi ((E U) (e E) (l-1 Nat)) 
         (-> (mot-replicate E l-1) (mot-replicate E (add1 l-1)))))

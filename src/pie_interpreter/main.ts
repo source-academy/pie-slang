@@ -1,5 +1,5 @@
 import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from './parser/parser'
-import { checkSame, normType, represent } from './typechecker/represent';
+import { checkSame, represent } from './typechecker/represent';
 import { go, stop } from './types/utils';
 import { prettyPrintCore } from './unparser/pretty';
 import { addClaimToContext, addDefineToContext, Define, initCtx } from './utils/context';
@@ -7,7 +7,7 @@ import { The } from './types/core';
 import { readBack } from './evaluator/utils';
 import { ProofManager } from './tactics/proofmanager';
 
-export function evaluatePie(str): string {
+export function evaluatePie(str: string): string {
   const astList = schemeParse(str);
   let ctx = initCtx;
   let output = "";

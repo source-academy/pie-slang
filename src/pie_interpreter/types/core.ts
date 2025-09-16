@@ -55,7 +55,7 @@ export class The extends Core {
 
 export class Universe extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Universe();
   }
 
@@ -71,7 +71,7 @@ export class Universe extends Core {
 
 export class Nat extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Nat();
   }
 
@@ -87,7 +87,7 @@ export class Nat extends Core {
 
 export class Zero extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Zero();
   }
 
@@ -296,7 +296,7 @@ export class Lambda extends Core {
 
 export class Atom extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Atom();
   }
 
@@ -315,7 +315,7 @@ export class Quote extends Core {
     public sym: string
   ) { super() }
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Quote(this.sym);
   }
 
@@ -441,7 +441,7 @@ export class ListCons extends Core {
 
 export class Nil extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Nil();
   }
 
@@ -537,7 +537,7 @@ export class IndList extends Core {
 
 export class Trivial extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Trivial();
   }
 
@@ -553,7 +553,7 @@ export class Trivial extends Core {
 
 export class Sole extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Sole();
   }
 
@@ -569,7 +569,7 @@ export class Sole extends Core {
 
 export class Absurd extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Absurd();
   }
 
@@ -833,7 +833,7 @@ export class VecCons extends Core {
 
 export class VecNil extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.VecNil();
   }
 

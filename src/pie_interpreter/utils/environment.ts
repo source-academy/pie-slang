@@ -28,7 +28,6 @@ export type Environment = Map<string, Value>;
     if (env.has(name)) {
       return env.get(name)!;
     } else {
-      throw new Error(`Variable ${name} not in env: ${JSON.stringify(this)}`);
+      throw new Error(`Variable ${name} not in env: ${JSON.stringify(env)}`);
     }
   }
-

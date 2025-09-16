@@ -88,7 +88,7 @@ export class Message {
   }
 }
 
-export abstract class Perhaps<T> { 
+export abstract class Perhaps<T> { // eslint-disable-line @typescript-eslint/no-unused-vars
 
 }
 

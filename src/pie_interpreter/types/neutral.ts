@@ -34,7 +34,7 @@ export abstract class Neutral {
 
   public abstract readBackNeutral(context: Context): C.Core;
 
-  public abstract prettyPrint();
+  public abstract prettyPrint(): string;
 
   public toString() {
     return this.prettyPrint();
@@ -46,7 +46,7 @@ export class Variable extends Neutral {
     super();
   }
 
-  public readBackNeutral(context: Context): C.Core {
+  public readBackNeutral(_: Context): C.Core {
     return new C.VarName(this.name);
   }
 
