@@ -1,0 +1,9 @@
+(claim identity (-> Nat Nat))
+(define identity (λ (n) n))
+
+(claim double (-> Nat Nat))
+(define double (λ (n) (add1 (add1 n))))
+
+;; Usage
+(identity zero)
+(double (add1 zero))
