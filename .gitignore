@@ -9,6 +9,7 @@ yarn.lock
 package-lock.json
 /src/**/*.js
 /src/**/*.js.map
+/src/**/*.d.ts.map
 *.vsix
 out
 

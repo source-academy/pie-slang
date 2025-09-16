@@ -1,12 +1,6 @@
 import 'jest';
 
 import {evaluatePie} from '../main'
-import { Claim, pieDeclarationParser, schemeParse } from '../parser/parser';
-import { addClaimToContext, initCtx } from '../utils/context';
-import { ProofManager } from '../tactics/proofmanager';
-import { ExactTactic, IntroTactic } from '../tactics/tactics';
-import { Name } from '../types/source';
-import { go } from '../types/utils';
 
 describe("elimlist", () => {
   it("Basic", () => {
