@@ -1,17 +1,19 @@
 *.css
 .DS_Store
 *.cjs
-*.rkt
 *~
 *#
 .travis.yml
 COPYING
-LICENSE
 yarn.lock
 package-lock.json
-
+.js
+.js.map
+.vsix
 
 compiled
 /doc
-/node_modules
+node_modules
+/conductor
 /.vscode/
+/dist
