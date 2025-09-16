@@ -43,11 +43,11 @@
       "patterns": [
         {
           "name": "keyword.control.tactics.pie",
-          "match": "\\b(define-tactically|exact|intro|exists|elimNat|elimList|elimVec|elimEqual|elimEither|elimAbsurd|split)\\b"
+          "match": "(?<![a-zA-Z0-9_-])(define-tactically|exact|intro|exists|elimNat|elimList|elimVec|elimEqual|elimEither|elimAbsurd|split)(?![a-zA-Z0-9_-])"
         },
         {
           "name": "keyword.control.pie",
-          "match": "\\b(lambda|λ|Pi|Π|Sigma|Σ|define|claim|check-same|the|which-Nat|iter-Nat|rec-Nat|ind-Nat|rec-List|ind-List|ind-Vec|ind-Either|ind-Absurd|replace|trans|cong|symm|TODO)\\b"
+          "match": "(?<![a-zA-Z0-9_-])(lambda|λ|Pi|Π|Sigma|Σ|define|claim|check-same|the|which-Nat|iter-Nat|rec-Nat|ind-Nat|rec-List|ind-List|ind-Vec|ind-Either|ind-Absurd|replace|trans|cong|symm|TODO)(?![a-zA-Z0-9_-])"
         }
       ]
     },
@@ -55,7 +55,7 @@
       "patterns": [
         {
           "name": "storage.type.pie",
-          "match": "\\b(U|Nat|Atom|List|Vec|Either|Trivial|Absurd|Pair)\\b"
+          "match": "\\b(U|Nat|Atom|List|Vec|Either|Trivial|Absurd|Pair|=)\\b"
         },
         {
           "name": "storage.type.arrow.pie",

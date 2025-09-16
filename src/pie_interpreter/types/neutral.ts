@@ -46,7 +46,7 @@ export class Variable extends Neutral {
     super();
   }
 
-  public readBackNeutral(context: Context): C.Core {
+  public readBackNeutral(_: Context): C.Core {
     return new C.VarName(this.name);
   }
 
