@@ -166,7 +166,7 @@ export class ProofState {
     }
   }
 
-  private nextGoalAux(curParent): GoalNode {
+  private nextGoalAux(curParent): GoalNode | null {
     if (curParent.childFocusIndex === -1 || curParent.childFocusIndex >= curParent.children.length - 1) {
       curParent.isComplete = true;
       if (curParent.parent === null) {
@@ -209,6 +209,7 @@ export class ProofState {
       }
 
     }
+    return null; // Add explicit return for the else branch
 
   }
 }

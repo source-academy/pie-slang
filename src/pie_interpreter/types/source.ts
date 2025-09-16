@@ -52,13 +52,13 @@ export abstract class Source {
     } else if (checkType instanceof stop) {
       if (this instanceof Name && isVarName(this.name)) {
         const otherTv = new PerhapsM<V.Value>("other-tv");
-        return new goOn(
+        return goOn(
           [
             [otherTv, 
               () => varType(ctx, this.location, this.name)]
           ],
           () => {
-            new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
+            return new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
           }
         );
       } else {

@@ -34,7 +34,7 @@ export abstract class Neutral {
 
   public abstract readBackNeutral(context: Context): C.Core;
 
-  public abstract prettyPrint();
+  public abstract prettyPrint(): string;
 
   public toString() {
     return this.prettyPrint();

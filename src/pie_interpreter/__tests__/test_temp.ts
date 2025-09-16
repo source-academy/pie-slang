@@ -16,7 +16,7 @@ describe("demo", () => {
 (define fact
 (lambda (n) (ind-Nat n (lambda (n) Nat)  (add1 0) (lambda (n fact-n-1) (mult (add1 n) fact-n-1)))))
 
-(add 999 999)`;
+(fact 5)`;
         console.log(evaluatePie(src));
     });
 
