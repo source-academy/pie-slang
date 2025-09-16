@@ -39,6 +39,42 @@
 				"path": "./syntaxes/pie.tmLanguage.json"
 			}
 		],
+		"views": {
+			"explorer": [
+				{
+					"id": "pieOutput",
+					"name": "Pie Output"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "pie.runCode",
+				"title": "Run Pie Code",
+				"icon": "$(play)"
+			},
+			{
+				"command": "pie.refreshOutput",
+				"title": "Refresh",
+				"icon": "$(refresh)"
+			}
+		],
+		"menus": {
+			"editor/title": [
+				{
+					"command": "pie.runCode",
+					"when": "resourceExtname == .pie",
+					"group": "navigation"
+				}
+			],
+			"view/title": [
+				{
+					"command": "pie.refreshOutput",
+					"when": "view == pieOutput",
+					"group": "navigation"
+				}
+			]
+		},
 		"configuration": {
 			"type": "object",
 			"title": "Example configuration",

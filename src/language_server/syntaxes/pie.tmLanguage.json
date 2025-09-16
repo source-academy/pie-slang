@@ -47,7 +47,7 @@
         },
         {
           "name": "keyword.control.pie",
-          "match": "(?<![a-zA-Z0-9_-])(lambda|λ|Pi|Π|Sigma|Σ|define|claim|check-same|the|which-Nat|iter-Nat|rec-Nat|ind-Nat|rec-List|ind-List|ind-Vec|ind-Either|ind-Absurd|replace|trans|cong|symm|TODO)(?![a-zA-Z0-9_-])"
+          "match": "(?<![a-zA-Z0-9_-])(lambda|λ|Pi|Π|Sigma|Σ|define|claim|check-same|the|TODO)(?![a-zA-Z0-9_-])"
         }
       ]
     },
@@ -55,11 +55,23 @@
       "patterns": [
         {
           "name": "storage.type.pie",
-          "match": "\\b(U|Nat|Atom|List|Vec|Either|Trivial|Absurd|Pair|=)\\b"
+          "match": "(?<![a-zA-Z0-9_-])(U|Universe|Nat|Atom|List|Vec|Either|Trivial|Absurd|Pair|=)(?<![a-zA-Z0-9_-])"
         },
         {
           "name": "storage.type.arrow.pie",
-          "match": "(->|→)"
+          "match": "(?<![a-zA-Z0-9_-])(->|→)(?<![a-zA-Z0-9_-])"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.constructor.pie",
+          "match": "(?<![a-zA-Z0-9_-])(zero|add1|quote|nil|::|cons|left|right|vecnil|vec::|same|replace|trans|cong|symm)(?<![a-zA-Z0-9_-])"
+        },
+        {
+          "name": "keyword.destructor.pie",
+          "match": "(?<![a-zA-Z0-9_-])(which-Nat|iter-Nat|rec-Nat|ind-Nat|rec-List|ind-List|ind-Vec|ind-Absurd|car|cdr|ind-Either|ind-Vec|ind-=|)(?<![a-zA-Z0-9_-])"
         }
       ]
     },
@@ -67,30 +79,11 @@
       "patterns": [
         {
           "name": "constant.language.pie",
-          "match": "\\b(zero|sole|nil)\\b"
+          "match": "\\b(zero|sole|nil|vecnil)\\b"
         },
         {
           "name": "constant.language.constructor.pie",
           "match": "\\b(add1|cons|car|cdr|left|right|same|quote)\\b"
-        }
-      ]
-    },
-    "operators": {
-      "patterns": [
-        {
-          "name": "keyword.operator.pie",
-          "match": "(=)"
-        }
-      ]
-    },
-    "strings": {
-      "name": "string.quoted.double.pie",
-      "begin": "\"",
-      "end": "\"",
-      "patterns": [
-        {
-          "name": "constant.character.escape.pie",
-          "match": "\\\\."
         }
       ]
     },
@@ -116,16 +109,6 @@
           "begin": "\\(",
           "end": "\\)",
           "name": "meta.parens.pie",
-          "patterns": [
-            {
-              "include": "$self"
-            }
-          ]
-        },
-        {
-          "begin": "\\[",
-          "end": "\\]",
-          "name": "meta.brackets.pie",
           "patterns": [
             {
               "include": "$self"

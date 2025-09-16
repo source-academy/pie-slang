@@ -1,0 +1,21 @@
+(claim vec-map 
+  (Π ((A U) (B U) (n Nat))
+     (-> (-> A B) (Vec A n)
+         (Vec B n))))
+
+(define vec-map
+  (λ (A B n)
+    (λ (f vs)
+      (ind-Vec n vs
+        (λ (k xs) (Vec B k))
+        vecnil
+        (λ (k x xs ih) (vec:: (f x) ih))))))
+
+(claim nat-vec-5 (Vec Nat 5))
+(define nat-vec-5 (vec:: 1 (vec:: 2 (vec:: 3 (vec:: 4 (vec:: 5 vecnil))))))
+
+(claim list-a (List Atom))
+(define list-a (:: 'A (:: 'B (:: 'C nil))))
+
+(claim atom-vec-5 (Vec Atom 5))
+(define atom-vec-5 (vec-map Nat Atom 5 (lambda (n) 'A) nat-vec-5))
