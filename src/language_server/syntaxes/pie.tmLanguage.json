@@ -1,0 +1,139 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pie",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#atoms"
+    },
+    {
+      "include": "#parens"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.semicolon.pie",
+          "match": ";.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.tactics.pie",
+          "match": "\\b(define-tactically|exact|intro|exists|elimNat|elimList|elimVec|elimEqual|elimEither|elimAbsurd|split)\\b"
+        },
+        {
+          "name": "keyword.control.pie",
+          "match": "\\b(lambda|λ|Pi|Π|Sigma|Σ|define|claim|check-same|the|which-Nat|iter-Nat|rec-Nat|ind-Nat|rec-List|ind-List|ind-Vec|ind-Either|ind-Absurd|replace|trans|cong|symm|TODO)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.pie",
+          "match": "\\b(U|Nat|Atom|List|Vec|Either|Trivial|Absurd|Pair)\\b"
+        },
+        {
+          "name": "storage.type.arrow.pie",
+          "match": "(->|→)"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.pie",
+          "match": "\\b(zero|sole|nil)\\b"
+        },
+        {
+          "name": "constant.language.constructor.pie",
+          "match": "\\b(add1|cons|car|cdr|left|right|same|quote)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.pie",
+          "match": "(=)"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.pie",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.pie",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.pie",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "atoms": {
+      "patterns": [
+        {
+          "name": "constant.other.atom.pie",
+          "match": "'[a-zA-Z][a-zA-Z0-9-_]*"
+        }
+      ]
+    },
+    "parens": {
+      "patterns": [
+        {
+          "begin": "\\(",
+          "end": "\\)",
+          "name": "meta.parens.pie",
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
+        },
+        {
+          "begin": "\\[",
+          "end": "\\]",
+          "name": "meta.brackets.pie",
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "scopeName": "source.pie"
+}

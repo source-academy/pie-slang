@@ -7,8 +7,8 @@
 COPYING
 yarn.lock
 package-lock.json
-*.js
-*.js.map
+/src/**/*.js
+/src/**/*.js.map
 *.vsix
 out
 
