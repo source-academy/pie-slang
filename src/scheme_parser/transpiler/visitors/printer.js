@@ -5,6 +5,7 @@ exports.Printer = void 0;
  * Visitor implementation that prints the AST.
  */
 class Printer {
+    indentationLevel;
     constructor(indentationLevel) {
         this.indentationLevel = indentationLevel;
     }

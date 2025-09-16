@@ -46,12 +46,15 @@ const V = __importStar(require("../types/value"));
 const C = __importStar(require("../types/core"));
 const util_1 = require("util");
 class Tactic {
+    location;
     constructor(location) {
         this.location = location;
     }
 }
 exports.Tactic = Tactic;
 class IntroTactic extends Tactic {
+    location;
+    varName;
     constructor(location, varName) {
         super(location);
         this.location = location;
@@ -83,6 +86,8 @@ class IntroTactic extends Tactic {
 }
 exports.IntroTactic = IntroTactic;
 class ExactTactic extends Tactic {
+    location;
+    term;
     constructor(location, term) {
         super(location);
         this.location = location;
@@ -107,6 +112,9 @@ class ExactTactic extends Tactic {
 }
 exports.ExactTactic = ExactTactic;
 class ExistsTactic extends Tactic {
+    location;
+    value;
+    varName;
     constructor(location, value, varName) {
         super(location);
         this.location = location;
@@ -141,6 +149,9 @@ class ExistsTactic extends Tactic {
 }
 exports.ExistsTactic = ExistsTactic;
 class EliminateNatTactic extends Tactic {
+    location;
+    target;
+    motive;
     constructor(location, target, motive) {
         super(location);
         this.location = location;
@@ -192,6 +203,9 @@ class EliminateNatTactic extends Tactic {
 }
 exports.EliminateNatTactic = EliminateNatTactic;
 class EliminateListTactic extends Tactic {
+    location;
+    target;
+    motive;
     constructor(location, target, motive) {
         super(location);
         this.location = location;
@@ -245,6 +259,10 @@ class EliminateListTactic extends Tactic {
 }
 exports.EliminateListTactic = EliminateListTactic;
 class EliminateVecTactic extends Tactic {
+    location;
+    target;
+    motive;
+    length;
     constructor(location, target, motive, length) {
         super(location);
         this.location = location;
@@ -301,6 +319,9 @@ class EliminateVecTactic extends Tactic {
 }
 exports.EliminateVecTactic = EliminateVecTactic;
 class EliminateEqualTactic extends Tactic {
+    location;
+    target;
+    motive;
     constructor(location, target, motive) {
         super(location);
         this.location = location;
@@ -344,6 +365,7 @@ class EliminateEqualTactic extends Tactic {
 }
 exports.EliminateEqualTactic = EliminateEqualTactic;
 class LeftTactic extends Tactic {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -363,6 +385,7 @@ class LeftTactic extends Tactic {
 }
 exports.LeftTactic = LeftTactic;
 class RightTactic extends Tactic {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -382,6 +405,9 @@ class RightTactic extends Tactic {
 }
 exports.RightTactic = RightTactic;
 class EliminateEitherTactic extends Tactic {
+    location;
+    target;
+    motive;
     constructor(location, target, motive) {
         super(location);
         this.location = location;
@@ -449,6 +475,9 @@ class SpiltTactic extends Tactic {
 }
 exports.SpiltTactic = SpiltTactic;
 class EliminateAbsurdTactic extends Tactic {
+    location;
+    target;
+    motive;
     constructor(location, target, motive) {
         super(location);
         this.location = location;

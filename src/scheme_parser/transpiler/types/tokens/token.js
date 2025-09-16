@@ -7,6 +7,13 @@ exports.Token = void 0;
 const location_1 = require("../location");
 const _1 = require(".");
 class Token {
+    type;
+    lexeme;
+    literal;
+    start;
+    end;
+    pos;
+    endPos;
     constructor(type, lexeme, literal, start, end, line, col) {
         this.type = type;
         this.lexeme = lexeme;

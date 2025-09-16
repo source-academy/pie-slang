@@ -51,9 +51,12 @@ var QuoteMode;
     QuoteMode[QuoteMode["QUASIQUOTE"] = 2] = "QUASIQUOTE";
 })(QuoteMode || (QuoteMode = {}));
 class SchemeParser {
+    source;
+    tokens;
+    chapter;
+    current = 0;
+    quoteMode = QuoteMode.NONE;
     constructor(source, tokens, chapter = Infinity) {
-        this.current = 0;
-        this.quoteMode = QuoteMode.NONE;
         this.source = source;
         this.tokens = tokens;
         this.chapter = chapter;

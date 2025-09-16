@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Position = exports.Location = void 0;
 // A data structure representing the span of the scheme node.
 class Location {
+    start;
+    end;
     constructor(start, end) {
         this.start = start;
         this.end = end;
@@ -14,6 +16,8 @@ class Location {
 exports.Location = Location;
 // A data structure representing a particular position of a token.
 class Position {
+    line;
+    column;
     constructor(line, column) {
         this.line = line;
         this.column = column;

@@ -53,7 +53,6 @@ exports.doTail = doTail;
 exports.indVecStepType = indVecStepType;
 exports.doIndVec = doIndVec;
 exports.doIndEither = doIndEither;
-exports.doEliminator = doEliminator;
 const V = __importStar(require("../types/value"));
 const N = __importStar(require("../types/neutral"));
 const utils_1 = require("../types/utils");
@@ -416,39 +415,5 @@ function doIndEither(target, motive, left, right) {
         }
     }
     throw new Error(`invalid input for indEither: ${[target, motive, left, right]}`);
-}
-function doEliminator(name, target, motive, methods) {
-    const targetNow = target.now();
-    // Check if target is a constructor application of the inductive type
-    if (targetNow instanceof V.Constructor) {
-        if (targetNow.name != name) {
-            throw new Error(`doEliminator: wrong eliminator used. Got: ${targetNow.name}; Expected: ${name}`);
-        }
-        const constructorIndex = targetNow.index;
-        if (constructorIndex >= 0 && constructorIndex < methods.length) {
-            const method = methods[constructorIndex];
-            let result = method;
-            // Apply method to constructor arguments
-            // Pattern: apply all non-recursive arguments first, then recursive arguments with their inductive hypotheses
-            for (let i = 0; i < targetNow.args.length; i++) {
-                const arg = targetNow.args[i];
-                result = doApp(result, arg);
-            }
-            for (let i = 0; i < targetNow.recursive_args.length; i++) {
-                const arg = targetNow.recursive_args[i];
-                const recursiveResult = doEliminator(name, arg, motive, methods);
-                result = doApp(result, recursiveResult);
-            }
-            return result;
-        }
-    }
-    else if (targetNow instanceof V.Neutral) {
-        const typeNow = targetNow.type.now();
-        if (typeNow instanceof V.InductiveType && typeNow.name === name) {
-            // Create neutral eliminator application
-            return new V.Neutral(doApp(motive, target), new N.GenericEliminator(name, targetNow.neutral, new N.Norm(new V.Pi("x", typeNow, new utils_1.HigherOrderClosure((_) => new V.Universe())), motive), methods.map((method, i) => new N.Norm(typeNow, method))));
-        }
-    }
-    throw new Error(`doEliminator: invalid input for ${name}: ${[target, motive, methods]}`);
 }
 //# sourceMappingURL=evaluator.js.map

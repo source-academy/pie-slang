@@ -148,6 +148,7 @@ class Binder {
 }
 exports.Binder = Binder;
 class Claim extends Binder {
+    type;
     constructor(type) {
         super();
         this.type = type;
@@ -155,6 +156,8 @@ class Claim extends Binder {
 }
 exports.Claim = Claim;
 class Define extends Binder {
+    type;
+    value;
     constructor(type, value) {
         super();
         this.type = type;
@@ -163,6 +166,7 @@ class Define extends Binder {
 }
 exports.Define = Define;
 class Free extends Binder {
+    type;
     constructor(type) {
         super();
         this.type = type;

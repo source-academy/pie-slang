@@ -5,6 +5,11 @@ const context_1 = require("../utils/context");
 const utils_1 = require("../types/utils");
 //TODO: Add location
 class Goal {
+    id;
+    type;
+    context;
+    renaming;
+    term;
     constructor(id, type, context, renaming, term) {
         this.id = id;
         this.type = type;
@@ -35,12 +40,13 @@ class Goal {
 }
 exports.Goal = Goal;
 class GoalNode {
+    goal;
+    children = [];
+    parent = null;
+    isComplete = false;
+    childFocusIndex = -1;
     constructor(goal) {
         this.goal = goal;
-        this.children = [];
-        this.parent = null;
-        this.isComplete = false;
-        this.childFocusIndex = -1;
     }
     addChildren(children) {
         children.forEach(child => {
@@ -62,11 +68,14 @@ class GoalNode {
 }
 exports.GoalNode = GoalNode;
 class ProofState {
+    location;
+    goalTree;
+    currentGoal;
+    proofHistory = [];
+    goalIdCounter = 0;
     constructor(location, goalTree) {
         this.location = location;
         this.goalTree = goalTree;
-        this.proofHistory = [];
-        this.goalIdCounter = 0;
         this.currentGoal = this.goalTree;
     }
     static initialize(globalContext, theorem, location) {

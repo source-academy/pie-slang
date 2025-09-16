@@ -11,26 +11,21 @@ const environment_1 = require("../utils/environment");
 const fresh_1 = require("../utils/fresh");
 // A SiteBinder is a variable name and its location, substitute BindingSite in original code.
 class SiteBinder {
+    location;
+    varName;
     constructor(location, varName) {
         this.location = location;
         this.varName = varName;
-    }
-    prettyPrint() {
-        return `${this.varName}`;
     }
 }
 exports.SiteBinder = SiteBinder;
 // Define TypedBinder, which is a SiteBinder associated with a expression in Pie.
 class TypedBinder {
+    binder;
+    type;
     constructor(binder, type) {
         this.binder = binder;
         this.type = type;
-    }
-    prettyPrint() {
-        return `${this.binder.prettyPrint()} : ${this.type.prettyPrint()}`;
-    }
-    findNames() {
-        return this.binder.varName;
     }
 }
 exports.TypedBinder = TypedBinder;
@@ -89,6 +84,7 @@ function isPieKeywords(str) {
                                                                                                                                                                                                                 false;
 }
 class Message {
+    message;
     constructor(message) {
         this.message = message;
     }
@@ -101,6 +97,7 @@ class Perhaps {
 }
 exports.Perhaps = Perhaps;
 class go extends Perhaps {
+    result;
     constructor(result) {
         super();
         this.result = result;
@@ -109,6 +106,8 @@ class go extends Perhaps {
 exports.go = go;
 // A failure result named "stop"
 class stop extends Perhaps {
+    where;
+    message;
     constructor(where, message) {
         super();
         this.where = where;
@@ -117,6 +116,8 @@ class stop extends Perhaps {
 }
 exports.stop = stop;
 class PerhapsM {
+    name;
+    value;
     // name is majorly for debugging use.
     constructor(name, value = null) {
         this.name = name;
@@ -166,6 +167,9 @@ exports.Closure = Closure;
   to first read the values back into Core Pie syntax.
 */
 class FirstOrderClosure extends Closure {
+    env;
+    varName;
+    expr;
     constructor(env, varName, expr) {
         super();
         this.env = env;
@@ -192,6 +196,7 @@ exports.FirstOrderClosure = FirstOrderClosure;
   and NEU.
 */
 class HigherOrderClosure extends Closure {
+    proc;
     constructor(proc) {
         super();
         this.proc = proc;

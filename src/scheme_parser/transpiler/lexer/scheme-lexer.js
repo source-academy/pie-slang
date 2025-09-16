@@ -64,11 +64,13 @@ let keywords = new Map([
     ["syntax-rules", token_type_1.TokenType.SYNTAX_RULES],
 ]);
 class SchemeLexer {
+    source;
+    tokens;
+    start = 0;
+    current = 0;
+    line = 1;
+    col = 0;
     constructor(source) {
-        this.start = 0;
-        this.current = 0;
-        this.line = 1;
-        this.col = 0;
         this.source = source;
         this.tokens = [];
     }

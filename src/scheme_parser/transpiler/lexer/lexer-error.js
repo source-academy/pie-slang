@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UnexpectedEOFError = exports.UnexpectedCharacterError = exports.LexerError = void 0;
 class LexerError extends SyntaxError {
+    // This base error shouldn't be used directly.
+    loc;
     constructor(message, line, col) {
         super(message);
         this.loc = {
@@ -15,6 +17,7 @@ class LexerError extends SyntaxError {
 }
 exports.LexerError = LexerError;
 class UnexpectedCharacterError extends LexerError {
+    char;
     constructor(line, col, char) {
         super(`Unexpected character \'${char}\' (${line}:${col})`, line, col);
         this.char = char;

@@ -6,6 +6,13 @@ const location_1 = require("../location");
 const _1 = require(".");
 const parser_error_1 = require("../../parser/parser-error");
 class Group {
+    // Invariants:
+    // - A group must not be empty (ie no tokens at all).
+    // - If a group is not parenthesized, it contains either one element, that is not a group,
+    //   or two elements, of which the first one is not a group.
+    // - If a group is parenthesized, it must have matching parentheses.
+    elements;
+    location;
     constructor(elements) {
         this.elements = elements;
         this.location = new location_1.Location(this.firstPos(), this.lastPos());

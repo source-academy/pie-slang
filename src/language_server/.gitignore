@@ -14,10 +14,10 @@ package-lock.json
 *.d.ts
 *.d.ts.map
 *.vsix
+node_modules
 
 compiled
 /doc
-/node_modules
 /conductor
 /.vscode/
 /dist

@@ -9,6 +9,8 @@ function showPoint(pos) {
     return "^".padStart(pos.column, " ");
 }
 class ParserError extends SyntaxError {
+    // This base error shouldn't be used directly.
+    loc;
     constructor(message, pos) {
         super(`Syntax error at (${pos.line}:${pos.column})\n${message}`);
         this.loc = pos;
@@ -44,6 +46,7 @@ class UnexpectedEOFError extends ParserError {
 }
 exports.UnexpectedEOFError = UnexpectedEOFError;
 class UnexpectedFormError extends ParserError {
+    form;
     constructor(source, pos, form) {
         super(extractLine(source, pos) +
             "\n" +
@@ -56,6 +59,8 @@ class UnexpectedFormError extends ParserError {
 }
 exports.UnexpectedFormError = UnexpectedFormError;
 class ExpectedFormError extends ParserError {
+    form;
+    expected;
     constructor(source, pos, form, expected) {
         super(extractLine(source, pos) +
             "\n" +
@@ -69,6 +74,7 @@ class ExpectedFormError extends ParserError {
 }
 exports.ExpectedFormError = ExpectedFormError;
 class MissingFormError extends ParserError {
+    expected;
     constructor(source, pos, expected) {
         super(extractLine(source, pos) +
             "\n" +
@@ -81,6 +87,7 @@ class MissingFormError extends ParserError {
 }
 exports.MissingFormError = MissingFormError;
 class DisallowedTokenError extends ParserError {
+    token;
     constructor(source, pos, token, chapter) {
         super(extractLine(source, pos) +
             "\n" +
@@ -93,6 +100,7 @@ class DisallowedTokenError extends ParserError {
 }
 exports.DisallowedTokenError = DisallowedTokenError;
 class UnsupportedTokenError extends ParserError {
+    token;
     constructor(source, pos, token) {
         super(extractLine(source, pos) +
             "\n" +

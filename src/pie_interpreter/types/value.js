@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Constructor = exports.InductiveType = exports.Absurd = exports.Sole = exports.Trivial = exports.Atom = exports.Universe = exports.Neutral = exports.Right = exports.Left = exports.Either = exports.VecCons = exports.VecNil = exports.Vec = exports.Same = exports.Equal = exports.ListCons = exports.Nil = exports.List = exports.Cons = exports.Sigma = exports.Lambda = exports.Pi = exports.Add1 = exports.Zero = exports.Nat = exports.Quote = exports.Delay = exports.Box = exports.DelayClosure = exports.Value = void 0;
+exports.Absurd = exports.Sole = exports.Trivial = exports.Atom = exports.Universe = exports.Neutral = exports.Right = exports.Left = exports.Either = exports.VecCons = exports.VecNil = exports.Vec = exports.Same = exports.Equal = exports.ListCons = exports.Nil = exports.List = exports.Cons = exports.Sigma = exports.Lambda = exports.Pi = exports.Add1 = exports.Zero = exports.Nat = exports.Quote = exports.Delay = exports.Box = exports.DelayClosure = exports.Value = void 0;
 const C = __importStar(require("./core"));
 const N = __importStar(require("./neutral"));
 const context_1 = require("../utils/context");
@@ -77,6 +77,8 @@ class Value {
 }
 exports.Value = Value;
 class DelayClosure {
+    env;
+    expr;
     constructor(env, expr) {
         this.env = env;
         this.expr = expr;
@@ -94,6 +96,7 @@ class DelayClosure {
 }
 exports.DelayClosure = DelayClosure;
 class Box {
+    content;
     constructor(value) {
         this.content = value;
     }
@@ -106,6 +109,7 @@ class Box {
 }
 exports.Box = Box;
 class Delay extends Value {
+    val;
     constructor(val) {
         super();
         this.val = val;
@@ -133,6 +137,7 @@ class Delay extends Value {
 }
 exports.Delay = Delay;
 class Quote extends Value {
+    name;
     constructor(name) {
         super();
         this.name = name;
@@ -175,6 +180,7 @@ class Zero extends Value {
 }
 exports.Zero = Zero;
 class Add1 extends Value {
+    smaller;
     constructor(smaller) {
         super();
         this.smaller = smaller;
@@ -191,6 +197,9 @@ class Add1 extends Value {
 }
 exports.Add1 = Add1;
 class Pi extends Value {
+    argName;
+    argType;
+    resultType;
     constructor(argName, argType, resultType) {
         super();
         this.argName = argName;
@@ -214,6 +223,8 @@ class Pi extends Value {
 }
 exports.Pi = Pi;
 class Lambda extends Value {
+    argName;
+    body;
     constructor(argName, body) {
         super();
         this.argName = argName;
@@ -231,6 +242,9 @@ class Lambda extends Value {
 }
 exports.Lambda = Lambda;
 class Sigma extends Value {
+    carName;
+    carType;
+    cdrType;
     constructor(carName, carType, cdrType) {
         super();
         this.carName = carName;
@@ -254,6 +268,8 @@ class Sigma extends Value {
 }
 exports.Sigma = Sigma;
 class Cons extends Value {
+    car;
+    cdr;
     constructor(car, cdr) {
         super();
         this.car = car;
@@ -271,6 +287,7 @@ class Cons extends Value {
 }
 exports.Cons = Cons;
 class List extends Value {
+    entryType;
     constructor(entryType) {
         super();
         this.entryType = entryType;
@@ -300,6 +317,8 @@ class Nil extends Value {
 }
 exports.Nil = Nil;
 class ListCons extends Value {
+    head;
+    tail;
     constructor(head, tail) {
         super();
         this.head = head;
@@ -317,6 +336,9 @@ class ListCons extends Value {
 }
 exports.ListCons = ListCons;
 class Equal extends Value {
+    type;
+    from;
+    to;
     constructor(type, from, to) {
         super();
         this.type = type;
@@ -335,6 +357,7 @@ class Equal extends Value {
 }
 exports.Equal = Equal;
 class Same extends Value {
+    value;
     constructor(value) {
         super();
         this.value = value;
@@ -351,6 +374,8 @@ class Same extends Value {
 }
 exports.Same = Same;
 class Vec extends Value {
+    entryType;
+    length;
     constructor(entryType, length) {
         super();
         this.entryType = entryType;
@@ -378,6 +403,8 @@ class VecNil extends Value {
 }
 exports.VecNil = VecNil;
 class VecCons extends Value {
+    head;
+    tail;
     constructor(head, tail) {
         super();
         this.head = head;
@@ -395,6 +422,8 @@ class VecCons extends Value {
 }
 exports.VecCons = VecCons;
 class Either extends Value {
+    leftType;
+    rightType;
     constructor(leftType, rightType) {
         super();
         this.leftType = leftType;
@@ -412,6 +441,7 @@ class Either extends Value {
 }
 exports.Either = Either;
 class Left extends Value {
+    value;
     constructor(value) {
         super();
         this.value = value;
@@ -428,6 +458,7 @@ class Left extends Value {
 }
 exports.Left = Left;
 class Right extends Value {
+    value;
     constructor(value) {
         super();
         this.value = value;
@@ -444,6 +475,8 @@ class Right extends Value {
 }
 exports.Right = Right;
 class Neutral extends Value {
+    type;
+    neutral;
     constructor(type, neutral) {
         super();
         this.type = type;
@@ -525,43 +558,4 @@ class Absurd extends Value {
     }
 }
 exports.Absurd = Absurd;
-class InductiveType extends Value {
-    constructor(name, parameters, indices) {
-        super();
-        this.name = name;
-        this.parameters = parameters;
-        this.indices = indices;
-    }
-    readBackType(context) {
-        return new C.InductiveType(this.name, this.parameters.map(p => p.readBackType(context)), this.indices.map(i => i.readBackType(context)));
-    }
-    prettyPrint() {
-        return `InductiveType ${this.name}`;
-    }
-    toString() {
-        return this.prettyPrint();
-    }
-}
-exports.InductiveType = InductiveType;
-class Constructor extends Value {
-    constructor(name, type, args, index, recursive_args) {
-        super();
-        this.name = name;
-        this.type = type;
-        this.args = args;
-        this.index = index;
-        this.recursive_args = recursive_args;
-    }
-    readBackType(context) {
-        throw new Error("No readBackType for Constructor.");
-    }
-    prettyPrint() {
-        const args = this.args.map(a => a.prettyPrint()).join(' ');
-        return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
-    }
-    toString() {
-        return this.prettyPrint();
-    }
-}
-exports.Constructor = Constructor;
 //# sourceMappingURL=value.js.map

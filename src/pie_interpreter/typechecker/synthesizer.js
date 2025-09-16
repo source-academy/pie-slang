@@ -646,42 +646,6 @@ class synthesizer {
             return new utils_1.stop(location, new utils_1.Message([`Expected a positive number, got ${value}.`]));
         }
     }
-    static synthDefineDatatype(ctx, renames, datatype) {
-        let checkAndBuildTypes = (initialType, binder) => {
-            let normalizedType = [];
-            for (const param of binder) {
-                const paramCheck = param.type.check(ctx, renames, new V.Universe());
-                if (paramCheck instanceof utils_1.stop)
-                    return paramCheck;
-                normalizedType.push(paramCheck.result);
-            }
-            let cur_Type = initialType;
-            for (let i = normalizedType.length - 1; i >= 0; i--) {
-                const paramType = normalizedType[i];
-                const paramName = binder[i].findNames();
-                const currentTType = cur_Type;
-                cur_Type = new V.Pi(paramName, (0, context_1.valInContext)(ctx, paramType), new utils_1.HigherOrderClosure((v) => currentTType));
-            }
-            return new utils_1.go(cur_Type);
-        };
-        const normalizedResultTypeTemp = datatype.resultType.check(ctx, renames, new V.Universe());
-        if (normalizedResultTypeTemp instanceof utils_1.stop)
-            return normalizedResultTypeTemp;
-        const normalizedIndicesTemp = checkAndBuildTypes(normalizedResultTypeTemp.result, datatype.indices);
-        if (normalizedIndicesTemp instanceof utils_1.stop)
-            return normalizedIndicesTemp;
-        const normalizedParametersTemp = checkAndBuildTypes(normalizedIndicesTemp.result, datatype.parameters);
-        let normalizedConstructor = [];
-        for (const constructor of datatype.constructors) {
-            const normalizedResultType = constructor.resultType.check(ctx, renames, new V.Universe());
-            if (normalizedResultType instanceof utils_1.stop)
-                return normalizedResultType;
-            const normalizedConstructorTypeTemp = checkAndBuildTypes(normalizedResultType.result, constructor.args);
-            if (normalizedConstructorTypeTemp instanceof utils_1.stop)
-                return normalizedConstructorTypeTemp;
-            normalizedConstructor.push(normalizedConstructorTypeTemp.result);
-        }
-    }
 }
 exports.synthesizer = synthesizer;
 //# sourceMappingURL=synthesizer.js.map

@@ -337,6 +337,9 @@ class Parser {
 exports.Parser = Parser;
 // ### Helper functions for parsing the AST
 class Claim {
+    location;
+    name;
+    type;
     constructor(location, name, type) {
         this.location = location;
         this.name = name;
@@ -345,6 +348,9 @@ class Claim {
 }
 exports.Claim = Claim;
 class Definition {
+    location;
+    name;
+    expr;
     constructor(location, name, expr) {
         this.location = location;
         this.name = name;
@@ -353,6 +359,10 @@ class Definition {
 }
 exports.Definition = Definition;
 class SamenessCheck {
+    location;
+    type;
+    left;
+    right;
     constructor(location, type, left, right) {
         this.location = location;
         this.type = type;
@@ -362,6 +372,9 @@ class SamenessCheck {
 }
 exports.SamenessCheck = SamenessCheck;
 class DefineTactically {
+    location;
+    name;
+    tactics;
     constructor(location, name, tactics) {
         this.location = location;
         this.name = name;

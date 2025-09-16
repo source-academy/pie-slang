@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Application = exports.GenericEliminator = exports.IndEither = exports.IndVec12 = exports.IndVec2 = exports.IndVec1 = exports.Tail = exports.Head = exports.IndEqual = exports.Symm = exports.Cong = exports.Trans12 = exports.Trans2 = exports.Trans1 = exports.Replace = exports.IndAbsurd = exports.IndList = exports.RecList = exports.Cdr = exports.Car = exports.IndNat = exports.RecNat = exports.IterNat = exports.WhichNat = exports.TODO = exports.Variable = exports.Neutral = exports.Norm = void 0;
+exports.Application = exports.IndEither = exports.IndVec12 = exports.IndVec2 = exports.IndVec1 = exports.Tail = exports.Head = exports.IndEqual = exports.Symm = exports.Cong = exports.Trans12 = exports.Trans2 = exports.Trans1 = exports.Replace = exports.IndAbsurd = exports.IndList = exports.RecList = exports.Cdr = exports.Car = exports.IndNat = exports.RecNat = exports.IterNat = exports.WhichNat = exports.TODO = exports.Variable = exports.Neutral = exports.Norm = void 0;
 exports.isNorm = isNorm;
 exports.isNeutral = isNeutral;
 const C = __importStar(require("./core"));
@@ -46,6 +46,8 @@ const utils_1 = require("../evaluator/utils");
     to it.
 */
 class Norm {
+    type;
+    value;
     constructor(type, value) {
         this.type = type;
         this.value = value;
@@ -70,6 +72,7 @@ class Neutral {
 }
 exports.Neutral = Neutral;
 class Variable extends Neutral {
+    name;
     constructor(name) {
         super();
         this.name = name;
@@ -83,6 +86,8 @@ class Variable extends Neutral {
 }
 exports.Variable = Variable;
 class TODO extends Neutral {
+    where;
+    type;
     constructor(where, type) {
         super();
         this.where = where;
@@ -97,6 +102,9 @@ class TODO extends Neutral {
 }
 exports.TODO = TODO;
 class WhichNat extends Neutral {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -112,6 +120,9 @@ class WhichNat extends Neutral {
 }
 exports.WhichNat = WhichNat;
 class IterNat extends Neutral {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -127,6 +138,9 @@ class IterNat extends Neutral {
 }
 exports.IterNat = IterNat;
 class RecNat extends Neutral {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -142,6 +156,10 @@ class RecNat extends Neutral {
 }
 exports.RecNat = RecNat;
 class IndNat extends Neutral {
+    target;
+    motive;
+    base;
+    step;
     constructor(target, motive, base, step) {
         super();
         this.target = target;
@@ -158,6 +176,7 @@ class IndNat extends Neutral {
 }
 exports.IndNat = IndNat;
 class Car extends Neutral {
+    target;
     constructor(target) {
         super();
         this.target = target;
@@ -171,6 +190,7 @@ class Car extends Neutral {
 }
 exports.Car = Car;
 class Cdr extends Neutral {
+    target;
     constructor(target) {
         super();
         this.target = target;
@@ -184,6 +204,9 @@ class Cdr extends Neutral {
 }
 exports.Cdr = Cdr;
 class RecList extends Neutral {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -199,6 +222,10 @@ class RecList extends Neutral {
 }
 exports.RecList = RecList;
 class IndList extends Neutral {
+    target;
+    motive;
+    base;
+    step;
     constructor(target, motive, base, step) {
         super();
         this.target = target;
@@ -215,6 +242,8 @@ class IndList extends Neutral {
 }
 exports.IndList = IndList;
 class IndAbsurd extends Neutral {
+    target;
+    motive;
     constructor(target, motive) {
         super();
         this.target = target;
@@ -230,6 +259,9 @@ class IndAbsurd extends Neutral {
 }
 exports.IndAbsurd = IndAbsurd;
 class Replace extends Neutral {
+    target;
+    motive;
+    base;
     constructor(target, motive, base) {
         super();
         this.target = target;
@@ -245,6 +277,8 @@ class Replace extends Neutral {
 }
 exports.Replace = Replace;
 class Trans1 extends Neutral {
+    target1;
+    target2;
     constructor(target1, target2) {
         super();
         this.target1 = target1;
@@ -259,6 +293,8 @@ class Trans1 extends Neutral {
 }
 exports.Trans1 = Trans1;
 class Trans2 extends Neutral {
+    target1;
+    target2;
     constructor(target1, target2) {
         super();
         this.target1 = target1;
@@ -273,6 +309,8 @@ class Trans2 extends Neutral {
 }
 exports.Trans2 = Trans2;
 class Trans12 extends Neutral {
+    target1;
+    target2;
     constructor(target1, target2) {
         super();
         this.target1 = target1;
@@ -287,6 +325,8 @@ class Trans12 extends Neutral {
 }
 exports.Trans12 = Trans12;
 class Cong extends Neutral {
+    target;
+    func;
     constructor(target, func) {
         super();
         this.target = target;
@@ -310,6 +350,7 @@ class Cong extends Neutral {
 }
 exports.Cong = Cong;
 class Symm extends Neutral {
+    target;
     constructor(target) {
         super();
         this.target = target;
@@ -323,6 +364,9 @@ class Symm extends Neutral {
 }
 exports.Symm = Symm;
 class IndEqual extends Neutral {
+    target;
+    motive;
+    base;
     constructor(target, motive, base) {
         super();
         this.target = target;
@@ -338,6 +382,7 @@ class IndEqual extends Neutral {
 }
 exports.IndEqual = IndEqual;
 class Head extends Neutral {
+    target;
     constructor(target) {
         super();
         this.target = target;
@@ -351,6 +396,7 @@ class Head extends Neutral {
 }
 exports.Head = Head;
 class Tail extends Neutral {
+    target;
     constructor(target) {
         super();
         this.target = target;
@@ -364,6 +410,11 @@ class Tail extends Neutral {
 }
 exports.Tail = Tail;
 class IndVec1 extends Neutral {
+    length;
+    target;
+    motive;
+    base;
+    step;
     constructor(length, target, motive, base, step) {
         super();
         this.length = length;
@@ -381,6 +432,11 @@ class IndVec1 extends Neutral {
 }
 exports.IndVec1 = IndVec1;
 class IndVec2 extends Neutral {
+    length;
+    target;
+    motive;
+    base;
+    step;
     constructor(length, target, motive, base, step) {
         super();
         this.length = length;
@@ -398,6 +454,11 @@ class IndVec2 extends Neutral {
 }
 exports.IndVec2 = IndVec2;
 class IndVec12 extends Neutral {
+    length;
+    target;
+    motive;
+    base;
+    step;
     constructor(length, target, motive, base, step) {
         super();
         this.length = length;
@@ -415,6 +476,10 @@ class IndVec12 extends Neutral {
 }
 exports.IndVec12 = IndVec12;
 class IndEither extends Neutral {
+    target;
+    motive;
+    baseLeft;
+    baseRight;
     constructor(target, motive, baseLeft, baseRight) {
         super();
         this.target = target;
@@ -430,23 +495,9 @@ class IndEither extends Neutral {
     }
 }
 exports.IndEither = IndEither;
-class GenericEliminator extends Neutral {
-    constructor(typeName, target, motive, methods) {
-        super();
-        this.typeName = typeName;
-        this.target = target;
-        this.motive = motive;
-        this.methods = methods;
-    }
-    readBackNeutral(context) {
-        return new C.Eliminator(this.typeName, this.target.readBackNeutral(context), (0, utils_1.readBack)(context, this.motive.type, this.motive.value), this.methods.map(method => (0, utils_1.readBack)(context, method.type, method.value)));
-    }
-    prettyPrint() {
-        return `N-GenericEliminator-${this.typeName}`;
-    }
-}
-exports.GenericEliminator = GenericEliminator;
 class Application extends Neutral {
+    operator;
+    operand;
     constructor(operator, operand) {
         super();
         this.operator = operator;

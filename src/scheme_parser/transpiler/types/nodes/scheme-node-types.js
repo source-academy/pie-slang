@@ -22,6 +22,8 @@ var Atomic;
      * The last expression is the return value of the sequence.
      */
     class Sequence {
+        location;
+        expressions;
         constructor(location, expressions) {
             this.location = location;
             this.expressions = expressions;
@@ -50,6 +52,8 @@ var Atomic;
      * TODO: Support the Scheme number tower.
      */
     class NumericLiteral {
+        location;
+        value;
         constructor(location, value) {
             this.location = location;
             this.value = value;
@@ -69,6 +73,8 @@ var Atomic;
      * A node that represents a Scheme boolean.
      */
     class BooleanLiteral {
+        location;
+        value;
         constructor(location, value) {
             this.location = location;
             this.value = value;
@@ -88,6 +94,8 @@ var Atomic;
      * A node that represents a Scheme string.
      */
     class StringLiteral {
+        location;
+        value;
         constructor(location, value) {
             this.location = location;
             this.value = value;
@@ -108,6 +116,10 @@ var Atomic;
      * TODO: Support rest arguments.
      */
     class Lambda {
+        location;
+        params;
+        rest;
+        body;
         constructor(location, body, params, rest = undefined) {
             this.location = location;
             this.params = params;
@@ -145,6 +157,8 @@ var Atomic;
      * A node representing a Scheme identifier.
      */
     class Identifier {
+        location;
+        name;
         constructor(location, name) {
             this.location = location;
             this.name = name;
@@ -165,6 +179,9 @@ var Atomic;
      * Returns nil.
      */
     class Definition {
+        location;
+        name;
+        value;
         constructor(location, name, value) {
             this.location = location;
             this.name = name;
@@ -185,6 +202,9 @@ var Atomic;
      * A node representing a Scheme function application.
      */
     class Application {
+        location;
+        operator;
+        operands;
         constructor(location, operator, operands) {
             this.location = location;
             this.operator = operator;
@@ -216,6 +236,10 @@ var Atomic;
      * A node representing a Scheme conditional expression.
      */
     class Conditional {
+        location;
+        test;
+        consequent;
+        alternate;
         constructor(location, test, consequent, alternate) {
             this.location = location;
             this.test = test;
@@ -240,6 +264,9 @@ var Atomic;
      * A node representing a Scheme pair.
      */
     class Pair {
+        location;
+        car;
+        cdr;
         constructor(location, car, cdr) {
             this.location = location;
             this.car = car;
@@ -260,6 +287,7 @@ var Atomic;
      * A node representing nil, an empty scheme list.
      */
     class Nil {
+        location;
         constructor(location) {
             this.location = location;
         }
@@ -275,6 +303,8 @@ var Atomic;
      * A node representing a Scheme symbol.
      */
     class Symbol {
+        location;
+        value;
         constructor(location, value) {
             this.location = location;
             this.value = value;
@@ -295,6 +325,8 @@ var Atomic;
      * This will be evaluated at runtime.
      */
     class SpliceMarker {
+        location;
+        value;
         constructor(location, value) {
             this.location = location;
             this.value = value;
@@ -317,6 +349,9 @@ var Atomic;
      * Returns nil.
      */
     class Reassignment {
+        location;
+        name;
+        value;
         constructor(location, name, value) {
             this.location = location;
             this.name = name;
@@ -340,6 +375,9 @@ var Atomic;
      * Returns nil.
      */
     class Import {
+        location;
+        source;
+        identifiers;
         constructor(location, source, identifiers) {
             this.location = location;
             this.source = source;
@@ -373,6 +411,8 @@ var Atomic;
      * Returns nil.
      */
     class Export {
+        location;
+        definition;
         constructor(location, definition) {
             this.location = location;
             this.definition = definition;
@@ -392,6 +432,8 @@ var Atomic;
      * A node representing a Scheme Vector.
      */
     class Vector {
+        location;
+        elements;
         constructor(location, elements) {
             this.location = location;
             this.elements = elements;
@@ -419,6 +461,9 @@ var Atomic;
      * A node representing a Scheme define-syntax expression.
      */
     class DefineSyntax {
+        location;
+        name;
+        transformer;
         constructor(location, name, transformer) {
             this.location = location;
             this.name = name;
@@ -440,6 +485,9 @@ var Atomic;
      * A node representing a Scheme syntax-rules expression.
      */
     class SyntaxRules {
+        location;
+        literals;
+        rules;
         constructor(location, literals, rules) {
             this.location = location;
             this.literals = literals;
@@ -487,6 +535,11 @@ var Extended;
      * A node representing a function definition.
      */
     class FunctionDefinition {
+        location;
+        name;
+        params;
+        rest;
+        body;
         constructor(location, name, body, params, rest = undefined) {
             this.location = location;
             this.name = name;
@@ -525,6 +578,10 @@ var Extended;
      * A node representing a Scheme let expression.
      */
     class Let {
+        location;
+        identifiers;
+        values;
+        body;
         constructor(location, identifiers, values, body) {
             this.location = location;
             this.identifiers = identifiers;
@@ -563,6 +620,10 @@ var Extended;
      * MAY return nil.
      */
     class Cond {
+        location;
+        predicates;
+        consequents;
+        catchall;
         constructor(location, predicates, consequents, catchall) {
             this.location = location;
             this.predicates = predicates;
@@ -607,6 +668,9 @@ var Extended;
      * A node representing a Scheme list or dotted list.
      */
     class List {
+        location;
+        elements;
+        terminator;
         constructor(location, elements, terminator = undefined) {
             this.location = location;
             this.elements = elements;
@@ -644,6 +708,8 @@ var Extended;
      * syntax: (begin <expression>*)
      */
     class Begin {
+        location;
+        expressions;
         constructor(location, expressions) {
             this.location = location;
             this.expressions = expressions;
@@ -673,6 +739,8 @@ var Extended;
      * syntax: (delay <expression>)
      */
     class Delay {
+        location;
+        expression;
         constructor(location, expression) {
             this.location = location;
             this.expression = expression;

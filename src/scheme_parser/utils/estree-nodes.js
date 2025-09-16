@@ -175,6 +175,7 @@ function makeImportDeclaration(specifiers, source, loc) {
         type: "ImportDeclaration",
         specifiers,
         source,
+        attributes: [],
         loc: loc
             ? loc
             : {
@@ -189,6 +190,7 @@ function makeExportNamedDeclaration(declaration, loc) {
         specifiers: [],
         source: null,
         declaration,
+        attributes: [],
         loc: loc ? loc : declaration.loc,
     };
 }

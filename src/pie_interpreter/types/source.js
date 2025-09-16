@@ -34,7 +34,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Application = exports.TODO = exports.IndEither = exports.Right = exports.Left = exports.Either = exports.IndVec = exports.Tail = exports.Head = exports.VecCons = exports.VecNil = exports.Vec = exports.IndEqual = exports.Symm = exports.Cong = exports.Trans = exports.Replace = exports.Same = exports.Equal = exports.IndAbsurd = exports.Absurd = exports.IndList = exports.RecList = exports.ListCons = exports.List = exports.Number = exports.Nil = exports.Sole = exports.Trivial = exports.Cdr = exports.Car = exports.Cons = exports.Pair = exports.Quote = exports.Atom = exports.Name = exports.Sigma = exports.Lambda = exports.Pi = exports.Arrow = exports.IndNat = exports.RecNat = exports.IterNat = exports.WhichNat = exports.Add1 = exports.Zero = exports.Nat = exports.Universe = exports.The = exports.Source = void 0;
-exports.GenericEliminator = exports.Constructor = exports.DefineDatatype = void 0;
 const C = __importStar(require("./core"));
 const V = __importStar(require("./value"));
 const N = __importStar(require("./neutral"));
@@ -49,6 +48,7 @@ const synthesizer_1 = require("../typechecker/synthesizer");
 const utils_5 = require("./utils");
 const context_2 = require("../utils/context");
 class Source {
+    location;
     constructor(location) {
         this.location = location;
     }
@@ -109,6 +109,9 @@ class Source {
 }
 exports.Source = Source;
 class The extends Source {
+    location;
+    type;
+    value;
     constructor(location, type, value) {
         super(location);
         this.location = location;
@@ -131,6 +134,7 @@ class The extends Source {
 }
 exports.The = The;
 class Universe extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -153,6 +157,7 @@ class Universe extends Source {
 }
 exports.Universe = Universe;
 class Nat extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -175,6 +180,7 @@ class Nat extends Source {
 }
 exports.Nat = Nat;
 class Zero extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -194,6 +200,8 @@ class Zero extends Source {
 }
 exports.Zero = Zero;
 class Add1 extends Source {
+    location;
+    base;
     constructor(location, base) {
         super(location);
         this.location = location;
@@ -214,6 +222,10 @@ class Add1 extends Source {
 }
 exports.Add1 = Add1;
 class WhichNat extends Source {
+    location;
+    target;
+    base;
+    step;
     constructor(location, target, base, step) {
         super(location);
         this.location = location;
@@ -240,6 +252,10 @@ class WhichNat extends Source {
 }
 exports.WhichNat = WhichNat;
 class IterNat extends Source {
+    location;
+    target;
+    base;
+    step;
     constructor(location, target, base, step) {
         super(location);
         this.location = location;
@@ -266,6 +282,10 @@ class IterNat extends Source {
 }
 exports.IterNat = IterNat;
 class RecNat extends Source {
+    location;
+    target;
+    base;
+    step;
     constructor(location, target, base, step) {
         super(location);
         this.location = location;
@@ -292,6 +312,11 @@ class RecNat extends Source {
 }
 exports.RecNat = RecNat;
 class IndNat extends Source {
+    location;
+    target;
+    motive;
+    base;
+    step;
     constructor(location, target, motive, base, step) {
         super(location);
         this.location = location;
@@ -322,6 +347,10 @@ class IndNat extends Source {
 exports.IndNat = IndNat;
 // Function types and operations
 class Arrow extends Source {
+    location;
+    arg1;
+    arg2;
+    args;
     constructor(location, arg1, arg2, args) {
         super(location);
         this.location = location;
@@ -374,6 +403,9 @@ class Arrow extends Source {
 }
 exports.Arrow = Arrow;
 class Pi extends Source {
+    location;
+    binders;
+    body;
     constructor(location, binders, body) {
         super(location);
         this.location = location;
@@ -441,6 +473,9 @@ class Pi extends Source {
 }
 exports.Pi = Pi;
 class Lambda extends Source {
+    location;
+    binders;
+    body;
     constructor(location, binders, body) {
         super(location);
         this.location = location;
@@ -494,6 +529,9 @@ class Lambda extends Source {
 exports.Lambda = Lambda;
 // Product types and operations
 class Sigma extends Source {
+    location;
+    binders;
+    body;
     constructor(location, binders, body) {
         super(location);
         this.location = location;
@@ -560,6 +598,8 @@ class Sigma extends Source {
 }
 exports.Sigma = Sigma;
 class Name extends Source {
+    location;
+    name;
     constructor(location, name) {
         super(location);
         this.location = location;
@@ -580,6 +620,7 @@ class Name extends Source {
 }
 exports.Name = Name;
 class Atom extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -602,6 +643,8 @@ class Atom extends Source {
 }
 exports.Atom = Atom;
 class Quote extends Source {
+    location;
+    name;
     constructor(location, name) {
         super(location);
         this.location = location;
@@ -622,6 +665,9 @@ class Quote extends Source {
 }
 exports.Quote = Quote;
 class Pair extends Source {
+    location;
+    first;
+    second;
     constructor(location, first, second) {
         super(location);
         this.location = location;
@@ -653,6 +699,9 @@ class Pair extends Source {
 }
 exports.Pair = Pair;
 class Cons extends Source {
+    location;
+    first;
+    second;
     constructor(location, first, second) {
         super(location);
         this.location = location;
@@ -694,6 +743,8 @@ class Cons extends Source {
 }
 exports.Cons = Cons;
 class Car extends Source {
+    location;
+    pair;
     constructor(location, pair) {
         super(location);
         this.location = location;
@@ -714,6 +765,8 @@ class Car extends Source {
 }
 exports.Car = Car;
 class Cdr extends Source {
+    location;
+    pair;
     constructor(location, pair) {
         super(location);
         this.location = location;
@@ -735,6 +788,7 @@ class Cdr extends Source {
 exports.Cdr = Cdr;
 // Basic constructors
 class Trivial extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -757,6 +811,7 @@ class Trivial extends Source {
 }
 exports.Trivial = Trivial;
 class Sole extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -773,6 +828,7 @@ class Sole extends Source {
 }
 exports.Sole = Sole;
 class Nil extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -801,6 +857,8 @@ class Nil extends Source {
 }
 exports.Nil = Nil;
 class Number extends Source {
+    location;
+    value;
     constructor(location, value) {
         super(location);
         this.location = location;
@@ -821,6 +879,8 @@ class Number extends Source {
 }
 exports.Number = Number;
 class List extends Source {
+    location;
+    entryType;
     constructor(location, entryType) {
         super(location);
         this.location = location;
@@ -845,6 +905,9 @@ class List extends Source {
 }
 exports.List = List;
 class ListCons extends Source {
+    location;
+    x;
+    xs;
     constructor(location, x, xs) {
         super(location);
         this.location = location;
@@ -867,6 +930,10 @@ class ListCons extends Source {
 }
 exports.ListCons = ListCons;
 class RecList extends Source {
+    location;
+    target;
+    base;
+    step;
     constructor(location, target, base, step) {
         super(location);
         this.location = location;
@@ -893,6 +960,11 @@ class RecList extends Source {
 }
 exports.RecList = RecList;
 class IndList extends Source {
+    location;
+    target;
+    motive;
+    base;
+    step;
     constructor(location, target, motive, base, step) {
         super(location);
         this.location = location;
@@ -923,6 +995,7 @@ class IndList extends Source {
 exports.IndList = IndList;
 // Absurd and its operations
 class Absurd extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -945,6 +1018,9 @@ class Absurd extends Source {
 }
 exports.Absurd = Absurd;
 class IndAbsurd extends Source {
+    location;
+    target;
+    motive;
     constructor(location, target, motive) {
         super(location);
         this.location = location;
@@ -970,6 +1046,10 @@ class IndAbsurd extends Source {
 exports.IndAbsurd = IndAbsurd;
 // Equality types and operations
 class Equal extends Source {
+    location;
+    type;
+    left;
+    right;
     constructor(location, type, left, right) {
         super(location);
         this.location = location;
@@ -1009,6 +1089,8 @@ class Equal extends Source {
 }
 exports.Equal = Equal;
 class Same extends Source {
+    location;
+    type;
     constructor(location, type) {
         super(location);
         this.location = location;
@@ -1054,6 +1136,10 @@ class Same extends Source {
 }
 exports.Same = Same;
 class Replace extends Source {
+    location;
+    target;
+    motive;
+    base;
     constructor(location, target, motive, base) {
         super(location);
         this.location = location;
@@ -1080,6 +1166,9 @@ class Replace extends Source {
 }
 exports.Replace = Replace;
 class Trans extends Source {
+    location;
+    left;
+    right;
     synthHelper(ctx, renames) {
         return synthesizer_1.synthesizer.synthTrans(ctx, renames, this.location, this.left, this.right);
     }
@@ -1102,6 +1191,9 @@ class Trans extends Source {
 }
 exports.Trans = Trans;
 class Cong extends Source {
+    location;
+    target;
+    fun;
     constructor(location, target, fun) {
         super(location);
         this.location = location;
@@ -1124,6 +1216,8 @@ class Cong extends Source {
 }
 exports.Cong = Cong;
 class Symm extends Source {
+    location;
+    equality;
     constructor(location, equality) {
         super(location);
         this.location = location;
@@ -1144,6 +1238,10 @@ class Symm extends Source {
 }
 exports.Symm = Symm;
 class IndEqual extends Source {
+    location;
+    target;
+    motive;
+    base;
     constructor(location, target, motive, base) {
         super(location);
         this.location = location;
@@ -1171,6 +1269,9 @@ class IndEqual extends Source {
 exports.IndEqual = IndEqual;
 // Vector types and operations
 class Vec extends Source {
+    location;
+    type;
+    length;
     constructor(location, type, length) {
         super(location);
         this.location = location;
@@ -1199,6 +1300,7 @@ class Vec extends Source {
 }
 exports.Vec = Vec;
 class VecNil extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -1234,6 +1336,9 @@ class VecNil extends Source {
 }
 exports.VecNil = VecNil;
 class VecCons extends Source {
+    location;
+    x;
+    xs;
     constructor(location, x, xs) {
         super(location);
         this.location = location;
@@ -1279,6 +1384,8 @@ class VecCons extends Source {
 }
 exports.VecCons = VecCons;
 class Head extends Source {
+    location;
+    vec;
     constructor(location, vec) {
         super(location);
         this.location = location;
@@ -1299,6 +1406,8 @@ class Head extends Source {
 }
 exports.Head = Head;
 class Tail extends Source {
+    location;
+    vec;
     constructor(location, vec) {
         super(location);
         this.location = location;
@@ -1319,6 +1428,12 @@ class Tail extends Source {
 }
 exports.Tail = Tail;
 class IndVec extends Source {
+    location;
+    length;
+    target;
+    motive;
+    base;
+    step;
     constructor(location, length, target, motive, base, step) {
         super(location);
         this.location = location;
@@ -1352,6 +1467,9 @@ class IndVec extends Source {
 exports.IndVec = IndVec;
 // Either type and operations
 class Either extends Source {
+    location;
+    left;
+    right;
     constructor(location, left, right) {
         super(location);
         this.location = location;
@@ -1382,6 +1500,8 @@ class Either extends Source {
 }
 exports.Either = Either;
 class Left extends Source {
+    location;
+    value;
     constructor(location, value) {
         super(location);
         this.location = location;
@@ -1414,6 +1534,8 @@ class Left extends Source {
 }
 exports.Left = Left;
 class Right extends Source {
+    location;
+    value;
     constructor(location, value) {
         super(location);
         this.location = location;
@@ -1446,6 +1568,11 @@ class Right extends Source {
 }
 exports.Right = Right;
 class IndEither extends Source {
+    location;
+    target;
+    motive;
+    baseLeft;
+    baseRight;
     constructor(location, target, motive, baseLeft, baseRight) {
         super(location);
         this.location = location;
@@ -1476,6 +1603,7 @@ class IndEither extends Source {
 exports.IndEither = IndEither;
 // Utility
 class TODO extends Source {
+    location;
     constructor(location) {
         super(location);
         this.location = location;
@@ -1501,6 +1629,10 @@ class TODO extends Source {
 exports.TODO = TODO;
 // Application
 class Application extends Source {
+    location;
+    func;
+    arg;
+    args;
     constructor(location, func, arg, args) {
         super(location);
         this.location = location;
@@ -1524,89 +1656,4 @@ class Application extends Source {
     }
 }
 exports.Application = Application;
-class DefineDatatype extends Source {
-    constructor(location, typeName, parameters, // Type parameters [A : Type]
-    indices, // Index parameters [i : Nat] 
-    resultType, // The result universe (Type)
-    constructors // Data constructors
-    ) {
-        super(location);
-        this.location = location;
-        this.typeName = typeName;
-        this.parameters = parameters;
-        this.indices = indices;
-        this.resultType = resultType;
-        this.constructors = constructors;
-    }
-    synthHelper(ctx, renames) {
-        return synthesizer_1.synthesizer.synthDefineDatatype(ctx, renames, this);
-    }
-    findNames() {
-        const names = [this.typeName];
-        names.push(...this.parameters.flatMap(p => p.findNames()));
-        names.push(...this.indices.flatMap(i => i.findNames()));
-        names.push(...this.resultType.findNames());
-        names.push(...this.constructors.flatMap(c => c.findNames()));
-        return names;
-    }
-    prettyPrint() {
-        const params = this.parameters.map(p => `[${p.prettyPrint()}]`).join(' ');
-        const indices = this.indices.map(i => `[${i.prettyPrint()}]`).join(' ');
-        const ctors = this.constructors.map(c => c.prettyPrint()).join('\n  ');
-        return `(define-datatype ${this.typeName} ${params} : ${indices} ${this.resultType.prettyPrint()}
-  ${ctors})`;
-    }
-}
-exports.DefineDatatype = DefineDatatype;
-class Constructor extends Source {
-    synthHelper(ctx, renames) {
-        throw new Error('Method not implemented.');
-    }
-    constructor(location, name, args, // Constructor args
-    resultType // Type the constructor produces
-    ) {
-        super(location);
-        this.location = location;
-        this.name = name;
-        this.args = args;
-        this.resultType = resultType;
-    }
-    findNames() {
-        const names = [this.name];
-        names.push(...this.args.flatMap(a => a.findNames()));
-        names.push(...this.resultType.findNames());
-        return names;
-    }
-    prettyPrint() {
-        const args = this.args.map(a => `[${a.prettyPrint()}]`).join(' ');
-        return `[${this.name} ${args} : ${this.resultType.prettyPrint()}]`;
-    }
-}
-exports.Constructor = Constructor;
-// Generic eliminator for user-defined inductive types
-class GenericEliminator extends Source {
-    constructor(location, typeName, target, motive, methods) {
-        super(location);
-        this.location = location;
-        this.typeName = typeName;
-        this.target = target;
-        this.motive = motive;
-        this.methods = methods;
-    }
-    synthHelper(ctx, renames) {
-        throw new Error('Method not implemented.');
-    }
-    findNames() {
-        const names = [this.typeName];
-        names.push(...this.target.findNames());
-        names.push(...this.motive.findNames());
-        names.push(...this.methods.flatMap(m => m.findNames()));
-        return names;
-    }
-    prettyPrint() {
-        const methods = this.methods.map(m => m.prettyPrint()).join(' ');
-        return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
-    }
-}
-exports.GenericEliminator = GenericEliminator;
 //# sourceMappingURL=source.js.map

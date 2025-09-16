@@ -34,7 +34,7 @@ import { ProofManager } from '../../../pie_interpreter/tactics/proofmanager';
 // Interface for type checking results
 interface TypeCheckResult {
     diagnostics: Diagnostic[];
-    context: Context; // For use in subsequent type checking
+    context: Context;
 }
 
 // Interface to store symbol definition information
@@ -48,7 +48,6 @@ interface SymbolDefinition {
 // Create a connection for the server
 const connection = createConnection(ProposedFeatures.all);
 
-connection.console.log("this is a test message")
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -112,7 +111,7 @@ connection.onInitialized(() => {
 	}
 });
 
-// The example settings
+
 interface Settings {
 	maxNumberOfProblems: number;
 }
@@ -505,7 +504,7 @@ function getWordAtPosition(document: TextDocument, position: Position): string |
 	return null;
 }
 
-// Fix: Single, complete hover handler
+// Hover handler
 connection.onHover((params: HoverParams): Hover | null => {
 	connection.console.log(`Hover requested at ${params.position.line}:${params.position.character}`);
 	
@@ -939,9 +938,7 @@ function processDefineTacticallyDeclaration(defineTactically: DefineTactically, 
             }
         }
 
-        // If we get here, the tactical definition succeeded
-        // For now, we'll return the original context as the proof manager
-        // doesn't expose its internal context directly
+
         // TODO: Update this when ProofManager provides context access
         return context;
     } catch (error) {
@@ -971,6 +968,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	// Send the computed diagnostics to VSCode.
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
+
 
 connection.onDidChangeWatchedFiles(_change => {
 	// Monitored files have change in VSCode

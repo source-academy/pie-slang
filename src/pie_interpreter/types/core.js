@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Eliminator = exports.Constructor = exports.InductiveType = exports.VarName = exports.Application = exports.TODO = exports.IndEither = exports.Right = exports.Left = exports.Either = exports.IndVec = exports.Tail = exports.Head = exports.VecNil = exports.VecCons = exports.Vec = exports.IndEqual = exports.Symm = exports.Cong = exports.Trans = exports.Replace = exports.Same = exports.Equal = exports.IndAbsurd = exports.Absurd = exports.Sole = exports.Trivial = exports.IndList = exports.RecList = exports.List = exports.Nil = exports.ListCons = exports.Cdr = exports.Car = exports.Cons = exports.Sigma = exports.Quote = exports.Atom = exports.Lambda = exports.Pi = exports.IndNat = exports.RecNat = exports.IterNat = exports.WhichNat = exports.Add1 = exports.Zero = exports.Nat = exports.Universe = exports.The = exports.Core = void 0;
+exports.VarName = exports.Application = exports.TODO = exports.IndEither = exports.Right = exports.Left = exports.Either = exports.IndVec = exports.Tail = exports.Head = exports.VecNil = exports.VecCons = exports.Vec = exports.IndEqual = exports.Symm = exports.Cong = exports.Trans = exports.Replace = exports.Same = exports.Equal = exports.IndAbsurd = exports.Absurd = exports.Sole = exports.Trivial = exports.IndList = exports.RecList = exports.List = exports.Nil = exports.ListCons = exports.Cdr = exports.Car = exports.Cons = exports.Sigma = exports.Quote = exports.Atom = exports.Lambda = exports.Pi = exports.IndNat = exports.RecNat = exports.IterNat = exports.WhichNat = exports.Add1 = exports.Zero = exports.Nat = exports.Universe = exports.The = exports.Core = void 0;
 const V = __importStar(require("./value"));
 const N = __importStar(require("./neutral"));
 const Evaluator = __importStar(require("../evaluator/evaluator"));
@@ -58,6 +58,8 @@ class Core {
 }
 exports.Core = Core;
 class The extends Core {
+    type;
+    expr;
     constructor(type, expr) {
         super();
         this.type = type;
@@ -111,6 +113,7 @@ class Zero extends Core {
 }
 exports.Zero = Zero;
 class Add1 extends Core {
+    n;
     constructor(n) {
         super();
         this.n = n;
@@ -130,6 +133,9 @@ class Add1 extends Core {
 }
 exports.Add1 = Add1;
 class WhichNat extends Core {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -150,6 +156,9 @@ class WhichNat extends Core {
 }
 exports.WhichNat = WhichNat;
 class IterNat extends Core {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -170,6 +179,9 @@ class IterNat extends Core {
 }
 exports.IterNat = IterNat;
 class RecNat extends Core {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -190,6 +202,10 @@ class RecNat extends Core {
 }
 exports.RecNat = RecNat;
 class IndNat extends Core {
+    target;
+    motive;
+    base;
+    step;
     constructor(target, motive, base, step) {
         super();
         this.target = target;
@@ -212,6 +228,9 @@ class IndNat extends Core {
 }
 exports.IndNat = IndNat;
 class Pi extends Core {
+    name;
+    type;
+    body;
     constructor(name, type, body) {
         super();
         this.name = name;
@@ -232,6 +251,8 @@ class Pi extends Core {
 }
 exports.Pi = Pi;
 class Lambda extends Core {
+    param;
+    body;
     constructor(param, body) {
         super();
         this.param = param;
@@ -261,6 +282,7 @@ class Atom extends Core {
 }
 exports.Atom = Atom;
 class Quote extends Core {
+    sym;
     constructor(sym) {
         super();
         this.sym = sym;
@@ -277,6 +299,9 @@ class Quote extends Core {
 }
 exports.Quote = Quote;
 class Sigma extends Core {
+    name;
+    type;
+    body;
     constructor(name, type, body) {
         super();
         this.name = name;
@@ -297,6 +322,8 @@ class Sigma extends Core {
 }
 exports.Sigma = Sigma;
 class Cons extends Core {
+    first;
+    second;
     constructor(first, second) {
         super();
         this.first = first;
@@ -316,6 +343,7 @@ class Cons extends Core {
 }
 exports.Cons = Cons;
 class Car extends Core {
+    pair;
     constructor(pair) {
         super();
         this.pair = pair;
@@ -332,6 +360,7 @@ class Car extends Core {
 }
 exports.Car = Car;
 class Cdr extends Core {
+    pair;
     constructor(pair) {
         super();
         this.pair = pair;
@@ -348,6 +377,8 @@ class Cdr extends Core {
 }
 exports.Cdr = Cdr;
 class ListCons extends Core {
+    head;
+    tail;
     constructor(head, tail) {
         super();
         this.head = head;
@@ -379,6 +410,7 @@ class Nil extends Core {
 }
 exports.Nil = Nil;
 class List extends Core {
+    elemType;
     constructor(elemType) {
         super();
         this.elemType = elemType;
@@ -395,6 +427,9 @@ class List extends Core {
 }
 exports.List = List;
 class RecList extends Core {
+    target;
+    base;
+    step;
     constructor(target, base, step) {
         super();
         this.target = target;
@@ -415,6 +450,10 @@ class RecList extends Core {
 }
 exports.RecList = RecList;
 class IndList extends Core {
+    target;
+    motive;
+    base;
+    step;
     constructor(target, motive, base, step) {
         super();
         this.target = target;
@@ -473,6 +512,8 @@ class Absurd extends Core {
 }
 exports.Absurd = Absurd;
 class IndAbsurd extends Core {
+    target;
+    motive;
     constructor(target, motive) {
         super();
         this.target = target;
@@ -492,6 +533,9 @@ class IndAbsurd extends Core {
 }
 exports.IndAbsurd = IndAbsurd;
 class Equal extends Core {
+    type;
+    left;
+    right;
     constructor(type, left, right) {
         super();
         this.type = type;
@@ -512,6 +556,7 @@ class Equal extends Core {
 }
 exports.Equal = Equal;
 class Same extends Core {
+    type;
     constructor(type) {
         super();
         this.type = type;
@@ -528,6 +573,9 @@ class Same extends Core {
 }
 exports.Same = Same;
 class Replace extends Core {
+    target;
+    motive;
+    base;
     constructor(target, motive, base) {
         super();
         this.target = target;
@@ -548,6 +596,8 @@ class Replace extends Core {
 }
 exports.Replace = Replace;
 class Trans extends Core {
+    left;
+    right;
     constructor(left, right) {
         super();
         this.left = left;
@@ -565,6 +615,9 @@ class Trans extends Core {
 }
 exports.Trans = Trans;
 class Cong extends Core {
+    target;
+    base;
+    fun;
     constructor(target, base, fun) {
         super();
         this.target = target;
@@ -583,6 +636,7 @@ class Cong extends Core {
 }
 exports.Cong = Cong;
 class Symm extends Core {
+    equality;
     constructor(equality) {
         super();
         this.equality = equality;
@@ -599,6 +653,9 @@ class Symm extends Core {
 }
 exports.Symm = Symm;
 class IndEqual extends Core {
+    target;
+    motive;
+    base;
     constructor(target, motive, base) {
         super();
         this.target = target;
@@ -619,6 +676,8 @@ class IndEqual extends Core {
 }
 exports.IndEqual = IndEqual;
 class Vec extends Core {
+    type;
+    length;
     constructor(type, length) {
         super();
         this.type = type;
@@ -636,6 +695,8 @@ class Vec extends Core {
 }
 exports.Vec = Vec;
 class VecCons extends Core {
+    head;
+    tail;
     constructor(head, tail) {
         super();
         this.head = head;
@@ -665,6 +726,7 @@ class VecNil extends Core {
 }
 exports.VecNil = VecNil;
 class Head extends Core {
+    vec;
     constructor(vec) {
         super();
         this.vec = vec;
@@ -681,6 +743,7 @@ class Head extends Core {
 }
 exports.Head = Head;
 class Tail extends Core {
+    vec;
     constructor(vec) {
         super();
         this.vec = vec;
@@ -697,6 +760,11 @@ class Tail extends Core {
 }
 exports.Tail = Tail;
 class IndVec extends Core {
+    length;
+    target;
+    motive;
+    base;
+    step;
     constructor(length, target, motive, base, step) {
         super();
         this.length = length;
@@ -721,6 +789,8 @@ class IndVec extends Core {
 }
 exports.IndVec = IndVec;
 class Either extends Core {
+    left;
+    right;
     constructor(left, right) {
         super();
         this.left = left;
@@ -738,6 +808,7 @@ class Either extends Core {
 }
 exports.Either = Either;
 class Left extends Core {
+    value;
     constructor(value) {
         super();
         this.value = value;
@@ -754,6 +825,7 @@ class Left extends Core {
 }
 exports.Left = Left;
 class Right extends Core {
+    value;
     constructor(value) {
         super();
         this.value = value;
@@ -770,6 +842,10 @@ class Right extends Core {
 }
 exports.Right = Right;
 class IndEither extends Core {
+    target;
+    motive;
+    baseLeft;
+    baseRight;
     constructor(target, motive, baseLeft, baseRight) {
         super();
         this.target = target;
@@ -792,6 +868,8 @@ class IndEither extends Core {
 }
 exports.IndEither = IndEither;
 class TODO extends Core {
+    loc;
+    type;
     constructor(loc, type) {
         super();
         this.loc = loc;
@@ -809,6 +887,8 @@ class TODO extends Core {
 }
 exports.TODO = TODO;
 class Application extends Core {
+    fun;
+    arg;
     constructor(fun, arg) {
         super();
         this.fun = fun;
@@ -826,6 +906,7 @@ class Application extends Core {
 }
 exports.Application = Application;
 class VarName extends Core {
+    name;
     constructor(name) {
         super();
         this.name = name;
@@ -846,54 +927,4 @@ class VarName extends Core {
     }
 }
 exports.VarName = VarName;
-class InductiveType extends Core {
-    valOf(env) {
-        return new V.InductiveType(this.typeName, this.parameters.map(p => p.toLazy(env)), this.indices.map(i => i.toLazy(env)));
-    }
-    constructor(typeName, parameters, indices) {
-        super();
-        this.typeName = typeName;
-        this.parameters = parameters;
-        this.indices = indices;
-    }
-    prettyPrint() {
-        return `${this.typeName}${this.parameters.length > 0 ? ' ' + this.parameters.map(p => p.prettyPrint()).join(' ') : ''}${this.indices.length > 0 ? ' ' + this.indices.map(i => i.prettyPrint()).join(' ') : ''}`;
-    }
-}
-exports.InductiveType = InductiveType;
-class Constructor extends Core {
-    constructor(name, type, args, index, recursive_args) {
-        super();
-        this.name = name;
-        this.type = type;
-        this.args = args;
-        this.index = index;
-        this.recursive_args = recursive_args;
-    }
-    valOf(env) {
-        return new V.Constructor(this.name, this.type.toLazy(env), this.args.map(a => a.toLazy(env)), this.index, this.recursive_args.map(a => a.toLazy(env)));
-    }
-    prettyPrint() {
-        const args = this.args.map(a => a.prettyPrint()).join(' ');
-        return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
-    }
-}
-exports.Constructor = Constructor;
-class Eliminator extends Core {
-    constructor(typeName, target, motive, methods) {
-        super();
-        this.typeName = typeName;
-        this.target = target;
-        this.motive = motive;
-        this.methods = methods;
-    }
-    valOf(env) {
-        return Evaluator.doEliminator(this.typeName, this.target.toLazy(env), this.motive.toLazy(env), this.methods.map(m => m.toLazy(env)));
-    }
-    prettyPrint() {
-        const methods = this.methods.map(m => m.prettyPrint()).join(' ');
-        return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
-    }
-}
-exports.Eliminator = Eliminator;
 //# sourceMappingURL=core.js.map

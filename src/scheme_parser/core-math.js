@@ -38,12 +38,15 @@ var NumberType;
     NumberType[NumberType["COMPLEX"] = 4] = "COMPLEX";
 })(NumberType || (exports.NumberType = NumberType = {}));
 class Match {
+    result;
     constructor(result) {
         this.result = result;
     }
 }
 exports.Match = Match;
 class IntegerMatch extends Match {
+    result;
+    value;
     constructor(result, value) {
         super(result);
         this.result = result;
@@ -59,6 +62,9 @@ class IntegerMatch extends Match {
     }
 }
 class RationalMatch extends Match {
+    result;
+    numerator;
+    denominator;
     constructor(result, numerator, denominator) {
         super(result);
         this.result = result;
@@ -70,6 +76,10 @@ class RationalMatch extends Match {
     }
 }
 class RealMatch extends Match {
+    result;
+    integer;
+    decimal;
+    exponent;
     constructor(result, integer, decimal, exponent) {
         super(result);
         this.result = result;
@@ -98,6 +108,10 @@ class RealMatch extends Match {
     }
 }
 class ComplexMatch extends Match {
+    result;
+    real;
+    sign;
+    imaginary;
     constructor(result, real, sign, imaginary) {
         super(result);
         this.result = result;
@@ -321,8 +335,10 @@ let make_number = (value) => {
 };
 exports.make_number = make_number;
 class SchemeInteger {
+    numberType = NumberType.INTEGER;
+    value;
+    static EXACT_ZERO = new SchemeInteger(0n);
     constructor(value) {
-        this.numberType = NumberType.INTEGER;
         this.value = value;
     }
     // Factory method for creating a new SchemeInteger instance.
@@ -387,10 +403,11 @@ class SchemeInteger {
     }
 }
 exports.SchemeInteger = SchemeInteger;
-SchemeInteger.EXACT_ZERO = new SchemeInteger(0n);
 class SchemeRational {
+    numberType = NumberType.RATIONAL;
+    numerator;
+    denominator;
     constructor(numerator, denominator) {
-        this.numberType = NumberType.RATIONAL;
         this.numerator = numerator;
         this.denominator = denominator;
     }
@@ -497,6 +514,13 @@ exports.SchemeRational = SchemeRational;
 // the current schemeReal implementation is fully based
 // on JavaScript numbers.
 class SchemeReal {
+    numberType = NumberType.REAL;
+    value;
+    static INEXACT_ZERO = new SchemeReal(0);
+    static INEXACT_NEG_ZERO = new SchemeReal(-0);
+    static INFINITY = new SchemeReal(Infinity);
+    static NEG_INFINITY = new SchemeReal(-Infinity);
+    static NAN = new SchemeReal(NaN);
     static build(value, _force = false) {
         if (value === Infinity) {
             return SchemeReal.INFINITY;
@@ -516,7 +540,6 @@ class SchemeReal {
         return new SchemeReal(value);
     }
     constructor(value) {
-        this.numberType = NumberType.REAL;
         this.value = value;
     }
     promote(nType) {
@@ -568,17 +591,14 @@ class SchemeReal {
     }
 }
 exports.SchemeReal = SchemeReal;
-SchemeReal.INEXACT_ZERO = new SchemeReal(0);
-SchemeReal.INEXACT_NEG_ZERO = new SchemeReal(-0);
-SchemeReal.INFINITY = new SchemeReal(Infinity);
-SchemeReal.NEG_INFINITY = new SchemeReal(-Infinity);
-SchemeReal.NAN = new SchemeReal(NaN);
 class SchemeComplex {
+    numberType = NumberType.COMPLEX;
+    real;
+    imaginary;
     static build(real, imaginary, force = false) {
         return SchemeComplex.simplify(new SchemeComplex(real, imaginary), force);
     }
     constructor(real, imaginary) {
-        this.numberType = NumberType.COMPLEX;
         this.real = real;
         this.imaginary = imaginary;
     }
@@ -652,6 +672,8 @@ exports.SchemeComplex = SchemeComplex;
 // current scm-slang will force any polar complex numbers to be made
 // inexact, hence we opt to limit the use of polar form as much as possible.
 class SchemePolar {
+    magnitude;
+    angle;
     constructor(magnitude, angle) {
         this.magnitude = magnitude;
         this.angle = angle;

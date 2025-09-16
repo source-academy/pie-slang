@@ -3,6 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Location = exports.Syntax = exports.SourceLocation = void 0;
 exports.notForInfo = notForInfo;
 class SourceLocation {
+    source;
+    startLine;
+    startColumn;
+    endLine;
+    endColumn;
     constructor(source, startLine, startColumn, endLine, endColumn) {
         this.source = source;
         this.startLine = startLine;
@@ -13,6 +18,9 @@ class SourceLocation {
 }
 exports.SourceLocation = SourceLocation;
 class Syntax {
+    start;
+    end;
+    source;
     constructor(start, end, source) {
         this.start = start;
         this.end = end;
@@ -21,6 +29,8 @@ class Syntax {
 }
 exports.Syntax = Syntax;
 class Location {
+    syntax;
+    forInfo;
     constructor(syntax, forInfo) {
         this.syntax = syntax;
         this.forInfo = forInfo;
