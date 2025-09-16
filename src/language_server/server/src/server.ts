@@ -21,6 +21,8 @@ import {
 	DefinitionParams,
 } from 'vscode-languageserver/node';
 
+import { PIE_HOVER_INFO } from './pie_hover_info';
+
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
@@ -176,176 +178,7 @@ documents.onDidOpen(change => {
 	validateTextDocument(change.document);
 });
 
-// Built-in Pie symbols with hover information
-const PIE_HOVER_INFO = new Map([
-  // Natural numbers
-  ['Nat', {
-    summary: 'Natural numbers',
-    details: 'The type of natural numbers (0, 1, 2, ...)',
-    examples: '(the Nat 5)'
-  }],
-  ['zero', {
-    summary: 'Zero',
-    details: 'The natural number zero.',
-    examples: '(the Nat zero)'
-  }],
-  ['add1', {
-    summary: 'Add one',
-    details: 'Adds one to a natural number.',
-    examples: '(add1 3) ; evaluates to 4'
-  }],
-  
-  // Atoms
-  ['Atom', {
-    summary: 'Atomic values',
-    details: 'The type of indivisible values (quoted symbols).',
-    examples: "(the Atom 'hello)"
-  }],
-  ['quote', {
-    summary: 'Quote an atom',
-    details: 'Creates an atomic value.',
-    examples: "(quote hello) ; same as 'hello"
-  }],
-  
-  // Lists
-  ['List', {
-    summary: 'Lists',
-    details: 'A list type constructor.',
-    examples: '(List Nat) ; type of lists of natural numbers'
-  }],
-  ['nil', {
-    summary: 'Empty list',
-    details: 'The empty list.',
-    examples: '(the (List Nat) nil)'
-  }],
-  ['::',  {
-    summary: 'List constructor',
-    details: 'Adds an element to the front of a list.',
-    examples: '(:: 1 (:: 2 nil))'
-  }],
-  
-  // Functions
-  ['lambda', {
-    summary: 'Lambda expression',
-    details: 'Creates an anonymous function.',
-    examples: '(lambda (x) (add1 x))'
-  }],
-  ['λ', {
-    summary: 'Lambda expression (Unicode)',
-    details: 'Unicode version of lambda.',
-    examples: '(λ (x) (add1 x))'
-  }],
-  
-  // Types
-  ['the', {
-    summary: 'Type annotation',
-    details: 'Asserts that an expression has a particular type.',
-    examples: '(the Nat 5)'
-  }],
-  ['Universe', {
-    summary: 'Type of types',
-    details: 'The type of types.',
-    examples: '(the Universe Nat)'
-  }],
-  ['U', {
-    summary: 'Type of types (short)',
-    details: 'Short form of Universe.',
-    examples: '(the U Nat)'
-  }],
-  
-  // Dependent types
-  ['Pi', {
-    summary: 'Dependent function type',
-    details: 'Creates a dependent function type.',
-    examples: '(Pi ((n Nat)) (Vec Nat n))'
-  }],
-  ['Π', {
-    summary: 'Dependent function type (Unicode)',
-    details: 'Unicode version of Pi.',
-    examples: '(Π ((n Nat)) (Vec Nat n))'
-  }],
-  ['Sigma', {
-    summary: 'Dependent pair type',
-    details: 'Creates a dependent pair type.',
-    examples: '(Sigma ((A U)) (List A))'
-  }],
-  ['Σ', {
-    summary: 'Dependent pair type (Unicode)',
-    details: 'Unicode version of Sigma.',
-    examples: '(Σ ((A U)) (List A))'
-  }],
-  
-  // Pairs
-  ['Pair', {
-    summary: 'Pair type',
-    details: 'Type of pairs (non-dependent).',
-    examples: '(Pair Nat Atom)'
-  }],
-  ['cons', {
-    summary: 'Pair constructor',
-    details: 'Creates a pair.',
-    examples: '(cons 1 2)'
-  }],
-  ['car', {
-    summary: 'First element of pair',
-    details: 'Extracts the first element of a pair.',
-    examples: '(car (cons 1 2)) ; evaluates to 1'
-  }],
-  ['cdr', {
-    summary: 'Second element of pair',
-    details: 'Extracts the second element of a pair.',
-    examples: '(cdr (cons 1 2)) ; evaluates to 2'
-  }],
-  
-  // Equality
-  ['=', {
-    summary: 'Equality type',
-    details: 'Type of equality proofs.',
-    examples: '(= Nat 1 1)'
-  }],
-  ['same', {
-    summary: 'Reflexivity of equality',
-    details: 'Proof that something equals itself.',
-    examples: '(same 5)'
-  }],
-  ['replace', {
-    summary: 'Substitution of equals for equals',
-    details: 'Uses an equality proof to replace equals for equals.',
-    examples: '(replace proof-a=b target motive)'
-  }],
-  ['trans', {
-    summary: 'Transitivity of equality',
-    details: 'Combines two equality proofs.',
-    examples: '(trans proof-a=b proof-b=c)'
-  }],
-  ['cong', {
-    summary: 'Congruence of equality',
-    details: 'Applies a function to both sides of an equality.',
-    examples: '(cong proof-a=b function)'
-  }],
-  ['symm', {
-    summary: 'Symmetry of equality',
-    details: 'Reverses an equality proof.',
-    examples: '(symm proof-a=b)'
-  }],
-  
-  // Special
-  ['TODO', {
-    summary: 'Placeholder for incomplete code',
-    details: 'Indicates a hole to be filled in later.',
-    examples: '(define my-function TODO)'
-  }],
-  ['->', {
-    summary: 'Function type',
-    details: 'Non-dependent function type.',
-    examples: '(the (-> Nat Nat) (lambda (x) (add1 x)))'
-  }],
-  ['→', {
-    summary: 'Function type (Unicode)',
-    details: 'Unicode version of ->.',
-    examples: '(the (→ Nat Nat) (λ (x) (add1 x)))'
-  }]
-]);
+
 
 // Parse document to extract user-defined symbols
 function extractUserDefinedSymbols(document: TextDocument): Map<string, CompletionItem> {
@@ -762,19 +595,15 @@ function typeCheckPieDocument(document: TextDocument): TypeCheckResult {
 function parsePieDeclarations(text: string): Declaration[] {
     const declarations: Declaration[] = [];
 
-    try {
-        // First parse with scheme parser to get AST nodes
-        const astList = schemeParse(text);
+    // First parse with scheme parser to get AST nodes
+    const astList = schemeParse(text);
 
-        // Then parse each AST node as a declaration
-        for (const ast of astList) {
-            const declaration = pieDeclarationParser.parseDeclaration(ast);
-            declarations.push(declaration);
-        }
-    } catch (error) {
-        throw error;
+    // Then parse each AST node as a declaration
+    for (const ast of astList) {
+        const declaration = pieDeclarationParser.parseDeclaration(ast);
+        declarations.push(declaration);
     }
-
+    
     return declarations;
 }
 
@@ -958,12 +787,12 @@ function processDefineTacticallyDeclaration(defineTactically: DefineTactically, 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	// Perform type checking
 	const result = typeCheckPieDocument(textDocument);
-	let problems = 0;
+	// let problems = 0;
 	const diagnostics: Diagnostic[] = [];
 
 	// Add type checking diagnostics
 	diagnostics.push(...result.diagnostics);
-	problems += result.diagnostics.length;
+	// problems += result.diagnostics.length;
 
 	// Send the computed diagnostics to VSCode.
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
