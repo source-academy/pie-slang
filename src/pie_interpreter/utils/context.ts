@@ -129,6 +129,8 @@ export function contextToEnvironment(ctx: Context): Environment {
       env.set(name, binder.value);
     } else if (binder instanceof Free) {
       env.set(name, new Neutral(binder.type, new Variable(name)));
+    } else if (binder instanceof InductiveDatatypePlaceholder) {
+      env.set(name, new Neutral(binder.type, new Variable(name)));
     } // else continue;
   }
   return env;

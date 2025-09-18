@@ -782,8 +782,8 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
   
   // Check if target is a constructor application of the inductive type
   if (targetNow instanceof V.Constructor) {
-    if (targetNow.name != name) {
-      throw new Error(`doEliminator: wrong eliminator used. Got: ${targetNow.name}; Expected: ${name}`);
+    if (targetNow.type != name) {
+      throw new Error(`doEliminator: wrong eliminator used. Got constructor of type: ${targetNow.type}; Expected: ${name}`);
     }
     const constructorIndex = targetNow.index;
     if (constructorIndex >= 0 && constructorIndex < methods.length) {

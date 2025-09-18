@@ -5,7 +5,7 @@ import * as S from './source';
 
 import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename} from '../typechecker/utils';
 import { Location, notForInfo } from '../utils/locations';
-import { bindFree, Context, readBackContext, valInContext } from '../utils/context';
+import { bindFree, Context, readBackContext, valInContext, getInductiveType, InductiveDatatypeBinder, ConstructorBinder, EliminatorBinder, contextToEnvironment } from '../utils/context';
 
 import { go, stop, goOn, occurringBinderNames, Perhaps, 
   PerhapsM, SiteBinder, TypedBinder, Message, freshBinder, 
@@ -2006,34 +2006,115 @@ export class ConstructorType extends Source {
   
 }
 
-export class Constructor extends Source {
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    throw new Error('Method not implemented.');
+// Constructor expression - references a constructor by name and applies it to arguments
+// Helper function to check if an argument is a recursive reference
+function isArgumentRecursive(arg: Source, datatypeName: string, ctx: Context, renames: Renaming): boolean {
+  try {
+    const argSynth = arg.synth(ctx, renames);
+    if (argSynth instanceof go) {
+      const argType = argSynth.result.type;
+      return isTypeReference(argType, datatypeName, ctx);
+    }
+  } catch (e) {
+    // If synthesis fails, assume not recursive
   }
+  return false;
+}
+
+// Helper function to check if a Core type refers to a specific datatype
+function isTypeReference(typeCore: C.Core, datatypeName: string, ctx: Context): boolean {
+  if (typeCore instanceof C.VarName && typeCore.name === datatypeName) {
+    return true;
+  }
+  if (typeCore instanceof C.InductiveType && typeCore.typeName === datatypeName) {
+    return true;
+  }
+  // For more complex cases, we could evaluate the type and check
+  try {
+    const typeValue = typeCore.valOf(contextToEnvironment(ctx));
+    if (typeValue instanceof V.InductiveType && typeValue.name === datatypeName) {
+      return true;
+    }
+  } catch (e) {
+    // If evaluation fails, continue with other checks
+  }
+  return false;
+}
+
+export class ConstructorApplication extends Source {
   constructor(
     public location: Location,
-    public name: string,
-    public args: Source[], // Constructor args
-    public resultType: Source        // Type the constructor produces
+    public constructorName: string,
+    public args: Source[] // Arguments to apply to constructor
   ) {
     super(location);
   }
 
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    // Look up constructor in context
+    const constructorBinder = ctx.get(this.constructorName);
+    if (!constructorBinder || !(constructorBinder instanceof ConstructorBinder)) {
+      return new stop(this.location, new Message([`Unknown constructor: ${this.constructorName}`]));
+    }
+
+    const constructorType = constructorBinder.type;
+
+    // Check arguments against constructor type
+    const checkedArgs: C.Core[] = [];
+
+    // For now, simplified: assume constructor takes any number of args
+    // In a full implementation, we'd check each arg against the constructor's expected types
+    for (const arg of this.args) {
+      const argResult = arg.synth(ctx, renames);
+      if (argResult instanceof stop) {
+        return argResult;
+      }
+      checkedArgs.push((argResult as go<C.The>).result.expr);
+    }
+
+    // Properly categorize recursive vs non-recursive arguments
+    const recursiveArgs: C.Core[] = [];
+    for (let i = 0; i < this.args.length; i++) {
+      if (isArgumentRecursive(this.args[i], constructorType.type, ctx, renames)) {
+        recursiveArgs.push(checkedArgs[i]);
+      }
+    }
+
+    // Create Core constructor application
+    const constructorCore = new C.Constructor(
+      this.constructorName,    // constructor name (e.g., "true")
+      constructorType.type,    // type name (e.g., "Bool")
+      checkedArgs,             // all arguments
+      constructorType.index,
+      recursiveArgs           // only recursive arguments
+    );
+
+    // Return The with constructor application and its type
+    // Note: C.The constructor is (type: Core, expr: Core)
+    return new go(new C.The(
+      new C.InductiveType(
+        constructorType.type,
+        [], // simplified - no parameters for now
+        []  // simplified - no indices for now
+      ),
+      constructorCore
+    ));
+  }
+
   public findNames(): string[] {
-    const names = [this.name];
+    const names = [this.constructorName];
     names.push(...this.args.flatMap(a => a.findNames()));
-    names.push(...this.resultType.findNames());
     return names;
   }
 
   public prettyPrint(): string {
-    const args = this.args.map(a => `[${a.prettyPrint()}]`).join(' ');
-    return `[${this.name} ${args} : ${this.resultType.prettyPrint()}]`;
+    const args = this.args.map(a => a.prettyPrint()).join(' ');
+    return `(${this.constructorName}${args.length > 0 ? ' ' + args : ''})`;
   }
 }
 
 // Generic eliminator for user-defined inductive types
-export class GenericEliminator extends Source {
+export class EliminatorApplication extends Source {
   constructor(
     public location: Location,
     public typeName: string,
@@ -2043,7 +2124,61 @@ export class GenericEliminator extends Source {
   ) { super(location); }
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    throw new Error('Method not implemented.');
+    // Look up the inductive type in context
+    const inductiveTypeBinder = getInductiveType(ctx, this.location, this.typeName);
+    if (inductiveTypeBinder instanceof stop) {
+      return inductiveTypeBinder;
+    }
+
+    const inductiveType = (inductiveTypeBinder as go<InductiveDatatypeBinder>).result.type;
+
+    // Look up the eliminator in context
+    const eliminatorName = `elim${this.typeName}`;
+    const eliminatorBinder = ctx.get(eliminatorName);
+    if (!eliminatorBinder || !(eliminatorBinder instanceof EliminatorBinder)) {
+      return new stop(this.location, new Message([`Unknown eliminator: ${eliminatorName}`]));
+    }
+
+    // Check target against inductive type
+    const targetResult = this.target.synth(ctx, renames);
+    if (targetResult instanceof stop) {
+      return targetResult;
+    }
+
+    const targetCore = (targetResult as go<C.The>).result;
+
+    // Check motive
+    const motiveResult = this.motive.synth(ctx, renames);
+    if (motiveResult instanceof stop) {
+      return motiveResult;
+    }
+
+    const motiveCore = (motiveResult as go<C.The>).result;
+
+    // Check methods
+    const checkedMethods: C.Core[] = [];
+    for (const method of this.methods) {
+      const methodResult = method.synth(ctx, renames);
+      if (methodResult instanceof stop) {
+        return methodResult;
+      }
+      checkedMethods.push((methodResult as go<C.The>).result.expr);
+    }
+
+    // Create Core eliminator application
+    const eliminatorCore = new C.Eliminator(
+      this.typeName,
+      targetCore.expr,
+      motiveCore.expr,
+      checkedMethods
+    );
+
+    // The result type depends on the motive applied to the target
+    // For now, simplified - in a full implementation we'd compute the proper result type
+    const resultType = new C.Application(motiveCore.expr, targetCore.expr);
+
+    // Note: C.The constructor is (type: Core, expr: Core)
+    return new go(new C.The(resultType, eliminatorCore));
   }
 
   public findNames(): string[] {

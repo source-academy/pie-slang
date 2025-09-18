@@ -1,68 +1,127 @@
 import * as S from '../types/source';
 import * as C from '../types/core';
 import * as V from '../types/value';
-import { go, goOn, Perhaps, stop, fresh, TypedBinder, Message } from '../types/utils';
-import { Context, extendContext, getInductiveType, InductiveDatatypePlaceholder, InductiveDatatypeBinder, ConstructorBinder, contextToEnvironment, EliminatorBinder, valInContext } from '../utils/context';
+import { go, Perhaps, stop, fresh, TypedBinder, Message, SiteBinder, HigherOrderClosure } from '../types/utils';
+import { Context, extendContext, InductiveDatatypePlaceholder, InductiveDatatypeBinder, ConstructorBinder, contextToEnvironment, EliminatorBinder, valInContext, bindFree } from '../utils/context';
 import { Location } from '../utils/locations';
-import { rename, Renaming } from './utils';
-import { Constructor } from '../types/value';
+import { Renaming } from './utils';
 import { Environment } from '../utils/environment';
+
+function isRecursiveArgumentType(argType: S.Source, datatypeName: string): boolean {
+  // Check for direct name reference
+  if (argType instanceof S.Name && argType.name === datatypeName) {
+    return true;
+  }
+
+  // Check for application with datatype name as function
+  if (argType instanceof S.Application &&
+      argType.func instanceof S.Name &&
+      argType.func.name === datatypeName) {
+    return true;
+  }
+
+  // Check for string representation (fallback to original logic)
+  const typePrint = argType.prettyPrint();
+  return typePrint === datatypeName || typePrint.includes(datatypeName);
+}
+
+export interface ConstructorSpec {
+  name: string;
+  args: TypedBinder[];
+}
 
 export class DefineDatatypeSource {
   constructor(
     public location: Location,
     public name: string,
-    public parameters: S.The[],
-    public indices: S.The[],
-    public constructors: { name: string, args: S.The[] }[],
-    public typeValue: V.Value
+    public parameters: TypedBinder[],
+    public indices: TypedBinder[],
+    public constructors: ConstructorSpec[],
+    public eliminatorName?: string
   ) { }
 
   public toString(): string {
-    return `data ${this.name} ${this.parameters.map(p => p.toString()).join(' ')} where ${this.constructors.map(c => c.name + ' ' + c.args.map(a => a.toString()).join(' ')).join(', ')}`;
+    const params = this.parameters.map(p => p.prettyPrint()).join(' ');
+    const indices = this.indices.map(i => i.prettyPrint()).join(' ');
+    const ctors = this.constructors.map(c =>
+      `${c.name} ${c.args.map(a => a.prettyPrint()).join(' ')}`
+    ).join(', ');
+    return `data ${this.name} (${params}) (${indices}) ${ctors}`;
   }
 
   public typeSynth(ctx: Context, rename: Renaming): Perhaps<DefineDatatypeCore> {
-    const synthedParameters = this.parameters.map(p => p.type.isType(ctx, rename))
-                                             .map(p => {
-                                              if (p instanceof stop) {
-                                                throw new Error(`Parameter type is not a type at ${p.where}`)
-                                              }
-                                              return (p as go<C.Core>).result
-                                            })
-    const synthedIndices = this.indices.map(p => p.type.isType(ctx, rename))
-                                         .map(p => {
-                                              if (p instanceof stop) {
-                                                throw new Error(`Index type is not a type at ${p.where}`)
-                                              }
-                                              return (p as go<C.Core>).result
-                                            })
-    
-    let counter = 0;
-    const synthedConstructors = this.constructors.map(
-      p => {
-        const typecheckedArgs = p.args.map(arg => arg.isType(ctx, rename))
-                                       .map(arg => {
-                                         if (arg instanceof stop) {
-                                           throw new Error(`Constructor argument type is not a type at ${arg.where}`)
-                                         }
-                                         return (arg as go<C.Core>).result
-                                       })
-        
-        // Find recursive arguments (those with type T)
-        const coreRecArgs = p.args.filter(arg => 
-          arg.prettyPrint().includes(this.name)
-        ).map(arg => arg.isType(ctx, rename))
-         .map(arg => {
-                                     if (arg instanceof stop) {
-                                       throw new Error(`Recursive argument type is not a type at ${arg.where}`)
-                                     }
-                                     return (arg as go<C.Core>).result
-                                   })
-        return new C.Constructor(p.name, this.name, typecheckedArgs, counter++, coreRecArgs)
+    let currentCtx = ctx;
+    const synthedParameters: C.Core[] = [];
+
+    for (const param of this.parameters) {
+      const paramTypeResult = param.type.isType(currentCtx, rename);
+      if (paramTypeResult instanceof stop) {
+        return new stop(param.binder.location, new Message([`Parameter type is not a type: ${paramTypeResult.message}`]));
       }
-    )
-    return new go(new DefineDatatypeCore(this.name, synthedParameters, synthedIndices, synthedConstructors))
+
+      const paramTypeCore = (paramTypeResult as go<C.Core>).result;
+      synthedParameters.push(paramTypeCore);
+
+      // Extend context with this parameter for subsequent parameters and indices
+      currentCtx = bindFree(currentCtx, param.binder.varName, valInContext(currentCtx, paramTypeCore));
+    }
+
+    // 2. Type check indices in extended context (can reference parameters)
+    const synthedIndices: C.Core[] = [];
+
+    for (const index of this.indices) {
+      const indexTypeResult = index.type.isType(currentCtx, rename);
+      if (indexTypeResult instanceof stop) {
+        return new stop(index.binder.location, new Message([`Index type is not a type: ${indexTypeResult.message}`]));
+      }
+
+      const indexTypeCore = (indexTypeResult as go<C.Core>).result;
+      synthedIndices.push(indexTypeCore);
+
+      // Extend context with this index for subsequent indices and constructors
+      currentCtx = bindFree(currentCtx, index.binder.varName, valInContext(currentCtx, indexTypeCore));
+    }
+
+    // 3. Type check constructors in fully extended context
+    let counter = 0;
+    const synthedConstructors: C.Constructor[] = [];
+
+    for (const ctor of this.constructors) {
+      const result = this.typeCheckConstructor(currentCtx, rename, ctor, counter++);
+      if (result instanceof stop) {
+        return result;
+      }
+      synthedConstructors.push((result as go<C.Constructor>).result);
+    }
+
+    return new go(new DefineDatatypeCore(this.name, synthedParameters, synthedIndices, synthedConstructors));
+  }
+
+  private typeCheckConstructor(ctx: Context, rename: Renaming, ctor: ConstructorSpec, index: number): Perhaps<C.Constructor> {
+    // Type check constructor arguments in sequence, extending context
+    let currentCtx = ctx;
+    const typecheckedArgs: C.Core[] = [];
+    const coreRecArgs: C.Core[] = [];
+
+    for (const arg of ctor.args) {
+      const argTypeResult = arg.type.isType(currentCtx, rename);
+      if (argTypeResult instanceof stop) {
+        return new stop(arg.binder.location, new Message([`Constructor argument type is not a type: ${argTypeResult.message}`]));
+      }
+
+      const argTypeCore = (argTypeResult as go<C.Core>).result;
+      typecheckedArgs.push(argTypeCore);
+
+      // Check if this argument type refers to the datatype being defined (recursive)
+      if (isRecursiveArgumentType(arg.type, this.name)) {
+        coreRecArgs.push(argTypeCore);
+      }
+
+      // Extend context with this argument for subsequent arguments
+      currentCtx = bindFree(currentCtx, arg.binder.varName, valInContext(currentCtx, argTypeCore));
+    }
+
+    return new go(new C.Constructor(ctor.name, this.name, typecheckedArgs, index, coreRecArgs));
   }
 }
 
@@ -161,42 +220,63 @@ export class EliminatorGenerator {
 }
 
 export function handleDefineDatatype(ctx: Context, renaming: Renaming, target: DefineDatatypeSource): Perhaps<Context> {
-  const placeholder = new InductiveDatatypePlaceholder(target.name)
   if (ctx.has(target.name)) {
-    throw new Error(`this name is already in use ${target.name}`)
+    return new stop(target.location, new Message([`Name already in use: ${target.name}`]));
   }
-  extendContext(ctx, target.name, placeholder)
-  
-  const synthesized = target.typeSynth(ctx, renaming)
+
+  // Create placeholder - for parameterized types, make it a function
+  const placeholder = new InductiveDatatypePlaceholder(target.name);
+
+  if (target.parameters.length > 0) {
+    // For parameterized types like List, create: (E : U) -> U
+    // Use HigherOrderClosure to avoid variable reference issues
+    let resultType: V.Value = new V.Universe();
+
+    for (let i = target.parameters.length - 1; i >= 0; i--) {
+      const paramName = target.parameters[i].binder.varName;
+      resultType = new V.Pi(
+        paramName,
+        new V.Universe(),
+        new HigherOrderClosure((_arg: V.Value) => new V.Universe())
+      );
+    }
+
+    placeholder.type = resultType;
+  }
+
+  let cur_ctx = extendContext(ctx, target.name, placeholder)
+
+  const synthesized = target.typeSynth(cur_ctx, renaming)
   if (synthesized instanceof stop) {
     return synthesized
   }
 
   const core = (synthesized as go<DefineDatatypeCore>).result
-  ctx.delete(target.name)
+  cur_ctx.delete(target.name)
 
   // 1. Add the datatype itself
-  extendContext(ctx, core.name, new InductiveDatatypeBinder(core.name, core.valOf(contextToEnvironment(ctx))))
+  cur_ctx = extendContext(cur_ctx, core.name, new InductiveDatatypeBinder(core.name, core.valOf(contextToEnvironment(cur_ctx))))
 
-  // 2. Add each constructor  
+  // 2. Add each constructor
   for (const ctor of core.constructors) {
-    extendContext(ctx, ctor.name, new ConstructorBinder(ctor.name, ctor.valOf(contextToEnvironment(ctx))))
+    cur_ctx = extendContext(cur_ctx, ctor.name, new ConstructorBinder(ctor.name, ctor.valOf(contextToEnvironment(cur_ctx))))
   }
 
-  // 3. Generate and add the eliminator (following the algorithm)
-  const eliminatorName = `elim${core.name}`;
+  // 3. Generate and add the eliminator
+  const eliminatorName = target.eliminatorName || `elim${core.name}`;
   const eliminatorGenerator = new EliminatorGenerator(
     eliminatorName,
     core.name,
-    core.parameters, 
+    core.parameters,
     core.indices,
     core.constructors
   );
 
   // Add eliminator to context
-  extendContext(ctx, eliminatorName, new EliminatorBinder(eliminatorName, valInContext(ctx, eliminatorGenerator.generateEliminatorType(ctx))));
+  const eliminatorType = eliminatorGenerator.generateEliminatorType(cur_ctx);
+  cur_ctx = extendContext(cur_ctx, eliminatorName, new EliminatorBinder(eliminatorName, valInContext(cur_ctx, eliminatorType)));
 
-  return new go(ctx)
+  return new go(cur_ctx)
 }
 
 // Type synthesis for eliminator applications
@@ -210,7 +290,6 @@ export function synthEliminator(
   methods: S.Source[]
 ): Perhaps<C.The> {
   
-  // Get eliminator from context
   const elimBinder = ctx.get(elimName);
   if (!elimBinder || !(elimBinder instanceof EliminatorGenerator)) {
     return new stop(location, new Message([`Unknown eliminator: ${elimName}`]));
@@ -250,7 +329,76 @@ export function synthEliminator(
       elimBinder.datatypeName,
       (targetSynth as go<C.The>).result.expr,
       (motiveSynth as go<C.The>).result.expr,
-      methods.map((m, i) => ((m.synth(ctx, renaming) as go<C.The>).result.expr))
+      methods.map(m => ((m.synth(ctx, renaming) as go<C.The>).result.expr))
     )
   ));
+}
+
+// Helper functions for creating inductive types with TypedBinder
+
+export function makeTypedBinder(name: string, type: S.Source, location: Location): TypedBinder {
+  return new TypedBinder(new SiteBinder(location, name), type);
+}
+
+export function makeConstructorSpec(name: string, args: TypedBinder[]): ConstructorSpec {
+  return { name, args};
+}
+
+// Example factory functions for common inductive types
+
+export function createListDatatype(location: Location): DefineDatatypeSource {
+  const elemParam = makeTypedBinder("E", new S.Universe(location), location);
+
+  return new DefineDatatypeSource(
+    location,
+    "List",
+    [elemParam],           // Type parameters: ((E U))
+    [],                    // No indices
+    [
+      makeConstructorSpec("nil", []),
+      makeConstructorSpec("::", [
+        makeTypedBinder("head", new S.Name(location, "E"), location),
+        makeTypedBinder("tail", new S.Application(location, new S.Name(location, "List"), new S.Name(location, "E"), []), location)
+      ])
+    ],
+    "ind-List"              // Eliminator name
+  );
+}
+
+export function createVecDatatype(location: Location): DefineDatatypeSource {
+  const elemParam = makeTypedBinder("E", new S.Universe(location), location);
+  const lengthIndex = makeTypedBinder("n", new S.Nat(location), location);
+
+  return new DefineDatatypeSource(
+    location,
+    "Vec",
+    [elemParam],           // Type parameters: ((E U))
+    [lengthIndex],         // Index parameters: ((n Nat))
+    [
+      makeConstructorSpec("vnil", [],
+        // Explicit result type: (Vec E zero)
+        new S.Application(location,
+          new S.Application(location, new S.Name(location, "Vec"), new S.Name(location, "E"), []),
+          new S.Zero(location), []
+        )
+      ),
+      makeConstructorSpec("vcons", [
+        makeTypedBinder("head", new S.Name(location, "E"), location),
+        makeTypedBinder("tail",
+          new S.Application(location,
+            new S.Application(location, new S.Name(location, "Vec"), new S.Name(location, "E"), []),
+            new S.Name(location, "n"), []
+          ),
+          location
+        )
+      ],
+        // Explicit result type: (Vec E (add1 n))
+        new S.Application(location,
+          new S.Application(location, new S.Name(location, "Vec"), new S.Name(location, "E"), []),
+          new S.Add1(location, new S.Name(location, "n")), []
+        )
+      )
+    ],
+    "ind-Vec"               // Eliminator name
+  );
 }
