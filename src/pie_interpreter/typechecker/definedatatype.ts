@@ -2,32 +2,50 @@ import * as S from '../types/source';
 import * as C from '../types/core';
 import * as V from '../types/value';
 import { go, Perhaps, stop, fresh, TypedBinder, Message, SiteBinder, HigherOrderClosure } from '../types/utils';
-import { Context, extendContext, InductiveDatatypePlaceholder, InductiveDatatypeBinder, ConstructorBinder, contextToEnvironment, EliminatorBinder, valInContext, bindFree } from '../utils/context';
+import { Context, extendContext, InductiveDatatypePlaceholder, InductiveDatatypeBinder, ConstructorBinder, contextToEnvironment, EliminatorBinder, valInContext, bindFree, getClaim } from '../utils/context';
 import { Location } from '../utils/locations';
-import { Renaming } from './utils';
+import { extendRenaming, Renaming } from './utils';
 import { Environment } from '../utils/environment';
+import { VarName } from '../types/core';
+import { synthesizer } from './synthesizer';
 
 function isRecursiveArgumentType(argType: S.Source, datatypeName: string): boolean {
-  // Check for direct name reference
   if (argType instanceof S.Name && argType.name === datatypeName) {
     return true;
   }
 
-  // Check for application with datatype name as function
   if (argType instanceof S.Application &&
-      argType.func instanceof S.Name &&
+      argType.func instanceof generalInductiveType &&
       argType.func.name === datatypeName) {
     return true;
   }
 
-  // Check for string representation (fallback to original logic)
-  const typePrint = argType.prettyPrint();
-  return typePrint === datatypeName || typePrint.includes(datatypeName);
+  return false;
 }
 
-export interface ConstructorSpec {
-  name: string;
-  args: TypedBinder[];
+export class generalInductiveType extends S.Source {
+  public findNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    const resultTemp = getClaim(ctx, this.location, this.name)
+    if (resultTemp instanceof stop) {
+      return resultTemp
+    }
+
+    const result = (resultTemp as go<V.Value>).result
+    return result.readBackType(ctx)
+  }
+  constructor(
+    public location: Location,
+    public name: string,
+    args: SiteBinder
+  ) {super(location)}
+
+
 }
 
 export class DefineDatatypeSource {
@@ -35,19 +53,81 @@ export class DefineDatatypeSource {
     public location: Location,
     public name: string,
     public parameters: TypedBinder[],
-    public indices: TypedBinder[],
-    public constructors: ConstructorSpec[],
+    public indices: S.Pi,
+    public constructors: S.Pi[],
     public eliminatorName?: string
   ) { }
 
   public toString(): string {
     const params = this.parameters.map(p => p.prettyPrint()).join(' ');
-    const indices = this.indices.map(i => i.prettyPrint()).join(' ');
-    const ctors = this.constructors.map(c =>
-      `${c.name} ${c.args.map(a => a.prettyPrint()).join(' ')}`
-    ).join(', ');
+    const indices = this.indices.prettyPrint();
+    const ctors = this.constructors.map(p => p.prettyPrint()).join(' ');
     return `data ${this.name} (${params}) (${indices}) ${ctors}`;
   }
+
+  // checkOneType(ctx: Context, rename: Renaming, binder: SiteBinder, type:S.Source) {
+  //   const xhat = fresh(ctx, binder.varName)
+  //   const result = type.check(ctx, rename, new V.Universe())
+  //   if (result instanceof go) {
+  //     return new go(
+  //       new ContextAndRenaming(
+  //       bindFree(ctx, xhat, valInContext(ctx, result.result)),
+  //       extendRenaming(rename, binder.varName, xhat)
+  //     ))
+  //   } else {
+  //     throw (result as stop).message
+  //   }
+  // }
+
+  // checkParams(ctx: Context, rename:Renaming) {
+  //   let cur_ctx = ctx;
+  //   let cur_rename = rename
+  //   for (const param of this.parameters) {
+  //     const result = this.checkOneType(cur_ctx, cur_rename, param.binder, param.type)
+  //     if (result instanceof go) {
+  //       const cur_result= (result as go<ContextAndRenaming>).result
+  //       cur_ctx = cur_result.ctx
+  //       cur_rename = cur_result.rename
+  //     } else {
+  //       throw (result as stop).message
+  //     }
+  //   }
+  //   return new go(new ContextAndRenaming(cur_ctx, cur_rename))
+  // }
+
+  // synthIndices(ctx: Context, rename:Renaming) {
+  //   return this.indices.synth(ctx, rename)
+  // }
+
+  buildMainTypeAndConstructor(ctx: Context, rename:Renaming) {
+    const mainTypeTemp =  new S.Pi(this.location, this.parameters, this.indices).getType(ctx, rename)
+    if (mainTypeTemp instanceof stop) {
+      return mainTypeTemp
+    }
+    const namehat = fresh(ctx, this.name)
+    let cur_ctx = bindFree(ctx, namehat, 
+      valInContext(ctx, (mainTypeTemp as go<C.Pi>).result)
+    )
+    let cur_rename = extendRenaming(rename, this.name, namehat)
+
+    let constructorls = this.constructors.map(
+      ctor => ctor.synth(cur_ctx, cur_rename)
+    )
+  }
+
+  findAllRecTypes(ctor:S.Pi, acc: string[]) {
+
+  }
+
+  handleConstructor(ctx:Context, rename:Renaming, ctor:S.Pi) {
+
+  }
+
+
+
+
+
+  
 
   public typeSynth(ctx: Context, rename: Renaming): Perhaps<DefineDatatypeCore> {
     let currentCtx = ctx;
@@ -402,3 +482,4 @@ export function createVecDatatype(location: Location): DefineDatatypeSource {
     "ind-Vec"               // Eliminator name
   );
 }
+
