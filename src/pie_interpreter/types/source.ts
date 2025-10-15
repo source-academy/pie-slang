@@ -1929,7 +1929,7 @@ export class Application extends Source {
     public arg: Source,
     public args: Source[],
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthApplication(ctx, renames, this.location, this.func, this.arg, this.args);
   }
@@ -1946,6 +1946,31 @@ export class Application extends Source {
 
   public toString(): string {
     return this.prettyPrint();
+  }
+
+  // Override getType to handle inductive type applications
+  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    // Check if func is a Name referring to an inductive type
+    if (this.func instanceof Name) {
+      const funcName = this.func.name;
+      const binder = ctx.get(funcName);
+
+      // If it's an inductive type, treat this as a GeneralTypeConstructor application
+      if (binder instanceof InductiveDatatypeBinder) {
+        // Create a GeneralTypeConstructor with the indices from args
+        const allArgs = [this.arg, ...this.args];
+        const generalTypeCtor = new GeneralTypeConstructor(
+          this.location,
+          funcName,
+          [], // parameters - will be inferred from context
+          allArgs
+        );
+        return generalTypeCtor.getType(ctx, renames);
+      }
+    }
+
+    // Otherwise, use default behavior (check against Universe)
+    return super.getType(ctx, renames);
   }
 }
 

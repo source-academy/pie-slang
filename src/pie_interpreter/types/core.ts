@@ -1187,7 +1187,9 @@ export class Eliminator extends Core {
     public typeName: string,
     public target: Core,
     public motive: Core,
-    public methods: Core[]
+    public methods: Core[],
+    public methodTypes?: Core[],  // Optional: method types for proper Neutral handling
+    public motiveType?: Core  // Optional: motive type for proper Neutral handling with indexed types
   ) { super(); }
 
   public valOf(env: Environment): V.Value {
@@ -1195,7 +1197,9 @@ export class Eliminator extends Core {
       this.typeName,
       this.target.toLazy(env),
       this.motive.toLazy(env),
-      this.methods.map(m => m.toLazy(env))
+      this.methods.map(m => m.toLazy(env)),
+      this.methodTypes ? this.methodTypes.map(t => t.toLazy(env)) : undefined,
+      this.motiveType ? this.motiveType.toLazy(env) : undefined
     );
   }
   public prettyPrint(): string {

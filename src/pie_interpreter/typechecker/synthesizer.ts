@@ -1742,6 +1742,7 @@ export class synthesizer {
 
     const motiveCore = (motiveCheck as go<C.Core>).result;
     const motiveValue = valInContext(ctx, motiveCore);
+    const motiveTypeCore = expectedMotiveType.readBackType(ctx);  // Store motive type for Neutral handling
 
     // PHASE 4: Get constructor types and check methods
     const constructorTypes = this.getConstructorTypesForDatatype(ctx, elimApp.typeName);
@@ -1752,6 +1753,7 @@ export class synthesizer {
     }
 
     const checkedMethods: C.Core[] = [];
+    const methodTypeCores: C.Core[] = [];  // Store method types as Core
     for (let i = 0; i < elimApp.methods.length; i++) {
       const expectedMethodType = this.generateMethodTypeForConstructor(
         ctx,
@@ -1759,6 +1761,9 @@ export class synthesizer {
         motiveValue,
         targetTypeValue.parameters
       );
+
+      // Store the method type as Core for later use in evaluation
+      methodTypeCores.push(expectedMethodType.readBackType(ctx));
 
       const methodCheck = elimApp.methods[i].check(ctx, r, expectedMethodType);
       if (methodCheck instanceof stop) return methodCheck;
@@ -1782,7 +1787,9 @@ export class synthesizer {
       elimApp.typeName,
       targetThe.expr,
       motiveCore,
-      checkedMethods
+      checkedMethods,
+      methodTypeCores,  // Pass method types for proper Neutral handling
+      motiveTypeCore  // Pass motive type for proper Neutral handling with indexed types
     );
 
     return new go(new C.The(

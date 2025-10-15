@@ -2,7 +2,7 @@ import * as V from "../types/value";
 import * as C from '../types/core';
 import * as N from '../types/neutral';
 import { fresh } from '../types/utils';
-import { bindFree, Context } from '../utils/context';
+import { bindFree, Context, ConstructorTypeBinder, valInContext } from '../utils/context';
 import { doApp, doCar, doCdr } from "./evaluator";
 
 /**
@@ -176,9 +176,50 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
     return new C.Right(
       readBack(context, typeNow.rightType, valueNow.value)!
     );
+  } else if (typeNow instanceof V.InductiveTypeConstructor
+    && valueNow instanceof V.Constructor) {
+    // Read back constructor applications
+    // We need to get the constructor's type information to read back its arguments
+    let ctorBinder: ConstructorTypeBinder | undefined;
+    for (const [name, binder] of context) {
+      if (name === valueNow.name && binder instanceof ConstructorTypeBinder) {
+        ctorBinder = binder;
+        break;
+      }
+    }
+
+    if (!ctorBinder) {
+      throw new Error(`Constructor ${valueNow.name} not found in context`);
+    }
+
+    // Get the constructor type (C.ConstructorType) and evaluate to get Value types
+    const ctorTypeCoreValue = ctorBinder.constructorType;
+    const ctorTypeValue = valInContext(context, ctorTypeCoreValue) as V.ConstructorType;
+
+    // Read back non-recursive arguments
+    const readBackArgs: C.Core[] = [];
+    for (let i = 0; i < valueNow.args.length; i++) {
+      const argType = ctorTypeValue.argTypes[i];
+      readBackArgs.push(readBack(context, argType, valueNow.args[i]));
+    }
+
+    // Read back recursive arguments
+    const readBackRecArgs: C.Core[] = [];
+    for (let i = 0; i < valueNow.recursive_args.length; i++) {
+      const recArgType = ctorTypeValue.rec_argTypes[i];
+      readBackRecArgs.push(readBack(context, recArgType, valueNow.recursive_args[i]));
+    }
+
+    return new C.Constructor(
+      valueNow.name,
+      valueNow.index,
+      valueNow.type,
+      readBackArgs,
+      readBackRecArgs
+    );
   } else if (valueNow instanceof V.Neutral) {
     return valueNow.neutral.readBackNeutral(context);
   }
-  
+
   throw new Error(`Cannot read back ${valueNow.prettyPrint()} : ${typeNow.prettyPrint()}`);
 }

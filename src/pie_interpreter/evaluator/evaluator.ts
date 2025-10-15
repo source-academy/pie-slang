@@ -777,9 +777,9 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
   throw new Error(`invalid input for indEither: ${[target, motive, left, right]}`);
 }
 
-export function doEliminator(name: string, target: V.Value, motive: V.Value, methods: V.Value[]): V.Value {
+export function doEliminator(name: string, target: V.Value, motive: V.Value, methods: V.Value[], methodTypes?: V.Value[], motiveType?: V.Value): V.Value {
   const targetNow = target.now();
-  
+
   // Check if target is a constructor application of the inductive type
   if (targetNow instanceof V.Constructor) {
     if (targetNow.type != name) {
@@ -789,7 +789,7 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
     if (constructorIndex >= 0 && constructorIndex < methods.length) {
       const method = methods[constructorIndex];
       let result = method;
-      
+
       // Apply method to constructor arguments
       // Pattern: apply all non-recursive arguments first, then recursive arguments with their inductive hypotheses
       for (let i = 0; i < targetNow.args.length; i++) {
@@ -799,7 +799,8 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
 
       for (let i = 0; i < targetNow.recursive_args.length; i++) {
         const arg = targetNow.recursive_args[i];
-        const recursiveResult = doEliminator(name, arg, motive, methods);
+        result = doApp(result, arg);
+        const recursiveResult = doEliminator(name, arg, motive, methods, methodTypes, motiveType);
         result = doApp(result, recursiveResult);
       }
 
@@ -815,16 +816,16 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
           name,
           targetNow.neutral,
           new N.Norm(
-            new V.Pi(
+            motiveType ? motiveType : new V.Pi(
               "x",
               typeNow,
               new HigherOrderClosure((_) => new V.Universe())
             ),
             motive
           ),
-          methods.map((method, i) => 
+          methods.map((method, i) =>
             new N.Norm(
-              typeNow,
+              methodTypes && methodTypes[i] ? methodTypes[i] : typeNow,  // Use provided method type or fallback
               method
             )
           )
@@ -832,6 +833,6 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
       );
     }
   }
-  
+
   throw new Error(`doEliminator: invalid input for ${name}: ${[target, motive, methods]}`);
 }

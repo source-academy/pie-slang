@@ -97,9 +97,8 @@ export class DefineDatatypeSource {
 
       ret_ctx = extendContext(ret_ctx, fresh_name, new ConstructorTypeBinder(fresh_name, element, resultTypeValue))
       ret_rename = extendRenaming(ret_rename, element.name, fresh_name)
-    }
-    )
-    return [ret_ctx, ret_rename]
+    })
+    return [ret_ctx, ret_rename] as [Context, Renaming]
   }
 
   /**

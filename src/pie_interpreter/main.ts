@@ -1,4 +1,5 @@
 import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from './parser/parser'
+import { DefineDatatypeSource } from './typechecker/definedatatype';
 import { checkSame, normType, represent } from './typechecker/represent';
 import { go, stop } from './types/utils';
 import { prettyPrintCore } from './unparser/pretty';
@@ -11,6 +12,7 @@ import {inspect} from 'util';
 export function evaluatePie(str): string {
   const astList = schemeParse(str);
   let ctx = initCtx;
+  let renaming = new Map<string, string>();
   let output = "";
   for (const ast of astList) {
     const src = pieDeclarationParser.parseDeclaration(ast);
@@ -35,6 +37,11 @@ export function evaluatePie(str): string {
       } else if (result instanceof stop) {
         throw new Error("" + result.where + result.message);
       }
+    } else if (src instanceof DefineDatatypeSource) {
+      // Handle datatype definition
+      const [newCtx, newRenaming] = src.normalize_constructor(ctx, renaming);
+      ctx = newCtx;
+      renaming = newRenaming;
     } else if (src instanceof DefineTactically) {
       const proofManager = new ProofManager();
       let message = ''

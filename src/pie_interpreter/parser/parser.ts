@@ -8,6 +8,7 @@ import { Location, Syntax } from "../utils/locations";
 import { Location as Loc } from '../../scheme_parser/transpiler/types/location';
 import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
 import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
+import { DefineDatatypeSource, GeneralConstructor } from "../typechecker/definedatatype";
 import * as Maker from "./makers"
 
 type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
@@ -399,6 +400,36 @@ export class Parser {
       );
     } else if (parsee === 'TODO') {
       return Maker.makeTODO(locationToSyntax('TODO', element.location));
+    } else if (parsee.startsWith('data-') && !parsee.startsWith('data-ind-')) {
+      // Constructor application: (data-constructor-name arg1 arg2...)
+      const constructorName = parsee.substring(5); // Remove 'data-' prefix
+      const elements = (element as Extended.List).elements;
+      const args = elements.slice(1).map(x => this.parseElements(x as Element));
+      return new S.ConstructorApplication(
+        syntaxToLocation(locationToSyntax(constructorName, element.location)),
+        constructorName,
+        args
+      );
+    } else if (parsee.startsWith('data-ind-')) {
+      // Eliminator application: (data-ind-TypeName target motive methods...)
+      const typeName = parsee.substring(9); // Remove 'data-ind-' prefix
+      const elements = (element as Extended.List).elements;
+
+      if (elements.length < 3) {
+        throw new Error(`Eliminator ${parsee} requires at least target and motive`);
+      }
+
+      const target = this.parseElements(elements[1] as Element);
+      const motive = this.parseElements(elements[2] as Element);
+      const methods = elements.slice(3).map(x => this.parseElements(x as Element));
+
+      return new S.EliminatorApplication(
+        syntaxToLocation(locationToSyntax(parsee, element.location)),
+        typeName,
+        target,
+        motive,
+        methods
+      );
     } else if (element instanceof Extended.List && (element as Extended.List).elements.length > 1) {
       let elements = (element as Extended.List).elements;
       return Maker.makeApp(
@@ -525,7 +556,7 @@ export class DefineTactically {
 
 
 
-export type Declaration = Claim | Definition | SamenessCheck | DefineTactically|S.Source;
+export type Declaration = Claim | Definition | SamenessCheck | DefineTactically | DefineDatatypeSource | S.Source;
 
 
 export class pieDeclarationParser {
@@ -559,6 +590,118 @@ export class pieDeclarationParser {
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
         getValue(elements[1] as Element),
         (elements[2] as Extended.List).elements.map((x: Expression) => Parser.parseToTactics(x as Element))
+      );
+    } else if (parsee === 'data') {
+      let elements = (ast as Extended.List).elements;
+      let loc = ast.location;
+
+      // elements[0] = 'data' (keyword)
+      // elements[1] = type name (e.g., 'Less-Than')
+      // elements[2] = parameters list (e.g., () or ((E U)))
+      // elements[3] = indices list (e.g., ((j Nat) (k Nat)))
+      // elements[4...n-1] = constructor definitions
+      // elements[n] = eliminator name (optional, e.g., 'ind-Less-Than')
+
+      const typeName = getValue(elements[1] as Element);
+      const paramsRaw = (elements[2] as Extended.List).elements || [];
+      const indicesRaw = (elements[3] as Extended.List).elements || [];
+
+      // Parse parameters: ((E U)) -> [TypedBinder(E, U)]
+      const parameters = paramsRaw.map(p => {
+        const pair = p as Extended.List;
+        return new TypedBinder(
+          syntaxToSiteBinder(elementToSyntax(pair.elements[0] as Element, pair.location)),
+          Parser.parseElements(pair.elements[1] as Element)
+        );
+      });
+
+      // Parse indices: ((j Nat) (k Nat)) -> [TypedBinder(j, Nat), TypedBinder(k, Nat)]
+      const indices = indicesRaw.map(idx => {
+        const pair = idx as Extended.List;
+        return new TypedBinder(
+          syntaxToSiteBinder(elementToSyntax(pair.elements[0] as Element, pair.location)),
+          Parser.parseElements(pair.elements[1] as Element)
+        );
+      });
+
+      // Find where constructors end (last element might be eliminator name)
+      const lastElement = elements[elements.length - 1];
+      const hasEliminator = lastElement instanceof Atomic.Symbol;
+      const constructorEndIdx = hasEliminator ? elements.length - 1 : elements.length;
+      const eliminatorName = hasEliminator ? getValue(lastElement as Element) : undefined;
+
+      // Parse constructors: (constructor-name ((args...)) (ReturnType ...))
+      const constructors = [];
+      for (let i = 4; i < constructorEndIdx; i++) {
+        const ctorElement = elements[i] as Extended.List;
+        const ctorName = getValue(ctorElement.elements[0] as Element);
+        const ctorArgsRaw = (ctorElement.elements[1] as Extended.List).elements || [];
+        const ctorReturnType = ctorElement.elements[2] as Element;
+
+        // Parse constructor arguments: ((n Nat)) or ((j Nat) (k Nat) (j<k (Less-Than j k)))
+        const ctorArgs = ctorArgsRaw.map(arg => {
+          const pair = arg as Extended.List;
+          const argType = pair.elements[1] as Element;
+
+          // Check if this is a GeneralTypeConstructor application (e.g., (Less-Than j k))
+          let parsedArgType: S.Source;
+          if (argType instanceof Extended.List && argType.elements.length > 0) {
+            const firstElem = getValue(argType.elements[0] as Element);
+            // If it starts with capital letter, treat as GeneralTypeConstructor
+            if (firstElem && firstElem[0] === firstElem[0].toUpperCase() && firstElem[0] !== firstElem[0].toLowerCase()) {
+              const typeArgs = argType.elements.slice(1).map(x => Parser.parseElements(x as Element));
+              parsedArgType = new S.GeneralTypeConstructor(
+                syntaxToLocation(elementToSyntax(argType.elements[0] as Element, argType.location)),
+                firstElem,
+                [],
+                typeArgs
+              );
+            } else {
+              parsedArgType = Parser.parseElements(argType);
+            }
+          } else {
+            parsedArgType = Parser.parseElements(argType);
+          }
+
+          return new TypedBinder(
+            syntaxToSiteBinder(elementToSyntax(pair.elements[0] as Element, pair.location)),
+            parsedArgType
+          );
+        });
+
+        // Parse return type: (Less-Than zero (add1 n))
+        // This should be a GeneralTypeConstructor application
+        const returnTypeList = ctorReturnType as Extended.List;
+        const returnTypeName = getValue(returnTypeList.elements[0] as Element);
+
+        // All remaining elements are indices (for indexed types) or parameters
+        // For now, treat all as indices since we need to match the datatype structure
+        const returnTypeArgs = returnTypeList.elements.slice(1).map(x => Parser.parseElements(x as Element));
+
+        const returnType = new S.GeneralTypeConstructor(
+          syntaxToLocation(elementToSyntax(returnTypeList.elements[0] as Element, returnTypeList.location)),
+          returnTypeName,
+          [], // parameters - will be filled based on datatype definition
+          returnTypeArgs // indices
+        );
+
+        constructors.push(
+          new GeneralConstructor(
+            syntaxToLocation(elementToSyntax(ctorElement.elements[0] as Element, ctorElement.location)),
+            ctorName,
+            ctorArgs,
+            returnType
+          )
+        );
+      }
+
+      return new DefineDatatypeSource(
+        syntaxToLocation(elementToSyntax(elements[0] as Element, loc)),
+        typeName,
+        parameters,
+        indices,
+        constructors,
+        eliminatorName
       );
     } else {
       return Parser.parseElements(ast);
