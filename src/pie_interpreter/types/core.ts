@@ -1082,9 +1082,9 @@ export class VarName extends Core {
 
 }
 
-export class InductiveType extends Core {
+export class InductiveTypeConstructor extends Core {
   public valOf(env: Environment): V.Value {
-    return new V.InductiveType(
+    return new V.InductiveTypeConstructor(
       this.typeName,
       this.parameters.map(p => p.toLazy(env)),
       this.indices.map(i => i.toLazy(env)),
@@ -1094,12 +1094,33 @@ export class InductiveType extends Core {
     public typeName: string,
     public parameters: Core[],
     public indices: Core[],
-    // public constructorTypes: Core[],
-    // public eliminatorType: Core[]
   ) { super(); }
 
   public prettyPrint(): string {
     return `${this.typeName}${this.parameters.length > 0 ? ' ' + this.parameters.map(p => p.prettyPrint()).join(' ') : ''}${this.indices.length > 0 ? ' ' + this.indices.map(i => i.prettyPrint()).join(' ') : ''}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class InductiveType extends Core {
+  public valOf(env: Environment): V.Value {
+    return new V.InductiveType(
+      this.typeName,
+      this.parameterTypes.map(p => p.toLazy(env)),
+      this.indexTypes.map(i => i.toLazy(env)),
+    );
+  }
+  constructor(
+    public typeName: string,
+    public parameterTypes: Core[],
+    public indexTypes: Core[],
+  ) { super(); }
+
+  public prettyPrint(): string {
+    return `${this.typeName}${this.parameterTypes.length > 0 ? ' ' + this.parameterTypes.map(p => p.prettyPrint()).join(' ') : ''}${this.indexTypes.length > 0 ? ' ' + this.indexTypes.map(i => i.prettyPrint()).join(' ') : ''}`;
   }
 }
 
@@ -1107,9 +1128,9 @@ export class Constructor extends Core {
 
   constructor(
     public name: string,
+    public index: number,
     public type: string,
     public args: Core[],
-    public index: number,
     public recursive_args: Core[]
   ) { super(); }
 
@@ -1132,20 +1153,31 @@ export class Constructor extends Core {
 export class ConstructorType extends Core {
 
   constructor(
-    public argTypes: The[],
-    public rec_args: Core[],
-    public resultType: Core
+    public name: string,
+    public index: number,
+    public type: string,
+    public argTypes: Core[],
+    public rec_argTypes: Core[],
+    public resultType: Core,
+    public numTypeParams: number = 0,  // Number of leading args that are type parameters
+    public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
   ) { super(); }
 
   public valOf(env: Environment): V.Value {
     return new V.ConstructorType(
+      this.name,
+      this.index,
+      this.type,
       this.argTypes.map(a => a.toLazy(env)),
-      this.resultType.toLazy(env) 
-    );
+      this.rec_argTypes.map(a => a.toLazy(env)),
+      this.resultType,
+      this.numTypeParams,
+      this.argNames
+    )
   }
 
   public prettyPrint(): string {
-    return `ConstructorType ${this.argTypes.map(a => a.prettyPrint()).join(' ')} ${this.resultType.prettyPrint()}`;
+    return `ConstructorType ${this.name} : ${this.argTypes.map(a => a.prettyPrint()).join(' -> ')} -> ${this.resultType.prettyPrint()}`;
   }
 }
 

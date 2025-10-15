@@ -1,5 +1,5 @@
 import * as C from '../types/core';
-import { InductiveType, Neutral, Universe, Value, Constructor } from '../types/value';
+import { InductiveType, Neutral, Universe, Value, Constructor, InductiveTypeConstructor } from '../types/value';
 
 import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
@@ -129,8 +129,8 @@ export function contextToEnvironment(ctx: Context): Environment {
       env.set(name, binder.value);
     } else if (binder instanceof Free) {
       env.set(name, new Neutral(binder.type, new Variable(name)));
-    } else if (binder instanceof InductiveDatatypePlaceholder) {
-      env.set(name, new Neutral(binder.type, new Variable(name)));
+    } else if (binder instanceof InductiveDatatypeBinder) {
+      env.set(name, binder.type);
     } // else continue;
   }
   return env;
@@ -170,11 +170,6 @@ export class Free extends Binder {
   constructor(public type: Value) { super() }
 }
 
-export class InductiveDatatypePlaceholder extends Binder {
-  type: Value = new Universe();
-  constructor(public name: string) { super() }
-}
-
 export class InductiveDatatypeBinder extends Binder {
   constructor(
     public name: string, 
@@ -183,10 +178,12 @@ export class InductiveDatatypeBinder extends Binder {
     }
 }
 
-export class ConstructorBinder extends Binder {
+export class ConstructorTypeBinder extends Binder {
   constructor(
-    public name: string, 
-    public type: Constructor) {
+    public name: string,
+    public constructorType: C.ConstructorType,
+    public type: InductiveTypeConstructor
+  ) {
       super()
     }
 }
@@ -200,13 +197,17 @@ export class EliminatorBinder extends Binder {
 }
 
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
-  if (ctx.size === 0) { 
+  if (ctx.size === 0) {
     throw new Error(`The context ${JSON.stringify(ctx)} is empty, but we are looking for ${x}`);
   }
   for (const [y, binder] of ctx.entries()) {
     if (binder instanceof Claim) {
       continue;
     } else if (x === y) {
+      // Inductive datatypes have type Universe
+      if (binder instanceof InductiveDatatypeBinder) {
+        return new go(new Universe());
+      }
       return new go(binder.type);
     }
   }

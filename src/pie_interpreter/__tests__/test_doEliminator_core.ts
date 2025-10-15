@@ -11,12 +11,12 @@ import { Context } from '../utils/context';
 
 // Example 1: List elimination test
 export function createListExample(): {
-  listType: C.InductiveType,
+  listType: C.InductiveTypeConstructor,
   sampleList: C.Core,
   eliminator: C.Eliminator
 } {
 
-  const listType = new C.InductiveType(
+  const listType = new C.InductiveTypeConstructor(
     "List",
     [new C.Nat()], // parameters
     [],                   // no indices
@@ -24,33 +24,33 @@ export function createListExample(): {
 
   // Create List constructors
   const nilConstructor = new C.Constructor(
-    "List",
-    "List", // type: List A
-    [],  // no arguments
-    0,   // constructor index
-    []
+    "nil",   // name
+    0,       // constructor index
+    "List",  // type: List A
+    [],      // no arguments
+    []       // no recursive arguments
   );
 
   // Create a sample list: cons 1 (cons 2 (cons 3 nil))
   // Create cons 3 nil
   const cons3Nil = new C.Constructor(
-    "List",
-    "List",
+    "cons",  // name
+    1,       // constructor index
+    "List",  // type
     [
       new C.Add1(new C.Add1(new C.Add1(new C.Zero()))),
       nilConstructor
-    ],
-    1,
-    [nilConstructor]
+    ],       // arguments
+    [nilConstructor]  // recursive arguments
   );
 
   // Create cons 2 (cons 3 nil)
   const cons2 = new C.Constructor(
-    "List",
-    "List",
+    "cons",  // name
+    1,       // constructor index
+    "List",  // type
     [new C.Add1(new C.Add1(new C.Zero())), cons3Nil], // 2, (cons 3 nil)
-    1,
-    [cons3Nil]
+    [cons3Nil]  // recursive arguments
   );
 
 

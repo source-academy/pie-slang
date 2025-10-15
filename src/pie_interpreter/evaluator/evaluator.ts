@@ -807,7 +807,7 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
     }
   } else if (targetNow instanceof V.Neutral) {
     const typeNow = targetNow.type.now();
-    if (typeNow instanceof V.InductiveType && typeNow.name === name) {
+    if (typeNow instanceof V.InductiveTypeConstructor && typeNow.name === name) {
       // Create neutral eliminator application
       return new V.Neutral(
         doApp(motive, target),

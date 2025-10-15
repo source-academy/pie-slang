@@ -221,7 +221,7 @@ export class HigherOrderClosure extends Closure {
   }
 
   public prettyPrint(): string {
-    return `(HOCLOS)`;
+    return this.proc.toString();
   }
 
   public toString(): string {

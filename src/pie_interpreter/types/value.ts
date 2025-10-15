@@ -623,7 +623,7 @@ export class Absurd extends Value {
   
 }
 
-export class InductiveType extends Value {
+export class InductiveTypeConstructor extends Value {
   constructor(
     public name: string,
     public parameters: Value[],
@@ -631,10 +631,70 @@ export class InductiveType extends Value {
   ) { super() }
 
   public readBackType(context: Context): C.Core {
-    return new C.InductiveType(
+    return new C.InductiveTypeConstructor(
       this.name,
       this.parameters.map(p => p.readBackType(context)),
-      this.indices.map(i => i.readBackType(context)),
+      this.indices.map(i => {
+        // Check if this is a Delay that hasn't been forced yet
+        if (i instanceof Delay) {
+          const boxContent = i.val.get();
+          if (boxContent instanceof DelayClosure) {
+            // It's a closure - try to force it, but if it fails, return the Core expression directly
+            try {
+              const iNow = i.now();
+              if (iNow instanceof Neutral) {
+                return iNow.neutral.readBackNeutral(context);
+              } else {
+                return readBack(context, new Nat(), iNow);
+              }
+            } catch (e) {
+              // If evaluation fails due to free variables, return the Core expression as-is
+              // This preserves VarNames and other constructs
+              return boxContent.expr;
+            }
+          } else {
+            // Already evaluated
+            const val = boxContent as Value;
+            if (val instanceof Neutral) {
+              return val.neutral.readBackNeutral(context);
+            } else {
+              return readBack(context, new Nat(), val);
+            }
+          }
+        } else {
+          // Not a Delay
+          const iNow = i.now();
+          if (iNow instanceof Neutral) {
+            return iNow.neutral.readBackNeutral(context);
+          } else {
+            return readBack(context, new Nat(), iNow);
+          }
+        }
+      }),
+    )
+  }
+
+  public prettyPrint(): string {
+    return `InductiveType ${this.name}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class InductiveType extends Value {
+  constructor(
+    public name: string,
+    public parameterTypes: Value[],
+    public indexTypes: Value[],
+  ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.InductiveType(
+      this.name,
+      this.parameterTypes.map(p => p.readBackType(context)),
+      this.indexTypes.map(i => i.readBackType(context)),
     )
   }
 
@@ -673,14 +733,21 @@ export class Constructor extends Value {
 
 export class ConstructorType extends Value {
   constructor(
+    public name: string,
+    public index: number,
+    public type: string,
     public argTypes: Value[],
-    public resultType: Value
+    public rec_argTypes: Value[],
+    public resultType: C.Core,
+    public numTypeParams: number = 0,  // Number of leading args that are type parameters
+    public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
+
   ) {super()}
   public readBackType(context: Context): C.Core {
-    return this.resultType.readBackType(context);
+    throw Error('Method not implemented')
   }
   public prettyPrint(): string {
-    return `ConstructorType ${this.argTypes.map(a => a.prettyPrint()).join(' ')} ${this.resultType.prettyPrint()}`;
+    return `ConstructorType (${this.argTypes.map(a => a.prettyPrint()).join(' ')})`;
   }
 
 }

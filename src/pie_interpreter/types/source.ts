@@ -5,7 +5,7 @@ import * as S from './source';
 
 import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename} from '../typechecker/utils';
 import { Location, notForInfo } from '../utils/locations';
-import { bindFree, Context, readBackContext, valInContext, getInductiveType, InductiveDatatypeBinder, ConstructorBinder, EliminatorBinder, contextToEnvironment } from '../utils/context';
+import { bindFree, Context, readBackContext, valInContext, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder, EliminatorBinder, contextToEnvironment } from '../utils/context';
 
 import { go, stop, goOn, occurringBinderNames, Perhaps, 
   PerhapsM, SiteBinder, TypedBinder, Message, freshBinder, 
@@ -1949,53 +1949,16 @@ export class Application extends Source {
   }
 }
 
-// export class InductiveDatatype extends Source {
-//   constructor(
-//     public location: Location,
-//     public typeName: string,
-//     public parameters: TypedBinder[],  // Type parameters [A : Type]
-//     public indices: TypedBinder[],     // Index parameters [i : Nat] 
-//     public resultType: Source,         // The result universe (Type)
-//     public constructors: ConstructorType[] // Data constructors
-//   ) { super(location); }
-
-//   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-//     return Synth.synthDefineDatatype(ctx, renames, this);
-//   }
-
-//   public findNames(): string[] {
-//     const names = [this.typeName];
-//     names.push(...this.parameters.flatMap(p => p.findNames()));
-//     names.push(...this.indices.flatMap(i => i.findNames()));
-//     names.push(...this.resultType.findNames());
-//     names.push(...this.constructors.flatMap(c => c.findNames()));
-//     return names;
-//   }
-
-//   public prettyPrint(): string {
-//     const params = this.parameters.map(p => `[${p.prettyPrint()}]`).join(' ');
-//     const indices = this.indices.map(i => `[${i.prettyPrint()}]`).join(' ');
-//     const ctors = this.constructors.map(c => c.prettyPrint()).join('\n  ');
-//     return `(define-datatype ${this.typeName} ${params} : ${indices} ${this.resultType.prettyPrint()}
-//   ${ctors})`;
-//   }
-// }
-
-export class ConstructorType extends Source {
+export class GeneralType extends Source {
   constructor(
     public location: Location,
     public name: string,
-    public args: TypedBinder[], // Constructor args
-    public resultType: Source        // Type the constructor produces
-  ) {
-    super(location);
-  }
+    public paramType: TypedBinder[],
+    public indicesType: TypedBinder[]
+  ) {super(location)}
 
   public findNames(): string[] {
-    const names = [this.name];
-    names.push(...this.args.flatMap(a => a.findNames()));
-    names.push(...this.resultType.findNames());
-    return names;
+    throw new Error('Method not implemented.');
   }
   public prettyPrint(): string {
     throw new Error('Method not implemented.');
@@ -2003,212 +1966,198 @@ export class ConstructorType extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
-  
-}
 
-// Constructor expression - references a constructor by name and applies it to arguments
-// Helper function to check if an argument is a recursive reference
-function isArgumentRecursive(arg: Source, datatypeName: string, ctx: Context, renames: Renaming): boolean {
-  try {
-    const argSynth = arg.synth(ctx, renames);
-    if (argSynth instanceof go) {
-      const argType = argSynth.result.type;
-      return isTypeReference(argType, datatypeName, ctx);
+  public getType(ctx: Context, rename: Renaming): Perhaps<C.Core> {
+
+    let cur_ctx = ctx
+    let cur_rename = rename 
+    let normalizedParamType = []
+    let normalizedIndicesType = []
+    for (let i = 0; i < this.paramType.length; i++) {
+      const fresh_name = fresh(cur_ctx, this.paramType[i].binder.varName)
+      const resultTemp = this.paramType[i].type.isType(cur_ctx, cur_rename)
+      cur_rename = extendRenaming(cur_rename, this.paramType[i].binder.varName, fresh_name)
+      if (resultTemp instanceof stop) {
+        return resultTemp
+      } 
+      cur_ctx = bindFree(cur_ctx, fresh_name,
+        valInContext(cur_ctx, (resultTemp as go<C.Core>).result)
+      )
+      normalizedParamType.push((resultTemp as go<C.Core>).result)
     }
-  } catch (e) {
-    // If synthesis fails, assume not recursive
-  }
-  return false;
-}
-
-// Helper function to check if a Core type refers to a specific datatype
-function isTypeReference(typeCore: C.Core, datatypeName: string, ctx: Context): boolean {
-  if (typeCore instanceof C.VarName && typeCore.name === datatypeName) {
-    return true;
-  }
-  if (typeCore instanceof C.InductiveType && typeCore.typeName === datatypeName) {
-    return true;
-  }
-  // For more complex cases, we could evaluate the type and check
-  try {
-    const typeValue = typeCore.valOf(contextToEnvironment(ctx));
-    if (typeValue instanceof V.InductiveType && typeValue.name === datatypeName) {
-      return true;
+    for (let i = 0; i < this.indicesType.length; i++) {
+      const fresh_name = fresh(cur_ctx, this.indicesType[i].binder.varName)
+      const resultTemp = this.indicesType[i].type.isType(cur_ctx, cur_rename)
+      cur_rename = extendRenaming(cur_rename, this.indicesType[i].binder.varName, fresh_name)
+      if (resultTemp instanceof stop) {
+        return resultTemp
+      } 
+      cur_ctx = bindFree(cur_ctx, fresh_name,
+        valInContext(cur_ctx, (resultTemp as go<C.Core>).result)
+      )
+      normalizedIndicesType.push((resultTemp as go<C.Core>).result)
     }
-  } catch (e) {
-    // If evaluation fails, continue with other checks
+
+    return new go(new C.InductiveType(this.name, normalizedParamType, normalizedIndicesType))
+
+
   }
-  return false;
+
 }
 
-export class ConstructorApplication extends Source {
+export class GeneralTypeConstructor extends Source {
+  public findNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     public location: Location,
-    public constructorName: string,
-    public args: Source[] // Arguments to apply to constructor
-  ) {
-    super(location);
-  }
+    public name: string,
+    public params: S.Source[],
+    public indices: S.Source[]
+  ) { super(location) }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    // Look up constructor in context
-    const constructorBinder = ctx.get(this.constructorName);
-    if (!constructorBinder || !(constructorBinder instanceof ConstructorBinder)) {
-      return new stop(this.location, new Message([`Unknown constructor: ${this.constructorName}`]));
+  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    // GeneralTypeConstructor represents an applied inductive type, which has type Universe
+    // First verify that the inductive type exists and check parameters/indices
+    const inductiveResult = getInductiveType(ctx, this.location, this.name);
+    if (inductiveResult instanceof stop) return inductiveResult;
+
+    const inductiveBinder = (inductiveResult as go<InductiveDatatypeBinder>).result;
+    const inductiveType = inductiveBinder.type;
+
+    // Check that parameter and index counts match
+    if (this.params.length !== inductiveType.parameterTypes.length ||
+        this.indices.length !== inductiveType.indexTypes.length) {
+      return new stop(this.location,
+        new Message(['Parameter/index count mismatch for type ' + this.name]));
     }
 
-    const constructorType = constructorBinder.type;
+    // Check each parameter and index and collect their Core representations
+    const normalizedParams: C.Core[] = [];
+    for (let i = 0; i < this.params.length; i++) {
+      const paramCheck = this.params[i].check(ctx, renames, inductiveType.parameterTypes[i].now());
+      if (paramCheck instanceof stop) return paramCheck;
+      normalizedParams.push((paramCheck as go<C.Core>).result);
+    }
 
-    // Check arguments against constructor type
-    const checkedArgs: C.Core[] = [];
+    const normalizedIndices: C.Core[] = [];
+    for (let i = 0; i < this.indices.length; i++) {
+      const indexCheck = this.indices[i].check(ctx, renames, inductiveType.indexTypes[i].now());
+      if (indexCheck instanceof stop) return indexCheck;
+      normalizedIndices.push((indexCheck as go<C.Core>).result);
+    }
 
-    // For now, simplified: assume constructor takes any number of args
-    // In a full implementation, we'd check each arg against the constructor's expected types
-    for (const arg of this.args) {
-      const argResult = arg.synth(ctx, renames);
-      if (argResult instanceof stop) {
-        return argResult;
+    // Return the InductiveTypeConstructor expression itself
+    return new go(new C.InductiveTypeConstructor(this.name, normalizedParams, normalizedIndices));
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core> {
+    let cur_val = target.now()
+    let cur_ctx = ctx
+    let cur_rename = renames
+    let normalized_params = []
+    let normalized_indices = []
+
+    //TODO: verify name sameness check is not necessary
+
+    if(!(cur_val instanceof V.InductiveType)) {
+      return new stop(this.location, new Message(['target type is not user defined inductive type, or use the wrong type']))
+    }
+
+    const targetType: V.InductiveType = cur_val as V.InductiveType
+    let paramTypes = targetType.parameterTypes
+    let idxTypes = targetType.indexTypes
+
+    if((this.params.length != paramTypes.length) || (this.indices.length != idxTypes.length)) {
+      return new stop(this.location, new Message(['the number of parameters/indices is inconsistent in constructor']))
+    }
+
+    for (let i = 0; i < this.params.length; i++) {
+      const result = this.params[i].check(ctx, renames, paramTypes[i].now())
+      if (result instanceof stop) {
+        return stop
       }
-      checkedArgs.push((argResult as go<C.The>).result.expr);
+      normalized_params.push((result as go<C.Core>).result)
     }
 
-    // Properly categorize recursive vs non-recursive arguments
-    const recursiveArgs: C.Core[] = [];
-    for (let i = 0; i < this.args.length; i++) {
-      if (isArgumentRecursive(this.args[i], constructorType.type, ctx, renames)) {
-        recursiveArgs.push(checkedArgs[i]);
+    for (let i = 0; i < this.indices.length; i++) {
+      const result = this.indices[i].check(ctx, renames, idxTypes[i].now())
+      if (result instanceof stop) {
+        return stop
       }
+      normalized_indices.push((result as go<C.Core>).result)
     }
 
-    // Create Core constructor application
-    const constructorCore = new C.Constructor(
-      this.constructorName,    // constructor name (e.g., "true")
-      constructorType.type,    // type name (e.g., "Bool")
-      checkedArgs,             // all arguments
-      constructorType.index,
-      recursiveArgs           // only recursive arguments
-    );
+    return new go(new C.InductiveTypeConstructor(this.name, normalized_params, normalized_indices))
 
-    // Return The with constructor application and its type
-    // Note: C.The constructor is (type: Core, expr: Core)
-    return new go(new C.The(
-      new C.InductiveType(
-        constructorType.type,
-        [], // simplified - no parameters for now
-        []  // simplified - no indices for now
-      ),
-      constructorCore
-    ));
-  }
-
-  public findNames(): string[] {
-    const names = [this.constructorName];
-    names.push(...this.args.flatMap(a => a.findNames()));
-    return names;
-  }
-
-  public prettyPrint(): string {
-    const args = this.args.map(a => a.prettyPrint()).join(' ');
-    return `(${this.constructorName}${args.length > 0 ? ' ' + args : ''})`;
   }
 }
 
-// Generic eliminator for user-defined inductive types
+export class GeneralEliminator extends Source {
+  public findNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+
+}
+
+// Generic eliminator application for user-defined inductive types
 export class EliminatorApplication extends Source {
   constructor(
     public location: Location,
-    public typeName: string,
-    public target: Source,
-    public motive: Source,
-    public methods: Source[]
+    public typeName: string,      // e.g., "MyList", "Bool"
+    public target: Source,         // The value to eliminate
+    public motive: Source,         // The motive function
+    public methods: Source[]       // One method per constructor
   ) { super(location); }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    // Look up the inductive type in context
-    const inductiveTypeBinder = getInductiveType(ctx, this.location, this.typeName);
-    if (inductiveTypeBinder instanceof stop) {
-      return inductiveTypeBinder;
-    }
-
-    const inductiveType = (inductiveTypeBinder as go<InductiveDatatypeBinder>).result.type;
-
-    // Look up the eliminator in context
-    const eliminatorName = `elim${this.typeName}`;
-    const eliminatorBinder = ctx.get(eliminatorName);
-    if (!eliminatorBinder || !(eliminatorBinder instanceof EliminatorBinder)) {
-      return new stop(this.location, new Message([`Unknown eliminator: ${eliminatorName}`]));
-    }
-
-    // Check target against inductive type
-    const targetResult = this.target.synth(ctx, renames);
-    if (targetResult instanceof stop) {
-      return targetResult;
-    }
-
-    const targetCore = (targetResult as go<C.The>).result;
-
-    // Check motive
-    const motiveResult = this.motive.synth(ctx, renames);
-    if (motiveResult instanceof stop) {
-      return motiveResult;
-    }
-
-    const motiveCore = (motiveResult as go<C.The>).result;
-
-    // Check methods
-    const checkedMethods: C.Core[] = [];
-    for (const method of this.methods) {
-      const methodResult = method.synth(ctx, renames);
-      if (methodResult instanceof stop) {
-        return methodResult;
-      }
-      checkedMethods.push((methodResult as go<C.The>).result.expr);
-    }
-
-    // Create Core eliminator application
-    const eliminatorCore = new C.Eliminator(
-      this.typeName,
-      targetCore.expr,
-      motiveCore.expr,
-      checkedMethods
-    );
-
-    // The result type depends on the motive applied to the target
-    // For now, simplified - in a full implementation we'd compute the proper result type
-    const resultType = new C.Application(motiveCore.expr, targetCore.expr);
-
-    // Note: C.The constructor is (type: Core, expr: Core)
-    return new go(new C.The(resultType, eliminatorCore));
-  }
-
   public findNames(): string[] {
-    const names = [this.typeName];
-    names.push(...this.target.findNames());
-    names.push(...this.motive.findNames());
-    names.push(...this.methods.flatMap(m => m.findNames()));
-    return names;
+    return [this.typeName]
+      .concat(this.target.findNames())
+      .concat(this.motive.findNames())
+      .concat(this.methods.flatMap(m => m.findNames()));
   }
 
   public prettyPrint(): string {
     const methods = this.methods.map(m => m.prettyPrint()).join(' ');
     return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
   }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthGeneralEliminator(ctx, renames, this);
+  }
 }
 
-export class InductiveTypeInfo extends Source {
-
+// Constructor application for user-defined inductive types
+export class ConstructorApplication extends Source {
   constructor(
     public location: Location,
-    public name: string
-  ) {super(location);}
+    public constructorName: string,
+    public args: Source[]
+  ) { super(location); }
+
   public findNames(): string[] {
-    throw new Error('Method not implemented.');
+    return [this.constructorName]
+      .concat(this.args.flatMap(a => a.findNames()));
   }
+
   public prettyPrint(): string {
-    throw new Error('Method not implemented.');
+    const args = this.args.map(a => a.prettyPrint()).join(' ');
+    return `(${this.constructorName}${args.length > 0 ? ' ' + args : ''})`;
   }
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    throw new Error('Method not implemented.');
+    return Synth.synthConstructorApplication(ctx, renames, this);
   }
-  
 }

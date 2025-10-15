@@ -7,13 +7,12 @@ import {
   fresh, FirstOrderClosure, HigherOrderClosure,
   TypedBinder
 } from '../types/utils';
-import { bindFree, Context, contextToEnvironment, Define, valInContext, varType } from '../utils/context';
+import { bindFree, Context, contextToEnvironment, Define, valInContext, varType, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder } from '../utils/context';
 import { atomOk, convert, extendRenaming, makeApp, PieInfoHook, rename, Renaming, sameType } from "./utils";
 import { notForInfo } from "../utils/locations";
 import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
 import { readBack } from '../evaluator/utils';
 import { Location } from '../utils/locations';
-import { ConstructorType} from '../types/source';
 import { alphaEquiv } from "../utils/alphaeqv";
 
 
@@ -1455,6 +1454,20 @@ export class synthesizer {
         if (result instanceof Define) {
           PieInfoHook(location, 'definition');
         }
+        // If it's an inductive datatype, return the type constructor, not a variable reference
+        if (result instanceof InductiveDatatypeBinder) {
+          const inductiveType = result.type;
+          return new go(
+            new C.The(
+              new C.Universe(),
+              new C.InductiveTypeConstructor(
+                inductiveType.name,
+                inductiveType.parameterTypes.map(p => p.readBackType(context)),
+                inductiveType.indexTypes.map(i => i.readBackType(context))
+              )
+            )
+          );
+        }
         return new go(
           new C.The(
             x_tv.value.readBackType(context),
@@ -1492,182 +1505,417 @@ export class synthesizer {
     }
   }
 
+  // ==================== INDUCTIVE DATATYPES ====================
 
-//   public static synthDataType(context: Context, r: Renaming, datatype: S.DefineDatatype): Perhaps<C.The> {
+  /**
+   * Synthesize constructor application for user-defined inductive types
+   */
+  public static synthConstructorApplication(ctx: Context, r: Renaming, ctorApp: S.ConstructorApplication): Perhaps<C.The> {
+    // Look up constructor in context
+    const constructorBinder = ctx.get(ctorApp.constructorName);
+    if (!constructorBinder || !(constructorBinder instanceof ConstructorTypeBinder)) {
+      throw new Error(`Unknown constructor: ${ctorApp.constructorName}`);
+    }
+
+    const ctorType = constructorBinder.constructorType
+    const argTypes = ctorType.argTypes.concat(ctorType.rec_argTypes)
+
+    let cur_ctx = ctx
+    let cur_rename = r
+
+    if(argTypes.length !== ctorApp.args.length) {
+      return new stop(ctorApp.location,
+        new Message([`Expected ${argTypes.length} arguments, got ${ctorApp.args.length}`]));
+    }
+
+    const checkedArgs: C.Core[] = [];
+
+    // Build an environment for checking arguments
+    // For parameterized constructors, we need to bind type parameters first
+    let argCheckEnv = new Map(contextToEnvironment(ctx));
+
+    // First pass: check type parameters and build environment
+    const typeParamValues: V.Value[] = [];
+    for (let i = 0; i < ctorType.numTypeParams && i < ctorApp.args.length; i++) {
+      // Type parameter: should check against Universe
+      const argCheck = ctorApp.args[i].check(cur_ctx, cur_rename, new V.Universe());
+      if (argCheck instanceof stop) return argCheck;
+      const checkedArg = (argCheck as go<C.Core>).result;
+      checkedArgs.push(checkedArg);
+
+      // Store the actual type value
+      const paramValue = valInContext(ctx, checkedArg);
+      typeParamValues.push(paramValue);
+
+      // Try to extract parameter name from argTypes to bind in environment
+      // argTypes[i] for type params might be Universe or VarName
+      // We need to find VarNames in subsequent argTypes and bind them
+      const extractAndBindVarNames = (core: C.Core, value: V.Value) => {
+        if (core instanceof C.VarName) {
+          argCheckEnv.set(core.name, value);
+        }
+      };
+
+      // Look through remaining argTypes to find references to this parameter
+      for (let j = i + 1; j < argTypes.length; j++) {
+        if (argTypes[j] instanceof C.VarName) {
+          // This might be the parameter we just checked
+          // Bind it speculatively - if it's the wrong one, it won't match anyway
+          argCheckEnv.set((argTypes[j] as C.VarName).name, paramValue);
+        }
+      }
+    }
+
+    // Second pass: check remaining arguments with type parameters bound
+    for (let i = ctorType.numTypeParams; i < ctorApp.args.length; i++) {
+      // Regular argument: check against its type (evaluated with type params bound)
+      const argType = argTypes[i].valOf(argCheckEnv);
+      const argCheck = ctorApp.args[i].check(cur_ctx, cur_rename, argType);
+      if (argCheck instanceof stop) return argCheck;
+      const checkedArg = (argCheck as go<C.Core>).result;
+      checkedArgs.push(checkedArg);
+
+      // Bind this argument's value in the environment using its actual name
+      // Now we have argNames available from the constructor type!
+      if (i < ctorType.argNames.length) {
+        const argName = ctorType.argNames[i];
+        const argValue = valInContext(ctx, checkedArg);
+        argCheckEnv.set(argName, argValue);
+      }
+    }
+
+    // Compute the specific result type by substituting type parameters
+    let specificResultType: V.Value;
+
+    if (ctorType.numTypeParams > 0) {
+      // For parameterized constructors: substitute type parameters with actual values
+      // Build an environment where type parameter variables are bound to actual type values
+      const typeParamEnv = new Map(contextToEnvironment(ctx));
+
+      // The result type contains VarName references to type parameters (like 'E')
+      // We need to evaluate it in an environment where those are bound to the actual types
+      // Extract actual type parameter values
+      const typeParamValues: V.Value[] = [];
+      for (let i = 0; i < ctorType.numTypeParams; i++) {
+        typeParamValues.push(valInContext(ctx, checkedArgs[i]));
+      }
+
+      // Create environment with type parameters bound
+      // We need to know the NAMES of the type parameters from the constructor definition
+      // These names are embedded in the resultType as VarNames
+      // For MyList, resultType is: InductiveTypeConstructor('MyList', [VarName('E')], [])
+
+      // Extract VarNames from resultType to find parameter names
+      const extractVarNames = (core: C.Core): string[] => {
+        if (core instanceof C.VarName) return [core.name];
+        if (core instanceof C.InductiveTypeConstructor) {
+          // Extract from both parameters AND indices
+          return [
+            ...core.parameters.flatMap(p => extractVarNames(p)),
+            ...core.indices.flatMap(i => extractVarNames(i))
+          ];
+        }
+        if (core instanceof C.Add1) {
+          return extractVarNames(core.n);
+        }
+        return [];
+      };
+
+      const paramNames = extractVarNames(ctorType.resultType);
+
+      // Bind each parameter name to its actual value in a temporary environment
+      for (let i = 0; i < Math.min(paramNames.length, typeParamValues.length); i++) {
+        typeParamEnv.set(paramNames[i], typeParamValues[i]);
+      }
+
+      // Also bind all checked arguments (including non-type-parameter args like 'k' in MyVec)
+      // We need to bind ALL constructor arguments, not just type parameters
+      // Extract all arg type VarNames and bind them to corresponding checked values
+      const allArgNames: string[] = [];
+      for (let i = 0; i < argTypes.length; i++) {
+        const argVarNames = extractVarNames(argTypes[i]);
+        if (argVarNames.length === 0 && argTypes[i] instanceof C.VarName) {
+          // The argType itself might not contain VarNames, but we need its name
+          // Actually, we need to find the parameter NAME from the original constructor definition
+          // For now, let's just bind all checked argument values by index
+        }
+      }
+
+      // Bind each checked argument value to the environment
+      // We need to figure out the variable names for constructor arguments
+      // For myveccons: args are [E, k, head, tail]
+      // argTypes are [Universe, Nat, VarName('E'), InductiveTypeConstructor('MyVec', [VarName('E')], [VarName('k')])]
+      // We need to bind k -> checkedArgs[1] value
+      // The challenge is knowing that argTypes[1] corresponds to variable name 'k'
+
+      // Alternative approach: bind all checked args with sequential names or by extracting from Core
+      // Actually, the best approach is to evaluate the resultType with ALL arguments bound
+      // Let's find all VarNames in argTypes and bind them to checked argument values
+      const bindArgValue = (argTypeCore: C.Core, argIndex: number) => {
+        // This arg type might reference previous args by name
+        // We should have bound them already in argCheckEnv
+        // For the current arg, if we can determine its name, bind its value
+      };
+
+      // Simpler approach: extend typeParamEnv with all values from argCheckEnv that were bound
+      // during argument checking
+      for (const [name, value] of argCheckEnv) {
+        if (!typeParamEnv.has(name)) {
+          typeParamEnv.set(name, value);
+        }
+      }
+
+      // Now evaluate the result type with the substituted environment
+      specificResultType = ctorType.resultType.valOf(typeParamEnv);
+    } else {
+      // For non-parameterized constructors: still need to use argCheckEnv
+      // to bind any constructor arguments referenced in the result type
+      specificResultType = ctorType.resultType.valOf(argCheckEnv);
+    }
+
+    return new go(new C.The(
+      specificResultType.readBackType(ctx),
+      new C.Constructor(
+        ctorApp.constructorName,
+        ctorType.index,
+        ctorType.type,
+        checkedArgs.slice(0, ctorType.argTypes.length),
+        checkedArgs.slice(ctorType.argTypes.length)
+      )
+    ));
+
+  }
+
+  /**
+   * Synthesize eliminator application for user-defined inductive types
+   */
+  public static synthGeneralEliminator(ctx: Context, r: Renaming, elimApp: S.EliminatorApplication): Perhaps<C.The> {
+    // PHASE 1: Look up inductive datatype in context
+    const inductiveTypeResult = getInductiveType(ctx, elimApp.location, elimApp.typeName);
+    if (inductiveTypeResult instanceof stop) return inductiveTypeResult;
+
+    const inductiveBinder = (inductiveTypeResult as go<InductiveDatatypeBinder>).result;
+    const inductiveTypeValue = inductiveBinder.type; // V.InductiveType
+
+    // PHASE 2: Synthesize & Check Target
+    const targetSynth = elimApp.target.synth(ctx, r);
+    if (targetSynth instanceof stop) return targetSynth;
+
+    const targetThe = (targetSynth as go<C.The>).result;
+    const targetTypeValue = valInContext(ctx, targetThe.type);
+
+    // Verify target type matches the inductive type
+    if (!(targetTypeValue instanceof V.InductiveTypeConstructor) ||
+        targetTypeValue.name !== elimApp.typeName) {
+      return new stop(elimApp.location,
+        new Message([`Expected type ${elimApp.typeName}, got ${targetTypeValue.readBackType(ctx)}`]));
+    }
+
+    // PHASE 3: Generate & Check Motive Type
+    // Generate expected motive type: (Π [target : T] U)
+    let indexTypes = inductiveTypeValue.indexTypes
+    const buildMotive = (level: number, capturedIndices: V.Value[]): V.Value => {
+          if (level >= indexTypes.length) {
+            // Base case: build (Π [target : InductiveType(name, params, capturedIndices)] U)
+            return new V.Pi(
+              'target',
+              new V.InductiveTypeConstructor(targetTypeValue.name, targetTypeValue.parameters, capturedIndices),
+              new HigherOrderClosure(_ => new V.Universe())
+            );
+          }
     
-//   }
+          // Recursive case: build (Π [index : τ] ...)
+          const indexType = indexTypes[level];
+          return new V.Pi(
+            fresh(ctx, 'idx'),
+            indexType,
+            new HigherOrderClosure(indexVal =>
+              buildMotive(level + 1, [...capturedIndices, indexVal])
+            )
+          );
+        };
+    
+    const expectedMotiveType = buildMotive(0, [])
 
-//   public static GenerateConstructor(
-//     ctx: Context,
-//     renames: Renaming,
-//     datatype: S.DefineDatatype
-//   ): Perhaps<C.The> {
+    const motiveCheck = elimApp.motive.check(ctx, r, expectedMotiveType);
+    if (motiveCheck instanceof stop) return motiveCheck;
 
-//     let buildConstructorApplication = (constructorName: string, argNames: string[], datatypeName: string, parameters: C.Core[], indices: C.Core[]): C.Core => {
-//       let result: C.Core = new C.VarName(datatypeName);
-      
-//       // Apply parameters
-//       for (const param of parameters) {
-//         result = new C.Application(result, param);
-//       }
-      
-//       // Apply indices  
-//       for (const index of indices) {
-//         result = new C.Application(result, index);
-//       }
-      
-//       // Apply constructor
-//       let constructorApp: C.Core = new C.VarName(constructorName);
-//       for (const argName of argNames) {
-//         constructorApp = new C.Application(constructorApp, new C.VarName(argName));
-//       }
-      
-//       return constructorApp;
-//     };
+    const motiveCore = (motiveCheck as go<C.Core>).result;
+    const motiveValue = valInContext(ctx, motiveCore);
 
-//     let generateMethodType = (
-//       constructorName: string,
-//       argTypes: C.Core[], 
-//       rec_args: C.Core[], 
-//       resultType: C.Core,
-//       motive: C.Core,
-//       datatypeName: string,
-//       parameters: C.Core[],
-//       indices: C.Core[]
-//     ): C.Core => {
-//       let argNames: string[] = [];
-//       let recArgNames: string[] = [];
-      
-//       // Generate argument names
-//       for (let i = 0; i < argTypes.length; i++) {
-//         argNames.push(fresh(ctx, `arg_${i}`));
-//       }
-      
-//       // Generate inductive hypothesis names  
-//       for (let i = 0; i < rec_args.length; i++) {
-//         recArgNames.push(fresh(ctx, `ih_${i}`));
-//       }
-      
-//       // Build the constructor application
-//       const constructorApp = buildConstructorApplication(constructorName, argNames, datatypeName, parameters, indices);
-      
-//       // Final result type: motive applied to constructor application
-//       let methodType: C.Core = new C.Application(motive, constructorApp);
-      
-//       // Add inductive hypotheses (right to left)
-//       for (let i = rec_args.length - 1; i >= 0; i--) {
-//         const ihName = recArgNames[i];
-//         const recArgApp = new C.Application(motive, new C.VarName(argNames[i])); // Apply motive to recursive argument
-        
-//         methodType = new C.Pi(
-//           ihName,
-//           recArgApp,
-//           methodType
-//         );
-//       }
-      
-//       // Add constructor arguments (right to left)
-//       for (let i = argTypes.length - 1; i >= 0; i--) {
-//         const argName = argNames[i];
-//         methodType = new C.Pi(
-//           argName,
-//           argTypes[i],
-//           methodType
-//         );
-//       }
-      
-//       return methodType;
-//     };
-//     const resultType = new PerhapsM<C.Core>('resultType');
-//     const parameters = new PerhapsM<C.Core[]>('parameters');
-//     const indices = new PerhapsM<C.Core[]>('indices');
-//     const constructorTypes = new PerhapsM<C.Core[]>('constructorTypes');
-//     const eliminatorTypes = new PerhapsM<C.Core[]>('eliminatorTypes');
+    // PHASE 4: Get constructor types and check methods
+    const constructorTypes = this.getConstructorTypesForDatatype(ctx, elimApp.typeName);
 
-//     return goOn(
-//       [
-//         [resultType, () => datatype.resultType.check(ctx, renames, new V.Universe())],
-//         [parameters, () => datatype.parameters.map((param) => param.type.check(ctx, renames, new V.Universe()))],
-//         [indices, () => datatype.indices.map((index) => index.type.check(ctx, renames, new V.Universe()))],
-//         [constructorTypes, () => datatype.constructors.map((constructor) => this.checkConstructorType(ctx, renames, constructor as S.ConstructorType))],
-//         [eliminatorTypes, () => {
-//           const resultTypeResult = resultType.value;
-//           const parametersResults = parameters.value;
-//           const indicesResults = indices.value;
-//           const constructorTypesResults = constructorTypes.value;
-//           const motiveType = new C.Pi(
-//             'test_input_fst',
-//             resultTypeResult,
-//             new C.Universe()
-//           )
+    if (elimApp.methods.length !== constructorTypes.length) {
+      return new stop(elimApp.location,
+        new Message([`Expected ${constructorTypes.length} methods, got ${elimApp.methods.length}`]));
+    }
 
-          
+    const checkedMethods: C.Core[] = [];
+    for (let i = 0; i < elimApp.methods.length; i++) {
+      const expectedMethodType = this.generateMethodTypeForConstructor(
+        ctx,
+        constructorTypes[i],
+        motiveValue,
+        targetTypeValue.parameters
+      );
 
+      const methodCheck = elimApp.methods[i].check(ctx, r, expectedMethodType);
+      if (methodCheck instanceof stop) return methodCheck;
 
-//         }]
-//       ],
-//       () => new go(
-//         new C.The(
-//           new C.Universe(),
-//           new C.InductiveType(
-//             datatype.typeName,
-//             parameters.value,
-//             indices.value
-//           )
-//         )
-//       )
-//     );
+      checkedMethods.push((methodCheck as go<C.Core>).result);
+    }
 
-//   }
+    // PHASE 5: Compute Result Type & Build Core
+    // For indexed types, apply motive to indices first, then target
+    let resultType: V.Value = motiveValue;
 
-//   public static checkConstructorType(ctx: Context, renames: Renaming, ConstructorType: S.ConstructorType): Perhaps<C.Core> {
-//     const normalizedResultTypeTemp = ConstructorType.resultType.check(ctx, renames, new V.Universe());
+    // Apply to each index value from the target's type
+    for (const indexValue of targetTypeValue.indices) {
+      resultType = doApp(resultType, indexValue);
+    }
 
-//     let binder = ConstructorType.args;
+    // Finally apply to the target value itself
+    resultType = doApp(resultType, valInContext(ctx, targetThe.expr));
 
-//     let normalizedType = []
-//     for (const param of binder) {
-//       const paramCheck = param.type.check(ctx, renames, new V.Universe());
-//       if (paramCheck instanceof stop) return paramCheck;
-//       normalizedType.push((paramCheck as go<C.Core>).result);
-//     }
+    const eliminatorCore = new C.Eliminator(
+      elimApp.typeName,
+      targetThe.expr,
+      motiveCore,
+      checkedMethods
+    );
 
-//     let recur_args = []
-//     let normalizedResultType = (normalizedResultTypeTemp as go<C.Core>).result
+    return new go(new C.The(
+      resultType.readBackType(ctx),
+      eliminatorCore
+    ));
+  }
 
-//     for (const arg of normalizedType) {
-//       if (alphaEquiv(arg, normalizedResultType)) {
-//         recur_args.push(arg);
-//       }
-//     }
+  /**
+   * Get constructor types for a datatype from context
+   */
+  private static getConstructorTypesForDatatype(ctx: Context, typeName: string): C.ConstructorType[] {
+    const constructorTypes: C.ConstructorType[] = [];
 
-//     return new go(new C.ConstructorType(
-//       normalizedType,
-//       recur_args,
-//       (normalizedResultTypeTemp as go<C.Core>).result
-//     ));
-//   }
-// }
+    for (const [name, binder] of ctx) {
+      if (binder instanceof ConstructorTypeBinder) {
+        const ctor = binder.constructorType;
+        if (ctor.type === typeName) {
+          constructorTypes.push(binder.constructorType);
+        }
+      }
+    }
 
-// function checkAndBuildTypes(ctx: Context, renames: Renaming, initialType: C.Core, binder: TypedBinder[]): Perhaps<C.Core> {
-//   let normalizedType = []
-//   for (const param of binder) {
-//     const paramCheck = param.type.check(ctx, renames, new V.Universe());
-//     if (paramCheck instanceof stop) return paramCheck;
-//     normalizedType.push((paramCheck as go<C.Core>).result);
-//   }
+    return constructorTypes.sort((a, b) => a.index - b.index);
+  }
 
-//   let cur_Type = initialType
-//   for (let i = normalizedType.length - 1; i >= 0; i--) {
-//     const paramType = normalizedType[i];
-//     const paramName = binder[i].findNames();
-//     const currentTType = cur_Type;
-//     cur_Type = new V.Pi(
-//       paramName,
-//       valInContext(ctx, paramType),
-//       new HigherOrderClosure((v: V.Value) => currentTType)
-//     );
-//   }
+  /**
+   * Generate method type for a constructor
+   * Form: (Π [args...] (→ [IHs...] (P ctor)))
+   */
+  private static generateMethodTypeForConstructor(
+    ctx: Context,
+    ctorType: C.ConstructorType,
+    motiveValue: V.Value,
+    typeParams: V.Value[]
+  ): V.Value {
+    // Build environment with type parameters bound for evaluating argTypes
+    let argEnv = new Map(contextToEnvironment(ctx));
 
-//   return new go(cur_Type);
+    // Extract all VarNames from argTypes and rec_argTypes
+    const varNames = new Set<string>();
+    [...ctorType.argTypes, ...ctorType.rec_argTypes].forEach(at => {
+      if (at instanceof C.VarName) {
+        varNames.add(at.name);
+      }
+    });
+
+    // Bind each unique VarName to the corresponding type parameter
+    // Assumption: type parameters appear in order, and VarNames reference them by position
+    const varNameArray = Array.from(varNames);
+    for (let i = 0; i < varNameArray.length && i < typeParams.length; i++) {
+      argEnv.set(varNameArray[i], typeParams[i]);
+    }
+
+    // Build the result type: motive applied to constructor application
+    const allArgTypes = [
+      ...ctorType.argTypes.map(t => t.valOf(argEnv)),
+      ...ctorType.rec_argTypes.map(t => t.valOf(argEnv))
+    ];
+
+    const buildMethod = (level: number, capturedArgs: V.Value[]): V.Value => {
+          if (level >= allArgTypes.length) {
+            // All arguments captured, now add inductive hypotheses and result
+    
+            // Step 1: Add IHs for recursive arguments (in reverse order)
+            let result: V.Value;
+    
+            // First, build the result type: P applied to constructor
+            const ctorApp = new V.Constructor(
+              ctorType.name,
+              ctorType.type,
+              capturedArgs,
+              ctorType.index,
+              []  // Will be filled with recursive args
+            );
+    
+            // Extract result indices from ctorType.resultType
+            const resultType = valInContext(ctx, ctorType.resultType);
+            const resultIndices = extractIndicesFromValue(resultType);
+    
+            // Apply motive to indices and constructor
+            result = motiveValue;
+            for (const idx of resultIndices) {
+              result = doApp(result, idx);
+            }
+            result = doApp(result, ctorApp);
+    
+            // Step 2: Wrap with inductive hypotheses (for recursive args, in reverse)
+            const numNonRec = ctorType.argTypes.length;
+            for (let i = ctorType.rec_argTypes.length - 1; i >= 0; i--) {
+              const recArgIndex = numNonRec + i;
+              const recArg = capturedArgs[recArgIndex];
+              const recArgTypeValue = allArgTypes[recArgIndex];
+
+              // Build IH type: P(indices... recArg)
+              // The recursive arg type (e.g., Vec E k) when evaluated in context
+              // has its indices as Values that reference captured arguments
+              let ihType = motiveValue;
+              if (recArgTypeValue instanceof V.InductiveTypeConstructor) {
+                for (const idx of recArgTypeValue.indices) {
+                  ihType = doApp(ihType, idx);
+                }
+              }
+              ihType = doApp(ihType, recArg);
+
+              const currentResult = result;
+              result = new V.Pi(
+                `ih${i}`,
+                ihType,
+                new HigherOrderClosure(_ => currentResult)
+              );
+            }
+    
+            return result;
+          }
+    
+          // Recursive case: bind constructor argument
+          const argType = allArgTypes[level];
+          return new V.Pi(
+            `arg${level}`,
+            argType,
+            new HigherOrderClosure(argVal =>
+              buildMethod(level + 1, [...capturedArgs, argVal])
+            )
+          );
+        };
+    return buildMethod(0, []);
+  }
+}
+
+function extractIndicesFromValue(val: V.Value): V.Value[] {
+  if (val instanceof V.InductiveTypeConstructor) {
+    return val.indices;
+  }
+  return [];
 }
