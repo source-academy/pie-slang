@@ -1,4 +1,7 @@
 *.css
+!web/*.css
+web/*-bundle.js
+web/*-bundle.js.map
 .DS_Store
 *.cjs
 *~
