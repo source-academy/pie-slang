@@ -1,11 +1,13 @@
 import * as C from '../types/core';
-import { InductiveType, Neutral, Universe, Value, Constructor, InductiveTypeConstructor } from '../types/value';
+import {
+  InductiveType, Neutral, Universe, Value, InductiveTypeConstructor
+} from '../types/value';
 
 import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
 import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
-import { Source} from '../types/source';
+import { Source } from '../types/source';
 import { Variable } from '../types/neutral';
 
 
@@ -80,7 +82,7 @@ export function addClaimToContext(ctx: Context, fun: string, funLoc: Location, t
     () => new go(
       extendContext(
         ctx,
-        fun, 
+        fun,
         new Claim(valInContext(ctx, typeOut.value))
       )
     )
@@ -134,7 +136,7 @@ export function contextToEnvironment(ctx: Context): Environment {
   return env;
 }
 
-export function getInductiveType(ctx: Context, where: Location, name:string): Perhaps<InductiveDatatypeBinder> {
+export function getInductiveType(ctx: Context, where: Location, name: string): Perhaps<InductiveDatatypeBinder> {
   for (const [n, binder] of ctx) {
     if (binder instanceof InductiveDatatypeBinder && n === name) {
       return new go(binder);
@@ -170,10 +172,10 @@ export class Free extends Binder {
 
 export class InductiveDatatypeBinder extends Binder {
   constructor(
-    public name: string, 
+    public name: string,
     public type: InductiveType) {
-      super()
-    }
+    super()
+  }
 }
 
 export class ConstructorTypeBinder extends Binder {
@@ -182,16 +184,16 @@ export class ConstructorTypeBinder extends Binder {
     public constructorType: C.ConstructorType,
     public type: InductiveTypeConstructor
   ) {
-      super()
-    }
+    super()
+  }
 }
 
 export class EliminatorBinder extends Binder {
   constructor(
-    public name: string, 
+    public name: string,
     public type: Value) {
-      super()
-    }
+    super()
+  }
 }
 
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
@@ -216,7 +218,7 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
   if (ctx.has(varName)) {
     // CHANGE: REMOVE ctx LOOP AFTER FIXING THE BUG
-    for (const [x, ] of ctx) {
+    for (const [x,] of ctx) {
       if (x === varName) {
         //console.log(`binding ${varName} to ${binder}`);
         return extendContext(ctx, varName, new Free(tv));
@@ -237,19 +239,19 @@ export function bindVal(ctx: Context, varName: string, type: Value, value: Value
 
 // For informationa bout serializable contexts, see the comments in
 // normalize.rkt.
-export type SerializableContext = 
+export type SerializableContext =
   Map<string, ['free', C.Core] | ['def', C.Core, C.Core] | ['claim', C.Core]>;
 
 // Predicate to check if something is a serializable context
-export function isSerializableContext(ctx: any): ctx is SerializableContext {
+export function isSerializableContext(ctx: unknown): ctx is SerializableContext {
   return ctx instanceof Map && Array.from(ctx.values()).every(value => {
-    return Array.isArray(value) && 
-           (
-            (value[0] === 'free' && value[1] instanceof C.Core) 
-            || 
-            (value[0] === 'def' && value[1] instanceof C.Core && value[2] instanceof C.Core) 
-            || 
-            (value[0] === 'claim' && value[2] instanceof C.Core)
-          );
+    return Array.isArray(value) &&
+      (
+        (value[0] === 'free' && value[1] instanceof C.Core)
+        ||
+        (value[0] === 'def' && value[1] instanceof C.Core && value[2] instanceof C.Core)
+        ||
+        (value[0] === 'claim' && value[2] instanceof C.Core)
+      );
   });
 }

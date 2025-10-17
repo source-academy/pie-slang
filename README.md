@@ -15,15 +15,17 @@ To get started with the Pie interpreter:
 
 2. Install dependencies:
    ```bash
-   npm install
+   yarn install
    ```
 
 3. Build the project:
    ```bash
-   npm run build
+   yarn build
    ```
 
-4. Try a simple Pie program:
+4. Use conductor: find dist files in ```./dist``` folder.
+
+5. Try a simple Pie program on Source Academy, or the local web interface:
    ```scheme
    (claim identity (-> Nat Nat))
    (define identity (λ (n) n))

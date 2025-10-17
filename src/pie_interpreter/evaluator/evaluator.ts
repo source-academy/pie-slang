@@ -478,7 +478,7 @@ export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
             new V.Pi(
               "x",
               eqType,
-              new HigherOrderClosure((x) => base)
+              new HigherOrderClosure((_) => base)
             ),
             func
           )
@@ -742,7 +742,7 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
       const motiveType = new V.Pi(
         "x",
         new V.Either(leftType, rightType),
-        new HigherOrderClosure((x) => new V.Universe())
+        new HigherOrderClosure((_) => new V.Universe())
       )
       return new V.Neutral(
         doApp(motive, target),
