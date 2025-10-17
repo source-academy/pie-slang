@@ -1,5 +1,5 @@
 # pie-slang
-Implementation of Pie, following The Little Typer
+Implementation of Pie, following [The Little Typer](https://mitpress.mit.edu/9780262536431/the-little-typer/)
 ## Our Language Server
 
 We have published the Pie language server as a VSCode extension, named [pie-lsp](https://marketplace.visualstudio.com/items?itemName=DaoxinLi.pie-lsp&ssr=false#review-details)
