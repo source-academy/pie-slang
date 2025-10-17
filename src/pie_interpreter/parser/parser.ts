@@ -3,12 +3,16 @@ import * as S from "../types/source";
 import { SchemeLexer } from "../../scheme_parser/transpiler/lexer/scheme-lexer";
 import { SchemeParser } from "../../scheme_parser/transpiler/parser/scheme-parser";
 
-import { Extended, Atomic, Expression } from '../../scheme_parser/transpiler/types/nodes/scheme-node-types';
+import {
+  Extended, Atomic, Expression
+} from '../../scheme_parser/transpiler/types/nodes/scheme-node-types';
 import { Location, Syntax } from "../utils/locations";
 import { Location as Loc } from '../../scheme_parser/transpiler/types/location';
 import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
-import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
-import { DefineDatatypeSource, GeneralConstructor } from "../typechecker/definedatatype";
+import { Tactic } from "../tactics/tactics";
+import {
+  DefineDatatypeSource, GeneralConstructor
+} from "../typechecker/definedatatype";
 import * as Maker from "./makers"
 
 type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
@@ -64,7 +68,7 @@ export function schemeParse(stx: string): Extended.List[] {
 
 export class Parser {
   public static parsePie(stx: string): S.Source {
-    return Parser.parseElements(schemeParse(stx)[0]); 
+    return Parser.parseElements(schemeParse(stx)[0]);
   }
 
   public static parseElements(element: Element): S.Source {
@@ -512,9 +516,9 @@ export class Parser {
         ((element as Extended.List).elements[1] as Atomic.Symbol).value,
         this.parseElements((element as Extended.List).elements[2] as Element)
       );
-    } 
+    }
     throw new Error('Unexpected tactic: ' + element);
-}
+  }
 }
 
 
@@ -522,36 +526,36 @@ export class Parser {
 // ### Helper functions for parsing the AST
 
 export class Claim {
-  constructor (
+  constructor(
     public location: Location,
     public name: string,
     public type: S.Source
-  ) {}
+  ) { }
 }
 
 export class Definition {
-  constructor (
+  constructor(
     public location: Location,
     public name: string,
     public expr: S.Source
-  ) {}
+  ) { }
 }
 
 export class SamenessCheck {
-  constructor (
+  constructor(
     public location: Location,
     public type: S.Source,
     public left: S.Source,
     public right: S.Source
-  ) {}
+  ) { }
 }
 
 export class DefineTactically {
-  constructor (
+  constructor(
     public location: Location,
     public name: string,
     public tactics: Tactic[]
-  ) {}
+  ) { }
 }
 
 
@@ -592,8 +596,8 @@ export class pieDeclarationParser {
         (elements[2] as Extended.List).elements.map((x: Expression) => Parser.parseToTactics(x as Element))
       );
     } else if (parsee === 'data') {
-      let elements = (ast as Extended.List).elements;
-      let loc = ast.location;
+      const elements = (ast as Extended.List).elements;
+      const loc = ast.location;
 
       // elements[0] = 'data' (keyword)
       // elements[1] = type name (e.g., 'Less-Than')
@@ -631,7 +635,7 @@ export class pieDeclarationParser {
       const eliminatorName = hasEliminator ? getValue(lastElement as Element) : undefined;
 
       // Parse constructors: (constructor-name ((args...)) (ReturnType ...))
-      const constructors = [];
+      const constructors: GeneralConstructor[] = [];
       for (let i = 4; i < constructorEndIdx; i++) {
         const ctorElement = elements[i] as Extended.List;
         const ctorName = getValue(ctorElement.elements[0] as Element);

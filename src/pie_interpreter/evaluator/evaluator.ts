@@ -3,10 +3,8 @@ import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
 import { natEqual } from './utils';
 
-//TODO: add else cases and throw errors
-
 /*
-  ### The Evaluators ###
+  ### Evaluator ###
 
   Functions whose names begin with "do-" are helpers that implement
   the corresponding eliminator.
@@ -34,7 +32,7 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`doApp: invalid input ${[operatorNow, operand]}`);
+  throw new Error(`doApp: invalid input ${[operatorNow, operand.now()]}`);
 }
 
 /**

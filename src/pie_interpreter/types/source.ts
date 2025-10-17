@@ -2004,8 +2004,8 @@ export class GeneralType extends Source {
 
     let cur_ctx = ctx
     let cur_rename = rename
-    const normalizedParamType = []
-    const normalizedIndicesType = []
+    const normalizedParamType: C.Core[] = []
+    const normalizedIndicesType: C.Core[] = []
     for (let i = 0; i < this.paramType.length; i++) {
       const fresh_name = fresh(cur_ctx, this.paramType[i].binder.varName)
       const resultTemp = this.paramType[i].type.isType(cur_ctx, cur_rename)
@@ -2092,8 +2092,8 @@ export class GeneralTypeConstructor extends Source {
 
   public checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core> {
     const cur_val = target.now()
-    const normalized_params = []
-    const normalized_indices = []
+    const normalized_params: C.Core[] = []
+    const normalized_indices: C.Core[] = []
 
     //TODO: verify name sameness check is not necessary
 

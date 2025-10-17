@@ -3,7 +3,6 @@ import * as C from '../types/core';
 import * as V from '../types/value';
 import * as Evaluator from '../evaluator/evaluator';
 import { Environment } from '../utils/environment';
-import { inspect } from 'util';
 import { readBack } from '../evaluator/utils';
 import { Context } from '../utils/context';
 
@@ -38,10 +37,9 @@ export function createListExample(): {
     1,       // constructor index
     "List",  // type
     [
-      new C.Add1(new C.Add1(new C.Add1(new C.Zero()))),
-      nilConstructor
-    ],       // arguments
-    [nilConstructor]  // recursive arguments
+      new C.Add1(new C.Add1(new C.Add1(new C.Zero())))  // head = 3
+    ],       // non-recursive arguments
+    [nilConstructor]  // recursive arguments (tail)
   );
 
   // Create cons 2 (cons 3 nil)
@@ -49,8 +47,8 @@ export function createListExample(): {
     "cons",  // name
     1,       // constructor index
     "List",  // type
-    [new C.Add1(new C.Add1(new C.Zero())), cons3Nil], // 2, (cons 3 nil)
-    [cons3Nil]  // recursive arguments
+    [new C.Add1(new C.Add1(new C.Zero()))], // head = 2 (non-recursive argument)
+    [cons3Nil]  // recursive arguments (tail)
   );
 
 
@@ -238,7 +236,7 @@ describe("doEliminator tests", () => {
       );
       const context: Context = new Map();
       const normalizedResult = readBack(context, new V.Nat(), listResult);
-      console.log("List elimination result (normalized):", inspect(normalizedResult, true, null, true));
+      console.log("List elimination result (normalized):", normalizedResult);
     }).not.toThrow();
   });
 

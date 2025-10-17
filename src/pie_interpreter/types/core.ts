@@ -1070,7 +1070,7 @@ export class VarName extends Core {
     if (isVarName(this.name)) {
       return getValueFromEnvironment(env, this.name);
     } else {
-      throw new Error(`{this.name} is not a valid variable name`);
+      throw new Error(`${this.name} is not a valid variable name`);
     }
   }
 

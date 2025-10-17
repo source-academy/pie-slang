@@ -4,7 +4,6 @@ import { Location, Syntax } from '../utils/locations';
 import { Position } from '../../scheme_parser/transpiler/types/location';
 import * as S from '../types/source';
 import { Context, initCtx, valInContext } from '../utils/context';
-import { inspect } from 'util';
 import { Renaming } from '../typechecker/utils';
 import * as C from '../types/core';
 import { go, SiteBinder, TypedBinder } from '../types/utils';
@@ -14,7 +13,7 @@ const testLoc = new Location(new Syntax(new Position(1, 1), new Position(1, 1), 
 
 
 describe('boolean', () => {
-  let define_boolean = new DefineDatatypeSource(
+  const define_boolean = new DefineDatatypeSource(
     testLoc,
     'Bool',
     [],
@@ -24,31 +23,29 @@ describe('boolean', () => {
       new GeneralConstructor(testLoc, 'false', [], new S.GeneralTypeConstructor(testLoc, 'Bool', [], []))
     ]
   )
-  let ctx = initCtx
-  let renameing = new Map<string, string>()
+  const ctx = initCtx
+  const renaming = new Map<string, string>()
   it('test generate type and constructor', () => {
-    let result = define_boolean.normalize_constructor(ctx, renameing)
-    console.log(inspect(result, true, null, true))
+    const result = define_boolean.normalize_constructor(ctx, renaming)
+    console.log(result)
   })
-  let [new_ctx, new_renaming] = define_boolean.normalize_constructor(ctx, renameing)
-  let Mytrue = new S.ConstructorApplication(
+  const [new_ctx, new_renaming] = define_boolean.normalize_constructor(ctx, renaming)
+  const Mytrue = new S.ConstructorApplication(
     testLoc,
     'true',
     []
   )
-  let Myfalse = new S.ConstructorApplication(
+  const Myfalse = new S.ConstructorApplication(
     testLoc,
     'false',
     []
   )
   it('test type check constructors', () => {
-    let result0 = Mytrue.synth(new_ctx as Context, new_renaming as Renaming)
-    let result1 = Myfalse.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1], true, null, true))
+    const result0 = Mytrue.synth(new_ctx as Context, new_renaming as Renaming)
+    const result1 = Myfalse.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([result0, result1])
   })
-  let result0 = (Mytrue.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
-  let result1 = (Myfalse.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
-  let eliminateTrue = new S.EliminatorApplication(
+  const eliminateTrue = new S.EliminatorApplication(
     testLoc,
     'Bool',
     Mytrue,
@@ -63,7 +60,7 @@ describe('boolean', () => {
     ]
   )
 
-  let eliminateFalse = new S.EliminatorApplication(
+  const eliminateFalse = new S.EliminatorApplication(
     testLoc,
     'Bool',
     Myfalse,
@@ -78,20 +75,20 @@ describe('boolean', () => {
     ]
   )
   it('test eliminate true and false', () => {
-    let resultTrue = eliminateTrue.synth(new_ctx as Context, new_renaming as Renaming)
-    let resultFalse = eliminateFalse.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultTrue, resultFalse], true, null, true))
+    const resultTrue = eliminateTrue.synth(new_ctx as Context, new_renaming as Renaming)
+    const resultFalse = eliminateFalse.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([resultTrue, resultFalse])
   })
 
   it('test evaluate eliminators', () => {
-    let resultTrue = (eliminateTrue.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
-    let resultFalse = (eliminateFalse.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultTrue = (eliminateTrue.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultFalse = (eliminateFalse.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
 
     // Evaluate the core expressions
-    let evalTrue = valInContext(new_ctx as Context, resultTrue.expr).now()
-    let evalFalse = valInContext(new_ctx as Context, resultFalse.expr).now()
+    const evalTrue = valInContext(new_ctx as Context, resultTrue.expr).now()
+    const evalFalse = valInContext(new_ctx as Context, resultFalse.expr).now()
 
-    console.log(inspect([evalTrue, evalFalse], true, null, true))
+    console.log([evalTrue, evalFalse])
   })
 
 })
@@ -100,7 +97,7 @@ describe('mynat', () => {
   // define-datatype MyNat
   //   myzero : MyNat
   //   mysucc : (MyNat -> MyNat)
-  let define_mynat = new DefineDatatypeSource(
+  const define_mynat = new DefineDatatypeSource(
     testLoc,
     'MyNat',
     [],
@@ -115,32 +112,32 @@ describe('mynat', () => {
       )
     ]
   )
-  let ctx = initCtx
-  let renaming = new Map<string, string>()
+  const ctx = initCtx
+  const renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_mynat.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
+    const result = define_mynat.normalize_constructor(ctx, renaming)
+    console.log(result)
   })
 
-  let [new_ctx, new_renaming] = define_mynat.normalize_constructor(ctx, renaming)
+  const [new_ctx, new_renaming] = define_mynat.normalize_constructor(ctx, renaming)
 
   it('test type check constructors', () => {
-    let Myzero = new S.ConstructorApplication(testLoc, 'myzero', [])
-    let Myone = new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'myzero', [])])
-    let Mytwo = new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'myzero', [])])])
+    const Myzero = new S.ConstructorApplication(testLoc, 'myzero', [])
+    const Myone = new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'myzero', [])])
+    const Mytwo = new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'myzero', [])])])
 
-    let result0 = Myzero.synth(new_ctx as Context, new_renaming as Renaming)
-    let result1 = Myone.synth(new_ctx as Context, new_renaming as Renaming)
-    let result2 = Mytwo.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1, result2], true, null, true))
+    const result0 = Myzero.synth(new_ctx as Context, new_renaming as Renaming)
+    const result1 = Myone.synth(new_ctx as Context, new_renaming as Renaming)
+    const result2 = Mytwo.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([result0, result1, result2])
   })
 
-  let Myzero = new S.ConstructorApplication(testLoc, 'myzero', [])
-  let Myone = new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'myzero', [])])
+  const Myzero = new S.ConstructorApplication(testLoc, 'myzero', [])
+  const Myone = new S.ConstructorApplication(testLoc, 'mysucc', [new S.ConstructorApplication(testLoc, 'myzero', [])])
 
   // Eliminator: convert MyNat to Nat
-  let eliminateMyzero = new S.EliminatorApplication(
+  const eliminateMyzero = new S.EliminatorApplication(
     testLoc,
     'MyNat',
     Myzero,
@@ -163,7 +160,7 @@ describe('mynat', () => {
     ]
   )
 
-  let eliminateMyone = new S.EliminatorApplication(
+  const eliminateMyone = new S.EliminatorApplication(
     testLoc,
     'MyNat',
     Myone,
@@ -187,19 +184,19 @@ describe('mynat', () => {
   )
 
   it('test eliminate zero and one', () => {
-    let resultZero = eliminateMyzero.synth(new_ctx as Context, new_renaming as Renaming)
-    let resultOne = eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultZero, resultOne], true, null, true))
+    const resultZero = eliminateMyzero.synth(new_ctx as Context, new_renaming as Renaming)
+    const resultOne = eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([resultZero, resultOne])
   })
 
   it('test evaluate eliminators', () => {
-    let resultZero = (eliminateMyzero.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
-    let resultOne = (eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultZero = (eliminateMyzero.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultOne = (eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
 
-    let evalZero = valInContext(new_ctx as Context, resultZero.expr).now()
-    let evalOne = valInContext(new_ctx as Context, resultOne.expr).now()
+    const evalZero = valInContext(new_ctx as Context, resultZero.expr).now()
+    const evalOne = valInContext(new_ctx as Context, resultOne.expr).now()
 
-    console.log(inspect([evalZero, evalOne], true, null, true))
+    console.log([evalZero, evalOne])
   })
 })
 
@@ -208,7 +205,7 @@ describe('mylist', () => {
   //   mynil : (E : U) -> MyList E
   //   mycons : (E : U) -> E -> MyList E -> MyList E
   // Constructors explicitly take the type parameter E as an argument
-  let define_mylist = new DefineDatatypeSource(
+  const define_mylist = new DefineDatatypeSource(
     testLoc,
     'MyList',
     [new TypedBinder(new SiteBinder(testLoc, 'E'), new S.Universe(testLoc))],
@@ -225,28 +222,28 @@ describe('mylist', () => {
         'mycons',
         [
           new TypedBinder(new SiteBinder(testLoc, 'E'), new S.Universe(testLoc)),
-          new TypedBinder(new SiteBinder(testLoc, 'head'), new S.Name(testLoc, 'E')),
-          new TypedBinder(new SiteBinder(testLoc, 'tail'), new S.GeneralTypeConstructor(testLoc, 'MyList', [new S.Name(testLoc, 'E')], []))
+          new TypedBinder(new SiteBinder(testLoc, 'myhead'), new S.Name(testLoc, 'E')),
+          new TypedBinder(new SiteBinder(testLoc, 'mytail'), new S.GeneralTypeConstructor(testLoc, 'MyList', [new S.Name(testLoc, 'E')], []))
         ],
         new S.GeneralTypeConstructor(testLoc, 'MyList', [new S.Name(testLoc, 'E')], [])
       )
     ]
   )
-  let ctx = initCtx
-  let renaming = new Map<string, string>()
+  const ctx = initCtx
+  const renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_mylist.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
+    const result = define_mylist.normalize_constructor(ctx, renaming)
+    console.log(result)
   })
 
-  let [new_ctx, new_renaming] = define_mylist.normalize_constructor(ctx, renaming)
+  const [new_ctx, new_renaming] = define_mylist.normalize_constructor(ctx, renaming)
 
   it('test type check constructors', () => {
     // MyList Nat: (mynil Nat)
-    let Mynil = new S.ConstructorApplication(testLoc, 'mynil', [new S.Nat(testLoc)])
+    const Mynil = new S.ConstructorApplication(testLoc, 'mynil', [new S.Nat(testLoc)])
     // MyList Nat: (mycons Nat 1 (mynil Nat))
-    let Myone = new S.ConstructorApplication(
+    const Myone = new S.ConstructorApplication(
       testLoc,
       'mycons',
       [
@@ -256,14 +253,14 @@ describe('mylist', () => {
       ]
     )
 
-    let result0 = Mynil.synth(new_ctx as Context, new_renaming as Renaming)
-    let result1 = Myone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1], true, null, true))
+    const result0 = Mynil.synth(new_ctx as Context, new_renaming as Renaming)
+    const result1 = Myone.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([result0, result1])
   })
 
   // Construct test lists for elimination
-  let Mynil = new S.ConstructorApplication(testLoc, 'mynil', [new S.Nat(testLoc)])
-  let Myone = new S.ConstructorApplication(
+  const Mynil = new S.ConstructorApplication(testLoc, 'mynil', [new S.Nat(testLoc)])
+  const Myone = new S.ConstructorApplication(
     testLoc,
     'mycons',
     [
@@ -274,7 +271,7 @@ describe('mylist', () => {
   )
 
   // Eliminator: compute length of MyList Nat
-  let eliminateMynil = new S.EliminatorApplication(
+  const eliminateMynil = new S.EliminatorApplication(
     testLoc,
     'MyList',
     Mynil,
@@ -289,15 +286,15 @@ describe('mylist', () => {
         [new SiteBinder(testLoc, 'E')],
         new S.Zero(testLoc)
       ),
-      new S.Lambda(         // mycons case: λ(E : U) → λ(head : E) → λ(tail : MyList E) → λ(ih : Nat) → (add1 ih)
+      new S.Lambda(         // mycons case: λ(E : U) → λ(myhead : E) → λ(mytail : MyList E) → λ(ih : Nat) → (add1 ih)
         testLoc,
         [new SiteBinder(testLoc, 'E')],
         new S.Lambda(
           testLoc,
-          [new SiteBinder(testLoc, 'head')],
+          [new SiteBinder(testLoc, 'myhead')],
           new S.Lambda(
             testLoc,
-            [new SiteBinder(testLoc, 'tail')],
+            [new SiteBinder(testLoc, 'mytail')],
             new S.Lambda(
               testLoc,
               [new SiteBinder(testLoc, 'ih')],
@@ -309,7 +306,7 @@ describe('mylist', () => {
     ]
   )
 
-  let eliminateMyone = new S.EliminatorApplication(
+  const eliminateMyone = new S.EliminatorApplication(
     testLoc,
     'MyList',
     Myone,
@@ -324,7 +321,7 @@ describe('mylist', () => {
         [new SiteBinder(testLoc, 'E')],
         new S.Zero(testLoc)
       ),
-      new S.Lambda(         // mycons case: λ(E : U) → λ(head : E) → λ(tail : MyList E) → λ(ih : Nat) → (add1 ih)
+      new S.Lambda(         // mycons case: λ(E : U) → λ(head : E) → λ(mytail : MyList E) → λ(ih : Nat) → (add1 ih)
         testLoc,
         [new SiteBinder(testLoc, 'E')],
         new S.Lambda(
@@ -332,7 +329,7 @@ describe('mylist', () => {
           [new SiteBinder(testLoc, 'head')],
           new S.Lambda(
             testLoc,
-            [new SiteBinder(testLoc, 'tail')],
+            [new SiteBinder(testLoc, 'mytail')],
             new S.Lambda(
               testLoc,
               [new SiteBinder(testLoc, 'ih')],
@@ -345,19 +342,19 @@ describe('mylist', () => {
   )
 
   it('test eliminate nil and cons', () => {
-    let resultNil = eliminateMynil.synth(new_ctx as Context, new_renaming as Renaming)
-    let resultCons = eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultNil, resultCons], true, null, true))
+    const resultNil = eliminateMynil.synth(new_ctx as Context, new_renaming as Renaming)
+    const resultCons = eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([resultNil, resultCons])
   })
 
   it('test evaluate eliminators', () => {
-    let resultNil = (eliminateMynil.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
-    let resultCons = (eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultNil = (eliminateMynil.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultCons = (eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
 
-    let evalNil = valInContext(new_ctx as Context, resultNil.expr).now()
-    let evalCons = valInContext(new_ctx as Context, resultCons.expr).now()
+    const evalNil = valInContext(new_ctx as Context, resultNil.expr).now()
+    const evalCons = valInContext(new_ctx as Context, resultCons.expr).now()
 
-    console.log(inspect([evalNil, evalCons], true, null, true))
+    console.log([evalNil, evalCons])
   })
 })
 
@@ -365,7 +362,7 @@ describe('myvec', () => {
   // define-datatype MyVec (E : U) : Nat -> U
   //   myvecnil : (E : U) -> MyVec E zero
   //   myveccons : (E : U) -> (k : Nat) -> E -> MyVec E k -> MyVec E (add1 k)
-  let define_myvec = new DefineDatatypeSource(
+  const define_myvec = new DefineDatatypeSource(
     testLoc,
     'MyVec',
     [new TypedBinder(new SiteBinder(testLoc, 'E'), new S.Universe(testLoc))],
@@ -384,27 +381,27 @@ describe('myvec', () => {
           new TypedBinder(new SiteBinder(testLoc, 'E'), new S.Universe(testLoc)),
           new TypedBinder(new SiteBinder(testLoc, 'k'), new S.Nat(testLoc)),
           new TypedBinder(new SiteBinder(testLoc, 'head'), new S.Name(testLoc, 'E')),
-          new TypedBinder(new SiteBinder(testLoc, 'tail'), new S.GeneralTypeConstructor(testLoc, 'MyVec', [new S.Name(testLoc, 'E')], [new S.Name(testLoc, 'k')]))
+          new TypedBinder(new SiteBinder(testLoc, 'mytail'), new S.GeneralTypeConstructor(testLoc, 'MyVec', [new S.Name(testLoc, 'E')], [new S.Name(testLoc, 'k')]))
         ],
         new S.GeneralTypeConstructor(testLoc, 'MyVec', [new S.Name(testLoc, 'E')], [new S.Add1(testLoc, new S.Name(testLoc, 'k'))])
       )
     ]
   )
-  let ctx = initCtx
-  let renaming = new Map<string, string>()
+  const ctx = initCtx
+  const renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_myvec.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
+    const result = define_myvec.normalize_constructor(ctx, renaming)
+    console.log(result)
   })
 
-  let [new_ctx, new_renaming] = define_myvec.normalize_constructor(ctx, renaming)
+  const [new_ctx, new_renaming] = define_myvec.normalize_constructor(ctx, renaming)
 
   it('test type check constructors', () => {
     // MyVec Nat 0: (myvecnil Nat)
-    let Myvecnil = new S.ConstructorApplication(testLoc, 'myvecnil', [new S.Nat(testLoc)])
+    const Myvecnil = new S.ConstructorApplication(testLoc, 'myvecnil', [new S.Nat(testLoc)])
     // MyVec Nat 1: (myveccons Nat 0 1 (myvecnil Nat))
-    let Myvecone = new S.ConstructorApplication(
+    const Myvecone = new S.ConstructorApplication(
       testLoc,
       'myveccons',
       [
@@ -415,7 +412,7 @@ describe('myvec', () => {
       ]
     )
     // MyVec Nat 2: (myveccons Nat 1 2 (myveccons Nat 0 1 (myvecnil Nat)))
-    let Myvectwo = new S.ConstructorApplication(
+    const Myvectwo = new S.ConstructorApplication(
       testLoc,
       'myveccons',
       [
@@ -435,15 +432,15 @@ describe('myvec', () => {
       ]
     )
 
-    let result0 = Myvecnil.synth(new_ctx as Context, new_renaming as Renaming)
-    let result1 = Myvecone.synth(new_ctx as Context, new_renaming as Renaming)
-    let result2 = Myvectwo.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1, result2], true, null, true))
+    const result0 = Myvecnil.synth(new_ctx as Context, new_renaming as Renaming)
+    const result1 = Myvecone.synth(new_ctx as Context, new_renaming as Renaming)
+    const result2 = Myvectwo.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([result0, result1, result2])
   })
 
   // Construct test vectors for elimination
-  let Myvecnil = new S.ConstructorApplication(testLoc, 'myvecnil', [new S.Nat(testLoc)])
-  let Myvecone = new S.ConstructorApplication(
+  const Myvecnil = new S.ConstructorApplication(testLoc, 'myvecnil', [new S.Nat(testLoc)])
+  const Myvecone = new S.ConstructorApplication(
     testLoc,
     'myveccons',
     [
@@ -455,7 +452,7 @@ describe('myvec', () => {
   )
 
   // Eliminator: sum all elements of MyVec Nat k
-  let eliminateMyvecnil = new S.EliminatorApplication(
+  const eliminateMyvecnil = new S.EliminatorApplication(
     testLoc,
     'MyVec',
     Myvecnil,
@@ -470,7 +467,7 @@ describe('myvec', () => {
         [new SiteBinder(testLoc, 'E')],
         new S.Zero(testLoc)
       ),
-      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(head : E) → λ(tail : MyVec E k) → λ(ih : Nat) → (+ head ih)
+      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(head : E) → λ(mytail : MyVec E k) → λ(ih : Nat) → (+ head ih)
         testLoc,
         [new SiteBinder(testLoc, 'E')],
         new S.Lambda(
@@ -481,7 +478,7 @@ describe('myvec', () => {
             [new SiteBinder(testLoc, 'head')],
             new S.Lambda(
               testLoc,
-              [new SiteBinder(testLoc, 'tail')],
+              [new SiteBinder(testLoc, 'mytail')],
               new S.Lambda(
                 testLoc,
                 [new SiteBinder(testLoc, 'ih')],
@@ -503,7 +500,7 @@ describe('myvec', () => {
     ]
   )
 
-  let eliminateMyvecone = new S.EliminatorApplication(
+  const eliminateMyvecone = new S.EliminatorApplication(
     testLoc,
     'MyVec',
     Myvecone,
@@ -518,7 +515,7 @@ describe('myvec', () => {
         [new SiteBinder(testLoc, 'E')],
         new S.Zero(testLoc)
       ),
-      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(head : E) → λ(tail : MyVec E k) → λ(ih : Nat) → (+ head ih)
+      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(head : E) → λ(mytail : MyVec E k) → λ(ih : Nat) → (+ head ih)
         testLoc,
         [new SiteBinder(testLoc, 'E')],
         new S.Lambda(
@@ -526,16 +523,16 @@ describe('myvec', () => {
           [new SiteBinder(testLoc, 'k')],
           new S.Lambda(
             testLoc,
-            [new SiteBinder(testLoc, 'head')],
+            [new SiteBinder(testLoc, 'myhead')],
             new S.Lambda(
               testLoc,
-              [new SiteBinder(testLoc, 'tail')],
+              [new SiteBinder(testLoc, 'mytail')],
               new S.Lambda(
                 testLoc,
                 [new SiteBinder(testLoc, 'ih')],
                 new S.IterNat(
                   testLoc,
-                  new S.Name(testLoc, 'head'),
+                  new S.Name(testLoc, 'myhead'),
                   new S.Name(testLoc, 'ih'),
                   new S.Lambda(
                     testLoc,
@@ -552,19 +549,19 @@ describe('myvec', () => {
   )
 
   it('test eliminate myvecnil and myveccons', () => {
-    let resultNil = eliminateMyvecnil.synth(new_ctx as Context, new_renaming as Renaming)
-    let resultOne = eliminateMyvecone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultNil, resultOne], true, null, true))
+    const resultNil = eliminateMyvecnil.synth(new_ctx as Context, new_renaming as Renaming)
+    const resultOne = eliminateMyvecone.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([resultNil, resultOne])
   })
 
   it('test evaluate eliminators', () => {
-    let resultNil = (eliminateMyvecnil.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
-    let resultOne = (eliminateMyvecone.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultNil = (eliminateMyvecnil.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const resultOne = (eliminateMyvecone.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
 
-    let evalNil = valInContext(new_ctx as Context, resultNil.expr).now()
-    let evalOne = valInContext(new_ctx as Context, resultOne.expr).now()
+    const evalNil = valInContext(new_ctx as Context, resultNil.expr).now()
+    const evalOne = valInContext(new_ctx as Context, resultOne.expr).now()
 
-    console.log(inspect([evalNil, evalOne], true, null, true))
+    console.log([evalNil, evalOne])
   })
 })
 
@@ -572,7 +569,7 @@ describe('less-than', () => {
   // define-datatype Less-Than () ((j Nat) (k Nat))
   //   zero-smallest : (n : Nat) -> Less-Than zero (add1 n)
   //   add1-smaller : (j : Nat) -> (k : Nat) -> Less-Than j k -> Less-Than (add1 j) (add1 k)
-  let define_less_than = new DefineDatatypeSource(
+  const define_less_than = new DefineDatatypeSource(
     testLoc,
     'Less-Than',
     [],  // No parameters
@@ -612,25 +609,25 @@ describe('less-than', () => {
       )
     ]
   )
-  let ctx = initCtx
-  let renaming = new Map<string, string>()
+  const ctx = initCtx
+  const renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_less_than.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
+    const result = define_less_than.normalize_constructor(ctx, renaming)
+    console.log(result)
   })
 
-  let [new_ctx, new_renaming] = define_less_than.normalize_constructor(ctx, renaming)
+  const [new_ctx, new_renaming] = define_less_than.normalize_constructor(ctx, renaming)
 
   it('test type check constructors', () => {
     // Proof of 0 < 1: (zero-smallest 0)
-    let proof_0_lt_1 = new S.ConstructorApplication(testLoc, 'zero-smallest', [new S.Zero(testLoc)])
+    const proof_0_lt_1 = new S.ConstructorApplication(testLoc, 'zero-smallest', [new S.Zero(testLoc)])
 
     // Proof of 0 < 2: (zero-smallest 1)
-    let proof_0_lt_2 = new S.ConstructorApplication(testLoc, 'zero-smallest', [new S.Add1(testLoc, new S.Zero(testLoc))])
+    const proof_0_lt_2 = new S.ConstructorApplication(testLoc, 'zero-smallest', [new S.Add1(testLoc, new S.Zero(testLoc))])
 
     // Proof of 1 < 2: (add1-smaller 0 1 (zero-smallest 0))
-    let proof_1_lt_2 = new S.ConstructorApplication(
+    const proof_1_lt_2 = new S.ConstructorApplication(
       testLoc,
       'add1-smaller',
       [
@@ -641,7 +638,7 @@ describe('less-than', () => {
     )
 
     // Proof of 1 < 3: (add1-smaller 0 2 (zero-smallest 1))
-    let proof_1_lt_3 = new S.ConstructorApplication(
+    const proof_1_lt_3 = new S.ConstructorApplication(
       testLoc,
       'add1-smaller',
       [
@@ -651,16 +648,16 @@ describe('less-than', () => {
       ]
     )
 
-    let result0 = proof_0_lt_1.synth(new_ctx as Context, new_renaming as Renaming)
-    let result1 = proof_0_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
-    let result2 = proof_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
-    let result3 = proof_1_lt_3.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1, result2, result3], true, null, true))
+    const result0 = proof_0_lt_1.synth(new_ctx as Context, new_renaming as Renaming)
+    const result1 = proof_0_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
+    const result2 = proof_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
+    const result3 = proof_1_lt_3.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([result0, result1, result2, result3])
   })
 
   // Test eliminator: extract the smaller number (j)
-  let proof_0_lt_1 = new S.ConstructorApplication(testLoc, 'zero-smallest', [new S.Zero(testLoc)])
-  let proof_1_lt_2 = new S.ConstructorApplication(
+  const proof_0_lt_1 = new S.ConstructorApplication(testLoc, 'zero-smallest', [new S.Zero(testLoc)])
+  const proof_1_lt_2 = new S.ConstructorApplication(
     testLoc,
     'add1-smaller',
     [
@@ -671,7 +668,7 @@ describe('less-than', () => {
   )
 
   // Eliminator: return the smaller number (first index j)
-  let eliminate_0_lt_1 = new S.EliminatorApplication(
+  const eliminate_0_lt_1 = new S.EliminatorApplication(
     testLoc,
     'Less-Than',
     proof_0_lt_1,
@@ -706,7 +703,7 @@ describe('less-than', () => {
     ]
   )
 
-  let eliminate_1_lt_2 = new S.EliminatorApplication(
+  const eliminate_1_lt_2 = new S.EliminatorApplication(
     testLoc,
     'Less-Than',
     proof_1_lt_2,
@@ -742,20 +739,18 @@ describe('less-than', () => {
   )
 
   it('test eliminate less-than proofs', () => {
-    let result0 = eliminate_0_lt_1.synth(new_ctx as Context, new_renaming as Renaming)
-    let result1 = eliminate_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1], true, null, true))
+    const result0 = eliminate_0_lt_1.synth(new_ctx as Context, new_renaming as Renaming)
+    const result1 = eliminate_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
+    console.log([result0, result1])
   })
 
   it('test evaluate eliminators', () => {
-    let result0 = (eliminate_0_lt_1.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
-    let result1 = (eliminate_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const result0 = (eliminate_0_lt_1.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
+    const result1 = (eliminate_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
 
-    let eval0 = valInContext(new_ctx as Context, result0.expr).now()
-    let eval1 = valInContext(new_ctx as Context, result1.expr).now()
+    const eval0 = valInContext(new_ctx as Context, result0.expr).now()
+    const eval1 = valInContext(new_ctx as Context, result1.expr).now()
 
-    console.log(inspect([eval0, eval1], true, null, true))
+    console.log([eval0, eval1])
   })
 })
-
-
