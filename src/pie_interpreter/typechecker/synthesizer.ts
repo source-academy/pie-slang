@@ -186,7 +186,7 @@ export class synthesizer {
     const tgtout = new PerhapsM<C.Core>('tgtout');
     const bout = new PerhapsM<C.The>('bout');
     const sout = new PerhapsM<C.Core>('sout');
-    let n_minus_1 = fresh(context, 'n_minus_1');
+    const n_minus_1 = fresh(context, 'n_minus_1');
     return goOn(
       [
         [tgtout, () => target.check(context, r, new V.Nat())],

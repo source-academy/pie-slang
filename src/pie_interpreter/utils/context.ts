@@ -7,15 +7,13 @@ import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
 import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
-import { inspect } from 'util';
-import { Eliminator } from '../types/core';
+
+
 /*
     ## Contexts ##
     A context maps free variable names to binders.
 */
-
 export type Context = Map<string, Binder>
-
 
 
 export function extendContext(ctx: Context, name: string, binder: Binder): Context {
@@ -218,7 +216,7 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
   if (ctx.has(varName)) {
     // CHANGE: REMOVE ctx LOOP AFTER FIXING THE BUG
-    for (const [x, binder] of ctx) {
+    for (const [x, ] of ctx) {
       if (x === varName) {
         //console.log(`binding ${varName} to ${binder}`);
         return extendContext(ctx, varName, new Free(tv));
@@ -255,4 +253,3 @@ export function isSerializableContext(ctx: any): ctx is SerializableContext {
           );
   });
 }
-

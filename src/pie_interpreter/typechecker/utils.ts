@@ -7,7 +7,6 @@ import { Context, SerializableContext } from "../utils/context";
 import { go, stop, Perhaps, Message } from "../types/utils";
 import { alphaEquiv } from "../utils/alphaeqv";
 import { readBack } from "../evaluator/utils";
-import { inspect } from "util";
 
 
 type What = 'definition'

@@ -108,7 +108,7 @@ describe("Pie language tests", () => {
       new C.Lambda('z', new C.VarName('z'))
     ));
     const context = new Map();
-    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+
     expect(represent(context, src)).toEqual(actual);
   });
 
@@ -203,7 +203,7 @@ describe("Advanced Pie language features", () => {
         new C.Lambda('B', new C.VarName('B'))
       )
     );
-    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+
     const context = new Map();
     expect(represent(context, src)).toEqual(actual);
   });
@@ -229,7 +229,7 @@ describe("Advanced Pie language features", () => {
   it("ind-Nat with constant values", () => {
     const src = parsePie('(ind-Nat (add1 (add1 zero)) (lambda (x) Nat) (add1 zero) (lambda (n-1 ih) (add1 ih)))');
     const actual = new go(new C.The(new C.Nat(), new C.Add1(new C.Add1(new C.Add1(new C.Zero())))));
-    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+
     const context = new Map();
     expect(represent(context, src)).toEqual(actual);
   });
@@ -280,7 +280,7 @@ describe("Advanced Pie language features", () => {
     //const actual = new go(['the', 'U', ['Π', [[Symbol('x'), 'Nat']], ['Π', [[Symbol('y'), 'Nat']], 'Nat']]]);
     const actual = new go(new C.The(new C.Universe(), new C.Pi('x', new C.Nat(), new C.Pi('y', new C.Nat(), new C.Nat()))));
     const context = new Map();
-    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+
     expect(represent(context, src)).toEqual(actual);
   });
 
@@ -288,7 +288,6 @@ describe("Advanced Pie language features", () => {
     const src = parsePie('Nat');
     const actual = new go(new C.Nat());
     const context = new Map();
-    //console.log('result', util.inspect(normType(initCtx, src), false, null, true));
     expect(normType(context, src)).toEqual(actual);
   });
 });
@@ -319,7 +318,7 @@ describe("Atom and Pair tests", () => {
     const src = parsePie("(Pair Atom Atom)");
     //const actual = new go(['the', 'U', ['Σ', [[Symbol('a'), 'Atom']], 'Atom']]);
     const actual = new go(new C.The(new C.Universe(), new C.Sigma('a', new C.Atom(), new C.Atom())));
-    //console.log('result', util.inspect(represent(initCtx, src), false, null, true));
+
     const context = new Map();
     expect(represent(context, src)).toEqual(actual);
   });

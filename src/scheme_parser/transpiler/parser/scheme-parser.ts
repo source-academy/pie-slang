@@ -131,7 +131,7 @@ export class SchemeParser implements Parser {
       elements.push(openparen);
     }
     do {
-      let c = this.advance();
+      const c = this.advance();
       switch (c.type) {
         case TokenType.LEFT_PAREN:
         case TokenType.LEFT_BRACKET:
@@ -360,7 +360,7 @@ export class SchemeParser implements Parser {
       case TokenType.COMMA:
       case TokenType.UNQUOTE:
         this.validateChapter(<Token>affector, QUOTING_CHAPTER);
-        let preUnquoteMode = this.quoteMode;
+        const preUnquoteMode = this.quoteMode;
         if (preUnquoteMode === QuoteMode.NONE) {
           throw new ParserError.UnsupportedTokenError(
             this.source,
@@ -386,7 +386,7 @@ export class SchemeParser implements Parser {
       case TokenType.COMMA_AT:
       case TokenType.UNQUOTE_SPLICING:
         this.validateChapter(<Token>affector, QUOTING_CHAPTER);
-        let preUnquoteSplicingMode = this.quoteMode;
+        const preUnquoteSplicingMode = this.quoteMode;
         if (preUnquoteSplicingMode === QuoteMode.NONE) {
           throw new ParserError.UnexpectedFormError(
             this.source,
@@ -415,7 +415,7 @@ export class SchemeParser implements Parser {
       case TokenType.HASH_VECTOR:
         // vectors quote over all elements inside.
         this.validateChapter(<Token>affector, VECTOR_CHAPTER);
-        let preVectorQuoteMode = this.quoteMode;
+        const preVectorQuoteMode = this.quoteMode;
         this.quoteMode = QuoteMode.QUOTE;
         const vector = this.parseVector(group);
         this.quoteMode = preVectorQuoteMode;

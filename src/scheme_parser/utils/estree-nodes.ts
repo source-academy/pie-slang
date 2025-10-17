@@ -241,6 +241,7 @@ export function makeImportDeclaration(
     type: "ImportDeclaration",
     specifiers,
     source,
+    attributes: [],
     loc: loc
       ? loc
       : {
@@ -259,6 +260,7 @@ export function makeExportNamedDeclaration(
     specifiers: [],
     source: null,
     declaration,
+    attributes: [],
     loc: loc ? loc : declaration.loc,
   };
 }

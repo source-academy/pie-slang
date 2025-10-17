@@ -13,7 +13,7 @@ import { Lexer } from "./lexer";
 import * as LexerError from "./lexer-error";
 
 // syntactic keywords in the scheme language
-let keywords = new Map<string, TokenType>([
+const keywords = new Map<string, TokenType>([
   [".", TokenType.DOT],
   ["if", TokenType.IF],
   ["let", TokenType.LET],
@@ -251,7 +251,7 @@ export class SchemeLexer implements Lexer {
   }
 
   private checkKeyword(): TokenType {
-    var text = this.source.substring(this.start, this.current);
+    const text = this.source.substring(this.start, this.current);
     if (keywords.has(text)) {
       return keywords.get(text) as TokenType;
     }

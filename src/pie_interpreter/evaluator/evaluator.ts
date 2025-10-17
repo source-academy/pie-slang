@@ -2,7 +2,6 @@ import * as V from "../types/value";
 import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
 import { natEqual } from './utils';
-import { inspect } from "util";
 
 //TODO: add else cases and throw errors
 
@@ -114,7 +113,7 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
       return new V.Neutral(
-        baseType, 
+        baseType,
         new N.RecNat(
           targetNow.neutral,
           new N.Norm(baseType, base),

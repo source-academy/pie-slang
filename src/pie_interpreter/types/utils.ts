@@ -94,13 +94,13 @@ export function isPieKeywords(str : string) : boolean {
 
 
 export class Message {
-  constructor(public message: Array<String|Core>) { }
+  constructor(public message: Array<string|Core>) { }
   public toString(): string {
     return this.message.map(m => typeof m === 'string' ? m : (m as Core).prettyPrint()).join(' ');
   }
 }
 
-export abstract class Perhaps<T> { 
+export abstract class Perhaps<T> { // eslint-disable-line @typescript-eslint/no-unused-vars
 
 }
 
@@ -136,7 +136,7 @@ export function goOn<T>(
     if (val instanceof go) {
       meta.value = (val as go<any>).result;
     } else {
-      throw new Error(`Encountered stop when evaluating the sequence ${bindings}. Error message: ${(val as stop).message.message} at ${(val as stop).where}`);
+      throw new Error(`Error message: ${(val as stop).message.message} at ${(val as stop).where}`);
     }
   }
   return finalExpr();

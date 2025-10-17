@@ -1,8 +1,28 @@
 {
     "compilerOptions": {
         "module": "ESNext",
-        "moduleResolution": "bundler",
-        "target": "es2023",
-        "sourceMap": true
-    }
+        "moduleResolution": "node",
+        "target": "ES2020",
+        "lib": ["ES2020", "DOM"],
+        "sourceMap": true,
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "strict": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "skipLibCheck": true,
+        "downlevelIteration": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.test.ts",
+        "**/__tests__/**/*"
+    ]
 }

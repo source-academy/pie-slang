@@ -96,7 +96,7 @@ export class Delay extends Value {
   public now(): Value {
     const boxContent = this.val.get();
     if (boxContent instanceof DelayClosure) {
-      let theValue = boxContent.undelay();
+      const theValue = boxContent.undelay();
       this.val.set(theValue);
       return theValue;
     } else { // content is a Value (content instanceof Value).

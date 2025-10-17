@@ -15,7 +15,6 @@ import { readBack } from '../evaluator/utils';
 import { synthesizer as Synth } from '../typechecker/synthesizer';
 import { fresh } from './utils';
 import { varType } from '../utils/context';
-import { inspect } from 'util';
 
 export abstract class Source {
 
@@ -53,13 +52,13 @@ export abstract class Source {
     } else if (checkType instanceof stop) {
       if (this instanceof Name && isVarName(this.name)) {
         const otherTv = new PerhapsM<V.Value>("other-tv");
-        return new goOn(
+        return goOn(
           [
             [otherTv, 
               () => varType(ctx, this.location, this.name)]
           ],
           () => {
-            new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
+            return new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
           }
         );
       } else {
@@ -153,7 +152,7 @@ export class Universe extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Universe());
   }
 
@@ -181,7 +180,7 @@ export class Nat extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Nat());
   }
 
@@ -568,7 +567,7 @@ export class Lambda extends Source {
   ) { super(location); }
   
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -767,7 +766,7 @@ export class Atom extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Atom());
   }
 
@@ -857,7 +856,7 @@ export class Cons extends Source {
     public second: Source,
   ) { super(location); }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -975,7 +974,7 @@ export class Trivial extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Trivial());
   }
 
@@ -1015,8 +1014,8 @@ export class Nil extends Source {
   constructor(
     public location: Location 
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1212,7 +1211,7 @@ export class Absurd extends Source {
   public findNames(): string[] {
     return [];
   }
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Absurd());
   }
 
@@ -1320,7 +1319,7 @@ export class Same extends Source {
     return this.type.findNames();
   }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1550,7 +1549,7 @@ export class VecNil extends Source {
     public location: Location,
   ) { super(location); }
   
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1594,7 +1593,7 @@ export class VecCons extends Source {
     public xs: Source,
   ) { super(location); }
   
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
     
@@ -1780,7 +1779,7 @@ export class Left extends Source {
     public value: Source,
   ) { super(location); }
   
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1822,7 +1821,7 @@ export class Right extends Source {
     public value: Source,
   ) { super(location); }
   
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1897,7 +1896,7 @@ export class TODO extends Source {
     public location: Location,
   ) { super(location); }
   
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
   
