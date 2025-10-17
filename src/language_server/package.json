@@ -43,6 +43,7 @@
 			"explorer": [
 				{
 					"id": "pieOutput",
+          "icon": "",
 					"name": "Pie Output"
 				}
 			]

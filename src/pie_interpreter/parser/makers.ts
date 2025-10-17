@@ -3,6 +3,7 @@ import * as S from "../types/source";
 import { syntaxToLocation } from "./parser";
 import { SiteBinder, TypedBinder } from "../types/utils";
 import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic, EliminateEqualTactic, ExistsTactic, LeftTactic, RightTactic, EliminateEitherTactic, SpiltTactic, EliminateAbsurdTactic } from "../tactics/tactics";
+import { DefineDatatypeSource, GeneralConstructor } from "../typechecker/definedatatype";
 
 
 export function makeU(stx: Syntax): S.Source {
@@ -478,6 +479,82 @@ export function makeSplit(stx: Syntax) {
 export function makeElimAbsurd(stx: Syntax, target: string, motive: S.Source): Tactic {
 
   return new EliminateAbsurdTactic(syntaxToLocation(stx), target, motive);
+
+}
+
+
+
+export function makeDefineDatatype(
+  stx: Syntax,
+  name: string,
+  parameters: TypedBinder[],
+  indices: TypedBinder[],
+  constructors: GeneralConstructor[],
+  eliminatorName?: string
+): DefineDatatypeSource {
+
+  return new DefineDatatypeSource(
+    syntaxToLocation(stx),
+    name,
+    parameters,
+    indices,
+    constructors,
+    eliminatorName
+  );
+
+}
+
+
+
+export function makeGeneralConstructor(
+  stx: Syntax,
+  name: string,
+  args: TypedBinder[],
+  returnType: S.GeneralTypeConstructor
+): GeneralConstructor {
+
+  return new GeneralConstructor(
+    syntaxToLocation(stx),
+    name,
+    args,
+    returnType
+  );
+
+}
+
+
+
+export function makeConstructorApplication(
+  stx: Syntax,
+  constructorName: string,
+  args: S.Source[]
+): S.ConstructorApplication {
+
+  return new S.ConstructorApplication(
+    syntaxToLocation(stx),
+    constructorName,
+    args
+  );
+
+}
+
+
+
+export function makeEliminatorApplication(
+  stx: Syntax,
+  typeName: string,
+  target: S.Source,
+  motive: S.Source,
+  methods: S.Source[]
+): S.EliminatorApplication {
+
+  return new S.EliminatorApplication(
+    syntaxToLocation(stx),
+    typeName,
+    target,
+    motive,
+    methods
+  );
 
 }
 

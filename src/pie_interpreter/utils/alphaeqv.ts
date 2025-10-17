@@ -241,6 +241,18 @@ function alphaEquivAux(lvl: number, b1: Bindings, b2: Bindings, e1: C.Core, e2: 
       alphaEquivAux(lvl, b1, b2, e1.baseRight, e2.baseRight);
   } else if (e1 instanceof C.TODO && e2 instanceof C.TODO) {
     return sameLocation(e1.loc, e2.loc) && alphaEquivAux(lvl, b1, b2, e1.type, e2.type);
+  } else if (e1 instanceof C.InductiveTypeConstructor && e2 instanceof C.InductiveTypeConstructor) {
+    // Check that names match and parameters/indices are alpha-equivalent
+    if (e1.typeName !== e2.typeName) return false;
+    if (e1.parameters.length !== e2.parameters.length) return false;
+    if (e1.indices.length !== e2.indices.length) return false;
+    for (let i = 0; i < e1.parameters.length; i++) {
+      if (!alphaEquivAux(lvl, b1, b2, e1.parameters[i], e2.parameters[i])) return false;
+    }
+    for (let i = 0; i < e1.indices.length; i++) {
+      if (!alphaEquivAux(lvl, b1, b2, e1.indices[i], e2.indices[i])) return false;
+    }
+    return true;
   }
   // if none of the above cases are met, return false.
   else {

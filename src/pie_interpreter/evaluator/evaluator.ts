@@ -3,10 +3,8 @@ import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
 import { natEqual } from './utils';
 
-//TODO: add else cases and throw errors
-
 /*
-  ### The Evaluators ###
+  ### Evaluator ###
 
   Functions whose names begin with "do-" are helpers that implement
   the corresponding eliminator.
@@ -34,7 +32,7 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`doApp: invalid input ${[operatorNow, operand]}`);
+  throw new Error(`doApp: invalid input ${[operatorNow, operand.now()]}`);
 }
 
 /**
@@ -478,7 +476,7 @@ export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
             new V.Pi(
               "x",
               eqType,
-              new HigherOrderClosure((x) => base)
+              new HigherOrderClosure((_) => base)
             ),
             func
           )
@@ -742,7 +740,7 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
       const motiveType = new V.Pi(
         "x",
         new V.Either(leftType, rightType),
-        new HigherOrderClosure((x) => new V.Universe())
+        new HigherOrderClosure((_) => new V.Universe())
       )
       return new V.Neutral(
         doApp(motive, target),
@@ -774,4 +772,64 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
     }
   }
   throw new Error(`invalid input for indEither: ${[target, motive, left, right]}`);
+}
+
+export function doEliminator(name: string, target: V.Value, motive: V.Value, methods: V.Value[], methodTypes?: V.Value[], motiveType?: V.Value): V.Value {
+  const targetNow = target.now();
+
+  // Check if target is a constructor application of the inductive type
+  if (targetNow instanceof V.Constructor) {
+    if (targetNow.type != name) {
+      throw new Error(`doEliminator: wrong eliminator used. Got constructor of type: ${targetNow.type}; Expected: ${name}`);
+    }
+    const constructorIndex = targetNow.index;
+    if (constructorIndex >= 0 && constructorIndex < methods.length) {
+      const method = methods[constructorIndex];
+      let result = method;
+
+      // Apply method to constructor arguments
+      // Pattern: apply all non-recursive arguments first, then recursive arguments with their inductive hypotheses
+      for (let i = 0; i < targetNow.args.length; i++) {
+        const arg = targetNow.args[i];
+        result = doApp(result, arg);
+      }
+
+      for (let i = 0; i < targetNow.recursive_args.length; i++) {
+        const arg = targetNow.recursive_args[i];
+        result = doApp(result, arg);
+        const recursiveResult = doEliminator(name, arg, motive, methods, methodTypes, motiveType);
+        result = doApp(result, recursiveResult);
+      }
+
+      return result;
+    }
+  } else if (targetNow instanceof V.Neutral) {
+    const typeNow = targetNow.type.now();
+    if (typeNow instanceof V.InductiveTypeConstructor && typeNow.name === name) {
+      // Create neutral eliminator application
+      return new V.Neutral(
+        doApp(motive, target),
+        new N.GenericEliminator(
+          name,
+          targetNow.neutral,
+          new N.Norm(
+            motiveType ? motiveType : new V.Pi(
+              "x",
+              typeNow,
+              new HigherOrderClosure((_) => new V.Universe())
+            ),
+            motive
+          ),
+          methods.map((method, i) =>
+            new N.Norm(
+              methodTypes && methodTypes[i] ? methodTypes[i] : typeNow,  // Use provided method type or fallback
+              method
+            )
+          )
+        )
+      );
+    }
+  }
+
+  throw new Error(`doEliminator: invalid input for ${name}: ${[target, motive, methods]}`);
 }
