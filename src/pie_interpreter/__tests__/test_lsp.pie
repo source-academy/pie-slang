@@ -1,0 +1,9 @@
+(claim identity (-> Nat Nat))
+(define-tactically identity 
+  ((intro n)
+   (exact n)))
+
+
+
+
+

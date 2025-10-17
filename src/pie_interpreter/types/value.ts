@@ -121,7 +121,7 @@ export class Delay extends Value {
 export class Quote extends Value {
   constructor(public name: string) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Quote.");
   }
 
@@ -138,7 +138,7 @@ export class Quote extends Value {
 export class Nat extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Nat();
   }
 
@@ -155,7 +155,7 @@ export class Nat extends Value {
 export class Zero extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Zero.");
   }
 
@@ -173,7 +173,7 @@ export class Add1 extends Value {
 
   constructor(public smaller: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Add1.");
   }
 
@@ -227,7 +227,7 @@ export class Lambda extends Value {
     public body: Closure
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Lambda.");
   }
 
@@ -280,7 +280,7 @@ export class Cons extends Value {
     public cdr: Value
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Cons.");
   }
 
@@ -315,7 +315,7 @@ export class List extends Value {
 export class Nil extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Nil.");
   }
 
@@ -336,7 +336,7 @@ export class ListCons extends Value {
     public tail: Value
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for ListCons.");
   }
 
@@ -381,7 +381,7 @@ export class Same extends Value {
 
   constructor(public value: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Same.");
   }
 
@@ -419,7 +419,7 @@ export class VecNil extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for VecNil.");
   }
 
@@ -440,7 +440,7 @@ export class VecCons extends Value {
     public tail: Value
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for VecCons.");
   }
 
@@ -482,7 +482,7 @@ export class Left extends Value {
 
   constructor(public value: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Left.");
   }
 
@@ -499,7 +499,7 @@ export class Left extends Value {
 export class Right extends Value {
   constructor(public value: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Right.");
   }
 
@@ -537,7 +537,7 @@ export class Universe extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Universe();
   }
 
@@ -557,7 +557,7 @@ export class Atom extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Atom();
   }
 
@@ -574,7 +574,7 @@ export class Atom extends Value {
 export class Trivial extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Trivial();
   }
 
@@ -590,7 +590,7 @@ export class Trivial extends Value {
 export class Sole extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Sole.");
   }
 
@@ -609,7 +609,7 @@ export class Absurd extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Absurd();
   }
 
@@ -621,4 +621,159 @@ export class Absurd extends Value {
     return this.prettyPrint();
   }
   
+}
+
+export class InductiveTypeConstructor extends Value {
+  constructor(
+    public name: string,
+    public parameters: Value[],
+    public indices: Value[],
+  ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.InductiveTypeConstructor(
+      this.name,
+      this.parameters.map(p => p.readBackType(context)),
+      this.indices.map(i => {
+        // Check if this is a Delay that hasn't been forced yet
+        if (i instanceof Delay) {
+          const boxContent = i.val.get();
+          if (boxContent instanceof DelayClosure) {
+            // It's a closure - try to force it, but if it fails, return the Core expression directly
+            try {
+              const iNow = i.now();
+              if (iNow instanceof Neutral) {
+                return iNow.neutral.readBackNeutral(context);
+              } else {
+                return readBack(context, new Nat(), iNow);
+              }
+            } catch {
+              // If evaluation fails due to free variables, return the Core expression as-is
+              // This preserves VarNames and other constructs
+              return boxContent.expr;
+            }
+          } else {
+            // Already evaluated
+            const val = boxContent as Value;
+            if (val instanceof Neutral) {
+              return val.neutral.readBackNeutral(context);
+            } else {
+              return readBack(context, new Nat(), val);
+            }
+          }
+        } else {
+          // Not a Delay
+          const iNow = i.now();
+          if (iNow instanceof Neutral) {
+            return iNow.neutral.readBackNeutral(context);
+          } else {
+            return readBack(context, new Nat(), iNow);
+          }
+        }
+      }),
+    )
+  }
+
+  public prettyPrint(): string {
+    return `InductiveType ${this.name}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class InductiveType extends Value {
+  constructor(
+    public name: string,
+    public parameterTypes: Value[],
+    public indexTypes: Value[],
+  ) { super() }
+
+  public readBackType(context: Context): C.Core {
+    return new C.InductiveType(
+      this.name,
+      this.parameterTypes.map(p => p.readBackType(context)),
+      this.indexTypes.map(i => i.readBackType(context)),
+    )
+  }
+
+  public prettyPrint(): string {
+    return `InductiveType ${this.name}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class Constructor extends Value {
+
+  constructor(
+    public name: string,
+    public type: string,
+    public args: Value[],
+    public index: number,
+    public recursive_args: Value[],
+  ) { super() }
+
+  public readBackType(_: Context): C.Core {
+    throw new Error("No readBackType for Constructor.");
+  }
+
+  public prettyPrint(): string {
+    const args = this.args.map(a => a.prettyPrint()).join(' ');
+    return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class ConstructorType extends Value {
+  constructor(
+    public name: string,
+    public index: number,
+    public type: string,
+    public argTypes: Value[],
+    public rec_argTypes: Value[],
+    public resultType: C.Core,
+    public numTypeParams: number = 0,  // Number of leading args that are type parameters
+    public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
+
+  ) {super()}
+  public readBackType(_: Context): C.Core {
+    throw Error('Method not implemented')
+  }
+  public prettyPrint(): string {
+    return `ConstructorType (${this.argTypes.map(a => a.prettyPrint()).join(' ')})`;
+  }
+
+}
+
+export class EliminatorType extends Value {
+  constructor(
+    public typeName: string,
+    public targetType: Value,
+    public motiveType: Value,
+    public methodTypes: Value[]
+  ) { super(); }
+
+  public readBackType(context: Context): C.Core {
+    return new C.EliminatorType(
+      this.typeName,
+      this.targetType.readBackType(context),
+      this.motiveType.readBackType(context),
+      this.methodTypes.map(m => m.readBackType(context))
+    );
+  }
+
+  public prettyPrint(): string {
+    return `EliminatorType ${this.typeName} ${this.targetType.prettyPrint()} ${this.motiveType.prettyPrint()} ${this.methodTypes.map(m => m.prettyPrint()).join(' ')}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
 }

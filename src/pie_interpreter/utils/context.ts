@@ -1,5 +1,7 @@
 import * as C from '../types/core';
-import { Neutral, Value } from '../types/value';
+import {
+  InductiveType, Neutral, Universe, Value, InductiveTypeConstructor
+} from '../types/value';
 
 import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
@@ -7,13 +9,13 @@ import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
 import { Source } from '../types/source';
 import { Variable } from '../types/neutral';
+
+
 /*
     ## Contexts ##
     A context maps free variable names to binders.
 */
-
 export type Context = Map<string, Binder>
-
 
 
 export function extendContext(ctx: Context, name: string, binder: Binder): Context {
@@ -80,7 +82,7 @@ export function addClaimToContext(ctx: Context, fun: string, funLoc: Location, t
     () => new go(
       extendContext(
         ctx,
-        fun, 
+        fun,
         new Claim(valInContext(ctx, typeOut.value))
       )
     )
@@ -127,11 +129,21 @@ export function contextToEnvironment(ctx: Context): Environment {
       env.set(name, binder.value);
     } else if (binder instanceof Free) {
       env.set(name, new Neutral(binder.type, new Variable(name)));
+    } else if (binder instanceof InductiveDatatypeBinder) {
+      env.set(name, binder.type);
     } // else continue;
   }
   return env;
 }
 
+export function getInductiveType(ctx: Context, where: Location, name: string): Perhaps<InductiveDatatypeBinder> {
+  for (const [n, binder] of ctx) {
+    if (binder instanceof InductiveDatatypeBinder && n === name) {
+      return new go(binder);
+    }
+  }
+  return new stop(where, new Message([`No inductive type found for ${name} at ${where}`]));
+}
 
 export const initCtx: Context = new Map();
 
@@ -158,6 +170,32 @@ export class Free extends Binder {
   constructor(public type: Value) { super() }
 }
 
+export class InductiveDatatypeBinder extends Binder {
+  constructor(
+    public name: string,
+    public type: InductiveType) {
+    super()
+  }
+}
+
+export class ConstructorTypeBinder extends Binder {
+  constructor(
+    public name: string,
+    public constructorType: C.ConstructorType,
+    public type: InductiveTypeConstructor
+  ) {
+    super()
+  }
+}
+
+export class EliminatorBinder extends Binder {
+  constructor(
+    public name: string,
+    public type: Value) {
+    super()
+  }
+}
+
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
   if (ctx.size === 0) {
     throw new Error(`The context ${JSON.stringify(ctx)} is empty, but we are looking for ${x}`);
@@ -166,6 +204,10 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
     if (binder instanceof Claim) {
       continue;
     } else if (x === y) {
+      // Inductive datatypes have type Universe
+      if (binder instanceof InductiveDatatypeBinder) {
+        return new go(new Universe());
+      }
       return new go(binder.type);
     }
   }
@@ -176,7 +218,7 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
   if (ctx.has(varName)) {
     // CHANGE: REMOVE ctx LOOP AFTER FIXING THE BUG
-    for (const [x, binder] of ctx) {
+    for (const [x,] of ctx) {
       if (x === varName) {
         //console.log(`binding ${varName} to ${binder}`);
         return extendContext(ctx, varName, new Free(tv));
@@ -197,20 +239,19 @@ export function bindVal(ctx: Context, varName: string, type: Value, value: Value
 
 // For informationa bout serializable contexts, see the comments in
 // normalize.rkt.
-export type SerializableContext = 
+export type SerializableContext =
   Map<string, ['free', C.Core] | ['def', C.Core, C.Core] | ['claim', C.Core]>;
 
 // Predicate to check if something is a serializable context
-export function isSerializableContext(ctx: any): ctx is SerializableContext {
+export function isSerializableContext(ctx: unknown): ctx is SerializableContext {
   return ctx instanceof Map && Array.from(ctx.values()).every(value => {
-    return Array.isArray(value) && 
-           (
-            (value[0] === 'free' && value[1] instanceof C.Core) 
-            || 
-            (value[0] === 'def' && value[1] instanceof C.Core && value[2] instanceof C.Core) 
-            || 
-            (value[0] === 'claim' && value[2] instanceof C.Core)
-          );
+    return Array.isArray(value) &&
+      (
+        (value[0] === 'free' && value[1] instanceof C.Core)
+        ||
+        (value[0] === 'def' && value[1] instanceof C.Core && value[2] instanceof C.Core)
+        ||
+        (value[0] === 'claim' && value[2] instanceof C.Core)
+      );
   });
 }
-

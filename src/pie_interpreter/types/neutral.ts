@@ -34,7 +34,7 @@ export abstract class Neutral {
 
   public abstract readBackNeutral(context: Context): C.Core;
 
-  public abstract prettyPrint();
+  public abstract prettyPrint(): string;
 
   public toString() {
     return this.prettyPrint();
@@ -46,7 +46,7 @@ export class Variable extends Neutral {
     super();
   }
 
-  public readBackNeutral(context: Context): C.Core {
+  public readBackNeutral(_: Context): C.Core {
     return new C.VarName(this.name);
   }
 
@@ -514,6 +514,31 @@ export class IndEither extends Neutral {
 
   public prettyPrint() {
     return `N-IndEither`;
+  }
+}
+
+export class GenericEliminator extends Neutral {
+
+  constructor(
+    public typeName: string,
+    public target: Neutral,
+    public motive: Norm,
+    public methods: Norm[]
+  ) {
+    super();
+  }
+
+  public readBackNeutral(context: Context): C.Core {
+    return new C.Eliminator(
+      this.typeName,
+      this.target.readBackNeutral(context),
+      readBack(context, this.motive.type, this.motive.value),
+      this.methods.map(method => readBack(context, method.type, method.value))
+    );
+  }
+
+  public prettyPrint() {
+    return `N-GenericEliminator-${this.typeName}`;
   }
 }
 

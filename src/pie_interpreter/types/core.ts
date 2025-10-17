@@ -55,7 +55,7 @@ export class The extends Core {
 
 export class Universe extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Universe();
   }
 
@@ -71,7 +71,7 @@ export class Universe extends Core {
 
 export class Nat extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Nat();
   }
 
@@ -87,7 +87,7 @@ export class Nat extends Core {
 
 export class Zero extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Zero();
   }
 
@@ -296,7 +296,7 @@ export class Lambda extends Core {
 
 export class Atom extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Atom();
   }
 
@@ -315,7 +315,7 @@ export class Quote extends Core {
     public sym: string
   ) { super() }
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Quote(this.sym);
   }
 
@@ -441,7 +441,7 @@ export class ListCons extends Core {
 
 export class Nil extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Nil();
   }
 
@@ -536,8 +536,8 @@ export class IndList extends Core {
 }
 
 export class Trivial extends Core {
-
-  public valOf(env: Environment): V.Value {
+  
+  public valOf(_: Environment): V.Value {
     return new V.Trivial();
   }
 
@@ -553,7 +553,7 @@ export class Trivial extends Core {
 
 export class Sole extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Sole();
   }
 
@@ -569,7 +569,7 @@ export class Sole extends Core {
 
 export class Absurd extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.Absurd();
   }
 
@@ -833,7 +833,7 @@ export class VecCons extends Core {
 
 export class VecNil extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_: Environment): V.Value {
     return new V.VecNil();
   }
 
@@ -1070,7 +1070,7 @@ export class VarName extends Core {
     if (isVarName(this.name)) {
       return getValueFromEnvironment(env, this.name);
     } else {
-      throw new Error(`{this.name} is not a valid variable name`);
+      throw new Error(`${this.name} is not a valid variable name`);
     }
   }
 
@@ -1082,4 +1082,153 @@ export class VarName extends Core {
     return this.prettyPrint();
   }
 
+}
+
+export class InductiveTypeConstructor extends Core {
+  public valOf(env: Environment): V.Value {
+    return new V.InductiveTypeConstructor(
+      this.typeName,
+      this.parameters.map(p => p.toLazy(env)),
+      this.indices.map(i => i.toLazy(env)),
+    );
+  }
+  constructor(
+    public typeName: string,
+    public parameters: Core[],
+    public indices: Core[],
+  ) { super(); }
+
+  public prettyPrint(): string {
+    return `${this.typeName}${this.parameters.length > 0 ? ' ' + this.parameters.map(p => p.prettyPrint()).join(' ') : ''}${this.indices.length > 0 ? ' ' + this.indices.map(i => i.prettyPrint()).join(' ') : ''}`;
+  }
+
+  public toString(): string {
+    return this.prettyPrint();
+  }
+}
+
+export class InductiveType extends Core {
+  public valOf(env: Environment): V.Value {
+    return new V.InductiveType(
+      this.typeName,
+      this.parameterTypes.map(p => p.toLazy(env)),
+      this.indexTypes.map(i => i.toLazy(env)),
+    );
+  }
+  constructor(
+    public typeName: string,
+    public parameterTypes: Core[],
+    public indexTypes: Core[],
+  ) { super(); }
+
+  public prettyPrint(): string {
+    return `${this.typeName}${this.parameterTypes.length > 0 ? ' ' + this.parameterTypes.map(p => p.prettyPrint()).join(' ') : ''}${this.indexTypes.length > 0 ? ' ' + this.indexTypes.map(i => i.prettyPrint()).join(' ') : ''}`;
+  }
+}
+
+export class Constructor extends Core {
+
+  constructor(
+    public name: string,
+    public index: number,
+    public type: string,
+    public args: Core[],
+    public recursive_args: Core[]
+  ) { super(); }
+
+  public valOf(env: Environment): V.Constructor {
+    return new V.Constructor(
+      this.name,
+      this.type,
+      this.args.map(a => a.toLazy(env)),
+      this.index,
+      this.recursive_args.map(a => a.toLazy(env))
+    )
+  }
+
+  public prettyPrint(): string {
+    const args = this.args.map(a => a.prettyPrint()).join(' ');
+    return `(${this.name}${args.length > 0 ? ' ' + args : ''})`;
+  }
+}
+
+export class ConstructorType extends Core {
+
+  constructor(
+    public name: string,
+    public index: number,
+    public type: string,
+    public argTypes: Core[],
+    public rec_argTypes: Core[],
+    public resultType: Core,
+    public numTypeParams: number = 0,  // Number of leading args that are type parameters
+    public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
+  ) { super(); }
+
+  public valOf(env: Environment): V.Value {
+    return new V.ConstructorType(
+      this.name,
+      this.index,
+      this.type,
+      this.argTypes.map(a => a.toLazy(env)),
+      this.rec_argTypes.map(a => a.toLazy(env)),
+      this.resultType,
+      this.numTypeParams,
+      this.argNames
+    )
+  }
+
+  public prettyPrint(): string {
+    return `ConstructorType ${this.name} : ${this.argTypes.map(a => a.prettyPrint()).join(' -> ')} -> ${this.resultType.prettyPrint()}`;
+  }
+}
+
+export class Eliminator extends Core {
+
+  constructor(
+    public typeName: string,
+    public target: Core,
+    public motive: Core,
+    public methods: Core[],
+    public methodTypes?: Core[],  // Optional: method types for proper Neutral handling
+    public motiveType?: Core  // Optional: motive type for proper Neutral handling with indexed types
+  ) { super(); }
+
+  public valOf(env: Environment): V.Value {
+    return Evaluator.doEliminator(
+      this.typeName,
+      this.target.toLazy(env),
+      this.motive.toLazy(env),
+      this.methods.map(m => m.toLazy(env)),
+      this.methodTypes ? this.methodTypes.map(t => t.toLazy(env)) : undefined,
+      this.motiveType ? this.motiveType.toLazy(env) : undefined
+    );
+  }
+  public prettyPrint(): string {
+    const methods = this.methods.map(m => m.prettyPrint()).join(' ');
+    return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+  }
+}
+
+export class EliminatorType extends Core {
+
+  constructor(
+    public typeName: string,
+    public targetType: Core,
+    public motiveType: Core,
+    public methodTypes: Core[]
+  ) { super(); }
+
+  public valOf(env: Environment): V.Value {
+    return new V.EliminatorType(
+      this.typeName,
+      this.targetType.toLazy(env),
+      this.motiveType.toLazy(env),
+      this.methodTypes.map(m => m.toLazy(env))
+    );
+  }
+
+  public prettyPrint(): string {
+    return `EliminatorType ${this.typeName} ${this.targetType.prettyPrint()} ${this.motiveType.prettyPrint()} ${this.methodTypes.map(m => m.prettyPrint()).join(' ')}`;
+  }
 }

@@ -14,6 +14,10 @@ export class SiteBinder {
     public location: Location,
     public varName: string,
   ) { }
+
+  public prettyPrint(): string {
+    return `${this.varName}`;
+  }
 }
 
 // Define TypedBinder, which is a SiteBinder associated with a expression in Pie.
@@ -23,6 +27,14 @@ export class TypedBinder {
     public binder: SiteBinder,
     public type: Source,
   ) {}
+
+  public prettyPrint(): string {
+    return `${this.binder.prettyPrint()} : ${this.type.prettyPrint()}`;
+  }
+
+  public findNames(): string {
+    return this.binder.varName;
+  }
 }
 
 export function isPieKeywords(str : string) : boolean {
@@ -88,7 +100,7 @@ export class Message {
   }
 }
 
-export abstract class Perhaps<T> { 
+export abstract class Perhaps<T> { // eslint-disable-line @typescript-eslint/no-unused-vars
 
 }
 
@@ -124,7 +136,7 @@ export function goOn<T>(
     if (val instanceof go) {
       meta.value = (val as go<any>).result;
     } else {
-      throw new Error(`Encountered stop when evaluating the sequence ${bindings}. Error message: ${(val as stop).message.message} at ${(val as stop).where}`);
+      throw new Error(`Error message: ${(val as stop).message.message} at ${(val as stop).where}`);
     }
   }
   return finalExpr();
@@ -209,7 +221,7 @@ export class HigherOrderClosure extends Closure {
   }
 
   public prettyPrint(): string {
-    return `(HOCLOS)`;
+    return this.proc.toString();
   }
 
   public toString(): string {

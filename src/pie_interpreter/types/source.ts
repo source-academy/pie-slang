@@ -3,13 +3,22 @@ import * as V from './value';
 import * as N from './neutral';
 import * as S from './source';
 
-import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename} from '../typechecker/utils';
+import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename } from '../typechecker/utils';
 import { Location, notForInfo } from '../utils/locations';
-import { bindFree, Context, readBackContext, valInContext } from '../utils/context';
+import {
+  bindFree,
+  Context,
+  readBackContext,
+  valInContext,
+  getInductiveType,
+  InductiveDatatypeBinder
+} from '../utils/context';
 
-import { go, stop, goOn, occurringBinderNames, Perhaps, 
-  PerhapsM, SiteBinder, TypedBinder, Message, freshBinder, 
-  isVarName} from './utils';
+import {
+  go, stop, goOn, occurringBinderNames, Perhaps,
+  PerhapsM, SiteBinder, TypedBinder, Message, freshBinder,
+  isVarName
+} from './utils';
 import { convert, sameType } from '../typechecker/utils';
 import { readBack } from '../evaluator/utils';
 import { synthesizer as Synth } from '../typechecker/synthesizer';
@@ -52,13 +61,13 @@ export abstract class Source {
     } else if (checkType instanceof stop) {
       if (this instanceof Name && isVarName(this.name)) {
         const otherTv = new PerhapsM<V.Value>("other-tv");
-        return new goOn(
+        return goOn(
           [
-            [otherTv, 
+            [otherTv,
               () => varType(ctx, this.location, this.name)]
           ],
           () => {
-            new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
+            return new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
           }
         );
       } else {
@@ -81,7 +90,7 @@ export abstract class Source {
 
   public synth(ctx: Context, renames: Renaming): Perhaps<C.The> {
     const ok = new PerhapsM<C.The>("ok");
-    
+
     return goOn(
       [[ok, () => this.synthHelper(ctx, renames)]],
       () => {
@@ -110,15 +119,15 @@ export abstract class Source {
 
 
 export class The extends Source {
-  
+
   constructor(
     public location: Location,
     public type: Source,
     public value: Source,
-  ) { 
+  ) {
     super(location);
   }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthThe(ctx, renames, this.type, this.value);
   }
@@ -152,7 +161,7 @@ export class Universe extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Universe());
   }
 
@@ -180,7 +189,7 @@ export class Nat extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Nat());
   }
 
@@ -195,11 +204,11 @@ export class Nat extends Source {
 }
 
 export class Zero extends Source {
-  
+
   constructor(
     public location: Location,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthZero(ctx, renames);
   }
@@ -220,7 +229,7 @@ export class Zero extends Source {
 
 
 export class Add1 extends Source {
-  
+
   constructor(
     public location: Location,
     public base: Source,
@@ -245,7 +254,7 @@ export class Add1 extends Source {
 }
 
 export class WhichNat extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
@@ -349,7 +358,7 @@ export class IndNat extends Source {
     public step: Source,
   ) { super(location); }
 
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthIndNat(ctx, renames, this.target, this.motive, this.base, this.step);
   }
@@ -371,7 +380,7 @@ export class IndNat extends Source {
   public toString(): string {
     return this.prettyPrint();
   }
-  
+
 }
 
 // Function types and operations
@@ -404,10 +413,10 @@ export class Arrow extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [Bout, 
-            () => 
+          [Bout,
+            () =>
               B.isType(
-                bindFree(ctx, x, valInContext(ctx, Aout.value)), 
+                bindFree(ctx, x, valInContext(ctx, Aout.value)),
                 renames)
           ]
         ],
@@ -425,11 +434,11 @@ export class Arrow extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [tout, 
-            () => 
+          [tout,
+            () =>
               new Arrow(
                 notForInfo(this.location),
-                B, 
+                B,
                 rest0,
                 rest
               ).isType(
@@ -460,7 +469,7 @@ export class Pi extends Source {
     public binders: TypedBinder[],
     public body: Source,
   ) { super(location); }
-  
+
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthPi(ctx, renames, this.location, this.binders, this.body);
@@ -484,10 +493,10 @@ export class Pi extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [Aoutv, () => 
+          [Aoutv, () =>
             new go(valInContext(ctx, Aout.value))
           ],
-          [Bout, () => 
+          [Bout, () =>
             B.isType(
               bindFree(ctx, y, Aoutv.value),
               extendRenaming(renames, bd.varName, y)
@@ -516,12 +525,12 @@ export class Pi extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [Aoutv, () => 
+          [Aoutv, () =>
             new go(valInContext(ctx, Aout.value))
           ],
-          [Bout, () => 
+          [Bout, () =>
             new Pi(
-              notForInfo(this.location), 
+              notForInfo(this.location),
               rest,
               B
             ).isType(
@@ -565,13 +574,13 @@ export class Lambda extends Source {
     public binders: SiteBinder[],
     public body: Source,
   ) { super(location); }
-  
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
-  public findNames(): string[] { 
+  public findNames(): string[] {
     return this.binders.map(binder => binder.varName)
       .concat(this.body.findNames());
   }
@@ -591,13 +600,13 @@ export class Lambda extends Source {
         return goOn(
           [
             [
-              bout, 
+              bout,
               () => body.check(
                 bindFree(ctx, xRenamed, A),
                 extendRenaming(renames, x, xRenamed),
                 closure.valOfClosure(
                   new V.Neutral(
-                    A, 
+                    A,
                     new N.Variable(xRenamed)
                   )
                 )
@@ -611,7 +620,7 @@ export class Lambda extends Source {
         );
       } else {
         return new stop(
-          xLoc, 
+          xLoc,
           new Message([`Not a function type: ${typeNow.readBackType(ctx)}.`])
         );
       }
@@ -619,11 +628,11 @@ export class Lambda extends Source {
       return (new S.Lambda(
         this.location,
         [this.binders[0]],
-          (new S.Lambda(
-            notForInfo(this.location),
-            this.binders.slice(1), 
-            this.body))
-          )).check(ctx, renames, type);
+        (new S.Lambda(
+          notForInfo(this.location),
+          this.binders.slice(1),
+          this.body))
+      )).check(ctx, renames, type);
     }
   }
 
@@ -669,7 +678,7 @@ export class Sigma extends Source {
         [
           [Aout, () => A.isType(ctx, renames)],
           [Aoutv, () => new go(valInContext(ctx, Aout.value))],
-          [Dout, () => 
+          [Dout, () =>
             D.isType(
               bindFree(ctx, y, Aoutv.value),
               extendRenaming(renames, x, y)
@@ -684,7 +693,7 @@ export class Sigma extends Source {
         }
       );
     } else if (binders.length > 1) {
-      const [[bd, A], ...rest] 
+      const [[bd, A], ...rest]
         = [[binders[0].binder, binders[0].type], binders[1], ...binders.slice(2)];
       const x = bd.varName;
       const z = fresh(ctx, x);
@@ -696,12 +705,12 @@ export class Sigma extends Source {
         [
           [Aout, () => A.isType(ctx, renames)],
           [Aoutv, () => new go(valInContext(ctx, Aout.value))],
-          [Dout, () => 
+          [Dout, () =>
             new Sigma(this.location, rest, D)
-            .isType(
-              bindFree(ctx, x, Aoutv.value),
-              extendRenaming(renames, x, z)
-            )
+              .isType(
+                bindFree(ctx, x, Aoutv.value),
+                extendRenaming(renames, x, z)
+              )
           ]
         ],
         () => {
@@ -733,7 +742,7 @@ export class Name extends Source {
     public location: Location,
     public name: string,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthName(ctx, renames, this.location, this.name);
   }
@@ -766,7 +775,7 @@ export class Atom extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Atom());
   }
 
@@ -831,7 +840,7 @@ export class Pair extends Source {
       [
         [Aout, () => this.first.isType(ctx, renames)],
         [Dout, () => this.second.isType(
-          bindFree(ctx, x, valInContext(ctx, Aout.value)), 
+          bindFree(ctx, x, valInContext(ctx, Aout.value)),
           renames)],
       ],
       () => new go(new C.Sigma(x, Aout.value, Dout.value))
@@ -856,7 +865,7 @@ export class Cons extends Source {
     public second: Source,
   ) { super(location); }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -877,11 +886,11 @@ export class Cons extends Source {
         [
           [aout, () => this.first.check(ctx, renames, A)],
           [
-            dout, 
-            () => 
+            dout,
+            () =>
               this.second.check(
-                ctx, 
-                renames, 
+                ctx,
+                renames,
                 closure.valOfClosure(valInContext(ctx, aout.value))
               )
           ]
@@ -974,7 +983,7 @@ export class Trivial extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Trivial());
   }
 
@@ -997,7 +1006,7 @@ export class Sole extends Source {
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthSole(ctx, renames);
-  }  
+  }
 
   public findNames(): string[] {
     return [];
@@ -1010,12 +1019,12 @@ export class Sole extends Source {
 }
 
 export class Nil extends Source {
-  
+
   constructor(
-    public location: Location 
+    public location: Location
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1029,7 +1038,7 @@ export class Nil extends Source {
       return new go(new C.Nil());
     } else {
       return new stop(
-        this.location, 
+        this.location,
         new Message([`nil requires a List type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
@@ -1051,7 +1060,7 @@ export class Number extends Source {
     public location: Location,
     public value: number,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthNumber(ctx, renames, this.location, this.value);
   }
@@ -1076,7 +1085,7 @@ export class List extends Source {
     public location: Location,
     public entryType: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthList(ctx, renames, this);
   }
@@ -1106,13 +1115,13 @@ export class List extends Source {
 
 
 export class ListCons extends Source {
-  
+
   constructor(
     public location: Location,
     public x: Source,
     public xs: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthListCons(ctx, renames, this.x, this.xs);
   }
@@ -1133,14 +1142,14 @@ export class ListCons extends Source {
 }
 
 export class RecList extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
     public base: Source,
     public step: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthRecList(ctx, renames, this.location, this.target, this.base, this.step);
   }
@@ -1164,7 +1173,7 @@ export class RecList extends Source {
 }
 
 export class IndList extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
@@ -1172,11 +1181,11 @@ export class IndList extends Source {
     public base: Source,
     public step: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthIndList(ctx, renames, this.location, this.target, this.motive, this.base, this.step);
   }
-  
+
   public findNames(): string[] {
     return this.target.findNames()
       .concat(this.motive.findNames())
@@ -1199,11 +1208,11 @@ export class IndList extends Source {
 
 // Absurd and its operations
 export class Absurd extends Source {
-  
+
   constructor(
     public location: Location,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthAbsurd(ctx, renames, this);
   }
@@ -1211,7 +1220,7 @@ export class Absurd extends Source {
   public findNames(): string[] {
     return [];
   }
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Absurd());
   }
 
@@ -1268,7 +1277,7 @@ export class Equal extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthEqual(ctx, renames, this.type, this.left, this.right);
   }
-  
+
 
   public findNames(): string[] {
     return this.type.findNames()
@@ -1298,7 +1307,7 @@ export class Equal extends Source {
   public prettyPrint(): string {
     return `(= ${this.type.prettyPrint()} 
               ${this.left.prettyPrint()} 
-              ${this.right.prettyPrint()})`;  
+              ${this.right.prettyPrint()})`;
   }
 
   public toString(): string {
@@ -1314,12 +1323,12 @@ export class Same extends Source {
     public type: Source,
   ) { super(location); }
 
-  
+
   public findNames(): string[] {
     return this.type.findNames();
   }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1336,7 +1345,7 @@ export class Same extends Source {
           [cout, () => this.type.check(ctx, renames, A)],
           [val, () => new go(valInContext(ctx, cout.value))],
           [
-            new PerhapsM<undefined>("_"), 
+            new PerhapsM<undefined>("_"),
             () => convert(ctx, this.type.location, A, from, val.value)
           ],
           [
@@ -1365,18 +1374,18 @@ export class Same extends Source {
 }
 
 export class Replace extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
     public motive: Source,
     public base: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthReplace(ctx, renames, this.location, this.target, this.motive, this.base);
   }
-  
+
   public findNames(): string[] {
     return this.target.findNames()
       .concat(this.motive.findNames())
@@ -1544,12 +1553,12 @@ export class Vec extends Source {
 }
 
 export class VecNil extends Source {
-  
+
   constructor(
     public location: Location,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1592,11 +1601,11 @@ export class VecCons extends Source {
     public x: Source,
     public xs: Source,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
-    
+
   public findNames(): string[] {
     return this.x.findNames()
       .concat(this.xs.findNames());
@@ -1613,7 +1622,7 @@ export class VecCons extends Source {
         return goOn(
           [
             [hout, () => this.x.check(ctx, renames, typeNow.entryType)],
-            [tout, () => 
+            [tout, () =>
               this.xs.check(ctx, renames, new V.Vec(typeNow.entryType, n_minus_1))
             ]
           ],
@@ -1707,10 +1716,10 @@ export class IndVec extends Source {
   ) { super(location); }
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthIndVec(ctx, renames, this.location, 
+    return Synth.synthIndVec(ctx, renames, this.location,
       this.length, this.target, this.motive, this.base, this.step);
   }
-  
+
   public findNames(): string[] {
     return this.length.findNames()
       .concat(this.target.findNames())
@@ -1741,7 +1750,7 @@ export class Either extends Source {
     public left: Source,
     public right: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthEither(ctx, renames, this.left, this.right);
   }
@@ -1778,8 +1787,8 @@ export class Left extends Source {
     public location: Location,
     public value: Source,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1820,8 +1829,8 @@ export class Right extends Source {
     public location: Location,
     public value: Source,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1865,10 +1874,10 @@ export class IndEither extends Source {
     public baseLeft: Source,
     public baseRight: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthIndEither(ctx, renames, this.location, this.target, this.motive, this.baseLeft, this.baseRight);
-  }  
+  }
 
   public findNames(): string[] {
     return this.target.findNames()
@@ -1895,11 +1904,11 @@ export class TODO extends Source {
   constructor(
     public location: Location,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
-  
+
   public findNames(): string[] {
     return [];
   }
@@ -1928,7 +1937,7 @@ export class Application extends Source {
     public arg: Source,
     public args: Source[],
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthApplication(ctx, renames, this.location, this.func, this.arg, this.args);
   }
@@ -1945,5 +1954,241 @@ export class Application extends Source {
 
   public toString(): string {
     return this.prettyPrint();
+  }
+
+  // Override getType to handle inductive type applications
+  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    // Check if func is a Name referring to an inductive type
+    if (this.func instanceof Name) {
+      const funcName = this.func.name;
+      const binder = ctx.get(funcName);
+
+      // If it's an inductive type, treat this as a GeneralTypeConstructor application
+      if (binder instanceof InductiveDatatypeBinder) {
+        // Create a GeneralTypeConstructor with the indices from args
+        const allArgs = [this.arg, ...this.args];
+        const generalTypeCtor = new GeneralTypeConstructor(
+          this.location,
+          funcName,
+          [], // parameters - will be inferred from context
+          allArgs
+        );
+        return generalTypeCtor.getType(ctx, renames);
+      }
+    }
+
+    // Otherwise, use default behavior (check against Universe)
+    return super.getType(ctx, renames);
+  }
+}
+
+export class GeneralType extends Source {
+  constructor(
+    public location: Location,
+    public name: string,
+    public paramType: TypedBinder[],
+    public indicesType: TypedBinder[]
+  ) { super(location) }
+
+  public findNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+
+  public getType(ctx: Context, rename: Renaming): Perhaps<C.Core> {
+
+    let cur_ctx = ctx
+    let cur_rename = rename
+    const normalizedParamType: C.Core[] = []
+    const normalizedIndicesType: C.Core[] = []
+    for (let i = 0; i < this.paramType.length; i++) {
+      const fresh_name = fresh(cur_ctx, this.paramType[i].binder.varName)
+      const resultTemp = this.paramType[i].type.isType(cur_ctx, cur_rename)
+      cur_rename = extendRenaming(cur_rename, this.paramType[i].binder.varName, fresh_name)
+      if (resultTemp instanceof stop) {
+        return resultTemp
+      }
+      cur_ctx = bindFree(cur_ctx, fresh_name,
+        valInContext(cur_ctx, (resultTemp as go<C.Core>).result)
+      )
+      normalizedParamType.push((resultTemp as go<C.Core>).result)
+    }
+    for (let i = 0; i < this.indicesType.length; i++) {
+      const fresh_name = fresh(cur_ctx, this.indicesType[i].binder.varName)
+      const resultTemp = this.indicesType[i].type.isType(cur_ctx, cur_rename)
+      cur_rename = extendRenaming(cur_rename, this.indicesType[i].binder.varName, fresh_name)
+      if (resultTemp instanceof stop) {
+        return resultTemp
+      }
+      cur_ctx = bindFree(cur_ctx, fresh_name,
+        valInContext(cur_ctx, (resultTemp as go<C.Core>).result)
+      )
+      normalizedIndicesType.push((resultTemp as go<C.Core>).result)
+    }
+
+    return new go(new C.InductiveType(this.name, normalizedParamType, normalizedIndicesType))
+
+
+  }
+
+}
+
+export class GeneralTypeConstructor extends Source {
+  public findNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+  constructor(
+    public location: Location,
+    public name: string,
+    public params: S.Source[],
+    public indices: S.Source[]
+  ) { super(location) }
+
+  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+    // GeneralTypeConstructor represents an applied inductive type, which has type Universe
+    // First verify that the inductive type exists and check parameters/indices
+    const inductiveResult = getInductiveType(ctx, this.location, this.name);
+    if (inductiveResult instanceof stop) return inductiveResult;
+
+    const inductiveBinder = (inductiveResult as go<InductiveDatatypeBinder>).result;
+    const inductiveType = inductiveBinder.type;
+
+    // Check that parameter and index counts match
+    if (this.params.length !== inductiveType.parameterTypes.length ||
+      this.indices.length !== inductiveType.indexTypes.length) {
+      return new stop(this.location,
+        new Message(['Parameter/index count mismatch for type ' + this.name]));
+    }
+
+    // Check each parameter and index and collect their Core representations
+    const normalizedParams: C.Core[] = [];
+    for (let i = 0; i < this.params.length; i++) {
+      const paramCheck = this.params[i].check(ctx, renames, inductiveType.parameterTypes[i].now());
+      if (paramCheck instanceof stop) return paramCheck;
+      normalizedParams.push((paramCheck as go<C.Core>).result);
+    }
+
+    const normalizedIndices: C.Core[] = [];
+    for (let i = 0; i < this.indices.length; i++) {
+      const indexCheck = this.indices[i].check(ctx, renames, inductiveType.indexTypes[i].now());
+      if (indexCheck instanceof stop) return indexCheck;
+      normalizedIndices.push((indexCheck as go<C.Core>).result);
+    }
+
+    // Return the InductiveTypeConstructor expression itself
+    return new go(new C.InductiveTypeConstructor(this.name, normalizedParams, normalizedIndices));
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core> {
+    const cur_val = target.now()
+    const normalized_params: C.Core[] = []
+    const normalized_indices: C.Core[] = []
+
+    //TODO: verify name sameness check is not necessary
+
+    if (!(cur_val instanceof V.InductiveType)) {
+      return new stop(this.location, new Message(['target type is not user defined inductive type, or use the wrong type']))
+    }
+
+    const targetType: V.InductiveType = cur_val as V.InductiveType
+    const paramTypes = targetType.parameterTypes
+    const idxTypes = targetType.indexTypes
+
+    if ((this.params.length != paramTypes.length) || (this.indices.length != idxTypes.length)) {
+      return new stop(this.location, new Message(['the number of parameters/indices is inconsistent in constructor']))
+    }
+
+    for (let i = 0; i < this.params.length; i++) {
+      const result = this.params[i].check(ctx, renames, paramTypes[i].now())
+      if (result instanceof stop) {
+        return stop
+      }
+      normalized_params.push((result as go<C.Core>).result)
+    }
+
+    for (let i = 0; i < this.indices.length; i++) {
+      const result = this.indices[i].check(ctx, renames, idxTypes[i].now())
+      if (result instanceof stop) {
+        return stop
+      }
+      normalized_indices.push((result as go<C.Core>).result)
+    }
+
+    return new go(new C.InductiveTypeConstructor(this.name, normalized_params, normalized_indices))
+
+  }
+}
+
+export class GeneralEliminator extends Source {
+  public findNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  public prettyPrint(): string {
+    throw new Error('Method not implemented.');
+  }
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
+    throw new Error('Method not implemented.');
+  }
+
+}
+
+// Generic eliminator application for user-defined inductive types
+export class EliminatorApplication extends Source {
+  constructor(
+    public location: Location,
+    public typeName: string,      // e.g., "MyList", "Bool"
+    public target: Source,         // The value to eliminate
+    public motive: Source,         // The motive function
+    public methods: Source[]       // One method per constructor
+  ) { super(location); }
+
+  public findNames(): string[] {
+    return [this.typeName]
+      .concat(this.target.findNames())
+      .concat(this.motive.findNames())
+      .concat(this.methods.flatMap(m => m.findNames()));
+  }
+
+  public prettyPrint(): string {
+    const methods = this.methods.map(m => m.prettyPrint()).join(' ');
+    return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+  }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthGeneralEliminator(ctx, renames, this);
+  }
+}
+
+// Constructor application for user-defined inductive types
+export class ConstructorApplication extends Source {
+  constructor(
+    public location: Location,
+    public constructorName: string,
+    public args: Source[]
+  ) { super(location); }
+
+  public findNames(): string[] {
+    return [this.constructorName]
+      .concat(this.args.flatMap(a => a.findNames()));
+  }
+
+  public prettyPrint(): string {
+    const args = this.args.map(a => a.prettyPrint()).join(' ');
+    return `(${this.constructorName}${args.length > 0 ? ' ' + args : ''})`;
+  }
+
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    return Synth.synthConstructorApplication(ctx, renames, this);
   }
 }
