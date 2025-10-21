@@ -10,6 +10,9 @@ LICENSE
 yarn.lock
 package-lock.json
 
+# Environment variables (contains API keys)
+.env
+.env.local
 
 compiled
 /doc

@@ -1907,7 +1907,7 @@ export class TODO extends Source {
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const typeVal = type.readBackType(ctx);
-    SendPieInfo(this.location, ['TODO', readBackContext(ctx), typeVal]);
+    SendPieInfo(this.location, ['TODO', readBackContext(ctx), typeVal, renames]);
     return new go(new C.TODO(this.location.locationToSrcLoc(), typeVal));
   }
 
