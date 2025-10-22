@@ -1,5 +1,5 @@
 {
-  "name": "pie-slang",
+  "name": "@sourceacademy/pie-slang",
   "version": "1.0.0",
   "description": "Implementation of Pie in TypeScript, following the book: The Little Typer",
   "keywords": ["Pie", "interpreter", "compiler", "Source", "The Little Typer"],
