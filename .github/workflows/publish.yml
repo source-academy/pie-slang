@@ -3,7 +3,8 @@ name: Publish to NPM
 on:
   # use release trigger
   release:
-    types: [created]
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   publish:
