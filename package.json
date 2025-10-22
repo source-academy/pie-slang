@@ -11,7 +11,7 @@
   "main": "dist/index.ts",
   "files": [
     "dist/index.js"
-  ]
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dingf3ng/pie-slang.git"
