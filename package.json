@@ -1,20 +1,20 @@
 {
   "name": "pie-slang",
   "version": "1.0.0",
-  "description": "Implementation of Pie, following The Little Typer",
+  "description": "Implementation of Pie in TypeScript, following the book: The Little Typer",
   "keywords": ["Pie", "interpreter", "compiler", "Source", "The Little Typer"],
   "author": {
     "name": "Source Academy",
     "url": "https://github.com/source-academy/"
   },
-  "license": "ISC",
+  "license": "Apache-2.0",
   "main": "dist/index.ts",
   "files": [
     "dist/index.js"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dingf3ng/pie-slang.git"
+    "url": "git+https://github.com/source-academy/pie-slang.git"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
