@@ -2,9 +2,16 @@
   "name": "pie-slang",
   "version": "1.0.0",
   "description": "Implementation of Pie, following The Little Typer",
-  "author": "Ding Feng, Fan Haolin, Zhang Qixiang",
+  "keywords": ["Pie", "interpreter", "compiler", "Source", "The Little Typer"],
+  "author": {
+    "name": "Source Academy",
+    "url": "https://github.com/source-academy/"
+  },
   "license": "ISC",
   "main": "dist/index.ts",
+  "files": [
+    "dist/index.js"
+  ]
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dingf3ng/pie-slang.git"
