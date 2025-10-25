@@ -428,13 +428,13 @@ export function makeExists(stx: Syntax, value: S.Source, name?: string): Tactic 
 
 
 
-export function makeElimNat(stx: Syntax, target: string, motive: S.Source): Tactic {
+export function makeElimNat(stx: Syntax, target: string): Tactic {
 
-  return new EliminateNatTactic(syntaxToLocation(stx), target, motive);
+  return new EliminateNatTactic(syntaxToLocation(stx), target);
 
 }
 
-export function makeElimList(stx: Syntax, target: string, motive: S.Source): Tactic {
+export function makeElimList(stx: Syntax, target: string, motive?: S.Source): Tactic {
 
   return new EliminateListTactic(syntaxToLocation(stx), target, motive);
 
@@ -446,10 +446,10 @@ export function makeElimVec(stx: Syntax, target: string, motive: S.Source, lengt
 
 }
 
-export function makeElimEqual(stx: Syntax, target: string, motive: S.Source): Tactic {
+export function makeElimEqual(stx: Syntax, target: string, motive?: S.Source): Tactic {
 
   return new EliminateEqualTactic(syntaxToLocation(stx), target, motive);
-  
+
 }
 
 export function makeLeftTactic(stx: Syntax): Tactic {
@@ -464,7 +464,7 @@ export function makeRightTactic(stx: Syntax): Tactic {
 
 }
 
-export function makeElimEither(stx: Syntax, target: string, motive: S.Source): Tactic {
+export function makeElimEither(stx: Syntax, target: string, motive?: S.Source): Tactic {
 
   return new EliminateEitherTactic(syntaxToLocation(stx), target, motive);
 
@@ -476,7 +476,7 @@ export function makeSplit(stx: Syntax) {
 
 }
 
-export function makeElimAbsurd(stx: Syntax, target: string, motive: S.Source): Tactic {
+export function makeElimAbsurd(stx: Syntax, target: string, motive?: S.Source): Tactic {
 
   return new EliminateAbsurdTactic(syntaxToLocation(stx), target, motive);
 

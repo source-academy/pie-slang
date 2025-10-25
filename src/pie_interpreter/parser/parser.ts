@@ -468,14 +468,14 @@ export class Parser {
     } else if (parsee === 'elimNat') {
       return Maker.makeElimNat(
         locationToSyntax('elimNat', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        ((element as Extended.List).elements[1] as Atomic.Symbol).value
       );
     } else if (parsee === 'elimList') {
+      const listElem = element as Extended.List;
       return Maker.makeElimList(
         locationToSyntax('elimList', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        (listElem.elements[1] as Atomic.Symbol).value,
+        listElem.elements[2] ? this.parseElements(listElem.elements[2] as Element) : undefined
       );
     } else if (parsee === 'elimVec') {
       return Maker.makeElimVec(
@@ -484,10 +484,12 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[2] as Element),
         this.parseElements((element as Extended.List).elements[3] as Element))
     } else if (parsee === 'elimEqual') {
+      const equalElem = element as Extended.List;
       return Maker.makeElimEqual(
         locationToSyntax('elimEqual', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element));
+        (equalElem.elements[1] as Atomic.Symbol).value,
+        equalElem.elements[2] ? this.parseElements(equalElem.elements[2] as Element) : undefined
+      );
     } else if (parsee === 'left') {
       return Maker.makeLeftTactic(
         locationToSyntax('left', element.location)
@@ -497,20 +499,22 @@ export class Parser {
         locationToSyntax('right', element.location)
       );
     } else if (parsee === 'elimEither') {
+      const eitherElem = element as Extended.List;
       return Maker.makeElimEither(
         locationToSyntax('elimEither', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        (eitherElem.elements[1] as Atomic.Symbol).value,
+        eitherElem.elements[2] ? this.parseElements(eitherElem.elements[2] as Element) : undefined
       );
     } else if (parsee === 'split') {
       return Maker.makeSplit(
         locationToSyntax('split', element.location)
       );
     } else if (parsee === 'elimAbsurd') {
+      const absurdElem = element as Extended.List;
       return Maker.makeElimAbsurd(
         locationToSyntax('elimAbsurd', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        (absurdElem.elements[1] as Atomic.Symbol).value,
+        absurdElem.elements[2] ? this.parseElements(absurdElem.elements[2] as Element) : undefined
       );
     } 
     throw new Error('Unexpected tactic: ' + element);
