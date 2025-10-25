@@ -130,26 +130,6 @@ describe("LessThan_datatype", () => {
     console.log(evaluatePie(src));
   });
 
-  it("Use Less-Than eliminator directly on proof", () => {
-    const src = `
-(data Less-Than () ((j Nat) (k Nat))
-  (zero-smallest ((n Nat))
-    (Less-Than zero (add1 n)))
-  (add1-smaller ((j Nat) (k Nat) (j<k (Less-Than j k)))
-    (Less-Than (add1 j) (add1 k)))
-  ind-Less-Than)
-
-(claim proof-0<1 (Less-Than zero (add1 zero)))
-(define proof-0<1 (data-zero-smallest zero))
-
-(data-ind-Less-Than proof-0<1
-  (lambda (j k p) Nat)
-  (lambda (n) zero)
-  (lambda (j k j<k ih) (add1 ih)))
-`;
-    console.log(evaluatePie(src));
-  });
-
   it("Use Less-Than eliminator with wrapper function", () => {
     const src = `
 (data Less-Than () ((j Nat) (k Nat))

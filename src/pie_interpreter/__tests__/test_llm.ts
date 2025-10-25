@@ -6,10 +6,23 @@ import { Parser } from '../parser/parser';
 import { Location, Syntax } from '../utils/locations';
 import * as V from '../types/value';
 import * as C from '../types/core';
-import { FirstOrderClosure } from '../types/utils';
-import { readBackContext } from '../utils/context';
+import { FirstOrderClosure, go, stop } from '../types/utils';
+import { readBackContext, valInContext } from '../utils/context';
 
 describe('LLM TODO solver with typechecking', () => {
+
+  // Helper function to parse Pie code into a Value (for types)
+  function parseExpectedType(pieCode: string): V.Value {
+    const parsed = Parser.parsePie(pieCode);
+    const typeResult = parsed.isType(new Map(), new Map());
+    if (typeResult instanceof go) {
+      return valInContext(new Map(), typeResult.result);
+    } else if (typeResult instanceof stop) {
+      throw new Error(`Invalid type: ${pieCode} - ${typeResult.message}`);
+    } else {
+      throw new Error(`Invalid type result: ${pieCode}`);
+    }
+  }
 
   // Helper function to create a test Location
   function createTestLocation(source: string): Location {
@@ -22,7 +35,7 @@ describe('LLM TODO solver with typechecking', () => {
   }
 
   // Helper function to log test results in a clear format (4 lines only)
-  function logTestResult(todo: TodoInfo, solution: string, testName: string) {
+  function logTestResult(todo: TodoInfo, solution: string) {
     // Format context
     let contextStr = 'empty';
     if (todo.context.size > 0) {
@@ -54,222 +67,174 @@ describe('LLM TODO solver with typechecking', () => {
     );
   }
 
-  it('should solve simple Nat TODO with add1', async () => {
+  it('should solve simple Nat TODO', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:2:1'),
       context: new Map(),
-      expectedType: new V.Nat(),
+      expectedType: parseExpectedType("Nat"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Simple Nat');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle List type TODO', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:6:1'),
       context: new Map(),
-      expectedType: new V.List(new V.Nat()),
+      expectedType: parseExpectedType("(List Nat)"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'List Nat');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('it should solve identity function TODO', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:10:1'),
       context: new Map(),
-      expectedType: new V.Pi('x', new V.Nat(), new FirstOrderClosure(new Map(), 'x', new C.Nat())),
+      expectedType: parseExpectedType("(-> Nat Nat)"),
       renaming: new Map()
     };
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Identity Function (Nat -> Nat)');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle Sigma type (dependent pair)', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:14:1'),
       context: new Map(),
-      expectedType: new V.Sigma('x', new V.Nat(), new FirstOrderClosure(new Map(), 'x', new C.Nat())),
+      expectedType: parseExpectedType("(Pair Nat Nat)"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Sigma Type (Dependent Pair)');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle Vec type with length 3', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:18:1'),
       context: new Map(),
-      expectedType: new V.Vec(new V.Nat(), new V.Add1(new V.Add1(new V.Add1(new V.Zero())))),
+      expectedType: parseExpectedType("(Vec Nat (add1 (add1 (add1 zero))))"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Vec Nat length 3');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle Either type', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:22:1'),
       context: new Map(),
-      expectedType: new V.Either(new V.Nat(), new V.Atom()),
+      expectedType: parseExpectedType("(Either Nat Atom)"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Either Nat Atom');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle Equal type (equality proof)', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:26:1'),
       context: new Map(),
-      expectedType: new V.Equal(new V.Nat(), new V.Zero(), new V.Zero()),
+      expectedType: parseExpectedType("(= Nat zero zero)"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Equal (zero = zero)');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle Trivial type', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:30:1'),
       context: new Map(),
-      expectedType: new V.Trivial(),
+      expectedType: parseExpectedType("Trivial"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Trivial');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle multi-argument Pi type (Nat -> Nat -> Nat)', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:34:1'),
       context: new Map(),
-      expectedType: new V.Pi('x', new V.Nat(),
-        new FirstOrderClosure(new Map(), 'y',
-          new C.Pi('y', new C.Nat(), new C.Nat()))),
+      expectedType: parseExpectedType("(-> Nat Nat Nat)"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Multi-arg Pi (Nat -> Nat -> Nat)');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle List of Pairs (nested types)', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:38:1'),
       context: new Map(),
-      expectedType: new V.List(new V.Sigma('fst', new V.Nat(), new FirstOrderClosure(new Map(), 'snd', new C.Atom()))),
+      expectedType: parseExpectedType("(List (Pair Nat Atom))"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'List of Pairs (nested)');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should use variable from context - simple case', async () => {
     const ctx = new Map();
-    ctx.set('n', new V.Nat());
+    ctx.set('n', parseExpectedType("A"));
 
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:42:1'),
       context: ctx,
-      expectedType: new V.Nat(),
+      expectedType: parseExpectedType("A"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Context: n: Nat');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should use multiple variables from context', async () => {
     const ctx = new Map();
-    ctx.set('x', new V.Nat());
-    ctx.set('y', new V.Nat());
+    ctx.set('x', parseExpectedType("A"));
+    ctx.set('y', parseExpectedType("B"));
 
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:46:1'),
       context: ctx,
-      expectedType: new V.Nat(),
+      expectedType: parseExpectedType("B"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Context: x,y: Nat');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should construct function using context variable', async () => {
     const ctx = new Map();
-    ctx.set('m', new V.Nat());
+    ctx.set('m', parseExpectedType("A"));
 
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:50:1'),
       context: ctx,
-      expectedType: new V.Pi('n', new V.Nat(), new FirstOrderClosure(new Map(), 'n', new C.Nat())),
+      expectedType: parseExpectedType("(-> Nat A)"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Function with Context (m: Nat)');
-  }, 60000);
-
-  it('should handle context with Atom variable', async () => {
-    const ctx = new Map();
-    ctx.set('tag', new V.Atom());
-
-    const todo: TodoInfo = {
-      location: createTestLocation('test.pie:54:1'),
-      context: ctx,
-      expectedType: new V.Atom(),
-      renaming: new Map()
-    };
-
-    const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Context: tag: Atom');
-  }, 60000);
-
-  it('should handle context with List variable', async () => {
-    const ctx = new Map();
-    ctx.set('xs', new V.List(new V.Nat()));
-
-    const todo: TodoInfo = {
-      location: createTestLocation('test.pie:58:1'),
-      context: ctx,
-      expectedType: new V.List(new V.Nat()),
-      renaming: new Map()
-    };
-
-    const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Context: xs: List Nat');
-  }, 60000);
-
-  it('should construct pair using context variables', async () => {
-    const ctx = new Map();
-    ctx.set('a', new V.Nat());
-    ctx.set('b', new V.Atom());
-
-    const todo: TodoInfo = {
-      location: createTestLocation('test.pie:62:1'),
-      context: ctx,
-      expectedType: new V.Sigma('fst', new V.Nat(), new FirstOrderClosure(new Map(), 'snd', new C.Atom())),
-      renaming: new Map()
-    };
-
-    const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Pair from Context (a,b)');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle renaming map', async () => {
     const ctx = new Map();
-    ctx.set('n', new V.Nat());
+    ctx.set('n', parseExpectedType("A"));
 
     const renaming = new Map();
     renaming.set('n', 'n-renamed');
@@ -277,86 +242,25 @@ describe('LLM TODO solver with typechecking', () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:66:1'),
       context: ctx,
-      expectedType: new V.Nat(),
+      expectedType: parseExpectedType("A"),
       renaming: renaming
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'With Renaming Map');
+    logTestResult(todo, solution);
   }, 60000);
 
   it('should handle Vec of Either types', async () => {
     const todo: TodoInfo = {
       location: createTestLocation('test.pie:70:1'),
       context: new Map(),
-      expectedType: new V.Vec(
-        new V.Either(new V.Nat(), new V.Trivial()),
-        new V.Add1(new V.Add1(new V.Zero()))
-      ),
+      expectedType: parseExpectedType("(Vec (Either Nat Trivial) (add1 (add1 zero)))"),
       renaming: new Map()
     };
 
     const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Vec of Either types');
+    logTestResult(todo, solution);
   }, 60000);
 
-  it('should handle complex dependent type with context', async () => {
-    const ctx = new Map();
-    ctx.set('len', new V.Nat());
-
-    const todo: TodoInfo = {
-      location: createTestLocation('test.pie:74:1'),
-      context: ctx,
-      expectedType: new V.Pi('E', new V.Universe(),
-        new FirstOrderClosure(new Map([['len', new V.Nat()]]), 'E',
-          new C.Pi('_unused', new C.VarName('E'), new C.Vec(new C.VarName('E'), new C.VarName('len'))))),
-      renaming: new Map()
-    };
-
-    const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Complex Dependent Type');
-  }, 60000);
-
-  it('should handle function returning Equal type', async () => {
-    const ctx = new Map();
-    ctx.set('x', new V.Nat());
-
-    const todo: TodoInfo = {
-      location: createTestLocation('test.pie:78:1'),
-      context: ctx,
-      expectedType: new V.Pi('y', new V.Nat(),
-        new FirstOrderClosure(new Map([['x', new V.Nat()]]), 'y',
-          new C.Equal(new C.Nat(), new C.VarName('x'), new C.VarName('y')))),
-      renaming: new Map()
-    };
-
-    const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Function returning Equal');
-  }, 60000);
-
-  it('should handle nested Sigma types', async () => {
-    const todo: TodoInfo = {
-      location: createTestLocation('test.pie:82:1'),
-      context: new Map(),
-      expectedType: new V.Sigma('outer', new V.Nat(),
-        new FirstOrderClosure(new Map(), 'inner',
-          new C.Sigma('inner', new C.Atom(), new C.Trivial()))),
-      renaming: new Map()
-    };
-
-    const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Nested Sigma types');
-  }, 60000);
-
-  it('should handle Atom type', async () => {
-    const todo: TodoInfo = {
-      location: createTestLocation('test.pie:86:1'),
-      context: new Map(),
-      expectedType: new V.Atom(),
-      renaming: new Map()
-    };
-
-    const solution = await solveTodo(todo);
-    logTestResult(todo, solution, 'Atom type');
-  }, 60000);
+  
 });

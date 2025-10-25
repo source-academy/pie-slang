@@ -23,6 +23,10 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenAI({ apiKey });
+
+// Cache for project context string (in-memory)
+let cachedProjectContext: string | null = null;
+
 export interface TodoInfo {
   location: Location;
   context: Context;
@@ -40,11 +44,15 @@ export function clearQueue() {
   todoQueue.length = 0;
 }
 
+export function clearCache() {
+  cachedProjectContext = null;
+}
+
 // Collect all .ts files from src/pie_interpreter
 async function getProjectFiles(): Promise<Map<string, string>> {
   const files = new Map<string, string>();
   const dir = "src/pie_interpreter";
-  
+
   async function walk(dir: string) {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
@@ -56,15 +64,18 @@ async function getProjectFiles(): Promise<Map<string, string>> {
       }
     }
   }
-  
+
   await walk(dir);
   return files;
 }
 
-export async function solveTodo(todo: TodoInfo): Promise<string> {
+// Build and cache project context string
+async function getOrBuildProjectContext(): Promise<string> {
+  if (cachedProjectContext) {
+    return cachedProjectContext;
+  }
+
   const projectFiles = await getProjectFiles();
-  const startTime = Date.now();
-  const TIMEOUT_MS = 30000; // 30 seconds
 
   // Build comprehensive project context with file contents
   let projectContext = "# Project structure and files:\n\n";
@@ -79,9 +90,21 @@ export async function solveTodo(todo: TodoInfo): Promise<string> {
   projectContext += "\n## File contents:\n\n";
   for (const [path, content] of projectFiles) {
     const lines = content.split('\n');
-    const truncatedContent = lines.slice(0, 100).join('\n'); // Limit to first 100 lines per file
+    const truncatedContent = lines.slice(0, 10000).join('\n'); // Limit to first 100 lines per file
     projectContext += `### ${path}\n\`\`\`typescript\n${truncatedContent}\n\`\`\`\n\n`;
   }
+
+  // Cache the built context
+  cachedProjectContext = projectContext;
+  return projectContext;
+}
+
+export async function solveTodo(todo: TodoInfo): Promise<string> {
+  // Get cached or build project context
+  const projectContext = await getOrBuildProjectContext();
+
+  const startTime = Date.now();
+  const TIMEOUT_MS = 30000; // 30 seconds
 
   // Stringify objects for AI prompt
   const serializedContext = JSON.stringify(readBackContext(todo.context));
