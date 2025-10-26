@@ -470,7 +470,7 @@ describe('myvec', () => {
         [new SiteBinder(testLoc, 'E')],
         new S.Zero(testLoc)
       ),
-      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(head : E) → λ(tail : MyVec E k) → λ(ih : Nat) → (+ head ih)
+      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(e : E) → λ(es : MyVec E k) → λ(ih : Nat) → (+ e ih)
         testLoc,
         [new SiteBinder(testLoc, 'E')],
         new S.Lambda(
@@ -478,16 +478,16 @@ describe('myvec', () => {
           [new SiteBinder(testLoc, 'k')],
           new S.Lambda(
             testLoc,
-            [new SiteBinder(testLoc, 'head')],
+            [new SiteBinder(testLoc, 'e')],
             new S.Lambda(
               testLoc,
-              [new SiteBinder(testLoc, 'tail')],
+              [new SiteBinder(testLoc, 'es')],
               new S.Lambda(
                 testLoc,
                 [new SiteBinder(testLoc, 'ih')],
                 new S.IterNat(
                   testLoc,
-                  new S.Name(testLoc, 'head'),
+                  new S.Name(testLoc, 'e'),
                   new S.Name(testLoc, 'ih'),
                   new S.Lambda(
                     testLoc,
@@ -518,7 +518,7 @@ describe('myvec', () => {
         [new SiteBinder(testLoc, 'E')],
         new S.Zero(testLoc)
       ),
-      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(head : E) → λ(tail : MyVec E k) → λ(ih : Nat) → (+ head ih)
+      new S.Lambda(         // myveccons case: λ(E : U) → λ(k : Nat) → λ(e : E) → λ(es : MyVec E k) → λ(ih : Nat) → (+ e ih)
         testLoc,
         [new SiteBinder(testLoc, 'E')],
         new S.Lambda(
@@ -526,16 +526,16 @@ describe('myvec', () => {
           [new SiteBinder(testLoc, 'k')],
           new S.Lambda(
             testLoc,
-            [new SiteBinder(testLoc, 'head')],
+            [new SiteBinder(testLoc, 'e')],
             new S.Lambda(
               testLoc,
-              [new SiteBinder(testLoc, 'tail')],
+              [new SiteBinder(testLoc, 'es')],
               new S.Lambda(
                 testLoc,
                 [new SiteBinder(testLoc, 'ih')],
                 new S.IterNat(
                   testLoc,
-                  new S.Name(testLoc, 'head'),
+                  new S.Name(testLoc, 'e'),
                   new S.Name(testLoc, 'ih'),
                   new S.Lambda(
                     testLoc,

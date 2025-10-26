@@ -38,10 +38,9 @@ export function createListExample(): {
     1,       // constructor index
     "List",  // type
     [
-      new C.Add1(new C.Add1(new C.Add1(new C.Zero()))),
-      nilConstructor
-    ],       // arguments
-    [nilConstructor]  // recursive arguments
+      new C.Add1(new C.Add1(new C.Add1(new C.Zero())))
+    ],       // arguments (just head, not tail)
+    [nilConstructor]  // recursive arguments (tail)
   );
 
   // Create cons 2 (cons 3 nil)
@@ -49,8 +48,8 @@ export function createListExample(): {
     "cons",  // name
     1,       // constructor index
     "List",  // type
-    [new C.Add1(new C.Add1(new C.Zero())), cons3Nil], // 2, (cons 3 nil)
-    [cons3Nil]  // recursive arguments
+    [new C.Add1(new C.Add1(new C.Zero()))], // just head
+    [cons3Nil]  // recursive arguments (tail)
   );
 
 
