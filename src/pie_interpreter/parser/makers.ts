@@ -558,3 +558,21 @@ export function makeEliminatorApplication(
 
 }
 
+
+
+export function makeGeneralTypeConstructor(
+  stx: Syntax,
+  name: string,
+  params: S.Source[],
+  indices: S.Source[]
+): S.GeneralTypeConstructor {
+
+  return new S.GeneralTypeConstructor(
+    syntaxToLocation(stx),
+    name,
+    params,
+    indices
+  );
+
+}
+

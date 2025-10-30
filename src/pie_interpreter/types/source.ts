@@ -6,6 +6,7 @@ import * as S from './source';
 import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename} from '../typechecker/utils';
 import { Location, notForInfo } from '../utils/locations';
 import { bindFree, Context, readBackContext, valInContext, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder, EliminatorBinder, contextToEnvironment } from '../utils/context';
+import { extendEnvironment } from '../utils/environment';
 
 import { go, stop, goOn, occurringBinderNames, Perhaps, 
   PerhapsM, SiteBinder, TypedBinder, Message, freshBinder, 
@@ -2183,6 +2184,118 @@ export class ConstructorApplication extends Source {
   }
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthConstructorApplication(ctx, renames, this);
+    // return Synth.synthConstructorApplication(ctx, renames, this);
+    throw new Error('Method not implemented.');
+  }
+
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
+    const constructorBinder = ctx.get(this.constructorName);
+    if (!constructorBinder || !(constructorBinder instanceof ConstructorTypeBinder)) {
+      return new stop(this.location, new Message([`Unknown constructor: ${this.constructorName}`]));
+    }
+
+    const ctorType = constructorBinder.constructorType;
+    const expectedTypeNow = type.now();
+
+    if (!(expectedTypeNow instanceof V.InductiveTypeConstructor)) {
+      return new stop(this.location, new Message(['Expected inductive type constructor']));
+    }
+
+    // Get the inductive type definition to access parameter information
+    const inductiveBinder = ctx.get(ctorType.type);
+    if (!inductiveBinder || !(inductiveBinder instanceof InductiveDatatypeBinder)) {
+      return new stop(this.location, new Message([`Unknown inductive type: ${ctorType.type}`]));
+    }
+
+    const inductiveType = inductiveBinder.type;
+
+    console.log('=== ConstructorApplication.checkOut DEBUG ===');
+    console.log('Constructor name:', this.constructorName);
+    console.log('Expected type:', inspect(expectedTypeNow, {depth: 3, colors: true}));
+    console.log('Inductive type:', inspect(inductiveType, {depth: 3, colors: true}));
+    console.log('Constructor argTypes:', inspect(ctorType.argTypes, {depth: 3, colors: true}));
+    console.log('Constructor resultType:', inspect(ctorType.resultType, {depth: 4, colors: true}));
+
+    // Build substitution environment: parameter names -> concrete values
+    // Following the OLD design pattern (like FirstOrderClosure.valOfClosure):
+    // - Start with the context environment
+    // - Override parameter bindings with concrete values from expected type
+    // - Evaluate arg types in this new environment
+
+    // Get parameter names from constructor's return type
+    const resultTypeCore = ctorType.resultType as C.InductiveTypeConstructor;
+
+    let substEnv = contextToEnvironment(ctx);
+
+    // Extract parameter names from constructor return type and override with concrete values
+    // expectedTypeNow.parameters[i] contains the concrete value (e.g., Nat)
+    // resultTypeCore.parameters[i] contains the variable name (e.g., VarName("E"))
+    for (let i = 0; i < resultTypeCore.parameters.length; i++) {
+      const paramCore = resultTypeCore.parameters[i];
+      if (paramCore instanceof C.VarName) {
+        const paramName = paramCore.name;
+        const concreteValue = expectedTypeNow.parameters[i].now();
+        console.log(`Mapping parameter ${paramName} to`, inspect(concreteValue, {depth: 2, colors: true}));
+        // This OVERWRITES the abstract binding (E -> Neutral) with concrete (E -> Nat)
+        substEnv = extendEnvironment(substEnv, paramName, concreteValue);
+      }
+    }
+
+    // Similarly for indices (if any)
+    // resultTypeCore.indices[i] contains variable names (e.g., VarName("n"))
+    for (let i = 0; i < resultTypeCore.indices.length; i++) {
+      const indexCore = resultTypeCore.indices[i];
+      if (indexCore instanceof C.VarName) {
+        const indexName = indexCore.name;
+        const concreteValue = expectedTypeNow.indices[i].now();
+        console.log(`Mapping index ${indexName} to`, inspect(concreteValue, {depth: 2, colors: true}));
+        substEnv = extendEnvironment(substEnv, indexName, concreteValue);
+      }
+    }
+
+    // Now check arguments using the substituted environment
+    let normalized_args = [];
+    let normalized_rec_args = [];
+
+    const allArgTypes = [...ctorType.argTypes, ...ctorType.rec_argTypes];
+
+    if (this.args.length !== allArgTypes.length) {
+      return new stop(this.location, new Message([
+        `Constructor ${this.constructorName} expects ${allArgTypes.length} arguments, but got ${this.args.length}`
+      ]));
+    }
+
+    // Check non-recursive arguments
+    for (let i = 0; i < ctorType.argTypes.length; i++) {
+      // Evaluate the argument type in the substituted environment
+      const argTypeCore = ctorType.argTypes[i];
+      const argTypeValue = argTypeCore.valOf(substEnv);
+
+      const result = this.args[i].check(ctx, renames, argTypeValue.now());
+      if (result instanceof stop) {
+        return result;
+      }
+      normalized_args.push((result as go<C.Core>).result);
+    }
+
+    // Check recursive arguments
+    for (let i = 0; i < ctorType.rec_argTypes.length; i++) {
+      const recArgTypeCore = ctorType.rec_argTypes[i];
+      const recArgTypeValue = recArgTypeCore.valOf(substEnv);
+
+      const result = this.args[i + ctorType.argTypes.length].check(ctx, renames, recArgTypeValue.now());
+      if (result instanceof stop) {
+        return result;
+      }
+      normalized_rec_args.push((result as go<C.Core>).result);
+    }
+
+    return new go(new C.Constructor(
+      this.constructorName,
+      ctorType.index,
+      ctorType.type,
+      normalized_args,
+      normalized_rec_args
+    ));
   }
 }

@@ -6,6 +6,7 @@ import { Environment } from "../utils/environment";
 import { Closure } from "./utils";
 import { fresh } from "./utils";
 import { readBack } from "../evaluator/utils";
+import { inspect } from "util";
 
 /*
     ## Values ##
@@ -631,6 +632,8 @@ export class InductiveTypeConstructor extends Value {
   ) { super() }
 
   public readBackType(context: Context): C.Core {
+    console.log('ctx in readBackType of InductiveTypeConstructor:', inspect(context, true, null, true));
+    console.log('parameters:', inspect(this.parameters, true, null, true));
     return new C.InductiveTypeConstructor(
       this.name,
       this.parameters.map(p => p.readBackType(context)),
@@ -738,7 +741,7 @@ export class ConstructorType extends Value {
     public type: string,
     public argTypes: Value[],
     public rec_argTypes: Value[],
-    public resultType: C.Core,
+    public resultType: Value,
     public numTypeParams: number = 0,  // Number of leading args that are type parameters
     public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
 

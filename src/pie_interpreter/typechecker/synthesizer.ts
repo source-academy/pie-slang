@@ -1505,186 +1505,178 @@ export class synthesizer {
     }
   }
 
-  // ==================== INDUCTIVE DATATYPES ====================
+  
+  // public static synthConstructorApplication(ctx: Context, r: Renaming, ctorApp: S.ConstructorApplication): Perhaps<C.The> {
+  //   // Look up constructor in context
+  //   const constructorBinder = ctx.get(ctorApp.constructorName);
+  //   if (!constructorBinder || !(constructorBinder instanceof ConstructorTypeBinder)) {
+  //     throw new Error(`Unknown constructor: ${ctorApp.constructorName}`);
+  //   }
 
-  /**
-   * Synthesize constructor application for user-defined inductive types
-   */
-  public static synthConstructorApplication(ctx: Context, r: Renaming, ctorApp: S.ConstructorApplication): Perhaps<C.The> {
-    // Look up constructor in context
-    const constructorBinder = ctx.get(ctorApp.constructorName);
-    if (!constructorBinder || !(constructorBinder instanceof ConstructorTypeBinder)) {
-      throw new Error(`Unknown constructor: ${ctorApp.constructorName}`);
-    }
+  //   const ctorType = constructorBinder.constructorType
+  //   const argTypes = ctorType.argTypes.concat(ctorType.rec_argTypes)
 
-    const ctorType = constructorBinder.constructorType
-    const argTypes = ctorType.argTypes.concat(ctorType.rec_argTypes)
+  //   let cur_ctx = ctx
+  //   let cur_rename = r
 
-    let cur_ctx = ctx
-    let cur_rename = r
+  //   if(argTypes.length !== ctorApp.args.length) {
+  //     return new stop(ctorApp.location,
+  //       new Message([`Expected ${argTypes.length} arguments, got ${ctorApp.args.length}`]));
+  //   }
 
-    if(argTypes.length !== ctorApp.args.length) {
-      return new stop(ctorApp.location,
-        new Message([`Expected ${argTypes.length} arguments, got ${ctorApp.args.length}`]));
-    }
+  //   const checkedArgs: C.Core[] = [];
 
-    const checkedArgs: C.Core[] = [];
+  //   // Build an environment for checking arguments
+  //   // For parameterized constructors, we need to bind type parameters first
+  //   let argCheckEnv = new Map(contextToEnvironment(ctx));
 
-    // Build an environment for checking arguments
-    // For parameterized constructors, we need to bind type parameters first
-    let argCheckEnv = new Map(contextToEnvironment(ctx));
+  //   // First pass: check type parameters and build environment
+  //   const typeParamValues: V.Value[] = [];
+  //   for (let i = 0; i < ctorApp.args.length; i++) {
+  //     // Type parameter: should check against Universe
+  //     const argCheck = ctorApp.args[i].check(cur_ctx, cur_rename, new V.Universe());
+  //     if (argCheck instanceof stop) return argCheck;
+  //     const checkedArg = (argCheck as go<C.Core>).result;
+  //     checkedArgs.push(checkedArg);
 
-    // First pass: check type parameters and build environment
-    const typeParamValues: V.Value[] = [];
-    for (let i = 0; i < ctorType.numTypeParams && i < ctorApp.args.length; i++) {
-      // Type parameter: should check against Universe
-      const argCheck = ctorApp.args[i].check(cur_ctx, cur_rename, new V.Universe());
-      if (argCheck instanceof stop) return argCheck;
-      const checkedArg = (argCheck as go<C.Core>).result;
-      checkedArgs.push(checkedArg);
+  //     // Store the actual type value
+  //     const paramValue = valInContext(ctx, checkedArg);
+  //     typeParamValues.push(paramValue);
 
-      // Store the actual type value
-      const paramValue = valInContext(ctx, checkedArg);
-      typeParamValues.push(paramValue);
+  //     // Try to extract parameter name from argTypes to bind in environment
+  //     // argTypes[i] for type params might be Universe or VarName
+  //     // We need to find VarNames in subsequent argTypes and bind them
+  //     const extractAndBindVarNames = (core: C.Core, value: V.Value) => {
+  //       if (core instanceof C.VarName) {
+  //         argCheckEnv.set(core.name, value);
+  //       }
+  //     };
 
-      // Try to extract parameter name from argTypes to bind in environment
-      // argTypes[i] for type params might be Universe or VarName
-      // We need to find VarNames in subsequent argTypes and bind them
-      const extractAndBindVarNames = (core: C.Core, value: V.Value) => {
-        if (core instanceof C.VarName) {
-          argCheckEnv.set(core.name, value);
-        }
-      };
+  //     // Look through remaining argTypes to find references to this parameter
+  //     for (let j = i + 1; j < argTypes.length; j++) {
+  //       if (argTypes[j] instanceof C.VarName) {
+  //         // This might be the parameter we just checked
+  //         // Bind it speculatively - if it's the wrong one, it won't match anyway
+  //         argCheckEnv.set((argTypes[j] as C.VarName).name, paramValue);
+  //       }
+  //     }
+  //   }
 
-      // Look through remaining argTypes to find references to this parameter
-      for (let j = i + 1; j < argTypes.length; j++) {
-        if (argTypes[j] instanceof C.VarName) {
-          // This might be the parameter we just checked
-          // Bind it speculatively - if it's the wrong one, it won't match anyway
-          argCheckEnv.set((argTypes[j] as C.VarName).name, paramValue);
-        }
-      }
-    }
+  //   // Second pass: check remaining arguments with type parameters bound
+  //   for (let i = 0; i < ctorApp.args.length; i++) {
+  //     // Regular argument: check against its type (evaluated with type params bound)
+  //     const argType = argTypes[i].valOf(argCheckEnv);
+  //     const argCheck = ctorApp.args[i].check(cur_ctx, cur_rename, argType);
+  //     if (argCheck instanceof stop) return argCheck;
+  //     const checkedArg = (argCheck as go<C.Core>).result;
+  //     checkedArgs.push(checkedArg);
 
-    // Second pass: check remaining arguments with type parameters bound
-    for (let i = ctorType.numTypeParams; i < ctorApp.args.length; i++) {
-      // Regular argument: check against its type (evaluated with type params bound)
-      const argType = argTypes[i].valOf(argCheckEnv);
-      const argCheck = ctorApp.args[i].check(cur_ctx, cur_rename, argType);
-      if (argCheck instanceof stop) return argCheck;
-      const checkedArg = (argCheck as go<C.Core>).result;
-      checkedArgs.push(checkedArg);
+  //     // Bind this argument's value in the environment using its actual name
+  //     // Now we have argNames available from the constructor type!
+      
+  //   }
 
-      // Bind this argument's value in the environment using its actual name
-      // Now we have argNames available from the constructor type!
-      if (i < ctorType.argNames.length) {
-        const argName = ctorType.argNames[i];
-        const argValue = valInContext(ctx, checkedArg);
-        argCheckEnv.set(argName, argValue);
-      }
-    }
+  //   // Compute the specific result type by substituting type parameters
+  //   let specificResultType: V.Value;
 
-    // Compute the specific result type by substituting type parameters
-    let specificResultType: V.Value;
+  //   if (ctorType.numTypeParams > 0) {
+  //     // For parameterized constructors: substitute type parameters with actual values
+  //     // Build an environment where type parameter variables are bound to actual type values
+  //     const typeParamEnv = new Map(contextToEnvironment(ctx));
 
-    if (ctorType.numTypeParams > 0) {
-      // For parameterized constructors: substitute type parameters with actual values
-      // Build an environment where type parameter variables are bound to actual type values
-      const typeParamEnv = new Map(contextToEnvironment(ctx));
+  //     // The result type contains VarName references to type parameters (like 'E')
+  //     // We need to evaluate it in an environment where those are bound to the actual types
+  //     // Extract actual type parameter values
+  //     const typeParamValues: V.Value[] = [];
+  //     for (let i = 0; i < ctorType.numTypeParams; i++) {
+  //       typeParamValues.push(valInContext(ctx, checkedArgs[i]));
+  //     }
 
-      // The result type contains VarName references to type parameters (like 'E')
-      // We need to evaluate it in an environment where those are bound to the actual types
-      // Extract actual type parameter values
-      const typeParamValues: V.Value[] = [];
-      for (let i = 0; i < ctorType.numTypeParams; i++) {
-        typeParamValues.push(valInContext(ctx, checkedArgs[i]));
-      }
+  //     // Create environment with type parameters bound
+  //     // We need to know the NAMES of the type parameters from the constructor definition
+  //     // These names are embedded in the resultType as VarNames
+  //     // For MyList, resultType is: InductiveTypeConstructor('MyList', [VarName('E')], [])
 
-      // Create environment with type parameters bound
-      // We need to know the NAMES of the type parameters from the constructor definition
-      // These names are embedded in the resultType as VarNames
-      // For MyList, resultType is: InductiveTypeConstructor('MyList', [VarName('E')], [])
+  //     // Extract VarNames from resultType to find parameter names
+  //     const extractVarNames = (core: C.Core): string[] => {
+  //       if (core instanceof C.VarName) return [core.name];
+  //       if (core instanceof C.InductiveTypeConstructor) {
+  //         // Extract from both parameters AND indices
+  //         return [
+  //           ...core.parameters.flatMap(p => extractVarNames(p)),
+  //           ...core.indices.flatMap(i => extractVarNames(i))
+  //         ];
+  //       }
+  //       if (core instanceof C.Add1) {
+  //         return extractVarNames(core.n);
+  //       }
+  //       return [];
+  //     };
 
-      // Extract VarNames from resultType to find parameter names
-      const extractVarNames = (core: C.Core): string[] => {
-        if (core instanceof C.VarName) return [core.name];
-        if (core instanceof C.InductiveTypeConstructor) {
-          // Extract from both parameters AND indices
-          return [
-            ...core.parameters.flatMap(p => extractVarNames(p)),
-            ...core.indices.flatMap(i => extractVarNames(i))
-          ];
-        }
-        if (core instanceof C.Add1) {
-          return extractVarNames(core.n);
-        }
-        return [];
-      };
+  //     const paramNames = extractVarNames(ctorType.resultType);
 
-      const paramNames = extractVarNames(ctorType.resultType);
+  //     // Bind each parameter name to its actual value in a temporary environment
+  //     for (let i = 0; i < Math.min(paramNames.length, typeParamValues.length); i++) {
+  //       typeParamEnv.set(paramNames[i], typeParamValues[i]);
+  //     }
 
-      // Bind each parameter name to its actual value in a temporary environment
-      for (let i = 0; i < Math.min(paramNames.length, typeParamValues.length); i++) {
-        typeParamEnv.set(paramNames[i], typeParamValues[i]);
-      }
+  //     // Also bind all checked arguments (including non-type-parameter args like 'k' in MyVec)
+  //     // We need to bind ALL constructor arguments, not just type parameters
+  //     // Extract all arg type VarNames and bind them to corresponding checked values
+  //     const allArgNames: string[] = [];
+  //     for (let i = 0; i < argTypes.length; i++) {
+  //       const argVarNames = extractVarNames(argTypes[i]);
+  //       if (argVarNames.length === 0 && argTypes[i] instanceof C.VarName) {
+  //         // The argType itself might not contain VarNames, but we need its name
+  //         // Actually, we need to find the parameter NAME from the original constructor definition
+  //         // For now, let's just bind all checked argument values by index
+  //       }
+  //     }
 
-      // Also bind all checked arguments (including non-type-parameter args like 'k' in MyVec)
-      // We need to bind ALL constructor arguments, not just type parameters
-      // Extract all arg type VarNames and bind them to corresponding checked values
-      const allArgNames: string[] = [];
-      for (let i = 0; i < argTypes.length; i++) {
-        const argVarNames = extractVarNames(argTypes[i]);
-        if (argVarNames.length === 0 && argTypes[i] instanceof C.VarName) {
-          // The argType itself might not contain VarNames, but we need its name
-          // Actually, we need to find the parameter NAME from the original constructor definition
-          // For now, let's just bind all checked argument values by index
-        }
-      }
+  //     // Bind each checked argument value to the environment
+  //     // We need to figure out the variable names for constructor arguments
+  //     // For myveccons: args are [E, k, head, tail]
+  //     // argTypes are [Universe, Nat, VarName('E'), InductiveTypeConstructor('MyVec', [VarName('E')], [VarName('k')])]
+  //     // We need to bind k -> checkedArgs[1] value
+  //     // The challenge is knowing that argTypes[1] corresponds to variable name 'k'
 
-      // Bind each checked argument value to the environment
-      // We need to figure out the variable names for constructor arguments
-      // For myveccons: args are [E, k, head, tail]
-      // argTypes are [Universe, Nat, VarName('E'), InductiveTypeConstructor('MyVec', [VarName('E')], [VarName('k')])]
-      // We need to bind k -> checkedArgs[1] value
-      // The challenge is knowing that argTypes[1] corresponds to variable name 'k'
+  //     // Alternative approach: bind all checked args with sequential names or by extracting from Core
+  //     // Actually, the best approach is to evaluate the resultType with ALL arguments bound
+  //     // Let's find all VarNames in argTypes and bind them to checked argument values
+  //     const bindArgValue = (argTypeCore: C.Core, argIndex: number) => {
+  //       // This arg type might reference previous args by name
+  //       // We should have bound them already in argCheckEnv
+  //       // For the current arg, if we can determine its name, bind its value
+  //     };
 
-      // Alternative approach: bind all checked args with sequential names or by extracting from Core
-      // Actually, the best approach is to evaluate the resultType with ALL arguments bound
-      // Let's find all VarNames in argTypes and bind them to checked argument values
-      const bindArgValue = (argTypeCore: C.Core, argIndex: number) => {
-        // This arg type might reference previous args by name
-        // We should have bound them already in argCheckEnv
-        // For the current arg, if we can determine its name, bind its value
-      };
+  //     // Simpler approach: extend typeParamEnv with all values from argCheckEnv that were bound
+  //     // during argument checking
+  //     for (const [name, value] of argCheckEnv) {
+  //       if (!typeParamEnv.has(name)) {
+  //         typeParamEnv.set(name, value);
+  //       }
+  //     }
 
-      // Simpler approach: extend typeParamEnv with all values from argCheckEnv that were bound
-      // during argument checking
-      for (const [name, value] of argCheckEnv) {
-        if (!typeParamEnv.has(name)) {
-          typeParamEnv.set(name, value);
-        }
-      }
+  //     // Now evaluate the result type with the substituted environment
+  //     specificResultType = ctorType.resultType.valOf(typeParamEnv);
+  //   } else {
+  //     // For non-parameterized constructors: still need to use argCheckEnv
+  //     // to bind any constructor arguments referenced in the result type
+  //     specificResultType = ctorType.resultType.valOf(argCheckEnv);
+  //   }
 
-      // Now evaluate the result type with the substituted environment
-      specificResultType = ctorType.resultType.valOf(typeParamEnv);
-    } else {
-      // For non-parameterized constructors: still need to use argCheckEnv
-      // to bind any constructor arguments referenced in the result type
-      specificResultType = ctorType.resultType.valOf(argCheckEnv);
-    }
+  //   return new go(new C.The(
+  //     specificResultType.readBackType(ctx),
+  //     new C.Constructor(
+  //       ctorApp.constructorName,
+  //       ctorType.index,
+  //       ctorType.type,
+  //       checkedArgs.slice(0, ctorType.argTypes.length),
+  //       checkedArgs.slice(ctorType.argTypes.length)
+  //     )
+  //   ));
 
-    return new go(new C.The(
-      specificResultType.readBackType(ctx),
-      new C.Constructor(
-        ctorApp.constructorName,
-        ctorType.index,
-        ctorType.type,
-        checkedArgs.slice(0, ctorType.argTypes.length),
-        checkedArgs.slice(ctorType.argTypes.length)
-      )
-    ));
-
-  }
+  // }
 
   /**
    * Synthesize eliminator application for user-defined inductive types

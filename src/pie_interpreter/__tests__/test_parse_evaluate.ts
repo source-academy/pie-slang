@@ -1,14 +1,9 @@
 import 'jest';
-import { schemeParse, Parser, pieDeclarationParser, Claim, Declaration, SamenessCheck} from '../parser/parser';
+import { evaluatePie } from '../main'
 import { inspect } from 'util';
 
-function testParser(input: string) {
-  const parsed = schemeParse(input);
-  return pieDeclarationParser.parseDeclaration(parsed[0]);
-}
-
-describe("Inductive Types Parser", () => {
-  it("Parse Bool (no params, no indices)", () => {
+describe("Parser Evaluate Integration Tests", () => {
+  it("Evaluate Bool (no params, no indices)", () => {
     const input =
     `(data Bool () ()
       (true () (Bool () ()))
@@ -35,11 +30,11 @@ describe("Inductive Types Parser", () => {
     (claim result2 Nat)
     (define result2 (bool-to-nat my-false))
     `;
-    const result = testParser(input);
+    const result = evaluatePie(input);
     console.log(inspect(result, true, null, true));
   });
 
-  it("Parse myNat (no params, no indices)", () => {
+  it("Evaluate myNat (no params, no indices)", () => {
     const input = `
     (data myNat () ()
       (myZero () (myNat () ()))
@@ -63,11 +58,11 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (count two-nat))
     `;
-    const result = testParser(input);
+    const result = evaluatePie(input);
     console.log(inspect(result, true, null, true));
   });
 
-  it("Parse myList (parameterized, no indices)", () => {
+  it("Evaluate myList (parameterized, no indices)", () => {
     const input = `
     (data myList ((E U)) ()
       (myNil () (myList (E) ()))
@@ -94,11 +89,11 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (nat-list-length two-elem-list))
     `;
-    const result = testParser(input);
+    const result = evaluatePie(input);
     console.log(inspect(result, true, null, true));
   });
 
-  it("Parse myVec (parameterized and indexed)", () => {
+  it("Evaluate myVec (parameterized and indexed)", () => {
     const input = `
     (data myVec ((E U)) ((n Nat))
       (myVecNil () (myVec (E) (zero)))
@@ -122,11 +117,11 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (vec-to-nat (add1 zero) one-vec))
     `;
-    const result = testParser(input);
+    const result = evaluatePie(input);
     console.log(inspect(result, true, null, true));
   });
 
-  it("Parse Less-Than (no params, indexed)", () => {
+  it("Evaluate Less-Than (no params, indexed)", () => {
     const input = `
     (data Less-Than () ((j Nat) (k Nat))
       (zero-smallest ((n Nat)) (Less-Than () (zero (add1 n))))
@@ -152,11 +147,11 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (extract-smaller zero (add1 zero) proof-0<1))
     `;
-    const result = testParser(input);
+    const result = evaluatePie(input);
     console.log(inspect(result, true, null, true));
   });
 
-  it("Parse myEither (parameterized, no indices)", () => {
+  it("Evaluate myEither (parameterized, no indices)", () => {
     const input = `
     (data myEither ((L U) (R U)) ()
       (myLeft ((value L)) (myEither (L R) ()))
@@ -183,7 +178,7 @@ describe("Inductive Types Parser", () => {
     (claim result2 Nat)
     (define result2 (either-to-nat right-val))
     `;
-    const result = testParser(input);
+    const result = evaluatePie(input);
     console.log(inspect(result, true, null, true));
   });
-})
+});
