@@ -1,7 +1,7 @@
 import * as V from "../types/value";
 import * as C from '../types/core';
 import * as N from '../types/neutral';
-import { fresh } from '../types/utils';
+import { fresh, extractVarNamesFromValue } from '../types/utils';
 import { bindFree, Context, ConstructorTypeBinder, valInContext, contextToEnvironment } from '../utils/context';
 import { extendEnvironment } from '../utils/environment';
 import { doApp, doCar, doCdr } from "./evaluator";
@@ -222,20 +222,46 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
       }
     }
 
-    // Evaluate argument types in substituted environment
+    // Extract constructor argument names from the return type Value (indices only!)
+    // We only need to track INDEX arguments for incremental substitution, not parameters
+    const returnTypeValue = ctorBinder.type; // V.InductiveTypeConstructor
+    const indexArgNames: string[] = [];
+    returnTypeValue.indices.forEach(i => {
+      indexArgNames.push(...extractVarNamesFromValue(i));
+    });
+
+    // Read back arguments with incremental substitution
     const readBackArgs: C.Core[] = [];
     for (let i = 0; i < valueNow.args.length; i++) {
       const argTypeCore = ctorTypeCore.argTypes[i];
       const argTypeValue = argTypeCore.valOf(substEnv);
-      readBackArgs.push(readBack(context, argTypeValue.now(), valueNow.args[i]));
+      const readBackArg = readBack(context, argTypeValue.now(), valueNow.args[i]);
+      readBackArgs.push(readBackArg);
+
+      // Extend substEnv with this argument's value for subsequent arguments
+      if (i < indexArgNames.length) {
+        const argName = indexArgNames[i];
+        const argValue = valueNow.args[i].now();
+        substEnv = extendEnvironment(substEnv, argName, argValue);
+      }
     }
 
-    // Read back recursive arguments
+    // Read back recursive arguments with incremental substitution
     const readBackRecArgs: C.Core[] = [];
+    const recArgStartIdx = valueNow.args.length;
     for (let i = 0; i < valueNow.recursive_args.length; i++) {
       const recArgTypeCore = ctorTypeCore.rec_argTypes[i];
       const recArgTypeValue = recArgTypeCore.valOf(substEnv);
-      readBackRecArgs.push(readBack(context, recArgTypeValue.now(), valueNow.recursive_args[i]));
+      const readBackRecArg = readBack(context, recArgTypeValue.now(), valueNow.recursive_args[i]);
+      readBackRecArgs.push(readBackRecArg);
+
+      // Extend substEnv with this recursive argument's value
+      const argNameIdx = recArgStartIdx + i;
+      if (argNameIdx < indexArgNames.length) {
+        const argName = indexArgNames[argNameIdx];
+        const recArgValue = valueNow.recursive_args[i].now();
+        substEnv = extendEnvironment(substEnv, argName, recArgValue);
+      }
     }
 
     return new C.Constructor(

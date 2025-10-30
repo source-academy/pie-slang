@@ -8,9 +8,9 @@ import { Location, notForInfo } from '../utils/locations';
 import { bindFree, Context, readBackContext, valInContext, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder, EliminatorBinder, contextToEnvironment } from '../utils/context';
 import { extendEnvironment } from '../utils/environment';
 
-import { go, stop, goOn, occurringBinderNames, Perhaps, 
-  PerhapsM, SiteBinder, TypedBinder, Message, freshBinder, 
-  isVarName} from './utils';
+import { go, stop, goOn, occurringBinderNames, Perhaps,
+  PerhapsM, SiteBinder, TypedBinder, Message, freshBinder,
+  isVarName, extractVarNamesFromValue} from './utils';
 import { convert, sameType } from '../typechecker/utils';
 import { readBack } from '../evaluator/utils';
 import { synthesizer as Synth } from '../typechecker/synthesizer';
@@ -2222,7 +2222,7 @@ export class ConstructorApplication extends Source {
     // - Override parameter bindings with concrete values from expected type
     // - Evaluate arg types in this new environment
 
-    // Get parameter names from constructor's return type
+    // Get parameter names from constructor's return type (Core)
     const resultTypeCore = ctorType.resultType as C.InductiveTypeConstructor;
 
     let substEnv = contextToEnvironment(ctx);
@@ -2253,6 +2253,18 @@ export class ConstructorApplication extends Source {
       }
     }
 
+    // Extract constructor argument names from the return type Value (indices only!)
+    // For indexed constructors like add1-smaller with return type (Less-Than () ((add1 j) (add1 k))),
+    // this extracts ["j", "k"] from the indices (NOT parameters, which are types)
+    // We only need to track INDEX arguments for incremental substitution
+    const returnTypeValue = constructorBinder.type; // V.InductiveTypeConstructor
+    const indexArgNames: string[] = [];
+    returnTypeValue.indices.forEach(i => {
+      indexArgNames.push(...extractVarNamesFromValue(i));
+    });
+
+    console.log('Extracted index argument names:', indexArgNames);
+
     // Now check arguments using the substituted environment
     let normalized_args = [];
     let normalized_rec_args = [];
@@ -2265,9 +2277,9 @@ export class ConstructorApplication extends Source {
       ]));
     }
 
-    // Check non-recursive arguments
+    // Check non-recursive arguments with incremental substitution
     for (let i = 0; i < ctorType.argTypes.length; i++) {
-      // Evaluate the argument type in the substituted environment
+      // Evaluate the argument type in the current substituted environment
       const argTypeCore = ctorType.argTypes[i];
       const argTypeValue = argTypeCore.valOf(substEnv);
 
@@ -2275,19 +2287,41 @@ export class ConstructorApplication extends Source {
       if (result instanceof stop) {
         return result;
       }
-      normalized_args.push((result as go<C.Core>).result);
+
+      const checkedArgCore = (result as go<C.Core>).result;
+      normalized_args.push(checkedArgCore);
+
+      // Extend substEnv with this argument's value for use in subsequent arguments
+      if (i < indexArgNames.length) {
+        const argName = indexArgNames[i];
+        const checkedArgValue = valInContext(ctx, checkedArgCore);
+        console.log(`Adding argument ${argName} to substEnv:`, inspect(checkedArgValue, {depth: 2, colors: true}));
+        substEnv = extendEnvironment(substEnv, argName, checkedArgValue);
+      }
     }
 
-    // Check recursive arguments
+    // Check recursive arguments with incremental substitution
+    const recArgStartIdx = ctorType.argTypes.length;
     for (let i = 0; i < ctorType.rec_argTypes.length; i++) {
       const recArgTypeCore = ctorType.rec_argTypes[i];
       const recArgTypeValue = recArgTypeCore.valOf(substEnv);
 
-      const result = this.args[i + ctorType.argTypes.length].check(ctx, renames, recArgTypeValue.now());
+      const result = this.args[i + recArgStartIdx].check(ctx, renames, recArgTypeValue.now());
       if (result instanceof stop) {
         return result;
       }
-      normalized_rec_args.push((result as go<C.Core>).result);
+
+      const checkedRecArgCore = (result as go<C.Core>).result;
+      normalized_rec_args.push(checkedRecArgCore);
+
+      // Extend substEnv with this recursive argument's value
+      const argNameIdx = recArgStartIdx + i;
+      if (argNameIdx < indexArgNames.length) {
+        const argName = indexArgNames[argNameIdx];
+        const checkedRecArgValue = valInContext(ctx, checkedRecArgCore);
+        console.log(`Adding recursive argument ${argName} to substEnv:`, inspect(checkedRecArgValue, {depth: 2, colors: true}));
+        substEnv = extendEnvironment(substEnv, argName, checkedRecArgValue);
+      }
     }
 
     return new go(new C.Constructor(
