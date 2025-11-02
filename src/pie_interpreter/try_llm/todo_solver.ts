@@ -8,11 +8,7 @@ import { Location } from "../utils/locations";
 import { Context, readBackContext } from "../utils/context";
 import { Value } from "../types/value";
 import { Renaming } from "../typechecker/utils";
-import { config } from "dotenv";
-
-// Load environment variables from .env file
-config();
-
+import 'dotenv/config';
 // Get API key from environment variable
 const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
