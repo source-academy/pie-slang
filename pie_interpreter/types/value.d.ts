@@ -232,7 +232,7 @@ export declare class Constructor extends Value {
     index: number;
     recursive_args: Value[];
     constructor(name: string, type: string, args: Value[], index: number, recursive_args: Value[]);
-    readBackType(_: Context): C.Core;
+    readBackType(context: Context): C.Core;
     prettyPrint(): string;
     toString(): string;
 }
@@ -242,12 +242,12 @@ export declare class ConstructorType extends Value {
     type: string;
     argTypes: Value[];
     rec_argTypes: Value[];
-    resultType: C.Core;
+    resultType: Value;
     numTypeParams: number;
     argNames: string[];
-    constructor(name: string, index: number, type: string, argTypes: Value[], rec_argTypes: Value[], resultType: C.Core, numTypeParams?: number, // Number of leading args that are type parameters
+    constructor(name: string, index: number, type: string, argTypes: Value[], rec_argTypes: Value[], resultType: Value, numTypeParams?: number, // Number of leading args that are type parameters
     argNames?: string[]);
-    readBackType(_: Context): C.Core;
+    readBackType(context: Context): C.Core;
     prettyPrint(): string;
 }
 export declare class EliminatorType extends Value {

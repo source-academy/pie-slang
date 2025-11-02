@@ -4,7 +4,7 @@ import { Core } from "../types/core";
 import { Location } from "../utils/locations";
 import { Context, SerializableContext } from "../utils/context";
 import { Perhaps } from "../types/utils";
-type What = 'definition' | ['binding-site', Core] | ['is-type', Core] | ['has-type', Core] | ['TODO', SerializableContext, Core];
+type What = 'definition' | ['binding-site', Core] | ['is-type', Core] | ['has-type', Core] | ['TODO', SerializableContext, Core, Renaming];
 export declare function PieInfoHook(where: Location, what: What): void;
 export declare function SendPieInfo(where: Location, what: What): void;
 export type Renaming = Map<string, string>;

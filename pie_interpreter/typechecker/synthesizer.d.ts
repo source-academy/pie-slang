@@ -46,10 +46,6 @@ export declare class synthesizer {
     static synthName(context: Context, r: Renaming, location: Location, name: string): Perhaps<C.The>;
     static synthNumber(context: Context, r: Renaming, location: Location, value: number): Perhaps<C.The>;
     /**
-     * Synthesize constructor application for user-defined inductive types
-     */
-    static synthConstructorApplication(ctx: Context, r: Renaming, ctorApp: S.ConstructorApplication): Perhaps<C.The>;
-    /**
      * Synthesize eliminator application for user-defined inductive types
      */
     static synthGeneralEliminator(ctx: Context, r: Renaming, elimApp: S.EliminatorApplication): Perhaps<C.The>;

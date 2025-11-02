@@ -65,4 +65,5 @@ export declare function isVarName(name: string): boolean;
 export declare function fresh(ctx: Context, name: string): string;
 export declare function freshBinder(ctx: Context, src: Source, name: string): string;
 export declare function occurringBinderNames(binder: TypedBinder): string[];
+export declare function extractVarNamesFromValue(val: Value): string[];
 //# sourceMappingURL=utils.d.ts.map

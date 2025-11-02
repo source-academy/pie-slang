@@ -3,7 +3,7 @@ import { Extended, Atomic } from '../../scheme_parser/transpiler/types/nodes/sch
 import { Location, Syntax } from "../utils/locations";
 import { Tactic } from "../tactics/tactics";
 import { DefineDatatypeSource } from "../typechecker/definedatatype";
-type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
+type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral | Atomic.Nil;
 export declare function syntaxToLocation(syntax: Syntax): Location;
 export declare function schemeParse(stx: string): Extended.List[];
 export declare class Parser {

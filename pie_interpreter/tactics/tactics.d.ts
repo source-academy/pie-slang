@@ -34,19 +34,20 @@ export declare class ExistsTactic extends Tactic {
 export declare class EliminateNatTactic extends Tactic {
     location: Location;
     private target;
-    private motive;
-    constructor(location: Location, target: string, motive: Source);
+    constructor(location: Location, target: string);
     toString(): string;
     apply(state: ProofState): Perhaps<ProofState>;
+    private generateNatMotive;
     private eliminateNat;
 }
 export declare class EliminateListTactic extends Tactic {
     location: Location;
     private target;
-    private motive;
-    constructor(location: Location, target: string, motive: Source);
+    private motive?;
+    constructor(location: Location, target: string, motive?: Source | undefined);
     toString(): string;
     apply(state: ProofState): Perhaps<ProofState>;
+    private generateListMotive;
     private eliminateList;
 }
 export declare class EliminateVecTactic extends Tactic {
@@ -62,8 +63,8 @@ export declare class EliminateVecTactic extends Tactic {
 export declare class EliminateEqualTactic extends Tactic {
     location: Location;
     target: string;
-    motive: Source;
-    constructor(location: Location, target: string, motive: Source);
+    motive?: Source | undefined;
+    constructor(location: Location, target: string, motive?: Source | undefined);
     toString(): string;
     apply(state: ProofState): Perhaps<ProofState>;
 }
@@ -82,10 +83,11 @@ export declare class RightTactic extends Tactic {
 export declare class EliminateEitherTactic extends Tactic {
     location: Location;
     private target;
-    private motive;
-    constructor(location: Location, target: string, motive: Source);
+    private motive?;
+    constructor(location: Location, target: string, motive?: Source | undefined);
     toString(): string;
     apply(state: ProofState): Perhaps<ProofState>;
+    private generateEitherMotive;
 }
 export declare class SpiltTactic extends Tactic {
     constructor(location: Location);
@@ -95,8 +97,8 @@ export declare class SpiltTactic extends Tactic {
 export declare class EliminateAbsurdTactic extends Tactic {
     location: Location;
     private target;
-    private motive;
-    constructor(location: Location, target: string, motive: Source);
+    private motive?;
+    constructor(location: Location, target: string, motive?: Source | undefined);
     toString(): string;
     apply(state: ProofState): Perhaps<ProofState>;
 }

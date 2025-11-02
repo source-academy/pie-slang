@@ -173,7 +173,7 @@ export declare class IndList extends Core {
     toString(): string;
 }
 export declare class Trivial extends Core {
-    valOf(_: Environment): V.Value;
+    valOf(env: Environment): V.Value;
     prettyPrint(): string;
     toString(): string;
 }
@@ -388,10 +388,7 @@ export declare class ConstructorType extends Core {
     argTypes: Core[];
     rec_argTypes: Core[];
     resultType: Core;
-    numTypeParams: number;
-    argNames: string[];
-    constructor(name: string, index: number, type: string, argTypes: Core[], rec_argTypes: Core[], resultType: Core, numTypeParams?: number, // Number of leading args that are type parameters
-    argNames?: string[]);
+    constructor(name: string, index: number, type: string, argTypes: Core[], rec_argTypes: Core[], resultType: Core);
     valOf(env: Environment): V.Value;
     prettyPrint(): string;
 }
