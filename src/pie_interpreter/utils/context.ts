@@ -7,7 +7,6 @@ import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
 import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
-import { inspect } from 'util';
 import { Eliminator } from '../types/core';
 /*
     ## Contexts ##

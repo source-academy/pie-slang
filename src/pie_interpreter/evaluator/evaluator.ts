@@ -2,7 +2,6 @@ import * as V from "../types/value";
 import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
 import { natEqual } from './utils';
-import { inspect } from "util";
 
 //TODO: add else cases and throw errors
 

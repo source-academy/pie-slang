@@ -7,7 +7,6 @@ import { Context, SerializableContext } from "../utils/context";
 import { go, stop, Perhaps, Message } from "../types/utils";
 import { alphaEquiv } from "../utils/alphaeqv";
 import { readBack } from "../evaluator/utils";
-import { inspect } from "util";
 import { todoQueue } from "../try_llm/todo_solver";
 
 
@@ -66,9 +65,6 @@ export function extendRenaming(renames: Renaming, from: string, to: string): Ren
 
 // ### Check the form of judgment Γ ⊢ c ≡ c type
 export function sameType(ctx: Context, where: Location, given: Value, expected: Value): Perhaps<undefined> {
-  console.log('cur_ctx', inspect(ctx, true, null, true));
-  console.log('given type', inspect(given.readBackType(ctx), true, null, true));
-  console.log('expected type', inspect(expected.readBackType(ctx), true, null, true));
   const givenE = given.readBackType(ctx);
   const expectedE = expected.readBackType(ctx);
   if (alphaEquiv(givenE, expectedE)) {

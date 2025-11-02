@@ -3,7 +3,6 @@ import * as C from '../types/core';
 import * as V from '../types/value';
 import * as Evaluator from '../evaluator/evaluator';
 import { Environment } from '../utils/environment';
-import { inspect } from 'util';
 import { readBack } from '../evaluator/utils';
 import { Context } from '../utils/context';
 
@@ -237,7 +236,6 @@ describe("doEliminator tests", () => {
       );
       const context: Context = new Map();
       const normalizedResult = readBack(context, new V.Nat(), listResult);
-      console.log("List elimination result (normalized):", inspect(normalizedResult, true, null, true));
     }).not.toThrow();
   });
 

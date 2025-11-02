@@ -4,7 +4,6 @@ import { Location, Syntax } from '../utils/locations';
 import { Position } from '../../scheme_parser/transpiler/types/location';
 import * as S from '../types/source';
 import { Context, initCtx, valInContext } from '../utils/context';
-import { inspect } from 'util';
 import { Renaming } from '../typechecker/utils';
 import * as C from '../types/core';
 import { go, SiteBinder, TypedBinder } from '../types/utils';
@@ -28,7 +27,6 @@ describe('boolean', () => {
   let renameing = new Map<string, string>()
   it('test generate type and constructor', () => {
     let result = define_boolean.normalize_constructor(ctx, renameing)
-    console.log(inspect(result, true, null, true))
   })
   let [new_ctx, new_renaming] = define_boolean.normalize_constructor(ctx, renameing)
   let Mytrue = new S.ConstructorApplication(
@@ -44,7 +42,6 @@ describe('boolean', () => {
   it('test type check constructors', () => {
     let result0 = Mytrue.synth(new_ctx as Context, new_renaming as Renaming)
     let result1 = Myfalse.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1], true, null, true))
   })
   let result0 = (Mytrue.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
   let result1 = (Myfalse.synth(new_ctx as Context, new_renaming as Renaming) as go<C.The>).result
@@ -80,7 +77,6 @@ describe('boolean', () => {
   it('test eliminate true and false', () => {
     let resultTrue = eliminateTrue.synth(new_ctx as Context, new_renaming as Renaming)
     let resultFalse = eliminateFalse.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultTrue, resultFalse], true, null, true))
   })
 
   it('test evaluate eliminators', () => {
@@ -91,7 +87,6 @@ describe('boolean', () => {
     let evalTrue = valInContext(new_ctx as Context, resultTrue.expr).now()
     let evalFalse = valInContext(new_ctx as Context, resultFalse.expr).now()
 
-    console.log(inspect([evalTrue, evalFalse], true, null, true))
   })
 
 })
@@ -120,7 +115,6 @@ describe('mynat', () => {
 
   it('test generate type and constructors', () => {
     let result = define_mynat.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
   })
 
   let [new_ctx, new_renaming] = define_mynat.normalize_constructor(ctx, renaming)
@@ -133,7 +127,6 @@ describe('mynat', () => {
     let result0 = Myzero.synth(new_ctx as Context, new_renaming as Renaming)
     let result1 = Myone.synth(new_ctx as Context, new_renaming as Renaming)
     let result2 = Mytwo.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1, result2], true, null, true))
   })
 
   let Myzero = new S.ConstructorApplication(testLoc, 'myzero', [])
@@ -189,7 +182,6 @@ describe('mynat', () => {
   it('test eliminate zero and one', () => {
     let resultZero = eliminateMyzero.synth(new_ctx as Context, new_renaming as Renaming)
     let resultOne = eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultZero, resultOne], true, null, true))
   })
 
   it('test evaluate eliminators', () => {
@@ -199,7 +191,6 @@ describe('mynat', () => {
     let evalZero = valInContext(new_ctx as Context, resultZero.expr).now()
     let evalOne = valInContext(new_ctx as Context, resultOne.expr).now()
 
-    console.log(inspect([evalZero, evalOne], true, null, true))
   })
 })
 
@@ -237,7 +228,6 @@ describe('mylist', () => {
 
   it('test generate type and constructors', () => {
     let result = define_mylist.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
   })
 
   let [new_ctx, new_renaming] = define_mylist.normalize_constructor(ctx, renaming)
@@ -258,7 +248,6 @@ describe('mylist', () => {
 
     let result0 = Mynil.synth(new_ctx as Context, new_renaming as Renaming)
     let result1 = Myone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1], true, null, true))
   })
 
   // Construct test lists for elimination
@@ -347,7 +336,6 @@ describe('mylist', () => {
   it('test eliminate nil and cons', () => {
     let resultNil = eliminateMynil.synth(new_ctx as Context, new_renaming as Renaming)
     let resultCons = eliminateMyone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultNil, resultCons], true, null, true))
   })
 
   it('test evaluate eliminators', () => {
@@ -357,7 +345,6 @@ describe('mylist', () => {
     let evalNil = valInContext(new_ctx as Context, resultNil.expr).now()
     let evalCons = valInContext(new_ctx as Context, resultCons.expr).now()
 
-    console.log(inspect([evalNil, evalCons], true, null, true))
   })
 })
 
@@ -395,7 +382,6 @@ describe('myvec', () => {
 
   it('test generate type and constructors', () => {
     let result = define_myvec.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
   })
 
   let [new_ctx, new_renaming] = define_myvec.normalize_constructor(ctx, renaming)
@@ -438,7 +424,6 @@ describe('myvec', () => {
     let result0 = Myvecnil.synth(new_ctx as Context, new_renaming as Renaming)
     let result1 = Myvecone.synth(new_ctx as Context, new_renaming as Renaming)
     let result2 = Myvectwo.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1, result2], true, null, true))
   })
 
   // Construct test vectors for elimination
@@ -554,7 +539,6 @@ describe('myvec', () => {
   it('test eliminate myvecnil and myveccons', () => {
     let resultNil = eliminateMyvecnil.synth(new_ctx as Context, new_renaming as Renaming)
     let resultOne = eliminateMyvecone.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([resultNil, resultOne], true, null, true))
   })
 
   it('test evaluate eliminators', () => {
@@ -564,7 +548,6 @@ describe('myvec', () => {
     let evalNil = valInContext(new_ctx as Context, resultNil.expr).now()
     let evalOne = valInContext(new_ctx as Context, resultOne.expr).now()
 
-    console.log(inspect([evalNil, evalOne], true, null, true))
   })
 })
 
@@ -617,7 +600,6 @@ describe('less-than', () => {
 
   it('test generate type and constructors', () => {
     let result = define_less_than.normalize_constructor(ctx, renaming)
-    console.log(inspect(result, true, null, true))
   })
 
   let [new_ctx, new_renaming] = define_less_than.normalize_constructor(ctx, renaming)
@@ -655,7 +637,6 @@ describe('less-than', () => {
     let result1 = proof_0_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
     let result2 = proof_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
     let result3 = proof_1_lt_3.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1, result2, result3], true, null, true))
   })
 
   // Test eliminator: extract the smaller number (j)
@@ -744,7 +725,6 @@ describe('less-than', () => {
   it('test eliminate less-than proofs', () => {
     let result0 = eliminate_0_lt_1.synth(new_ctx as Context, new_renaming as Renaming)
     let result1 = eliminate_1_lt_2.synth(new_ctx as Context, new_renaming as Renaming)
-    console.log(inspect([result0, result1], true, null, true))
   })
 
   it('test evaluate eliminators', () => {
@@ -754,7 +734,6 @@ describe('less-than', () => {
     let eval0 = valInContext(new_ctx as Context, result0.expr).now()
     let eval1 = valInContext(new_ctx as Context, result1.expr).now()
 
-    console.log(inspect([eval0, eval1], true, null, true))
   })
 })
 

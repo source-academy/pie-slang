@@ -10,7 +10,6 @@ import { VarName } from '../types/core';
 import { synthesizer } from './synthesizer';
 import { doApp } from '../evaluator/evaluator';
 import { Position } from '../../scheme_parser/transpiler/types/location';
-import { inspect } from 'util';
 
 function isRecursiveArgumentType(argType: S.Source, datatypeName: string): boolean {
   if (argType instanceof S.Name && argType.name === datatypeName) {

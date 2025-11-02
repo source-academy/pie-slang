@@ -7,7 +7,6 @@ import { addClaimToContext, addDefineToContext, Define, initCtx } from './utils/
 import { The } from './types/core';
 import { readBack } from './evaluator/utils';
 import { ProofManager } from './tactics/proofmanager';
-import {inspect} from 'util';
 
 export function evaluatePie(str): string {
   const astList = schemeParse(str);
@@ -72,7 +71,6 @@ export function evaluatePie(str): string {
     }
   }
     for (const [name, binder] of ctx) {
-      console.log('ctx binder:', inspect(binder, true, null, true));
       if (binder instanceof Define) {
         output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
         output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";

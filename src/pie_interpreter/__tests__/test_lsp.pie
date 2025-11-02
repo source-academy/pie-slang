@@ -1,7 +1,11 @@
 (claim identity (-> Nat Nat))
 (define-tactically identity 
   ((intro n)
-   (TODO)))
+   (exact TODO)))
+
+
+(claim nat Nat)
+(define nat 'nat)
 
 
 

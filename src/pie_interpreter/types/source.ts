@@ -16,7 +16,6 @@ import { readBack } from '../evaluator/utils';
 import { synthesizer as Synth } from '../typechecker/synthesizer';
 import { fresh } from './utils';
 import { varType } from '../utils/context';
-import { inspect } from 'util';
 
 export abstract class Source {
 
@@ -2209,13 +2208,6 @@ export class ConstructorApplication extends Source {
 
     const inductiveType = inductiveBinder.type;
 
-    console.log('=== ConstructorApplication.checkOut DEBUG ===');
-    console.log('Constructor name:', this.constructorName);
-    console.log('Expected type:', inspect(expectedTypeNow, {depth: 3, colors: true}));
-    console.log('Inductive type:', inspect(inductiveType, {depth: 3, colors: true}));
-    console.log('Constructor argTypes:', inspect(ctorType.argTypes, {depth: 3, colors: true}));
-    console.log('Constructor resultType:', inspect(ctorType.resultType, {depth: 4, colors: true}));
-
     // Build substitution environment: parameter names -> concrete values
     // Following the OLD design pattern (like FirstOrderClosure.valOfClosure):
     // - Start with the context environment
@@ -2235,7 +2227,6 @@ export class ConstructorApplication extends Source {
       if (paramCore instanceof C.VarName) {
         const paramName = paramCore.name;
         const concreteValue = expectedTypeNow.parameters[i].now();
-        console.log(`Mapping parameter ${paramName} to`, inspect(concreteValue, {depth: 2, colors: true}));
         // This OVERWRITES the abstract binding (E -> Neutral) with concrete (E -> Nat)
         substEnv = extendEnvironment(substEnv, paramName, concreteValue);
       }
@@ -2248,7 +2239,6 @@ export class ConstructorApplication extends Source {
       if (indexCore instanceof C.VarName) {
         const indexName = indexCore.name;
         const concreteValue = expectedTypeNow.indices[i].now();
-        console.log(`Mapping index ${indexName} to`, inspect(concreteValue, {depth: 2, colors: true}));
         substEnv = extendEnvironment(substEnv, indexName, concreteValue);
       }
     }
@@ -2295,7 +2285,6 @@ export class ConstructorApplication extends Source {
       if (i < indexArgNames.length) {
         const argName = indexArgNames[i];
         const checkedArgValue = valInContext(ctx, checkedArgCore);
-        console.log(`Adding argument ${argName} to substEnv:`, inspect(checkedArgValue, {depth: 2, colors: true}));
         substEnv = extendEnvironment(substEnv, argName, checkedArgValue);
       }
     }
@@ -2319,7 +2308,6 @@ export class ConstructorApplication extends Source {
       if (argNameIdx < indexArgNames.length) {
         const argName = indexArgNames[argNameIdx];
         const checkedRecArgValue = valInContext(ctx, checkedRecArgCore);
-        console.log(`Adding recursive argument ${argName} to substEnv:`, inspect(checkedRecArgValue, {depth: 2, colors: true}));
         substEnv = extendEnvironment(substEnv, argName, checkedRecArgValue);
       }
     }

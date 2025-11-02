@@ -7,7 +7,6 @@ import { Location } from '../utils/locations';
 import { Perhaps, go, stop, Message } from '../types/utils';
 import { readBack } from '../evaluator/utils';
 import { Value } from '../types/value';
-import { inspect } from 'util';
 
 export class ProofManager {
   public currentState: ProofState | null = null;

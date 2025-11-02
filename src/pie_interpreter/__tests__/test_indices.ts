@@ -1,6 +1,5 @@
 import 'jest';
 import { evaluatePie } from '../main'
-import { inspect } from 'util';
 
 describe("Parser Evaluate Integration Tests", () => {
   it("Evaluate myList (parameterized, no indices)", () => {
@@ -18,6 +17,5 @@ describe("Parser Evaluate Integration Tests", () => {
     
     `;
     const result = evaluatePie(input);
-    console.log(inspect(result, true, null, true));
   });
 })

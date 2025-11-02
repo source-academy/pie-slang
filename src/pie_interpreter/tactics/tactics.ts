@@ -12,7 +12,6 @@ import { convert, extendRenaming, Renaming, sameType } from '../typechecker/util
 import { Location } from '../utils/locations';
 import * as V from '../types/value';
 import * as C from '../types/core';
-import { inspect } from 'util';
 
 export abstract class Tactic {
   constructor(public location: Location) { }
@@ -302,7 +301,6 @@ export class EliminateListTactic extends Tactic {
     }
 
     const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
-    console.log("Eliminating List with motive:", inspect(rst, true, null, true))
     state.addGoal(
       rst.map((type) => {
         const newGoalNode = new GoalNode(

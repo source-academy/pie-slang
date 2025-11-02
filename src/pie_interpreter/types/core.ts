@@ -5,7 +5,6 @@ import * as Evaluator from '../evaluator/evaluator';
 import { Environment, getValueFromEnvironment } from '../utils/environment';
 import { SourceLocation } from '../utils/locations';
 import { FirstOrderClosure, isVarName } from './utils';
-import { inspect } from "util";
 
 
 

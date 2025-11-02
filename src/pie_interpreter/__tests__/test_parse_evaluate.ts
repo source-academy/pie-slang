@@ -1,6 +1,5 @@
 import 'jest';
 import { evaluatePie } from '../main'
-import { inspect } from 'util';
 
 describe("Parser Evaluate Integration Tests", () => {
   it("Evaluate Bool (no params, no indices)", () => {
@@ -31,7 +30,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (define result2 (bool-to-nat my-false))
     `;
     const result = evaluatePie(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Evaluate myNat (no params, no indices)", () => {
@@ -59,7 +57,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (define result (count two-nat))
     `;
     const result = evaluatePie(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Evaluate myList (parameterized, no indices)", () => {
@@ -90,7 +87,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (define result (nat-list-length two-elem-list))
     `;
     const result = evaluatePie(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Evaluate myVec (parameterized and indexed)", () => {
@@ -118,7 +114,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (define result (vec-to-nat (add1 zero) one-vec))
     `;
     const result = evaluatePie(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Evaluate Less-Than (no params, indexed)", () => {
@@ -148,7 +143,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (define result (extract-smaller zero (add1 zero) proof-0<1))
     `;
     const result = evaluatePie(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Evaluate myEither (parameterized, no indices)", () => {
@@ -179,6 +173,5 @@ describe("Parser Evaluate Integration Tests", () => {
     (define result2 (either-to-nat right-val))
     `;
     const result = evaluatePie(input);
-    console.log(inspect(result, true, null, true));
   });
 });

@@ -1,6 +1,5 @@
 import 'jest';
 import { schemeParse, Parser, pieDeclarationParser, Claim, Declaration, SamenessCheck} from '../parser/parser';
-import { inspect } from 'util';
 
 function testParser(input: string) {
   const parsed = schemeParse(input);
@@ -36,7 +35,6 @@ describe("Inductive Types Parser", () => {
     (define result2 (bool-to-nat my-false))
     `;
     const result = testParser(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Parse myNat (no params, no indices)", () => {
@@ -64,7 +62,6 @@ describe("Inductive Types Parser", () => {
     (define result (count two-nat))
     `;
     const result = testParser(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Parse myList (parameterized, no indices)", () => {
@@ -95,7 +92,6 @@ describe("Inductive Types Parser", () => {
     (define result (nat-list-length two-elem-list))
     `;
     const result = testParser(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Parse myVec (parameterized and indexed)", () => {
@@ -123,7 +119,6 @@ describe("Inductive Types Parser", () => {
     (define result (vec-to-nat (add1 zero) one-vec))
     `;
     const result = testParser(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Parse Less-Than (no params, indexed)", () => {
@@ -153,7 +148,6 @@ describe("Inductive Types Parser", () => {
     (define result (extract-smaller zero (add1 zero) proof-0<1))
     `;
     const result = testParser(input);
-    console.log(inspect(result, true, null, true));
   });
 
   it("Parse myEither (parameterized, no indices)", () => {
@@ -184,6 +178,5 @@ describe("Inductive Types Parser", () => {
     (define result2 (either-to-nat right-val))
     `;
     const result = testParser(input);
-    console.log(inspect(result, true, null, true));
   });
 })

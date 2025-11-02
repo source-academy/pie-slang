@@ -6,7 +6,6 @@ import { Environment } from "../utils/environment";
 import { Closure } from "./utils";
 import { fresh } from "./utils";
 import { readBack } from "../evaluator/utils";
-import { inspect } from "util";
 
 /*
     ## Values ##
@@ -632,8 +631,6 @@ export class InductiveTypeConstructor extends Value {
   ) { super() }
 
   public readBackType(context: Context): C.Core {
-    console.log('ctx in readBackType of InductiveTypeConstructor:', inspect(context, true, null, true));
-    console.log('parameters:', inspect(this.parameters, true, null, true));
     return new C.InductiveTypeConstructor(
       this.name,
       this.parameters.map(p => p.readBackType(context)),
