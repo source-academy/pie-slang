@@ -536,8 +536,8 @@ export class IndList extends Core {
 }
 
 export class Trivial extends Core {
-  
-  public valOf(_: Environment): V.Value {
+
+  public valOf(env: Environment): V.Value {
     return new V.Trivial();
   }
 
@@ -1161,8 +1161,6 @@ export class ConstructorType extends Core {
     public argTypes: Core[],
     public rec_argTypes: Core[],
     public resultType: Core,
-    public numTypeParams: number = 0,  // Number of leading args that are type parameters
-    public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
   ) { super(); }
 
   public valOf(env: Environment): V.Value {
@@ -1172,9 +1170,7 @@ export class ConstructorType extends Core {
       this.type,
       this.argTypes.map(a => a.toLazy(env)),
       this.rec_argTypes.map(a => a.toLazy(env)),
-      this.resultType,
-      this.numTypeParams,
-      this.argNames
+      this.resultType.toLazy(env),
     )
   }
 
