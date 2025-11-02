@@ -12,9 +12,7 @@ import { Eliminator } from '../types/core';
     ## Contexts ##
     A context maps free variable names to binders.
 */
-
 export type Context = Map<string, Binder>
-
 
 
 export function extendContext(ctx: Context, name: string, binder: Binder): Context {
@@ -81,7 +79,7 @@ export function addClaimToContext(ctx: Context, fun: string, funLoc: Location, t
     () => new go(
       extendContext(
         ctx,
-        fun, 
+        fun,
         new Claim(valInContext(ctx, typeOut.value))
       )
     )
@@ -217,7 +215,7 @@ export function varType(ctx: Context, where: Location, x: string): Perhaps<Value
 export function bindFree(ctx: Context, varName: string, tv: Value): Context {
   if (ctx.has(varName)) {
     // CHANGE: REMOVE ctx LOOP AFTER FIXING THE BUG
-    for (const [x, binder] of ctx) {
+    for (const [x,] of ctx) {
       if (x === varName) {
         //console.log(`binding ${varName} to ${binder}`);
         return extendContext(ctx, varName, new Free(tv));
@@ -238,20 +236,19 @@ export function bindVal(ctx: Context, varName: string, type: Value, value: Value
 
 // For informationa bout serializable contexts, see the comments in
 // normalize.rkt.
-export type SerializableContext = 
+export type SerializableContext =
   Map<string, ['free', C.Core] | ['def', C.Core, C.Core] | ['claim', C.Core]>;
 
 // Predicate to check if something is a serializable context
-export function isSerializableContext(ctx: any): ctx is SerializableContext {
+export function isSerializableContext(ctx: unknown): ctx is SerializableContext {
   return ctx instanceof Map && Array.from(ctx.values()).every(value => {
-    return Array.isArray(value) && 
-           (
-            (value[0] === 'free' && value[1] instanceof C.Core) 
-            || 
-            (value[0] === 'def' && value[1] instanceof C.Core && value[2] instanceof C.Core) 
-            || 
-            (value[0] === 'claim' && value[2] instanceof C.Core)
-          );
+    return Array.isArray(value) &&
+      (
+        (value[0] === 'free' && value[1] instanceof C.Core)
+        ||
+        (value[0] === 'def' && value[1] instanceof C.Core && value[2] instanceof C.Core)
+        ||
+        (value[0] === 'claim' && value[2] instanceof C.Core)
+      );
   });
 }
-

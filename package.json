@@ -1,34 +1,42 @@
 {
-  "name": "pie-slang",
+  "name": "@sourceacademy/pie-slang",
   "version": "1.0.0",
-  "description": "Implementation of Pie, following The Little Typer",
-  "author": "Ding Feng, Fan Haolin, Zhang Qixiang",
-  "license": "ISC",
+  "description": "Implementation of Pie in TypeScript, following the book: The Little Typer",
+  "keywords": ["Pie", "interpreter", "compiler", "Source", "The Little Typer"],
+  "author": {
+    "name": "Source Academy",
+    "url": "https://github.com/source-academy/"
+  },
+  "license": "Apache-2.0",
   "main": "dist/index.ts",
+  "files": [
+    "dist/index.js"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dingf3ng/pie-slang.git"
+    "url": "git+https://github.com/source-academy/pie-slang.git"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/highlight": "^7.25.9",
     "@babel/preset-env": "^7.26.0",
-    "@babel/preset-typescript": "^7.26.0",
+    "@babel/preset-typescript": "^7.27.1",
     "@eslint/js": "^9.15.0",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-terser": "^0.4.4",
-    "@rollup/plugin-typescript": "^12.1.2",
+    "@rollup/plugin-typescript": "^12.1.4",
     "@types/estree": "^1.0.6",
     "@types/jest": "^29.5.14",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.13.10",
-    "babel-jest": "^29.7.0",
+    "@types/node": "^24.8.1",
+    "babel-jest": "^30.2.0",
+    "esbuild": "^0.25.11",
     "eslint": "^9.15.0",
     "eslint-plugin-react": "^7.37.2",
-    "globals": "^15.12.0",
-    "jest": "^29.7.0",
+    "globals": "^16.4.0",
+    "jest": "^30.2.0",
     "resolve-cwd": "^3.0.0",
-    "rollup": "^4.37.0",
+    "rollup": "^4.46.2",
     "to-fast-properties": "^4.0.0",
     "ts-jest": "^29.2.5",
     "tslib": "^2.8.1",
@@ -38,12 +46,15 @@
   "dependencies": {
     "@google/genai": "^1.25.0",
     "@google/generative-ai": "^0.24.1",
-    "conductor": "https://github.com/source-academy/conductor.git#0.2.1",
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "conductor": "https://github.com/source-academy/conductor.git#0.3.0",
+    "js-base64": "^3.7.8"
   },
   "scripts": {
     "build": "rollup -c",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
   },
   "type": "module"
 }

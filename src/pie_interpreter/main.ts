@@ -8,7 +8,7 @@ import { The } from './types/core';
 import { readBack } from './evaluator/utils';
 import { ProofManager } from './tactics/proofmanager';
 
-export function evaluatePie(str): string {
+export function evaluatePie(str: string): string {
   const astList = schemeParse(str);
   let ctx = initCtx;
   let renaming = new Map<string, string>();
@@ -70,14 +70,14 @@ export function evaluatePie(str): string {
       }
     }
   }
-    for (const [name, binder] of ctx) {
-      if (binder instanceof Define) {
-        output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
-        output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";
-      } else {
-        output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
-      }
+  for (const [name, binder] of ctx) {
+    if (binder instanceof Define) {
+      output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
+      output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";
+    } else {
+      output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
     }
-    return output;
-  
+  }
+  return output;
+
 }

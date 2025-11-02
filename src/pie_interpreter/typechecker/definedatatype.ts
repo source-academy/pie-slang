@@ -106,8 +106,8 @@ export class GeneralConstructor {
   checkValid(ctx: Context, rename: Renaming, target: V.Value, index: number) {
     let cur_ctx = ctx
     let cur_rename = rename
-    let normalized_args = []
-    let normalized_rec_args = []
+    let normalized_args: C.Core[] = []
+    let normalized_rec_args: C.Core[] = []
 
     for (let i = 0; i < this.args.length; i++) {
       const argName = this.args[i].binder.varName
@@ -170,6 +170,7 @@ export function handleDefineDatatype(ctx: Context, rename: Renaming, target: Def
     return new stop(target.location, new Message([`Name already in use: ${target.name}`]));
   }
   let [new_ctx, new_rename] = target.normalize_constructor(ctx, rename)
+  return new go<Context>(new_ctx);
 
   
 }

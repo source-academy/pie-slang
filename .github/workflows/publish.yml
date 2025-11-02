@@ -1,0 +1,33 @@
+name: Publish to NPM
+
+on:
+  # use release trigger
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Install dependencies with yarn
+        run: yarn install
+      
+      - name: Install dependencies with npm
+        run: npm install
+      
+      - name: Build
+        run: yarn build
+      
+      - name: Publish to NPM
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

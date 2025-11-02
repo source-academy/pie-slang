@@ -6,7 +6,7 @@ import { natEqual } from './utils';
 //TODO: add else cases and throw errors
 
 /*
-  ### The Evaluators ###
+  ### Evaluator ###
 
   Functions whose names begin with "do-" are helpers that implement
   the corresponding eliminator.
@@ -34,7 +34,7 @@ export function doApp(operator: V.Value, operand: V.Value): V.Value {
       );
     }
   }
-  throw new Error(`doApp: invalid input ${[operatorNow, operand]}`);
+  throw new Error(`doApp: invalid input ${[operatorNow, operand.now()]}`);
 }
 
 /**
@@ -113,7 +113,7 @@ export function doRecNat(target: V.Value, baseType: V.Value, base: V.Value, step
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.Nat) {
       return new V.Neutral(
-        baseType, 
+        baseType,
         new N.RecNat(
           targetNow.neutral,
           new N.Norm(baseType, base),
@@ -478,7 +478,7 @@ export function doCong(target: V.Value, base: V.Value, func: V.Value): V.Value {
             new V.Pi(
               "x",
               eqType,
-              new HigherOrderClosure((x) => base)
+              new HigherOrderClosure((_) => base)
             ),
             func
           )
@@ -742,7 +742,7 @@ export function doIndEither(target: V.Value, motive: V.Value, left: V.Value, rig
       const motiveType = new V.Pi(
         "x",
         new V.Either(leftType, rightType),
-        new HigherOrderClosure((x) => new V.Universe())
+        new HigherOrderClosure((_) => new V.Universe())
       )
       return new V.Neutral(
         doApp(motive, target),

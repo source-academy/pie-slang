@@ -96,7 +96,7 @@ export class Delay extends Value {
   public now(): Value {
     const boxContent = this.val.get();
     if (boxContent instanceof DelayClosure) {
-      let theValue = boxContent.undelay();
+      const theValue = boxContent.undelay();
       this.val.set(theValue);
       return theValue;
     } else { // content is a Value (content instanceof Value).
@@ -121,7 +121,7 @@ export class Delay extends Value {
 export class Quote extends Value {
   constructor(public name: string) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Quote.");
   }
 
@@ -138,7 +138,7 @@ export class Quote extends Value {
 export class Nat extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Nat();
   }
 
@@ -155,7 +155,7 @@ export class Nat extends Value {
 export class Zero extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Zero.");
   }
 
@@ -173,7 +173,7 @@ export class Add1 extends Value {
 
   constructor(public smaller: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Add1.");
   }
 
@@ -227,7 +227,7 @@ export class Lambda extends Value {
     public body: Closure
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Lambda.");
   }
 
@@ -280,7 +280,7 @@ export class Cons extends Value {
     public cdr: Value
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Cons.");
   }
 
@@ -315,7 +315,7 @@ export class List extends Value {
 export class Nil extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Nil.");
   }
 
@@ -336,7 +336,7 @@ export class ListCons extends Value {
     public tail: Value
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for ListCons.");
   }
 
@@ -381,7 +381,7 @@ export class Same extends Value {
 
   constructor(public value: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Same.");
   }
 
@@ -419,7 +419,7 @@ export class VecNil extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for VecNil.");
   }
 
@@ -440,7 +440,7 @@ export class VecCons extends Value {
     public tail: Value
   ) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for VecCons.");
   }
 
@@ -482,7 +482,7 @@ export class Left extends Value {
 
   constructor(public value: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Left.");
   }
 
@@ -499,7 +499,7 @@ export class Left extends Value {
 export class Right extends Value {
   constructor(public value: Value) { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Right.");
   }
 
@@ -537,7 +537,7 @@ export class Universe extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Universe();
   }
 
@@ -557,7 +557,7 @@ export class Atom extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Atom();
   }
 
@@ -574,7 +574,7 @@ export class Atom extends Value {
 export class Trivial extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Trivial();
   }
 
@@ -590,7 +590,7 @@ export class Trivial extends Value {
 export class Sole extends Value {
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     throw new Error("No readBackType for Sole.");
   }
 
@@ -609,7 +609,7 @@ export class Absurd extends Value {
 
   constructor() { super() }
 
-  public readBackType(context: Context): C.Core {
+  public readBackType(_: Context): C.Core {
     return new C.Absurd();
   }
 

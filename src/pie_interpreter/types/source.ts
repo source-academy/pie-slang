@@ -3,7 +3,7 @@ import * as V from './value';
 import * as N from './neutral';
 import * as S from './source';
 
-import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename} from '../typechecker/utils';
+import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename } from '../typechecker/utils';
 import { Location, notForInfo } from '../utils/locations';
 import { bindFree, Context, readBackContext, valInContext, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder, EliminatorBinder, contextToEnvironment } from '../utils/context';
 import { extendEnvironment } from '../utils/environment';
@@ -53,13 +53,13 @@ export abstract class Source {
     } else if (checkType instanceof stop) {
       if (this instanceof Name && isVarName(this.name)) {
         const otherTv = new PerhapsM<V.Value>("other-tv");
-        return new goOn(
+        return goOn(
           [
-            [otherTv, 
+            [otherTv,
               () => varType(ctx, this.location, this.name)]
           ],
           () => {
-            new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
+            return new stop(this.location, new Message([`Expected U, but given ${otherTv.value.readBackType(ctx)}`]));
           }
         );
       } else {
@@ -82,7 +82,7 @@ export abstract class Source {
 
   public synth(ctx: Context, renames: Renaming): Perhaps<C.The> {
     const ok = new PerhapsM<C.The>("ok");
-    
+
     return goOn(
       [[ok, () => this.synthHelper(ctx, renames)]],
       () => {
@@ -111,15 +111,15 @@ export abstract class Source {
 
 
 export class The extends Source {
-  
+
   constructor(
     public location: Location,
     public type: Source,
     public value: Source,
-  ) { 
+  ) {
     super(location);
   }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthThe(ctx, renames, this.type, this.value);
   }
@@ -153,7 +153,7 @@ export class Universe extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Universe());
   }
 
@@ -181,7 +181,7 @@ export class Nat extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Nat());
   }
 
@@ -196,11 +196,11 @@ export class Nat extends Source {
 }
 
 export class Zero extends Source {
-  
+
   constructor(
     public location: Location,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthZero(ctx, renames);
   }
@@ -221,7 +221,7 @@ export class Zero extends Source {
 
 
 export class Add1 extends Source {
-  
+
   constructor(
     public location: Location,
     public base: Source,
@@ -246,7 +246,7 @@ export class Add1 extends Source {
 }
 
 export class WhichNat extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
@@ -350,7 +350,7 @@ export class IndNat extends Source {
     public step: Source,
   ) { super(location); }
 
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthIndNat(ctx, renames, this.target, this.motive, this.base, this.step);
   }
@@ -372,7 +372,7 @@ export class IndNat extends Source {
   public toString(): string {
     return this.prettyPrint();
   }
-  
+
 }
 
 // Function types and operations
@@ -405,10 +405,10 @@ export class Arrow extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [Bout, 
-            () => 
+          [Bout,
+            () =>
               B.isType(
-                bindFree(ctx, x, valInContext(ctx, Aout.value)), 
+                bindFree(ctx, x, valInContext(ctx, Aout.value)),
                 renames)
           ]
         ],
@@ -426,11 +426,11 @@ export class Arrow extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [tout, 
-            () => 
+          [tout,
+            () =>
               new Arrow(
                 notForInfo(this.location),
-                B, 
+                B,
                 rest0,
                 rest
               ).isType(
@@ -461,7 +461,7 @@ export class Pi extends Source {
     public binders: TypedBinder[],
     public body: Source,
   ) { super(location); }
-  
+
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthPi(ctx, renames, this.location, this.binders, this.body);
@@ -485,10 +485,10 @@ export class Pi extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [Aoutv, () => 
+          [Aoutv, () =>
             new go(valInContext(ctx, Aout.value))
           ],
-          [Bout, () => 
+          [Bout, () =>
             B.isType(
               bindFree(ctx, y, Aoutv.value),
               extendRenaming(renames, bd.varName, y)
@@ -517,12 +517,12 @@ export class Pi extends Source {
       return goOn(
         [
           [Aout, () => A.isType(ctx, renames)],
-          [Aoutv, () => 
+          [Aoutv, () =>
             new go(valInContext(ctx, Aout.value))
           ],
-          [Bout, () => 
+          [Bout, () =>
             new Pi(
-              notForInfo(this.location), 
+              notForInfo(this.location),
               rest,
               B
             ).isType(
@@ -566,13 +566,13 @@ export class Lambda extends Source {
     public binders: SiteBinder[],
     public body: Source,
   ) { super(location); }
-  
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
-  public findNames(): string[] { 
+  public findNames(): string[] {
     return this.binders.map(binder => binder.varName)
       .concat(this.body.findNames());
   }
@@ -592,13 +592,13 @@ export class Lambda extends Source {
         return goOn(
           [
             [
-              bout, 
+              bout,
               () => body.check(
                 bindFree(ctx, xRenamed, A),
                 extendRenaming(renames, x, xRenamed),
                 closure.valOfClosure(
                   new V.Neutral(
-                    A, 
+                    A,
                     new N.Variable(xRenamed)
                   )
                 )
@@ -612,7 +612,7 @@ export class Lambda extends Source {
         );
       } else {
         return new stop(
-          xLoc, 
+          xLoc,
           new Message([`Not a function type: ${typeNow.readBackType(ctx)}.`])
         );
       }
@@ -620,11 +620,11 @@ export class Lambda extends Source {
       return (new S.Lambda(
         this.location,
         [this.binders[0]],
-          (new S.Lambda(
-            notForInfo(this.location),
-            this.binders.slice(1), 
-            this.body))
-          )).check(ctx, renames, type);
+        (new S.Lambda(
+          notForInfo(this.location),
+          this.binders.slice(1),
+          this.body))
+      )).check(ctx, renames, type);
     }
   }
 
@@ -670,7 +670,7 @@ export class Sigma extends Source {
         [
           [Aout, () => A.isType(ctx, renames)],
           [Aoutv, () => new go(valInContext(ctx, Aout.value))],
-          [Dout, () => 
+          [Dout, () =>
             D.isType(
               bindFree(ctx, y, Aoutv.value),
               extendRenaming(renames, x, y)
@@ -685,7 +685,7 @@ export class Sigma extends Source {
         }
       );
     } else if (binders.length > 1) {
-      const [[bd, A], ...rest] 
+      const [[bd, A], ...rest]
         = [[binders[0].binder, binders[0].type], binders[1], ...binders.slice(2)];
       const x = bd.varName;
       const z = fresh(ctx, x);
@@ -697,12 +697,12 @@ export class Sigma extends Source {
         [
           [Aout, () => A.isType(ctx, renames)],
           [Aoutv, () => new go(valInContext(ctx, Aout.value))],
-          [Dout, () => 
+          [Dout, () =>
             new Sigma(this.location, rest, D)
-            .isType(
-              bindFree(ctx, x, Aoutv.value),
-              extendRenaming(renames, x, z)
-            )
+              .isType(
+                bindFree(ctx, x, Aoutv.value),
+                extendRenaming(renames, x, z)
+              )
           ]
         ],
         () => {
@@ -734,7 +734,7 @@ export class Name extends Source {
     public location: Location,
     public name: string,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthName(ctx, renames, this.location, this.name);
   }
@@ -767,7 +767,7 @@ export class Atom extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Atom());
   }
 
@@ -832,7 +832,7 @@ export class Pair extends Source {
       [
         [Aout, () => this.first.isType(ctx, renames)],
         [Dout, () => this.second.isType(
-          bindFree(ctx, x, valInContext(ctx, Aout.value)), 
+          bindFree(ctx, x, valInContext(ctx, Aout.value)),
           renames)],
       ],
       () => new go(new C.Sigma(x, Aout.value, Dout.value))
@@ -857,7 +857,7 @@ export class Cons extends Source {
     public second: Source,
   ) { super(location); }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -878,11 +878,11 @@ export class Cons extends Source {
         [
           [aout, () => this.first.check(ctx, renames, A)],
           [
-            dout, 
-            () => 
+            dout,
+            () =>
               this.second.check(
-                ctx, 
-                renames, 
+                ctx,
+                renames,
                 closure.valOfClosure(valInContext(ctx, aout.value))
               )
           ]
@@ -975,7 +975,7 @@ export class Trivial extends Source {
     return [];
   }
 
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Trivial());
   }
 
@@ -998,7 +998,7 @@ export class Sole extends Source {
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthSole(ctx, renames);
-  }  
+  }
 
   public findNames(): string[] {
     return [];
@@ -1011,12 +1011,12 @@ export class Sole extends Source {
 }
 
 export class Nil extends Source {
-  
+
   constructor(
-    public location: Location 
+    public location: Location
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1030,7 +1030,7 @@ export class Nil extends Source {
       return new go(new C.Nil());
     } else {
       return new stop(
-        this.location, 
+        this.location,
         new Message([`nil requires a List type, but was used as a: ${typeNow.readBackType(ctx)}.`])
       );
     }
@@ -1052,7 +1052,7 @@ export class Number extends Source {
     public location: Location,
     public value: number,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthNumber(ctx, renames, this.location, this.value);
   }
@@ -1077,7 +1077,7 @@ export class List extends Source {
     public location: Location,
     public entryType: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthList(ctx, renames, this);
   }
@@ -1107,13 +1107,13 @@ export class List extends Source {
 
 
 export class ListCons extends Source {
-  
+
   constructor(
     public location: Location,
     public x: Source,
     public xs: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthListCons(ctx, renames, this.x, this.xs);
   }
@@ -1134,14 +1134,14 @@ export class ListCons extends Source {
 }
 
 export class RecList extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
     public base: Source,
     public step: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthRecList(ctx, renames, this.location, this.target, this.base, this.step);
   }
@@ -1165,7 +1165,7 @@ export class RecList extends Source {
 }
 
 export class IndList extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
@@ -1173,11 +1173,11 @@ export class IndList extends Source {
     public base: Source,
     public step: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthIndList(ctx, renames, this.location, this.target, this.motive, this.base, this.step);
   }
-  
+
   public findNames(): string[] {
     return this.target.findNames()
       .concat(this.motive.findNames())
@@ -1200,11 +1200,11 @@ export class IndList extends Source {
 
 // Absurd and its operations
 export class Absurd extends Source {
-  
+
   constructor(
     public location: Location,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthAbsurd(ctx, renames, this);
   }
@@ -1212,7 +1212,7 @@ export class Absurd extends Source {
   public findNames(): string[] {
     return [];
   }
-  public getType(ctx: Context, renames: Renaming): Perhaps<C.Core> {
+  public getType(_ctx: Context, _renames: Renaming): Perhaps<C.Core> {
     return new go(new C.Absurd());
   }
 
@@ -1269,7 +1269,7 @@ export class Equal extends Source {
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthEqual(ctx, renames, this.type, this.left, this.right);
   }
-  
+
 
   public findNames(): string[] {
     return this.type.findNames()
@@ -1299,7 +1299,7 @@ export class Equal extends Source {
   public prettyPrint(): string {
     return `(= ${this.type.prettyPrint()} 
               ${this.left.prettyPrint()} 
-              ${this.right.prettyPrint()})`;  
+              ${this.right.prettyPrint()})`;
   }
 
   public toString(): string {
@@ -1315,12 +1315,12 @@ export class Same extends Source {
     public type: Source,
   ) { super(location); }
 
-  
+
   public findNames(): string[] {
     return this.type.findNames();
   }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1337,7 +1337,7 @@ export class Same extends Source {
           [cout, () => this.type.check(ctx, renames, A)],
           [val, () => new go(valInContext(ctx, cout.value))],
           [
-            new PerhapsM<undefined>("_"), 
+            new PerhapsM<undefined>("_"),
             () => convert(ctx, this.type.location, A, from, val.value)
           ],
           [
@@ -1366,18 +1366,18 @@ export class Same extends Source {
 }
 
 export class Replace extends Source {
-  
+
   constructor(
     public location: Location,
     public target: Source,
     public motive: Source,
     public base: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthReplace(ctx, renames, this.location, this.target, this.motive, this.base);
   }
-  
+
   public findNames(): string[] {
     return this.target.findNames()
       .concat(this.motive.findNames())
@@ -1545,12 +1545,12 @@ export class Vec extends Source {
 }
 
 export class VecNil extends Source {
-  
+
   constructor(
     public location: Location,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1593,11 +1593,11 @@ export class VecCons extends Source {
     public x: Source,
     public xs: Source,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
-    
+
   public findNames(): string[] {
     return this.x.findNames()
       .concat(this.xs.findNames());
@@ -1614,7 +1614,7 @@ export class VecCons extends Source {
         return goOn(
           [
             [hout, () => this.x.check(ctx, renames, typeNow.entryType)],
-            [tout, () => 
+            [tout, () =>
               this.xs.check(ctx, renames, new V.Vec(typeNow.entryType, n_minus_1))
             ]
           ],
@@ -1708,10 +1708,10 @@ export class IndVec extends Source {
   ) { super(location); }
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
-    return Synth.synthIndVec(ctx, renames, this.location, 
+    return Synth.synthIndVec(ctx, renames, this.location,
       this.length, this.target, this.motive, this.base, this.step);
   }
-  
+
   public findNames(): string[] {
     return this.length.findNames()
       .concat(this.target.findNames())
@@ -1742,7 +1742,7 @@ export class Either extends Source {
     public left: Source,
     public right: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthEither(ctx, renames, this.left, this.right);
   }
@@ -1779,8 +1779,8 @@ export class Left extends Source {
     public location: Location,
     public value: Source,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1821,8 +1821,8 @@ export class Right extends Source {
     public location: Location,
     public value: Source,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1866,10 +1866,10 @@ export class IndEither extends Source {
     public baseLeft: Source,
     public baseRight: Source,
   ) { super(location); }
-  
+
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
     return Synth.synthIndEither(ctx, renames, this.location, this.target, this.motive, this.baseLeft, this.baseRight);
-  }  
+  }
 
   public findNames(): string[] {
     return this.target.findNames()
@@ -1896,11 +1896,11 @@ export class TODO extends Source {
   constructor(
     public location: Location,
   ) { super(location); }
-  
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
-  
+
   public findNames(): string[] {
     return [];
   }
@@ -1995,9 +1995,9 @@ export class GeneralType extends Source {
   public getType(ctx: Context, rename: Renaming): Perhaps<C.Core> {
 
     let cur_ctx = ctx
-    let cur_rename = rename 
-    let normalizedParamType = []
-    let normalizedIndicesType = []
+    let cur_rename = rename
+    let normalizedParamType: C.Core[] = []
+    let normalizedIndicesType: C.Core[] = []
     for (let i = 0; i < this.paramType.length; i++) {
       const fresh_name = fresh(cur_ctx, this.paramType[i].binder.varName)
       const resultTemp = this.paramType[i].type.isType(cur_ctx, cur_rename)
@@ -2086,8 +2086,8 @@ export class GeneralTypeConstructor extends Source {
     let cur_val = target.now()
     let cur_ctx = ctx
     let cur_rename = renames
-    let normalized_params = []
-    let normalized_indices = []
+    let normalized_params: C.Core[] = []
+    let normalized_indices: C.Core[] = []
 
     //TODO: verify name sameness check is not necessary
 
@@ -2256,8 +2256,8 @@ export class ConstructorApplication extends Source {
     console.log('Extracted index argument names:', indexArgNames);
 
     // Now check arguments using the substituted environment
-    let normalized_args = [];
-    let normalized_rec_args = [];
+    let normalized_args: C.Core[] = [];
+    let normalized_rec_args: C.Core[] = [];
 
     const allArgTypes = [...ctorType.argTypes, ...ctorType.rec_argTypes];
 

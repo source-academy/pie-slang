@@ -1,14 +1,14 @@
 import { ProofState, Goal, GoalNode } from './proofstate';
 import { Perhaps, go, stop, Message, FirstOrderClosure, HigherOrderClosure } from '../types/utils';
 import { Source } from '../types/source';
-import { Core, Universe } from '../types/core';
-import { Value, Lambda, Pi, Neutral, Nat } from '../types/value';
-import { bindFree, Claim, Context, contextToEnvironment, Define, extendContext, Free, valInContext } from '../utils/context';
-import { readBack } from '../evaluator/utils';
-import { doApp, doCar, indVecStepType } from '../evaluator/evaluator';
+import { Core } from '../types/core';
+import { Value, Pi, Neutral, Nat } from '../types/value';
+import { Context, contextToEnvironment, Define, extendContext, Free, valInContext } from '../utils/context';
+
+import { doApp, indVecStepType } from '../evaluator/evaluator';
 import { fresh } from '../types/utils';
 import { Variable } from '../types/neutral';
-import { convert, extendRenaming, Renaming, sameType } from '../typechecker/utils';
+import { convert, extendRenaming, Renaming} from '../typechecker/utils';
 import { Location } from '../utils/locations';
 import * as V from '../types/value';
 import * as C from '../types/core';
@@ -49,7 +49,7 @@ export class IntroTactic extends Tactic {
 
     const name = this.varName || goalType.argName || fresh(currentGoal.context, "x");
 
-    let newRenaming = currentGoal.renaming
+    const newRenaming = currentGoal.renaming
     if (name !== goalType.argName) {
       extendRenaming(newRenaming, goalType.argName, name)
     }
@@ -123,7 +123,7 @@ export class ExistsTactic extends Tactic {
 
     const name = this.varName || goalType.carName || fresh(currentGoal.context, "x");
 
-    let newRenaming = currentGoal.renaming
+    const newRenaming = currentGoal.renaming
     if (name !== goalType.carName) {
       extendRenaming(newRenaming, goalType.carName, name)
     }

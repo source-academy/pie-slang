@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pie Playground</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="editor-header">
+        <h2 class="panel-title editor-title">
+          <span class="panel-icon">π</span>
+          Pie Playground
+        </h2>
+        <select id="example-picker" class="example-picker">
+          <option value="">Examples</option>
+        </select>
+      </div>
+      <div id="editor"></div>
+      <div id="preview-summary" class="panel-title preview-summary">
+        Start typing to see feedback.
+      </div>
+      <pre id="preview-output" class="preview-code"></pre>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.min.js"></script>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
