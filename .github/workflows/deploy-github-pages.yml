@@ -1,0 +1,48 @@
+name: Deploy to GitHub Pages
+
+on:
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+  push:
+    branches:
+      - main  # Optional: also trigger on push to main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to push to gh-pages branch
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      
+      - name: Install dependencies with yarn
+        run: yarn install
+      
+      - name: Install dependencies with npm
+        run: npm install
+      
+      - name: Build project
+        run: yarn build
+      
+      - name: Verify dist/index.js exists
+        run: |
+          if [ ! -f "dist/index.js" ]; then
+            echo "Error: dist/index.js was not created by the build"
+            exit 1
+          fi
+          echo "dist/index.js found successfully"
+          ls -lh dist/
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          commit_message: 'Deploy dist/index.js to GitHub Pages'
