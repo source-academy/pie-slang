@@ -1,8 +1,9 @@
 import * as V from "../types/value";
 import * as C from '../types/core';
 import * as N from '../types/neutral';
-import { fresh } from '../types/utils';
-import { bindFree, Context, ConstructorTypeBinder, valInContext } from '../utils/context';
+import { fresh, extractVarNamesFromValue } from '../types/utils';
+import { bindFree, Context, ConstructorTypeBinder, valInContext, contextToEnvironment } from '../utils/context';
+import { extendEnvironment } from '../utils/environment';
 import { doApp, doCar, doCdr } from "./evaluator";
 
 /**
@@ -179,7 +180,7 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
   } else if (typeNow instanceof V.InductiveTypeConstructor
     && valueNow instanceof V.Constructor) {
     // Read back constructor applications
-    // We need to get the constructor's type information to read back its arguments
+    // Need to substitute concrete parameters from expected type into constructor arg types
     let ctorBinder: ConstructorTypeBinder | undefined;
     for (const [name, binder] of context) {
       if (name === valueNow.name && binder instanceof ConstructorTypeBinder) {
@@ -192,22 +193,75 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
       throw new Error(`Constructor ${valueNow.name} not found in context`);
     }
 
-    // Get the constructor type (C.ConstructorType) and evaluate to get Value types
-    const ctorTypeCoreValue = ctorBinder.constructorType;
-    const ctorTypeValue = valInContext(context, ctorTypeCoreValue) as V.ConstructorType;
+    // Get constructor type (Core) - contains abstract parameters like VarName("E")
+    const ctorTypeCore = ctorBinder.constructorType;
+    const resultTypeCore = ctorTypeCore.resultType as C.InductiveTypeConstructor;
 
-    // Read back non-recursive arguments
-    const readBackArgs: C.Core[] = [];
-    for (let i = 0; i < valueNow.args.length; i++) {
-      const argType = ctorTypeValue.argTypes[i];
-      readBackArgs.push(readBack(context, argType, valueNow.args[i]));
+    // Build substitution environment: parameter names -> concrete values
+    // Same pattern as ConstructorApplication.checkOut
+    let substEnv = contextToEnvironment(context);
+
+    // Extract parameter names from constructor's return type and map to concrete values
+    for (let i = 0; i < resultTypeCore.parameters.length; i++) {
+      const paramCore = resultTypeCore.parameters[i];
+      if (paramCore instanceof C.VarName) {
+        const paramName = paramCore.name;
+        const concreteValue = typeNow.parameters[i].now();
+        // Override abstract binding (E -> Neutral) with concrete (E -> Nat)
+        substEnv = extendEnvironment(substEnv, paramName, concreteValue);
+      }
     }
 
-    // Read back recursive arguments
+    // Similarly for indices
+    for (let i = 0; i < resultTypeCore.indices.length; i++) {
+      const indexCore = resultTypeCore.indices[i];
+      if (indexCore instanceof C.VarName) {
+        const indexName = indexCore.name;
+        const concreteValue = typeNow.indices[i].now();
+        substEnv = extendEnvironment(substEnv, indexName, concreteValue);
+      }
+    }
+
+    // Extract constructor argument names from the return type Value (indices only!)
+    // We only need to track INDEX arguments for incremental substitution, not parameters
+    const returnTypeValue = ctorBinder.type; // V.InductiveTypeConstructor
+    const indexArgNames: string[] = [];
+    returnTypeValue.indices.forEach(i => {
+      indexArgNames.push(...extractVarNamesFromValue(i));
+    });
+
+    // Read back arguments with incremental substitution
+    const readBackArgs: C.Core[] = [];
+    for (let i = 0; i < valueNow.args.length; i++) {
+      const argTypeCore = ctorTypeCore.argTypes[i];
+      const argTypeValue = argTypeCore.valOf(substEnv);
+      const readBackArg = readBack(context, argTypeValue.now(), valueNow.args[i]);
+      readBackArgs.push(readBackArg);
+
+      // Extend substEnv with this argument's value for subsequent arguments
+      if (i < indexArgNames.length) {
+        const argName = indexArgNames[i];
+        const argValue = valueNow.args[i].now();
+        substEnv = extendEnvironment(substEnv, argName, argValue);
+      }
+    }
+
+    // Read back recursive arguments with incremental substitution
     const readBackRecArgs: C.Core[] = [];
+    const recArgStartIdx = valueNow.args.length;
     for (let i = 0; i < valueNow.recursive_args.length; i++) {
-      const recArgType = ctorTypeValue.rec_argTypes[i];
-      readBackRecArgs.push(readBack(context, recArgType, valueNow.recursive_args[i]));
+      const recArgTypeCore = ctorTypeCore.rec_argTypes[i];
+      const recArgTypeValue = recArgTypeCore.valOf(substEnv);
+      const readBackRecArg = readBack(context, recArgTypeValue.now(), valueNow.recursive_args[i]);
+      readBackRecArgs.push(readBackRecArg);
+
+      // Extend substEnv with this recursive argument's value
+      const argNameIdx = recArgStartIdx + i;
+      if (argNameIdx < indexArgNames.length) {
+        const argName = indexArgNames[argNameIdx];
+        const recArgValue = valueNow.recursive_args[i].now();
+        substEnv = extendEnvironment(substEnv, argName, recArgValue);
+      }
     }
 
     return new C.Constructor(

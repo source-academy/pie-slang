@@ -647,7 +647,7 @@ export class InductiveTypeConstructor extends Value {
               } else {
                 return readBack(context, new Nat(), iNow);
               }
-            } catch {
+            } catch (e) {
               // If evaluation fails due to free variables, return the Core expression as-is
               // This preserves VarNames and other constructs
               return boxContent.expr;
@@ -717,7 +717,7 @@ export class Constructor extends Value {
     public recursive_args: Value[],
   ) { super() }
 
-  public readBackType(_: Context): C.Core {
+  public readBackType(context: Context): C.Core {
     throw new Error("No readBackType for Constructor.");
   }
 
@@ -738,12 +738,12 @@ export class ConstructorType extends Value {
     public type: string,
     public argTypes: Value[],
     public rec_argTypes: Value[],
-    public resultType: C.Core,
+    public resultType: Value,
     public numTypeParams: number = 0,  // Number of leading args that are type parameters
     public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
 
   ) {super()}
-  public readBackType(_: Context): C.Core {
+  public readBackType(context: Context): C.Core {
     throw Error('Method not implemented')
   }
   public prettyPrint(): string {

@@ -1,16 +1,13 @@
 import * as C from '../types/core';
-import {
-  InductiveType, Neutral, Universe, Value, InductiveTypeConstructor
-} from '../types/value';
+import { InductiveType, Neutral, Universe, Value, Constructor, InductiveTypeConstructor } from '../types/value';
 
 import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
 import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
-import { Source } from '../types/source';
+import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
-
-
+import { Eliminator } from '../types/core';
 /*
     ## Contexts ##
     A context maps free variable names to binders.
@@ -136,7 +133,7 @@ export function contextToEnvironment(ctx: Context): Environment {
   return env;
 }
 
-export function getInductiveType(ctx: Context, where: Location, name: string): Perhaps<InductiveDatatypeBinder> {
+export function getInductiveType(ctx: Context, where: Location, name:string): Perhaps<InductiveDatatypeBinder> {
   for (const [n, binder] of ctx) {
     if (binder instanceof InductiveDatatypeBinder && n === name) {
       return new go(binder);
@@ -172,10 +169,10 @@ export class Free extends Binder {
 
 export class InductiveDatatypeBinder extends Binder {
   constructor(
-    public name: string,
+    public name: string, 
     public type: InductiveType) {
-    super()
-  }
+      super()
+    }
 }
 
 export class ConstructorTypeBinder extends Binder {
@@ -184,16 +181,16 @@ export class ConstructorTypeBinder extends Binder {
     public constructorType: C.ConstructorType,
     public type: InductiveTypeConstructor
   ) {
-    super()
-  }
+      super()
+    }
 }
 
 export class EliminatorBinder extends Binder {
   constructor(
-    public name: string,
+    public name: string, 
     public type: Value) {
-    super()
-  }
+      super()
+    }
 }
 
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {

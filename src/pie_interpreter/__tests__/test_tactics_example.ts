@@ -209,14 +209,12 @@ U ))
 
 (define-tactically even-or-odd
   ( (intro n)
-    (elimNat n mot-even-or-odd)
+    (elimNat n)
     (left)
     (exact zero-is-even)
     (intro n-1)
     (intro e-or-on-1)
-    (elimEither e-or-on-1 (λ (e-or-on-1)
-(mot-even-or-odd
-(add1 n-1))))
+    (elimEither e-or-on-1)
     (intro xr)
     (right)
     (exact ((add1-even->odd n-1) xr))
