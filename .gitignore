@@ -10,6 +10,10 @@ web/*-bundle.js.map
 COPYING
 yarn.lock
 package-lock.json
+
+# Environment variables (contains API keys)
+.env
+.env.local
 /src/**/*.js
 /src/**/*.js.map
 /src/**/*.d.ts

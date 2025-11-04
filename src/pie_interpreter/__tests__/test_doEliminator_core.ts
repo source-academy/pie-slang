@@ -37,8 +37,8 @@ export function createListExample(): {
     1,       // constructor index
     "List",  // type
     [
-      new C.Add1(new C.Add1(new C.Add1(new C.Zero())))  // head = 3
-    ],       // non-recursive arguments
+      new C.Add1(new C.Add1(new C.Add1(new C.Zero())))
+    ],       // arguments (just head, not tail)
     [nilConstructor]  // recursive arguments (tail)
   );
 
@@ -47,7 +47,7 @@ export function createListExample(): {
     "cons",  // name
     1,       // constructor index
     "List",  // type
-    [new C.Add1(new C.Add1(new C.Zero()))], // head = 2 (non-recursive argument)
+    [new C.Add1(new C.Add1(new C.Zero()))], // just head
     [cons3Nil]  // recursive arguments (tail)
   );
 
@@ -236,7 +236,6 @@ describe("doEliminator tests", () => {
       );
       const context: Context = new Map();
       const normalizedResult = readBack(context, new V.Nat(), listResult);
-      console.log("List elimination result (normalized):", normalizedResult);
     }).not.toThrow();
   });
 

@@ -1,7 +1,10 @@
 import { Source } from "./source"
 import { Core } from "./core"
+import * as C from "./core";
 import { Location } from "../utils/locations";
 import { Value } from "./value";
+import * as V from "./value";
+import * as N from "./neutral";
 import { Environment, extendEnvironment} from "../utils/environment";
 import { Context } from "../utils/context";
 import { freshen } from "../utils/fresh";
@@ -292,4 +295,68 @@ export function freshBinder(ctx: Context, src: Source, name: string): string {
 
 export function occurringBinderNames(binder: TypedBinder): string[] {
   return [binder.binder.varName].concat(binder.type.findNames());
+}
+
+/*
+  ## Extract variable names from Values ##
+
+  Used to extract constructor argument names from the constructor's return type.
+  For example, given return type (Less-Than () ((add1 j) (add1 k))),
+  this extracts ["j", "k"] by traversing the value structure.
+*/
+
+export function extractVarNamesFromValue(val: Value): string[] {
+  const names: string[] = [];
+  collectVarNames(val, names);
+  return names;
+}
+
+function collectVarNames(val: Value, names: string[]): void {
+  // Handle Delay specially - don't force it, traverse its closure
+  if (val instanceof V.Delay) {
+    const boxContent = val.val.get();
+    if (boxContent instanceof V.DelayClosure) {
+      // Traverse the Core expression in the closure to find VarNames
+      collectVarNamesFromCore(boxContent.expr, names);
+      return;
+    } else {
+      // Already evaluated - proceed with the value
+      val = boxContent as Value;
+    }
+  }
+
+  const valNow = val.now();
+
+  // Variable reference - add the name
+  if (valNow instanceof V.Neutral && valNow.neutral instanceof N.Variable) {
+    if (!names.includes(valNow.neutral.name)) {
+      names.push(valNow.neutral.name);
+    }
+  }
+  // Add1 - recurse into the smaller value
+  else if (valNow instanceof V.Add1) {
+    collectVarNames(valNow.smaller, names);
+  }
+  // Inductive type constructor - recurse into parameters and indices
+  else if (valNow instanceof V.InductiveTypeConstructor) {
+    valNow.parameters.forEach(p => collectVarNames(p, names));
+    valNow.indices.forEach(i => collectVarNames(i, names));
+  }
+  // Add other composite value types as needed
+  // For now, these cover the common cases for indexed constructors
+}
+
+// Helper to extract VarNames from Core expressions (for Delay closures)
+function collectVarNamesFromCore(core: C.Core, names: string[]): void {
+  if (core instanceof C.VarName) {
+    if (!names.includes(core.name)) {
+      names.push(core.name);
+    }
+  } else if (core instanceof C.Add1) {
+    collectVarNamesFromCore(core.n, names);
+  } else if (core instanceof C.InductiveTypeConstructor) {
+    core.parameters.forEach(p => collectVarNamesFromCore(p, names));
+    core.indices.forEach(i => collectVarNamesFromCore(i, names));
+  }
+  // Add other composite Core types as needed
 }
