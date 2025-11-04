@@ -38,11 +38,20 @@ jobs:
           fi
           echo "dist/index.js found successfully"
           ls -lh dist/
-      
+
+      - name: Prepare deployment directory
+        run: |
+          mkdir -p deploy
+          cp -r dist deploy/dist
+          cp -r web deploy/pie-playground
+          cp github-pages-index.html deploy/index.html
+          echo "Deployment directory structure:"
+          ls -lR deploy/
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./deploy
           publish_branch: gh-pages
-          commit_message: 'Deploy dist/index.js to GitHub Pages'
+          commit_message: 'Deploy dist and Pie Playground to GitHub Pages'
