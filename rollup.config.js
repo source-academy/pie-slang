@@ -1,6 +1,8 @@
 import nodeResolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import typescript from '@rollup/plugin-typescript';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Plugin to stub out Node.js built-in modules for browser bundles
 function stubNodeBuiltins() {
@@ -49,6 +51,20 @@ export default [
       sourcemap: true
     },
     plugins: [
+      (function workerTodoSolverStub() {
+        const filename = fileURLToPath(import.meta.url);
+        const dirname = path.dirname(filename);
+        const browserTodoSolverPath = path.resolve(dirname, 'src/pie_interpreter/try_llm/todo_solver.browser.ts');
+        return {
+          name: 'worker-todo-solver-stub',
+          resolveId(source) {
+            if (source === '../try_llm/todo_solver') {
+              return browserTodoSolverPath;
+            }
+            return null;
+          }
+        };
+      })(),
       stubNodeBuiltins(), // Stub out Node.js modules before other plugins
       typescript({
         tsconfig: false,
