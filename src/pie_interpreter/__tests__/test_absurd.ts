@@ -17,7 +17,7 @@ describe("absurd", () => {
     })
 
     it("trivial tactic", () => {
-        const str = 
+        const str =
         `
         (claim test_absurd
   (Pi ((x Absurd) (B U))
@@ -25,7 +25,7 @@ describe("absurd", () => {
 (define-tactically test_absurd
     ((intro x)
      (intro B)
-     (elimAbsurd x B)))
+     (elimAbsurd x)))
         `
         console.log(evaluatePie(str))})
 })

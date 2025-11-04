@@ -4,6 +4,8 @@ import { Context, Claim} from '../utils/context';
 
 import { Location } from '../utils/locations';
 import { Perhaps, go, stop, Message } from '../types/utils';
+import { readBack } from '../evaluator/utils';
+import { Value } from '../types/value';
 
 export class ProofManager {
   public currentState: ProofState | null = null;

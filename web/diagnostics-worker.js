@@ -27,6 +27,9 @@ let initializationError = null;
   }
 })();
 
+console.log('[Worker] Diagnostics worker loaded successfully');
+console.log('[Worker] analyzePieSource:', typeof analyzePieSource);
+
 self.onmessage = event => {
   console.log('[Worker] Received message:', event.data);
   const { type, payload } = event.data ?? {};
