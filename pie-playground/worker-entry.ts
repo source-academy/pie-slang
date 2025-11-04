@@ -1,11 +1,12 @@
-import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically, Tactic } from '../src/pie_interpreter/parser/parser';
+import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from '../src/pie_interpreter/parser/parser';
 import { initCtx, addClaimToContext, addDefineToContext, Context, Define } from '../src/pie_interpreter/utils/context';
 import { checkSame, represent } from '../src/pie_interpreter/typechecker/represent';
 import { go, stop, Message } from '../src/pie_interpreter/types/utils';
-import { type Location } from '../src/pie_interpreter/utils/locations';
 import { ProofManager } from '../src/pie_interpreter/tactics/proofmanager';
 import { readBack } from '../src/pie_interpreter/evaluator/utils';
 import { prettyPrintCore } from '../src/pie_interpreter/unparser/pretty';
+import { Tactic } from '../src/pie_interpreter/tactics/tactics';
+import { DefineDatatypeSource, handleDefineDatatype } from '../src/pie_interpreter/typechecker/definedatatype';
 
 export interface Diagnostic {
   message: string;
@@ -84,6 +85,13 @@ function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDecl
       return diagnosticFromStop(outcome as stop);
     } else if (declaration instanceof DefineTactically) {
       return processDefineTactically(ctx, declaration);
+    } else if (declaration instanceof DefineDatatypeSource) {
+      const result = handleDefineDatatype(ctx, new Map(), declaration);
+      if (result instanceof go) {
+        assignContext(ctx, result.result);
+        return null;
+      }
+      return diagnosticFromStop(result as stop);
     } else {
       const outcome = represent(ctx, declaration);
       if (outcome instanceof go) {
