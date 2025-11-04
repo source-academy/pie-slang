@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pie-Slang</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .container {
+        background: white;
+        border-radius: 12px;
+        padding: 48px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        width: 100%;
+      }
+      h1 {
+        font-size: 2.5em;
+        color: #333;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+      .pi-symbol {
+        color: #667eea;
+        font-size: 1.2em;
+      }
+      p {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 32px;
+        text-align: center;
+      }
+      .links {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      a {
+        display: block;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 500;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      a:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+      }
+      .secondary {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+      }
+      .secondary:hover {
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+      }
+      .description {
+        margin-top: 12px;
+        font-size: 0.9em;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1><span class="pi-symbol">π</span> Pie-Slang</h1>
+      <p>A language server and interpreter for the Pie programming language</p>
+      <div class="links">
+        <a href="pie-playground/">
+          <div>🎮 Pie Playground</div>
+          <div class="description">Try Pie in your browser</div>
+        </a>
+        <a href="dist/" class="secondary">
+          <div>📦 Distribution Files</div>
+          <div class="description">Access compiled dist/index.js</div>
+        </a>
+        <a href="https://github.com/source-academy/pie-slang" class="secondary">
+          <div>💻 View on GitHub</div>
+          <div class="description">Source code and documentation</div>
+        </a>
+      </div>
+    </div>
+  </body>
+</html>
