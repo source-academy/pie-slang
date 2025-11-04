@@ -2,6 +2,33 @@ import nodeResolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import typescript from '@rollup/plugin-typescript';
 
+// Plugin to stub out Node.js built-in modules for browser bundles
+function stubNodeBuiltins() {
+  const stubs = {
+    'fs': 'export default {}',
+    'path': 'export default {}',
+    'fs/promises': 'export default {}',
+    'process': 'export default { argv: [] }',
+    'escodegen': 'export default {}'
+  };
+
+  return {
+    name: 'stub-node-builtins',
+    resolveId(source) {
+      if (stubs[source]) {
+        return source;
+      }
+      return null;
+    },
+    load(id) {
+      if (stubs[id]) {
+        return stubs[id];
+      }
+      return null;
+    }
+  };
+}
+
 export default [
   // Main bundle for distribution
   {
@@ -21,11 +48,8 @@ export default [
       format: 'esm',
       sourcemap: true
     },
-    external: [
-      // Exclude Node.js built-in modules that shouldn't be in browser bundles
-      'fs', 'path', 'fs/promises', 'process'
-    ],
     plugins: [
+      stubNodeBuiltins(), // Stub out Node.js modules before other plugins
       typescript({
         tsconfig: false,
         compilerOptions: {
