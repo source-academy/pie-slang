@@ -177,9 +177,20 @@ function initializeDiagnostics(editor) {
     }
   };
 
-  worker.onerror = () => {
+  worker.onerror = (error) => {
+    console.error('Worker error event:', error);
+    console.error('Error details:', {
+      message: error.message,
+      filename: error.filename,
+      lineno: error.lineno,
+      colno: error.colno
+    });
     setSummary('Diagnostics worker crashed.', 'error');
     setStatus('Diagnostics error');
+    renderPreviewText(
+      `Worker failed to load. Check browser console for details.\nError: ${error.message || 'Unknown error'}`,
+      'error'
+    );
   };
 
   return worker;
