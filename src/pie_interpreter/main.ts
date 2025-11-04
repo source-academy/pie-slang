@@ -1,12 +1,6 @@
-import { 
-  schemeParse,
-  pieDeclarationParser,
-  Claim,
-  Definition,
-  SamenessCheck,
-  DefineTactically } from './parser/parser'
+import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from './parser/parser'
 import { DefineDatatypeSource } from './typechecker/definedatatype';
-import { checkSame, represent } from './typechecker/represent';
+import { checkSame, normType, represent } from './typechecker/represent';
 import { go, stop } from './types/utils';
 import { prettyPrintCore } from './unparser/pretty';
 import { addClaimToContext, addDefineToContext, Define, initCtx } from './utils/context';

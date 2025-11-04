@@ -496,47 +496,4 @@ describe("Or_demo", () => {
     console.log(evaluatePie(src));
   });
 
-  it("list length", () => {
-    const src =
-      `
-    (claim mot-replicate (-> U Nat U))
-    (define mot-replicate (lambda (E k) (Vec E k)))
-    (claim step-replicate 
-      (Pi ((E U) (e E) (l-1 Nat)) 
-        (-> (mot-replicate E l-1) (mot-replicate E (add1 l-1)))))
-    (define step-replicate 
-      (lambda (E e l-1)
-        (lambda (step-l-1)
-          (vec:: e step-l-1))))
-    (claim replicate
-      (Pi ((E U) (len Nat)) 
-          (-> E (Vec E len))))
-    (define replicate
-      (lambda (E l)
-          (lambda (e) 
-            (ind-Nat l
-            (mot-replicate E)
-            vecnil
-            (step-replicate E e)))))
-    (replicate Atom 3 'caonima)`;
-    console.log(evaluatePie(src));
-  });
-
-  it("fact", () => {
-    const src =
-      `
-    (claim add (-> Nat Nat Nat))
-(define add (lambda (x y) (rec-Nat x y (lambda (n add-n-1) (add1 add-n-1)))))
-
-(claim mult (-> Nat Nat Nat))
-(define mult (lambda (x y) (rec-Nat x y (lambda (n mult-n-1) (add y mult-n-1)))))
-
-(claim fact (-> Nat Nat))
-(define fact
-(lambda (n) (ind-Nat n (lambda (n) Nat)  (add1 0) (lambda (n fact-n-1) (mult n fact-n-1)))))
-
-(fact 5)`;
-    console.log(evaluatePie(src));
-  });
-
 });

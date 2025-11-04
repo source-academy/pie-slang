@@ -3,6 +3,8 @@ import * as N from "../types/neutral";
 import { HigherOrderClosure } from '../types/utils';
 import { natEqual } from './utils';
 
+//TODO: add else cases and throw errors
+
 /*
   ### Evaluator ###
 
@@ -790,12 +792,12 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
       // Apply method to constructor arguments
       // Pattern: apply all non-recursive arguments first, then recursive arguments with their inductive hypotheses
       for (let i = 0; i < targetNow.args.length; i++) {
-        const arg = targetNow.args[i];
+        const arg = targetNow.args[i].now();
         result = doApp(result, arg);
       }
 
       for (let i = 0; i < targetNow.recursive_args.length; i++) {
-        const arg = targetNow.recursive_args[i];
+        const arg = targetNow.recursive_args[i].now();
         result = doApp(result, arg);
         const recursiveResult = doEliminator(name, arg, motive, methods, methodTypes, motiveType);
         result = doApp(result, recursiveResult);

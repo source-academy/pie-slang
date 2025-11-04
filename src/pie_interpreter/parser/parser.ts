@@ -9,13 +9,11 @@ import {
 import { Location, Syntax } from "../utils/locations";
 import { Location as Loc } from '../../scheme_parser/transpiler/types/location';
 import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
-import { Tactic } from "../tactics/tactics";
-import {
-  DefineDatatypeSource, GeneralConstructor
-} from "../typechecker/definedatatype";
+import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
+import { DefineDatatypeSource, GeneralConstructor } from "../typechecker/definedatatype";
 import * as Maker from "./makers"
 
-type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral;
+type Element = Extended.List | Atomic.Symbol | Atomic.NumericLiteral | Atomic.Nil;
 
 // ### Helper functions
 
@@ -41,7 +39,8 @@ function getValue(element: Element): string {
   } else if (element instanceof Extended.List) {
     return getValue(element.elements[0] as Element);
   } else {
-    throw new Error('Expected a Element, but got: ' + element);
+    const elem = element as any;
+    throw new Error(`Expected a Element, but got: ${JSON.stringify(elem)} (type: ${typeof elem}, constructor: ${elem?.constructor?.name})`);
   }
 }
 
@@ -404,19 +403,52 @@ export class Parser {
       );
     } else if (parsee === 'TODO') {
       return Maker.makeTODO(locationToSyntax('TODO', element.location));
-    } else if (parsee.startsWith('data-') && !parsee.startsWith('data-ind-')) {
+    } else if (parsee.startsWith('type-')) {
+      // General type constructor application: (type-TypeName (params...) (indices...))
+      const typeName = parsee.substring(5); // Remove 'type-' prefix
+      const elements = (element as Extended.List).elements;
+
+      if (elements.length < 3) {
+        throw new Error(`Type constructor ${parsee} requires parameters and indices lists`);
+      }
+
+      // Parse parameters: (Nat) or (E) or (Nat Atom) or ()
+      const paramsElem = elements[1];
+      let params: S.Source[] = [];
+      if (paramsElem instanceof Extended.List) {
+        params = (paramsElem.elements || []).map(p => this.parseElements(p as Element));
+      } else if (paramsElem instanceof Atomic.Nil) {
+        params = []; // Empty list
+      }
+
+      // Parse indices: (zero) or (j k) or ()
+      const indicesElem = elements[2];
+      let indices: S.Source[] = [];
+      if (indicesElem instanceof Extended.List) {
+        indices = (indicesElem.elements || []).map(idx => this.parseElements(idx as Element));
+      } else if (indicesElem instanceof Atomic.Nil) {
+        indices = []; // Empty list
+      }
+
+      return Maker.makeGeneralTypeConstructor(
+        locationToSyntax(typeName, element.location),
+        typeName,
+        params,
+        indices
+      );
+    } else if (parsee.startsWith('data-')) {
       // Constructor application: (data-constructor-name arg1 arg2...)
       const constructorName = parsee.substring(5); // Remove 'data-' prefix
       const elements = (element as Extended.List).elements;
       const args = elements.slice(1).map(x => this.parseElements(x as Element));
-      return new S.ConstructorApplication(
-        syntaxToLocation(locationToSyntax(constructorName, element.location)),
+      return Maker.makeConstructorApplication(
+        locationToSyntax(constructorName, element.location),
         constructorName,
         args
       );
-    } else if (parsee.startsWith('data-ind-')) {
-      // Eliminator application: (data-ind-TypeName target motive methods...)
-      const typeName = parsee.substring(9); // Remove 'data-ind-' prefix
+    } else if (parsee.startsWith('elim-')) {
+      // Eliminator application: (elim-TypeName target motive methods...)
+      const typeName = parsee.substring(5); // Remove 'elim-' prefix
       const elements = (element as Extended.List).elements;
 
       if (elements.length < 3) {
@@ -427,15 +459,61 @@ export class Parser {
       const motive = this.parseElements(elements[2] as Element);
       const methods = elements.slice(3).map(x => this.parseElements(x as Element));
 
-      return new S.EliminatorApplication(
-        syntaxToLocation(locationToSyntax(parsee, element.location)),
+      return Maker.makeEliminatorApplication(
+        locationToSyntax(parsee, element.location),
         typeName,
         target,
         motive,
         methods
       );
+    } else if (element instanceof Extended.List && (element as Extended.List).elements.length >= 3) {
+      let elements = (element as Extended.List).elements;
+      const firstElem = elements[0];
+
+      // Check if this is a GeneralTypeConstructor without type- prefix
+      // (used in constructor return types): (TypeName (params) (indices))
+      if (firstElem instanceof Atomic.Symbol) {
+        const name = firstElem.value;
+        // If starts with capital letter and has 3 elements, might be type constructor
+        if (name && name[0] === name[0].toUpperCase() && name[0] !== name[0].toLowerCase() && elements.length === 3) {
+          const secondElem = elements[1];
+          const thirdElem = elements[2];
+
+          // Check if second and third are lists or nils (param/index lists)
+          if ((secondElem instanceof Extended.List || secondElem instanceof Atomic.Nil) &&
+              (thirdElem instanceof Extended.List || thirdElem instanceof Atomic.Nil)) {
+            // Parse as GeneralTypeConstructor
+            let params: S.Source[] = [];
+            if (secondElem instanceof Extended.List) {
+              params = (secondElem.elements || []).map(p => this.parseElements(p as Element));
+            }
+
+            let indices: S.Source[] = [];
+            if (thirdElem instanceof Extended.List) {
+              indices = (thirdElem.elements || []).map(idx => this.parseElements(idx as Element));
+            }
+
+            return Maker.makeGeneralTypeConstructor(
+              locationToSyntax(name, element.location),
+              name,
+              params,
+              indices
+            );
+          }
+        }
+      }
+
+      // Otherwise, parse as application
+      return Maker.makeApp(
+        locationToSyntax('App', element.location),
+        this.parseElements(elements[0] as Element),
+        this.parseElements(elements[1] as Element),
+        elements.slice(2).map((x: Expression) => this.parseElements(x as Element)
+        )
+      );
     } else if (element instanceof Extended.List && (element as Extended.List).elements.length > 1) {
-      const elements = (element as Extended.List).elements;
+      // Application with 2 elements
+      let elements = (element as Extended.List).elements;
       return Maker.makeApp(
         locationToSyntax('App', element.location),
         this.parseElements(elements[0] as Element),
@@ -472,14 +550,14 @@ export class Parser {
     } else if (parsee === 'elimNat') {
       return Maker.makeElimNat(
         locationToSyntax('elimNat', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        ((element as Extended.List).elements[1] as Atomic.Symbol).value
       );
     } else if (parsee === 'elimList') {
+      const listElem = element as Extended.List;
       return Maker.makeElimList(
         locationToSyntax('elimList', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        (listElem.elements[1] as Atomic.Symbol).value,
+        listElem.elements[2] ? this.parseElements(listElem.elements[2] as Element) : undefined
       );
     } else if (parsee === 'elimVec') {
       return Maker.makeElimVec(
@@ -488,10 +566,12 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[2] as Element),
         this.parseElements((element as Extended.List).elements[3] as Element))
     } else if (parsee === 'elimEqual') {
+      const equalElem = element as Extended.List;
       return Maker.makeElimEqual(
         locationToSyntax('elimEqual', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element));
+        (equalElem.elements[1] as Atomic.Symbol).value,
+        equalElem.elements[2] ? this.parseElements(equalElem.elements[2] as Element) : undefined
+      );
     } else if (parsee === 'left') {
       return Maker.makeLeftTactic(
         locationToSyntax('left', element.location)
@@ -501,20 +581,22 @@ export class Parser {
         locationToSyntax('right', element.location)
       );
     } else if (parsee === 'elimEither') {
+      const eitherElem = element as Extended.List;
       return Maker.makeElimEither(
         locationToSyntax('elimEither', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        (eitherElem.elements[1] as Atomic.Symbol).value,
+        eitherElem.elements[2] ? this.parseElements(eitherElem.elements[2] as Element) : undefined
       );
     } else if (parsee === 'split') {
       return Maker.makeSplit(
         locationToSyntax('split', element.location)
       );
     } else if (parsee === 'elimAbsurd') {
+      const absurdElem = element as Extended.List;
       return Maker.makeElimAbsurd(
         locationToSyntax('elimAbsurd', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element)
+        (absurdElem.elements[1] as Atomic.Symbol).value,
+        absurdElem.elements[2] ? this.parseElements(absurdElem.elements[2] as Element) : undefined
       );
     }
     throw new Error('Unexpected tactic: ' + element);
@@ -596,8 +678,8 @@ export class pieDeclarationParser {
         (elements[2] as Extended.List).elements.map((x: Expression) => Parser.parseToTactics(x as Element))
       );
     } else if (parsee === 'data') {
-      const elements = (ast as Extended.List).elements;
-      const loc = ast.location;
+      let elements = (ast as Extended.List).elements;
+      let loc = ast.location;
 
       // elements[0] = 'data' (keyword)
       // elements[1] = type name (e.g., 'Less-Than')
@@ -642,30 +724,13 @@ export class pieDeclarationParser {
         const ctorArgsRaw = (ctorElement.elements[1] as Extended.List).elements || [];
         const ctorReturnType = ctorElement.elements[2] as Element;
 
-        // Parse constructor arguments: ((n Nat)) or ((j Nat) (k Nat) (j<k (Less-Than j k)))
+        // Parse constructor arguments: ((n Nat)) or ((j Nat) (k Nat) (j<k (type-Less-Than () (j k))))
         const ctorArgs = ctorArgsRaw.map(arg => {
           const pair = arg as Extended.List;
           const argType = pair.elements[1] as Element;
 
-          // Check if this is a GeneralTypeConstructor application (e.g., (Less-Than j k))
-          let parsedArgType: S.Source;
-          if (argType instanceof Extended.List && argType.elements.length > 0) {
-            const firstElem = getValue(argType.elements[0] as Element);
-            // If it starts with capital letter, treat as GeneralTypeConstructor
-            if (firstElem && firstElem[0] === firstElem[0].toUpperCase() && firstElem[0] !== firstElem[0].toLowerCase()) {
-              const typeArgs = argType.elements.slice(1).map(x => Parser.parseElements(x as Element));
-              parsedArgType = new S.GeneralTypeConstructor(
-                syntaxToLocation(elementToSyntax(argType.elements[0] as Element, argType.location)),
-                firstElem,
-                [],
-                typeArgs
-              );
-            } else {
-              parsedArgType = Parser.parseElements(argType);
-            }
-          } else {
-            parsedArgType = Parser.parseElements(argType);
-          }
+          // Parse the argument type using standard parsing
+          const parsedArgType: S.Source = Parser.parseElements(argType);
 
           return new TypedBinder(
             syntaxToSiteBinder(elementToSyntax(pair.elements[0] as Element, pair.location)),
@@ -673,20 +738,38 @@ export class pieDeclarationParser {
           );
         });
 
-        // Parse return type: (Less-Than zero (add1 n))
-        // This should be a GeneralTypeConstructor application
+        // Parse return type: (TypeName (params...) (indices...))
+        // Note: Constructor return types do NOT use type- prefix
         const returnTypeList = ctorReturnType as Extended.List;
         const returnTypeName = getValue(returnTypeList.elements[0] as Element);
 
-        // All remaining elements are indices (for indexed types) or parameters
-        // For now, treat all as indices since we need to match the datatype structure
-        const returnTypeArgs = returnTypeList.elements.slice(1).map(x => Parser.parseElements(x as Element));
+        if (returnTypeList.elements.length < 3) {
+          throw new Error(`Constructor return type must specify parameters and indices: (${returnTypeName} (params...) (indices...))`);
+        }
 
-        const returnType = new S.GeneralTypeConstructor(
-          syntaxToLocation(elementToSyntax(returnTypeList.elements[0] as Element, returnTypeList.location)),
+        // Parse parameters list
+        const returnParamsElem = returnTypeList.elements[1];
+        let returnParams: S.Source[] = [];
+        if (returnParamsElem instanceof Extended.List) {
+          returnParams = (returnParamsElem.elements || []).map(p => Parser.parseElements(p as Element));
+        } else if (returnParamsElem instanceof Atomic.Nil) {
+          returnParams = []; // Empty list
+        }
+
+        // Parse indices list
+        const returnIndicesElem = returnTypeList.elements[2];
+        let returnIndices: S.Source[] = [];
+        if (returnIndicesElem instanceof Extended.List) {
+          returnIndices = (returnIndicesElem.elements || []).map(idx => Parser.parseElements(idx as Element));
+        } else if (returnIndicesElem instanceof Atomic.Nil) {
+          returnIndices = []; // Empty list
+        }
+
+        const returnType = Maker.makeGeneralTypeConstructor(
+          elementToSyntax(returnTypeList.elements[0] as Element, returnTypeList.location),
           returnTypeName,
-          [], // parameters - will be filled based on datatype definition
-          returnTypeArgs // indices
+          returnParams,
+          returnIndices
         );
 
         constructors.push(

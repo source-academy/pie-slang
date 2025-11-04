@@ -57,34 +57,34 @@ describe("elimEither", () => {
     })
 
     it("trivial tactic ver0", () => {
-        const str = 
+        const str =
         `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
-        
+
         (define-tactically either-swap
           ((intro A)
            (intro B)
            (intro e)
-           (elimEither e (lambda (_) (Either B A)))
+           (elimEither e)
            (exact (lambda (x) (right x)))
            (exact (lambda (x) (left x)))))`
         console.log(evaluatePie(str))
     })
 
     it("trivial tactic ver1", () => {
-        const str = 
+        const str =
         `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
-        
+
         (define-tactically either-swap
           ((intro A)
            (intro B)
            (intro e)
-           (elimEither e (lambda (_) (Either B A)))
+           (elimEither e)
            (intro x)
            (exact (right x))
            (intro x)
@@ -93,17 +93,17 @@ describe("elimEither", () => {
     })
 
     it("trivial tactic ver2", () => {
-        const str = 
+        const str =
         `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
-        
+
         (define-tactically either-swap
           ((intro A)
            (intro B)
            (intro e)
-           (elimEither e (lambda (_) (Either B A)))
+           (elimEither e)
            (intro x)
            (right)
            (exact x)

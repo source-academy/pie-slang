@@ -154,13 +154,12 @@ export class EliminateNatTactic extends Tactic {
   constructor(
     public location: Location,
     private target: string,
-    private motive: Source
   ) {
     super(location);
   }
 
   toString(): string {
-    return `elim-nat ${this.target} to prove ${this.motive.prettyPrint()}`;
+    return `elim-nat ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -182,20 +181,9 @@ export class EliminateNatTactic extends Tactic {
       return new stop(state.location, new Message([`Cannot eliminate non-Nat type: ${targetType.prettyPrint()}`]));
     }
 
-    const name = fresh(currentGoal.context, "n");
-    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-      new Pi(
-        name,
-        new V.Nat(),
-        new HigherOrderClosure((_) => new V.Universe())
-      )
-    )
-
-    if (motiveRst instanceof stop) {
-      return motiveRst;
-    } else {
-      const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming,
-        (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context)))
+    // Use the same variable name as the target for the motive parameter
+    let motiveRst = this.generateNatMotive(currentGoal.context, currentGoal.type, this.target)
+      const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming,motiveRst)
       state.addGoal(
         rst.map((type) => {
           const newGoalNode = new GoalNode(
@@ -204,7 +192,28 @@ export class EliminateNatTactic extends Tactic {
           return newGoalNode;
         }))
       return new go(state);
-    }
+
+  }
+
+  private generateNatMotive(context: Context, goal: Value, targetVar: string): Value {
+    // The goal contains references to targetVar as a neutral variable.
+    // We need to create a lambda (λ (targetVar) goal) such that when applied to a value v,
+    // it produces the goal with targetVar substituted by v.
+
+    // Directly create a Lambda value without read-back round-trip.
+    // Read back the goal to Core, then create a FirstOrderClosure.
+    const goalCore = goal.readBackType(context);
+
+    // Remove targetVar from context so it becomes a free variable in goalCore
+    const contextWithoutTarget = new Map(context);
+    contextWithoutTarget.delete(targetVar);
+    const env = contextToEnvironment(contextWithoutTarget);
+
+    // Create a Lambda with a FirstOrderClosure that will bind targetVar when applied
+    return new V.Lambda(
+      targetVar,
+      new FirstOrderClosure(env, targetVar, goalCore)
+    );
   }
 
   private eliminateNat(context: Context, r: Renaming, motiveType: Value): Value[] {
@@ -234,13 +243,15 @@ export class EliminateListTactic extends Tactic {
   constructor(
     public location: Location,
     private target: string,
-    private motive: Source
+    private motive?: Source
   ) {
     super(location);
   }
 
   toString(): string {
-    return `elim-list ${this.target} to prove ${this.motive.prettyPrint()}`;
+    return this.motive
+      ? `elim-list ${this.target} to prove ${this.motive.prettyPrint()}`
+      : `elim-list ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -264,34 +275,54 @@ export class EliminateListTactic extends Tactic {
       return new stop(state.location, new Message([`Cannot eliminate non-List type: ${targetType.prettyPrint()}`]));
     }
 
-    const listMotive = fresh(currentGoal.context, "motive")
     const E = targetType.entryType
-    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-      new V.Pi(
-        'xs',
-        new V.List(E),
-        new FirstOrderClosure(
-          contextToEnvironment(currentGoal.context),
-          'xs',
-          new C.Universe()
-        )
-      ))
 
-    if (motiveRst instanceof stop) {
-      return motiveRst;
+    let motiveType: Value;
+    if (this.motive) {
+      // User provided a motive
+      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+        new V.Pi(
+          'xs',
+          new V.List(E),
+          new FirstOrderClosure(
+            contextToEnvironment(currentGoal.context),
+            'xs',
+            new C.Universe()
+          )
+        ))
+
+      if (motiveRst instanceof stop) {
+        return motiveRst;
+      }
+      motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
     } else {
-      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
-      const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
-      console.log("Eliminating List with motive") // add print
-      state.addGoal(
-        rst.map((type) => {
-          const newGoalNode = new GoalNode(
-            new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
-          );
-          return newGoalNode;
-        }))
-      return new go(state);
+      // Auto-generate motive from goal
+      motiveType = this.generateListMotive(currentGoal.context, currentGoal.type, this.target);
     }
+
+    const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
+    state.addGoal(
+      rst.map((type) => {
+        const newGoalNode = new GoalNode(
+          new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+        );
+        return newGoalNode;
+      }))
+    return new go(state);
+  }
+
+  private generateListMotive(context: Context, goal: Value, targetVar: string): Value {
+    // Create a lambda (λ (targetVar) goal) for List elimination
+    const goalCore = goal.readBackType(context);
+
+    const contextWithoutTarget = new Map(context);
+    contextWithoutTarget.delete(targetVar);
+    const env = contextToEnvironment(contextWithoutTarget);
+
+    return new V.Lambda(
+      targetVar,
+      new FirstOrderClosure(env, targetVar, goalCore)
+    );
   }
 
   private eliminateList(context: Context, r: Renaming, motiveType: Value, entryType: Value): Value[] {
@@ -412,13 +443,15 @@ export class EliminateEqualTactic extends Tactic {
   constructor(
     public location: Location,
     public target: string,
-    public motive: Source
+    public motive?: Source
   ) {
     super(location);
   }
 
   toString(): string {
-    return `elim-equal ${this.target} with motive ${this.motive.prettyPrint()}`;
+    return this.motive
+      ? `elim-equal ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `elim-equal ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -442,36 +475,46 @@ export class EliminateEqualTactic extends Tactic {
 
     const [Av, fromv, tov] = [targetType.type, targetType.from, targetType.to]
 
-    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-      new V.Pi(
-        'to',
-        Av,
-        new HigherOrderClosure(
-          (to) => new V.Pi(
-            'p',
-            new V.Equal(Av, fromv, to),
-            new HigherOrderClosure(
-              (_) => new V.Universe()
+    let motiveType: Value;
+    if (this.motive) {
+      // User provided a motive
+      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+        new V.Pi(
+          'to',
+          Av,
+          new HigherOrderClosure(
+            (to) => new V.Pi(
+              'p',
+              new V.Equal(Av, fromv, to),
+              new HigherOrderClosure(
+                (_) => new V.Universe()
+              )
             )
           )
         )
       )
-    )
 
-    if (motiveRst instanceof stop) {
-      return motiveRst;
+      if (motiveRst instanceof stop) {
+        return motiveRst;
+      }
+      motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
     } else {
-      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
-      const rst = [doApp(doApp(motiveType, fromv), new V.Same(fromv))];
-      state.addGoal(
-        rst.map((type) => {
-          const newGoalNode = new GoalNode(
-            new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+      // Auto-generate motive from goal
+      // For = elimination, the motive doesn't depend on the target variable directly
+      // but rather needs to abstract over the 'to' and the equality proof
+      // This is too complex for auto-generation, so we require the user to provide it
+      return new stop(this.location, new Message([`Motive required for = elimination (too complex for auto-generation)`]));
+    }
+
+    const rst = [doApp(doApp(motiveType, fromv), new V.Same(fromv))];
+    state.addGoal(
+      rst.map((type) => {
+        const newGoalNode = new GoalNode(
+          new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
           );
           return newGoalNode;
         }))
       return new go(state);
-    }
   }
 }
 
@@ -541,13 +584,15 @@ export class EliminateEitherTactic extends Tactic {
   constructor(
     public location: Location,
     private target: string,
-    private motive: Source
+    private motive?: Source
   ) {
     super(location);
   }
 
   toString(): string {
-    return `elim-either ${this.target} with motive ${this.motive.prettyPrint()}`;
+    return this.motive
+      ? `elim-either ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `elim-either ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -570,56 +615,77 @@ export class EliminateEitherTactic extends Tactic {
 
     const [Lv, Rv] = [targetType.leftType, targetType.rightType]
 
-    const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-      new V.Pi(
-        'x',
-        new V.Either(Lv, Rv),
-        new HigherOrderClosure(
-          (_) => new V.Universe()
+    let motiveType: Value;
+    if (this.motive) {
+      // User provided a motive
+      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
+        new V.Pi(
+          'x',
+          new V.Either(Lv, Rv),
+          new HigherOrderClosure(
+            (_) => new V.Universe()
+          )
         )
+      )
+
+      if (motiveRst instanceof stop) {
+        return motiveRst;
+      }
+      motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+    } else {
+      // Auto-generate motive from goal
+      motiveType = this.generateEitherMotive(currentGoal.context, currentGoal.type, this.target);
+    }
+
+    const leftType = new V.Pi(
+      'x',
+      Lv,
+      new HigherOrderClosure(
+        (x) => doApp(motiveType, new V.Left(x))
+      )
+    )
+    const rightType = new V.Pi(
+      'x',
+      Rv,
+      new HigherOrderClosure(
+        (x) => doApp(motiveType, new V.Right(x))
       )
     )
 
-    if (motiveRst instanceof stop) {
-      return motiveRst;
-    } else {
-      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
-      const leftType = new V.Pi(
-        'x',
-        Lv,
-        new HigherOrderClosure(
-          (x) => doApp(motiveType, new V.Left(x))
-        )
-      )
-      const rightType = new V.Pi(
-        'x',
-        Rv,
-        new HigherOrderClosure(
-          (x) => doApp(motiveType, new V.Right(x))
-        )
-      )
-
-      state.addGoal(
-        [
-          new GoalNode(
-            new Goal(
-              state.generateGoalId(),
-              leftType,
-              currentGoal.context,
-              currentGoal.renaming
-            )
-          ),
-          new GoalNode(
-            new Goal(
-              state.generateGoalId(),
-              rightType,
-              currentGoal.context,
-              currentGoal.renaming
-            )
+    state.addGoal(
+      [
+        new GoalNode(
+          new Goal(
+            state.generateGoalId(),
+            leftType,
+            currentGoal.context,
+            currentGoal.renaming
           )
+        ),
+        new GoalNode(
+          new Goal(
+            state.generateGoalId(),
+            rightType,
+            currentGoal.context,
+            currentGoal.renaming
+          )
+        )
         ]);
       return new go(state);
     }
+
+  private generateEitherMotive(context: Context, goal: Value, targetVar: string): Value {
+    // Create a lambda (λ (targetVar) goal) for Either elimination
+    const goalCore = goal.readBackType(context);
+
+    const contextWithoutTarget = new Map(context);
+    contextWithoutTarget.delete(targetVar);
+    const env = contextToEnvironment(contextWithoutTarget);
+
+    return new V.Lambda(
+      targetVar,
+      new FirstOrderClosure(env, targetVar, goalCore)
+    );
   }
 }
 
@@ -675,13 +741,15 @@ export class EliminateAbsurdTactic extends Tactic {
   constructor(
     public location: Location,
     private target: string,
-    private motive: Source
+    private motive?: Source
   ) {
     super(location);
   }
 
   toString(): string {
-    return `elim-absurd ${this.target} with motive ${this.motive.prettyPrint()}`;
+    return this.motive
+      ? `elim-absurd ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `elim-absurd ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -704,20 +772,23 @@ export class EliminateAbsurdTactic extends Tactic {
       return new stop(state.location, new Message([`Cannot eliminate non-Absurd type: ${targetType.prettyPrint()}`]));
     }
 
-    const motiveRst = this.motive.check(
-      currentGoal.context, 
-      currentGoal.renaming, 
-      new V.Universe()
-    );
+    if (this.motive) {
+      // User provided a motive, check it
+      const motiveRst = this.motive.check(
+        currentGoal.context,
+        currentGoal.renaming,
+        new V.Universe()
+      );
 
-    if (motiveRst instanceof stop) {
-      return motiveRst;
-    } else {
-      state.currentGoal.isComplete = true;
-
+      if (motiveRst instanceof stop) {
+        return motiveRst;
+      }
+    }
+    // For Absurd elimination, the motive is irrelevant since we can derive anything
+    // Just mark the goal as complete
+    state.currentGoal.isComplete = true;
     state.nextGoal()
 
     return new go(state);
-    }
   }
 }
