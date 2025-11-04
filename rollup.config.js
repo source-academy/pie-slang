@@ -21,10 +21,6 @@ export default [
       format: 'esm',
       sourcemap: true
     },
-    external: [
-      // Exclude Node.js built-in modules that shouldn't be in browser bundles
-      'fs', 'path', 'fs/promises', 'process'
-    ],
     plugins: [
       typescript({
         tsconfig: false,
@@ -41,10 +37,7 @@ export default [
           declarationMap: false
         }
       }),
-      nodeResolve({
-        browser: true,
-        preferBuiltins: false
-      }),
+      nodeResolve(),
       terser()
     ]
   }
