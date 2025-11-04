@@ -13,7 +13,7 @@
 
 (claim nat-vec-5 (Vec Nat 5))
 
-(define nat-vec-5 (vec:: 'a (vec:: 2 (vec:: 3 (vec:: 4 (vec:: 5 vecnil))))))
+(define nat-vec-5 (vec:: 1 (vec:: 2 (vec:: 3 (vec:: 4 (vec:: 5 vecnil))))))
 
 (claim list-a (List Atom))
 (define list-a (:: 'A (:: 'B (:: 'C nil))))
