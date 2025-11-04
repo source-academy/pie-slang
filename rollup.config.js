@@ -2,13 +2,44 @@ import nodeResolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import typescript from '@rollup/plugin-typescript';
 
-export default {
-    input: 'src/pie_interpreter/index.ts',  // Entry file
+export default [
+  // Main bundle for distribution
+  {
+    input: 'src/pie_interpreter/index.ts',
     output: {
-      file: 'dist/index.js',  // Output file
-      format: 'iife',  // Output format (options: 'esm', 'cjs', 'iife', 'umd')
-      sourcemap: true  // Generates a source map for debugging
+      file: 'dist/index.js',
+      format: 'iife',
+      sourcemap: true
     },
-    plugins: [typescript(), nodeResolve(), terser()]  // Use the typescript plugin
-  };
+    plugins: [typescript(), nodeResolve(), terser()]
+  },
+  // Web worker bundle for the playground
+  {
+    input: 'web/worker-entry.ts',
+    output: {
+      file: 'web/pie-worker-bundle.js',
+      format: 'esm',
+      sourcemap: true
+    },
+    plugins: [
+      typescript({
+        tsconfig: false,
+        compilerOptions: {
+          module: 'ESNext',
+          target: 'ES2020',
+          lib: ['ES2020', 'DOM'],
+          sourceMap: true,
+          strict: true,
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true,
+          skipLibCheck: true,
+          declaration: false,
+          declarationMap: false
+        }
+      }),
+      nodeResolve(),
+      terser()
+    ]
+  }
+];
   
