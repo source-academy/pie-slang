@@ -2,6 +2,8 @@
 !web/*.css
 web/*-bundle.js
 web/*-bundle.js.map
+web/lsp/*-bundle.js
+web/lsp/*-bundle.js.map
 .DS_Store
 *.cjs
 *~
