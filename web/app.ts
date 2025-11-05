@@ -1,4 +1,4 @@
-import { PieLanguageClient, registerPieLanguage } from './lsp/lsp-client';
+import { PieLanguageClient, registerPieLanguage } from './lsp/lsp-client-simple';
 import * as monaco from 'monaco-editor';
 
 const examples = {
@@ -191,9 +191,13 @@ function initializeDiagnostics(editor: monaco.editor.IStandaloneCodeEditor) {
   return worker;
 }
 
-async function initializeLSP() {
+async function initializeLSP(monacoLib: typeof monaco, editor: monaco.editor.IStandaloneCodeEditor) {
   try {
-    lspClient = new PieLanguageClient();
+    if (lspClient && lspClient.isRunning()) {
+      await lspClient.stop();
+    }
+
+    lspClient = new PieLanguageClient(monacoLib, editor);
     await lspClient.start();
     console.log('LSP client initialized successfully');
   } catch (error) {
@@ -303,7 +307,9 @@ async function boot() {
     initializeExamplePicker(editor);
 
     // Initialize LSP
-    await initializeLSP();
+    if (monacoApi) {
+      await initializeLSP(monacoApi, editor);
+    }
 
     if (diagnosticsWorker) {
       diagnosticsWorker.postMessage({

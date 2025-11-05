@@ -60,8 +60,6 @@ export default [
         const browserTodoSolverSpecifiers = new Set([
           '../solver/todo_solver',
           '../../solver/todo_solver',
-          '../try_llm/todo_solver',
-          '../../try_llm/todo_solver'
         ]);
         return {
           name: 'worker-todo-solver-stub',
@@ -112,8 +110,6 @@ export default [
         const browserTodoSolverSpecifiers = new Set([
           '../solver/todo_solver',
           '../../solver/todo_solver',
-          '../try_llm/todo_solver',
-          '../../try_llm/todo_solver'
         ]);
         return {
           name: 'worker-todo-solver-stub',

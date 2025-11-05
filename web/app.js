@@ -196,10 +196,16 @@ function initializeDiagnostics(editor) {
   return worker;
 }
 
-function initializeEditor(monaco) {
+function initializeEditor(monaco, registerLanguage) {
+  if (typeof registerLanguage === 'function') {
+    registerLanguage(monaco);
+  } else if (monaco?.languages && !monaco.languages.getLanguages().some(lang => lang.id === 'pie')) {
+    monaco.languages.register({ id: 'pie' });
+  }
+
   const editor = monaco.editor.create(document.getElementById('editor'), {
     value: defaultSource,
-    language: 'scheme',
+    language: 'pie',
     theme: 'vs-dark',
     automaticLayout: true,
     minimap: {
@@ -279,16 +285,13 @@ function initializeExamplePicker(editor) {
   });
 }
 
-async function initializeLSP() {
+async function initializeLSP(PieLanguageClientCtor, monacoInstance, editor) {
+  if (!PieLanguageClientCtor) {
+    return null;
+  }
+
   try {
-    // Dynamically import the LSP client
-    const { PieLanguageClient, registerPieLanguage } = await import('./lsp/lsp-client-bundle.js');
-
-    // Register Pie language for Monaco
-    registerPieLanguage(window.monaco);
-
-    // Start LSP client
-    const lspClient = new PieLanguageClient();
+    const lspClient = new PieLanguageClientCtor(monacoInstance, editor);
     await lspClient.start();
     console.log('LSP client initialized successfully');
     return lspClient;
@@ -314,12 +317,24 @@ async function boot() {
   window.require(['vs/editor/editor.main'], async () => {
     monacoApi = window.monaco;
 
-    // Initialize LSP first (optional enhancement)
-    const lspClient = await initializeLSP();
+    let PieLanguageClientCtor = null;
+    let registerPieLanguage = null;
 
-    const editor = initializeEditor(monacoApi);
+    try {
+      const lspModule = await import('./lsp/lsp-client-bundle.js');
+      PieLanguageClientCtor = lspModule.PieLanguageClient;
+      registerPieLanguage = lspModule.registerPieLanguage;
+    } catch (error) {
+      console.error('Failed to load LSP bundle:', error);
+      console.log('Continuing without enhanced LSP features.');
+    }
+
+    const editor = initializeEditor(monacoApi, registerPieLanguage);
     diagnosticsWorker = initializeDiagnostics(editor);
     initializeExamplePicker(editor);
+
+    const lspClient = await initializeLSP(PieLanguageClientCtor, monacoApi, editor);
+
     if (diagnosticsWorker) {
       diagnosticsWorker.postMessage({
         type: 'analyze',
