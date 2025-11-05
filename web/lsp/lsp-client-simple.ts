@@ -81,6 +81,18 @@ export class PieLanguageClient {
     });
     this.disposables.push(hoverDisposable);
 
+    // Register completion provider
+    const completionDisposable = this.monaco.languages.registerCompletionItemProvider('pie', {
+      provideCompletionItems: (model: any, position: any) => this.provideCompletionItems(model, position)
+    });
+    this.disposables.push(completionDisposable);
+
+    // Register definition provider
+    const definitionDisposable = this.monaco.languages.registerDefinitionProvider('pie', {
+      provideDefinition: (model: any, position: any) => this.provideDefinition(model, position)
+    });
+    this.disposables.push(definitionDisposable);
+
     if (this.debouncedValidate) {
       this.debouncedValidate();
     }
@@ -201,6 +213,126 @@ export class PieLanguageClient {
         endColumn
       }
     };
+  }
+
+  private async provideCompletionItems(model: any, position: any): Promise<any> {
+    if (!this.worker) {
+      return { suggestions: [] };
+    }
+
+    return new Promise((resolve) => {
+      const handleCompletion = (event: MessageEvent) => {
+        const message = event.data;
+        if (message.type === 'completion-result') {
+          this.worker?.removeEventListener('message', handleCompletion);
+
+          const suggestions = message.completions.map((item: any) => {
+            // Map kind strings to Monaco CompletionItemKind
+            let kind = this.monaco.languages.CompletionItemKind.Text;
+            switch (item.kind) {
+              case 'Keyword':
+                kind = this.monaco.languages.CompletionItemKind.Keyword;
+                break;
+              case 'Function':
+                kind = this.monaco.languages.CompletionItemKind.Function;
+                break;
+              case 'Variable':
+                kind = this.monaco.languages.CompletionItemKind.Variable;
+                break;
+              case 'TypeParameter':
+                kind = this.monaco.languages.CompletionItemKind.Class;
+                break;
+              case 'Value':
+                kind = this.monaco.languages.CompletionItemKind.Value;
+                break;
+              case 'Snippet':
+                kind = this.monaco.languages.CompletionItemKind.Snippet;
+                break;
+            }
+
+            return {
+              label: item.label,
+              kind,
+              detail: item.detail,
+              insertText: item.label,
+              range: {
+                startLineNumber: position.lineNumber,
+                startColumn: position.column,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column
+              }
+            };
+          });
+
+          resolve({ suggestions });
+        }
+      };
+
+      if (this.worker) {
+        this.worker.addEventListener('message', handleCompletion);
+
+        const source = model.getValue();
+        this.worker.postMessage({
+          type: 'completion',
+          source,
+          line: position.lineNumber - 1,
+          column: position.column - 1
+        });
+      }
+
+      // Timeout fallback
+      setTimeout(() => {
+        this.worker?.removeEventListener('message', handleCompletion);
+        resolve({ suggestions: [] });
+      }, 1000);
+    });
+  }
+
+  private async provideDefinition(model: any, position: any): Promise<any> {
+    if (!this.worker) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      const handleDefinition = (event: MessageEvent) => {
+        const message = event.data;
+        if (message.type === 'definition-result') {
+          this.worker?.removeEventListener('message', handleDefinition);
+
+          if (message.location) {
+            resolve({
+              uri: model.uri,
+              range: {
+                startLineNumber: message.location.line + 1,
+                startColumn: message.location.startColumn + 1,
+                endLineNumber: message.location.line + 1,
+                endColumn: message.location.endColumn + 1
+              }
+            });
+          } else {
+            resolve(null);
+          }
+        }
+      };
+
+      if (this.worker) {
+        this.worker.addEventListener('message', handleDefinition);
+
+        const source = model.getValue();
+        this.worker.postMessage({
+          type: 'definition',
+          source,
+          line: position.lineNumber - 1,
+          column: position.column - 1
+        });
+      }
+
+      // Timeout fallback
+      setTimeout(() => {
+        this.worker?.removeEventListener('message', handleDefinition);
+        resolve(null);
+      }, 1000);
+    });
   }
 
   private clearMarkers(): void {

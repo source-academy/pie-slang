@@ -209,9 +209,223 @@ function processDefineTacticallyDeclaration(defineTactically: DefineTactically, 
 	}
 }
 
+// Built-in Pie completions
+const PIE_COMPLETIONS = [
+	// Basic types
+	{ label: 'Nat', kind: 'TypeParameter', detail: 'Natural numbers' },
+	{ label: 'Atom', kind: 'TypeParameter', detail: 'Atomic values' },
+	{ label: 'Universe', kind: 'TypeParameter', detail: 'Type of types' },
+	{ label: 'U', kind: 'TypeParameter', detail: 'Type of types (short)' },
+
+	// Constructors
+	{ label: 'zero', kind: 'Value', detail: 'Natural number zero' },
+	{ label: 'add1', kind: 'Function', detail: 'Add one to a natural number' },
+	{ label: 'nil', kind: 'Value', detail: 'Empty list' },
+	{ label: '::', kind: 'Function', detail: 'List constructor' },
+	{ label: 'cons', kind: 'Function', detail: 'Pair constructor' },
+	{ label: 'same', kind: 'Function', detail: 'Reflexivity of equality' },
+
+	// Functions
+	{ label: 'lambda', kind: 'Keyword', detail: 'Anonymous function' },
+	{ label: 'λ', kind: 'Keyword', detail: 'Anonymous function (Unicode)' },
+	{ label: 'the', kind: 'Keyword', detail: 'Type annotation' },
+	{ label: 'car', kind: 'Function', detail: 'First element of pair' },
+	{ label: 'cdr', kind: 'Function', detail: 'Second element of pair' },
+
+	// Dependent types
+	{ label: 'Pi', kind: 'TypeParameter', detail: 'Dependent function type' },
+	{ label: 'Π', kind: 'TypeParameter', detail: 'Dependent function type (Unicode)' },
+	{ label: 'Sigma', kind: 'TypeParameter', detail: 'Dependent pair type' },
+	{ label: 'Σ', kind: 'TypeParameter', detail: 'Dependent pair type (Unicode)' },
+
+	// Type constructors
+	{ label: 'List', kind: 'TypeParameter', detail: 'List type constructor' },
+	{ label: 'Pair', kind: 'TypeParameter', detail: 'Pair type constructor' },
+	{ label: 'Vec', kind: 'TypeParameter', detail: 'Vector type constructor' },
+	{ label: 'Either', kind: 'TypeParameter', detail: 'Either type constructor' },
+	{ label: '->', kind: 'TypeParameter', detail: 'Function type' },
+	{ label: '→', kind: 'TypeParameter', detail: 'Function type (Unicode)' },
+	{ label: '=', kind: 'TypeParameter', detail: 'Equality type' },
+
+	// Vector constructors
+	{ label: 'vecnil', kind: 'Value', detail: 'Empty vector' },
+	{ label: 'vec::', kind: 'Function', detail: 'Vector constructor' },
+
+	// Either constructors
+	{ label: 'left', kind: 'Function', detail: 'Left Either constructor' },
+	{ label: 'right', kind: 'Function', detail: 'Right Either constructor' },
+
+	// Eliminators
+	{ label: 'which-Nat', kind: 'Function', detail: 'Case analysis for Nat' },
+	{ label: 'iter-Nat', kind: 'Function', detail: 'Iteration over Nat' },
+	{ label: 'rec-Nat', kind: 'Function', detail: 'Recursion over Nat' },
+	{ label: 'ind-Nat', kind: 'Function', detail: 'Induction over Nat' },
+	{ label: 'rec-List', kind: 'Function', detail: 'Recursion over List' },
+	{ label: 'ind-List', kind: 'Function', detail: 'Induction over List' },
+	{ label: 'ind-Vec', kind: 'Function', detail: 'Induction over Vec' },
+	{ label: 'ind-Either', kind: 'Function', detail: 'Case analysis for Either' },
+
+	// Equality functions
+	{ label: 'replace', kind: 'Function', detail: 'Substitution of equals for equals' },
+	{ label: 'trans', kind: 'Function', detail: 'Transitivity of equality' },
+	{ label: 'cong', kind: 'Function', detail: 'Congruence of equality' },
+	{ label: 'symm', kind: 'Function', detail: 'Symmetry of equality' },
+	{ label: 'ind-=', kind: 'Function', detail: 'Induction for equality' },
+
+	// Special
+	{ label: 'TODO', kind: 'Snippet', detail: 'Placeholder for incomplete code' },
+	{ label: 'check-same', kind: 'Keyword', detail: 'Check equality' },
+
+	// Top-level forms
+	{ label: 'define', kind: 'Keyword', detail: 'Define a function or value' },
+	{ label: 'claim', kind: 'Keyword', detail: 'Claim the type of a name' },
+	{ label: 'define-tactically', kind: 'Keyword', detail: 'Define using tactics' }
+];
+
+interface SymbolDefinition {
+	name: string;
+	line: number;
+	startColumn: number;
+	endColumn: number;
+	type: 'define' | 'claim' | 'define-tactically';
+	typeInfo?: string;
+}
+
+// Extract user-defined symbols from source
+function extractUserDefinedSymbols(source: string): {
+	completions: any[],
+	definitions: Map<string, SymbolDefinition>
+} {
+	const completions: any[] = [];
+	const definitions = new Map<string, SymbolDefinition>();
+	const lines = source.split('\n');
+
+	// Regular expressions for Pie constructs
+	const definePattern = /\(define\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/;
+	const claimPattern = /\(claim\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)\s+(.+?)\)/;
+	const defineTacticallyPattern = /\(define-tactically\s+([a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*)/;
+
+	lines.forEach((line, lineIndex) => {
+		// Check for define
+		let match = definePattern.exec(line);
+		if (match) {
+			const symbolName = match[1];
+			const startCol = line.indexOf(symbolName);
+
+			completions.push({
+				label: symbolName,
+				kind: 'Function',
+				detail: 'User-defined function'
+			});
+
+			definitions.set(symbolName, {
+				name: symbolName,
+				line: lineIndex,
+				startColumn: startCol,
+				endColumn: startCol + symbolName.length,
+				type: 'define'
+			});
+		}
+
+		// Check for claim
+		match = claimPattern.exec(line);
+		if (match) {
+			const symbolName = match[1];
+			const typeSpec = match[2];
+			const startCol = line.indexOf(symbolName);
+
+			completions.push({
+				label: symbolName,
+				kind: 'Variable',
+				detail: `Claimed type: ${typeSpec.substring(0, 50)}${typeSpec.length > 50 ? '...' : ''}`
+			});
+
+			definitions.set(symbolName, {
+				name: symbolName,
+				line: lineIndex,
+				startColumn: startCol,
+				endColumn: startCol + symbolName.length,
+				type: 'claim',
+				typeInfo: typeSpec
+			});
+		}
+
+		// Check for define-tactically
+		match = defineTacticallyPattern.exec(line);
+		if (match) {
+			const symbolName = match[1];
+			const startCol = line.indexOf(symbolName);
+
+			completions.push({
+				label: symbolName,
+				kind: 'Function',
+				detail: 'Tactically defined function'
+			});
+
+			definitions.set(symbolName, {
+				name: symbolName,
+				line: lineIndex,
+				startColumn: startCol,
+				endColumn: startCol + symbolName.length,
+				type: 'define-tactically'
+			});
+		}
+	});
+
+	return { completions, definitions };
+}
+
+// Get word at cursor position
+function getWordAtPosition(source: string, line: number, column: number): string | null {
+	const lines = source.split('\n');
+
+	if (line >= lines.length) {
+		return null;
+	}
+
+	const lineText = lines[line];
+
+	if (column >= lineText.length) {
+		return null;
+	}
+
+	// Define what constitutes an identifier in Pie
+	const identifierRegex = /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/;
+
+	// Find start of word
+	let start = column;
+	while (start > 0 && identifierRegex.test(lineText[start - 1])) {
+		start--;
+	}
+
+	// Find end of word
+	let end = column;
+	while (end < lineText.length && identifierRegex.test(lineText[end])) {
+		end++;
+	}
+
+	if (start === end) {
+		return null;
+	}
+
+	return lineText.substring(start, end);
+}
+
+// Cache for symbols (avoid re-parsing on every completion request)
+let cachedSource = '';
+let cachedSymbols: { completions: any[], definitions: Map<string, SymbolDefinition> } | null = null;
+
+function getSymbols(source: string) {
+	if (source !== cachedSource) {
+		cachedSource = source;
+		cachedSymbols = extractUserDefinedSymbols(source);
+	}
+	return cachedSymbols!;
+}
+
 // Listen for messages from the main thread
 self.onmessage = (event: MessageEvent) => {
-	const { type, source } = event.data;
+	const { type, source, line, column } = event.data;
 
 	if (type === 'validate') {
 		try {
@@ -224,6 +438,55 @@ self.onmessage = (event: MessageEvent) => {
 			self.postMessage({
 				type: 'validation-error',
 				error: String(error)
+			});
+		}
+	} else if (type === 'completion') {
+		try {
+			const symbols = getSymbols(source);
+			const allCompletions = [...PIE_COMPLETIONS, ...symbols.completions];
+			self.postMessage({
+				type: 'completion-result',
+				completions: allCompletions
+			});
+		} catch (error) {
+			self.postMessage({
+				type: 'completion-result',
+				completions: PIE_COMPLETIONS
+			});
+		}
+	} else if (type === 'definition') {
+		try {
+			const word = getWordAtPosition(source, line, column);
+			if (!word) {
+				self.postMessage({
+					type: 'definition-result',
+					location: null
+				});
+				return;
+			}
+
+			const symbols = getSymbols(source);
+			const definition = symbols.definitions.get(word);
+
+			if (definition) {
+				self.postMessage({
+					type: 'definition-result',
+					location: {
+						line: definition.line,
+						startColumn: definition.startColumn,
+						endColumn: definition.endColumn
+					}
+				});
+			} else {
+				self.postMessage({
+					type: 'definition-result',
+					location: null
+				});
+			}
+		} catch (error) {
+			self.postMessage({
+				type: 'definition-result',
+				location: null
 			});
 		}
 	}
