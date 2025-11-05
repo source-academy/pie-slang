@@ -173,7 +173,7 @@ export declare class IndList extends Core {
     toString(): string;
 }
 export declare class Trivial extends Core {
-    valOf(env: Environment): V.Value;
+    valOf(_env: Environment): V.Value;
     prettyPrint(): string;
     toString(): string;
 }

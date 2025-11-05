@@ -522,7 +522,7 @@ export declare class GeneralType extends Source {
     constructor(location: Location, name: string, paramType: TypedBinder[], indicesType: TypedBinder[]);
     findNames(): string[];
     prettyPrint(): string;
-    protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The>;
+    protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The>;
     getType(ctx: Context, rename: Renaming): Perhaps<C.Core>;
 }
 export declare class GeneralTypeConstructor extends Source {
@@ -532,7 +532,7 @@ export declare class GeneralTypeConstructor extends Source {
     indices: S.Source[];
     findNames(): string[];
     prettyPrint(): string;
-    protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The>;
+    protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The>;
     constructor(location: Location, name: string, params: S.Source[], indices: S.Source[]);
     getType(ctx: Context, renames: Renaming): Perhaps<C.Core>;
     checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core>;
@@ -540,7 +540,7 @@ export declare class GeneralTypeConstructor extends Source {
 export declare class GeneralEliminator extends Source {
     findNames(): string[];
     prettyPrint(): string;
-    protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The>;
+    protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The>;
 }
 export declare class EliminatorApplication extends Source {
     location: Location;
@@ -563,7 +563,7 @@ export declare class ConstructorApplication extends Source {
     constructor(location: Location, constructorName: string, args: Source[]);
     findNames(): string[];
     prettyPrint(): string;
-    protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The>;
+    protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The>;
     checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core>;
 }
 //# sourceMappingURL=source.d.ts.map
