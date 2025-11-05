@@ -7,6 +7,7 @@ import { pieDeclarationParser, Claim, Definition, DefineTactically, schemeParse 
 import { Context, initCtx, addClaimToContext, addDefineToContext } from '../../src/pie_interpreter/utils/context';
 import { go, stop } from '../../src/pie_interpreter/types/utils';
 import { ProofManager } from '../../src/pie_interpreter/tactics/proofmanager';
+import { PIE_HOVER_INFO } from './pie_hover_info';
 
 interface Diagnostic {
 	severity: 'error' | 'warning';
@@ -411,6 +412,43 @@ function getWordAtPosition(source: string, line: number, column: number): string
 	return lineText.substring(start, end);
 }
 
+// Get word at position along with its range and cursor offset within the word
+function getWordAndRange(source: string, line: number, column: number): { word: string, start: number, end: number, cursorOffset: number } | null {
+	const lines = source.split('\n');
+
+	if (line >= lines.length) {
+		return null;
+	}
+
+	const lineText = lines[line];
+
+	// Define what constitutes an identifier in Pie
+	const identifierRegex = /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/;
+
+	// Find start of word
+	let start = column;
+	while (start > 0 && identifierRegex.test(lineText[start - 1])) {
+		start--;
+	}
+
+	// Find end of word
+	let end = column;
+	while (end < lineText.length && identifierRegex.test(lineText[end])) {
+		end++;
+	}
+
+	if (start === end) {
+		return null;
+	}
+
+	return {
+		word: lineText.substring(start, end),
+		start,
+		end,
+		cursorOffset: column - start
+	};
+}
+
 // Cache for symbols (avoid re-parsing on every completion request)
 let cachedSource = '';
 let cachedSymbols: { completions: any[], definitions: Map<string, SymbolDefinition> } | null = null;
@@ -442,16 +480,49 @@ self.onmessage = (event: MessageEvent) => {
 		}
 	} else if (type === 'completion') {
 		try {
+			// Get the word at cursor position for prefix filtering
+			const wordInfo = getWordAndRange(source, line, column);
+			const prefix = wordInfo ? wordInfo.word.substring(0, wordInfo.cursorOffset) : '';
+
 			const symbols = getSymbols(source);
-			const allCompletions = [...PIE_COMPLETIONS, ...symbols.completions];
+			let allCompletions = [...PIE_COMPLETIONS, ...symbols.completions];
+
+			// Filter completions based on prefix
+			if (prefix) {
+				allCompletions = allCompletions.filter(item =>
+					item.label.toLowerCase().startsWith(prefix.toLowerCase())
+				);
+
+				// Sort by relevance: exact prefix match > case-sensitive match > case-insensitive match
+				allCompletions.sort((a, b) => {
+					const aLabel = a.label;
+					const bLabel = b.label;
+
+					// Exact match gets highest priority
+					if (aLabel === prefix && bLabel !== prefix) return -1;
+					if (bLabel === prefix && aLabel !== prefix) return 1;
+
+					// Case-sensitive prefix match
+					const aStartsWith = aLabel.startsWith(prefix);
+					const bStartsWith = bLabel.startsWith(prefix);
+					if (aStartsWith && !bStartsWith) return -1;
+					if (bStartsWith && !aStartsWith) return 1;
+
+					// Then sort alphabetically
+					return aLabel.localeCompare(bLabel);
+				});
+			}
+
 			self.postMessage({
 				type: 'completion-result',
-				completions: allCompletions
+				completions: allCompletions,
+				wordRange: wordInfo ? { start: wordInfo.start, end: wordInfo.end } : null
 			});
 		} catch (error) {
 			self.postMessage({
 				type: 'completion-result',
-				completions: PIE_COMPLETIONS
+				completions: PIE_COMPLETIONS,
+				wordRange: null
 			});
 		}
 	} else if (type === 'definition') {
@@ -487,6 +558,89 @@ self.onmessage = (event: MessageEvent) => {
 			self.postMessage({
 				type: 'definition-result',
 				location: null
+			});
+		}
+	} else if (type === 'hover') {
+		try {
+			const word = getWordAtPosition(source, line, column);
+			if (!word) {
+				self.postMessage({
+					type: 'hover-result',
+					hoverInfo: null
+				});
+				return;
+			}
+
+			// Check for user-defined symbols first
+			const symbols = getSymbols(source);
+			const definition = symbols.definitions.get(word);
+
+			if (definition) {
+				const hoverInfo = {
+					title: word,
+					summary: `User-defined ${definition.type}`,
+					details: definition.typeInfo ? `Type: ${definition.typeInfo}` : undefined,
+					examples: undefined
+				};
+				self.postMessage({
+					type: 'hover-result',
+					hoverInfo
+				});
+				return;
+			}
+
+			// Fall back to built-in hover info
+			const builtinInfo = PIE_HOVER_INFO.get(word);
+			if (builtinInfo) {
+				self.postMessage({
+					type: 'hover-result',
+					hoverInfo: {
+						title: word,
+						summary: builtinInfo.summary,
+						details: builtinInfo.details,
+						examples: builtinInfo.examples
+					}
+				});
+				return;
+			}
+
+			// Check if it's a number
+			if (/^\d+$/.test(word)) {
+				self.postMessage({
+					type: 'hover-result',
+					hoverInfo: {
+						title: 'Natural number literal',
+						summary: `Represents the Nat value ${word}`,
+						details: undefined,
+						examples: undefined
+					}
+				});
+				return;
+			}
+
+			// Check if it's a quoted atom
+			if (word.startsWith("'")) {
+				self.postMessage({
+					type: 'hover-result',
+					hoverInfo: {
+						title: 'Quoted atom',
+						summary: `Type: Atom`,
+						details: `Value: ${word}`,
+						examples: undefined
+					}
+				});
+				return;
+			}
+
+			// No hover info found
+			self.postMessage({
+				type: 'hover-result',
+				hoverInfo: null
+			});
+		} catch (error) {
+			self.postMessage({
+				type: 'hover-result',
+				hoverInfo: null
 			});
 		}
 	}

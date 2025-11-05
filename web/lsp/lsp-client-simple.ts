@@ -77,7 +77,7 @@ export class PieLanguageClient {
     }
 
     const hoverDisposable = this.monaco.languages.registerHoverProvider('pie', {
-      provideHover: (_model: any, position: any) => this.provideHover(position)
+      provideHover: (model: any, position: any) => this.provideHover(model, position)
     });
     this.disposables.push(hoverDisposable);
 
@@ -174,7 +174,12 @@ export class PieLanguageClient {
     this.monaco.editor.setModelMarkers(model, 'pie-lsp', markers);
   }
 
-  private provideHover(position: { lineNumber: number; column: number; }) {
+  private async provideHover(model: any, position: { lineNumber: number; column: number; }) {
+    if (!this.worker) {
+      return null;
+    }
+
+    // First, check if there's a diagnostic at this position
     const diagnostic = this.diagnostics.find((diag) => {
       const startLine = this.ensurePositiveNumber(diag.startLine, position.lineNumber);
       const endLine = this.ensurePositiveNumber(diag.endLine, startLine);
@@ -193,26 +198,74 @@ export class PieLanguageClient {
       return true;
     });
 
-    if (!diagnostic) {
-      return null;
+    if (diagnostic) {
+      const startLine = this.ensurePositiveNumber(diagnostic.startLine, position.lineNumber);
+      const endLine = this.ensurePositiveNumber(diagnostic.endLine, startLine);
+      const startColumn = this.ensurePositiveNumber(diagnostic.startColumn, 1);
+      const endColumn = this.ensurePositiveNumber(diagnostic.endColumn, startColumn + 1);
+
+      return {
+        contents: [
+          { value: `**${diagnostic.severity === 'warning' ? 'Warning' : 'Error'}**\n\n${diagnostic.message}` }
+        ],
+        range: {
+          startLineNumber: startLine,
+          startColumn,
+          endLineNumber: endLine,
+          endColumn
+        }
+      };
     }
 
-    const startLine = this.ensurePositiveNumber(diagnostic.startLine, position.lineNumber);
-    const endLine = this.ensurePositiveNumber(diagnostic.endLine, startLine);
-    const startColumn = this.ensurePositiveNumber(diagnostic.startColumn, 1);
-    const endColumn = this.ensurePositiveNumber(diagnostic.endColumn, startColumn + 1);
+    // If no diagnostic, request hover info from worker
+    return new Promise((resolve) => {
+      const handleHover = (event: MessageEvent) => {
+        const message = event.data;
+        if (message.type === 'hover-result') {
+          this.worker?.removeEventListener('message', handleHover);
 
-    return {
-      contents: [
-        { value: `**${diagnostic.severity === 'warning' ? 'Warning' : 'Error'}**\\n\\n${diagnostic.message}` }
-      ],
-      range: {
-        startLineNumber: startLine,
-        startColumn,
-        endLineNumber: endLine,
-        endColumn
+          if (!message.hoverInfo) {
+            resolve(null);
+            return;
+          }
+
+          const info = message.hoverInfo;
+          let markdownContent = `**${info.title}**\n\n${info.summary}`;
+
+          if (info.details) {
+            markdownContent += `\n\n${info.details}`;
+          }
+
+          if (info.examples) {
+            markdownContent += `\n\n**Examples:**\n\`\`\`pie\n${info.examples}\n\`\`\``;
+          }
+
+          resolve({
+            contents: [
+              { value: markdownContent }
+            ]
+          });
+        }
+      };
+
+      if (this.worker) {
+        this.worker.addEventListener('message', handleHover);
+
+        const source = model.getValue();
+        this.worker.postMessage({
+          type: 'hover',
+          source,
+          line: position.lineNumber - 1,
+          column: position.column - 1
+        });
       }
-    };
+
+      // Timeout fallback
+      setTimeout(() => {
+        this.worker?.removeEventListener('message', handleHover);
+        resolve(null);
+      }, 1000);
+    });
   }
 
   private async provideCompletionItems(model: any, position: any): Promise<any> {
@@ -225,6 +278,20 @@ export class PieLanguageClient {
         const message = event.data;
         if (message.type === 'completion-result') {
           this.worker?.removeEventListener('message', handleCompletion);
+
+          // Calculate the range to replace based on word boundaries
+          const wordRange = message.wordRange;
+          const range = wordRange ? {
+            startLineNumber: position.lineNumber,
+            startColumn: wordRange.start + 1, // Monaco uses 1-based columns
+            endLineNumber: position.lineNumber,
+            endColumn: wordRange.end + 1
+          } : {
+            startLineNumber: position.lineNumber,
+            startColumn: position.column,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column
+          };
 
           const suggestions = message.completions.map((item: any) => {
             // Map kind strings to Monaco CompletionItemKind
@@ -255,12 +322,7 @@ export class PieLanguageClient {
               kind,
               detail: item.detail,
               insertText: item.label,
-              range: {
-                startLineNumber: position.lineNumber,
-                startColumn: position.column,
-                endLineNumber: position.lineNumber,
-                endColumn: position.column
-              }
+              range
             };
           });
 
@@ -420,7 +482,7 @@ export function registerPieLanguage(monaco: any): void {
     ],
 
     // Common regular expressions
-    symbols: /[=><!~?:&|+\-*\/^%]+/,
+    symbols: /[=><!~?:&|+\-*/^%]+/,
 
     // Tokenizer rules
     tokenizer: {
