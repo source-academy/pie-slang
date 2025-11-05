@@ -1,12 +1,11 @@
 import 'jest';
-import * as S from './src/pie_interpreter/types/source';
-import * as V from './src/pie_interpreter/types/value';
-import * as C from './src/pie_interpreter/types/core';
-import { Location, Syntax } from './src/pie_interpreter/utils/locations';
-import { Position } from './src/scheme_parser/transpiler/types/location';
-import { DefineDatatypeSource, handleDefineDatatype, makeConstructorSpec, makeTypedBinder, GeneralConstructor } from './src/pie_interpreter/typechecker/definedatatype';
-import { Context, contextToEnvironment } from './src/pie_interpreter/utils/context';
-import { go, stop } from './src/pie_interpreter/types/utils';
+import * as S from '../types/source';
+import { Location, Syntax } from '../utils/locations';
+import { Position } from '../../scheme_parser/transpiler/types/location';
+import { DefineDatatypeSource, handleDefineDatatype, GeneralConstructor } 
+  from '../typechecker/definedatatype';
+import { Context } from '../utils/context';
+import { go, stop } from '../types/utils';
 
 // Test location
 const testLoc = new Location(new Syntax(new Position(1, 1), new Position(1, 1), 'test'), false);
@@ -34,7 +33,7 @@ describe("Simple Eliminator Test", () => {
       testLoc,
       "Bool",
       [],
-      new S.Pi(testLoc, [], new S.Universe(testLoc)),
+      [],
       [trueConstructor, falseConstructor]
     );
 

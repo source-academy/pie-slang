@@ -9,16 +9,27 @@ import { Context, readBackContext } from "../utils/context";
 import { Value } from "../types/value";
 import { Renaming } from "../typechecker/utils";
 import 'dotenv/config';
-// Get API key from environment variable
-const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-  throw new Error(
-    'GOOGLE_API_KEY environment variable is not set. ' +
-    'Please create a .env file in the project root with: GOOGLE_API_KEY=your_key_here'
-  );
-}
 
-const genAI = new GoogleGenAI({ apiKey });
+const MISSING_API_KEY_ERROR = new Error(
+  'GOOGLE_API_KEY environment variable is not set. ' +
+  'Please create a .env file in the project root with: GOOGLE_API_KEY=your_key_here'
+);
+
+let genAI: GoogleGenAI | null = null;
+
+function ensureClient(): GoogleGenAI {
+  if (genAI) {
+    return genAI;
+  }
+
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw MISSING_API_KEY_ERROR;
+  }
+
+  genAI = new GoogleGenAI({ apiKey });
+  return genAI;
+}
 
 // Cache for project context string (in-memory)
 let cachedProjectContext: string | null = null;
@@ -78,7 +89,7 @@ async function getOrBuildProjectContext(): Promise<string> {
 
   // Add file paths list for overview
   projectContext += "## File listing:\n";
-  for (const [path, _] of projectFiles) {
+  for (const path of projectFiles.keys()) {
     projectContext += `- ${path}\n`;
   }
 
@@ -96,6 +107,7 @@ async function getOrBuildProjectContext(): Promise<string> {
 }
 
 export async function solveTodo(todo: TodoInfo): Promise<string> {
+  const genAI = ensureClient();
   // Get cached or build project context
   const projectContext = await getOrBuildProjectContext();
 
@@ -111,8 +123,8 @@ export async function solveTodo(todo: TodoInfo): Promise<string> {
   const ctx = todo.context;
   const renaming = todo.renaming;
 
-  let basePrompt = `
-You are helping to fill in TODO expressions in Pie language code (a dependently-typed language from "The Little Typer").
+  const basePrompt = `You are helping to fill in TODO expressions in Pie language 
+          code (a dependently-typed language from "The Little Typer").
 
 ${projectContext}
 

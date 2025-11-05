@@ -83,8 +83,6 @@ export class ExactTactic extends Tactic {
     const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
     const goalType = currentGoal.type
 
-    console.log("goalType:", goalType.prettyPrint())
-    console.log("term:", this.term.prettyPrint())
     const result = this.term.check(currentGoal.context, currentGoal.renaming, goalType)
 
     if (result instanceof stop) {
@@ -182,7 +180,7 @@ export class EliminateNatTactic extends Tactic {
     }
 
     // Use the same variable name as the target for the motive parameter
-    let motiveRst = this.generateNatMotive(currentGoal.context, currentGoal.type, this.target)
+    const motiveRst = this.generateNatMotive(currentGoal.context, currentGoal.type, this.target);
       const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming,motiveRst)
       state.addGoal(
         rst.map((type) => {
@@ -400,7 +398,7 @@ export class EliminateVecTactic extends Tactic {
       valInContext(currentGoal.context, (lenout as go<Core>).result),
       len2v
     )
-    const vecMotive = fresh(currentGoal.context, "motive")
+    
     const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
       new V.Pi(
         'k',

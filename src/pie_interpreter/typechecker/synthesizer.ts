@@ -13,7 +13,6 @@ import { notForInfo } from "../utils/locations";
 import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
 import { readBack } from '../evaluator/utils';
 import { Location } from '../utils/locations';
-import { alphaEquiv } from "../utils/alphaeqv";
 
 
 export class synthesizer {

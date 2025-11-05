@@ -2,7 +2,13 @@
   "name": "@sourceacademy/pie-slang",
   "version": "1.0.0",
   "description": "Implementation of Pie in TypeScript, following the book: The Little Typer",
-  "keywords": ["Pie", "interpreter", "compiler", "Source", "The Little Typer"],
+  "keywords": [
+    "Pie",
+    "interpreter",
+    "compiler",
+    "Source",
+    "The Little Typer"
+  ],
   "author": {
     "name": "Source Academy",
     "url": "https://github.com/source-academy/"
@@ -35,19 +41,22 @@
     "eslint-plugin-react": "^7.37.2",
     "globals": "^16.4.0",
     "jest": "^30.2.0",
+    "monaco-languageclient": "^10.2.0",
     "resolve-cwd": "^3.0.0",
     "rollup": "^4.46.2",
     "to-fast-properties": "^4.0.0",
     "ts-jest": "^29.2.5",
     "tslib": "^2.8.1",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.15.0"
+    "typescript-eslint": "^8.15.0",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver-protocol": "^3.17.5"
   },
   "dependencies": {
     "@google/genai": "^1.25.0",
     "@google/generative-ai": "^0.24.1",
-    "dotenv": "^17.2.3",
     "conductor": "https://github.com/source-academy/conductor.git#0.3.0",
+    "dotenv": "^17.2.3",
     "js-base64": "^3.7.8"
   },
   "scripts": {

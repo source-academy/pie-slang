@@ -1,5 +1,5 @@
 import * as C from '../types/core';
-import { InductiveType, Neutral, Universe, Value, Constructor, InductiveTypeConstructor } from '../types/value';
+import { InductiveType, Neutral, Universe, Value, InductiveTypeConstructor } from '../types/value';
 
 import { Location } from './locations';
 import { go, stop, Perhaps, goOn, PerhapsM, Message } from '../types/utils';
@@ -7,7 +7,7 @@ import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
 import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
-import { Eliminator } from '../types/core';
+
 /*
     ## Contexts ##
     A context maps free variable names to binders.

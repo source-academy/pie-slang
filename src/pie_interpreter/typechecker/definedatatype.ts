@@ -1,14 +1,17 @@
 import * as S from '../types/source';
 import * as C from '../types/core';
 import * as V from '../types/value';
-import { go, Perhaps, stop, fresh, TypedBinder, Message, SiteBinder, HigherOrderClosure } from '../types/utils';
-import { Context, extendContext, InductiveDatatypeBinder, ConstructorTypeBinder, contextToEnvironment, EliminatorBinder, valInContext, bindFree, getClaim } from '../utils/context';
+import { go, Perhaps, stop, fresh, TypedBinder, Message } from '../types/utils';
+import { 
+  Context, 
+  extendContext, 
+  InductiveDatatypeBinder, 
+  ConstructorTypeBinder, 
+  valInContext, 
+  bindFree 
+} from '../utils/context';
 import { Location, Syntax } from '../utils/locations';
 import { extendRenaming, Renaming } from './utils';
-import { Environment } from '../utils/environment';
-import { VarName } from '../types/core';
-import { synthesizer } from './synthesizer';
-import { doApp } from '../evaluator/evaluator';
 import { Position } from '../../scheme_parser/transpiler/types/location';
 
 function isRecursiveArgumentType(argType: S.Source, datatypeName: string): boolean {
@@ -17,7 +20,7 @@ function isRecursiveArgumentType(argType: S.Source, datatypeName: string): boole
   }
 
   if (argType instanceof S.GeneralTypeConstructor &&
-      argType.name === datatypeName) {
+    argType.name === datatypeName) {
     return true;
   }
 
@@ -69,12 +72,18 @@ export class DefineDatatypeSource {
     extendedCtx = extendContext(extendedCtx, this.name,
       new InductiveDatatypeBinder(this.name, validValueType as V.InductiveType))
 
-    let normalized_constructor: C.ConstructorType[] = []
+    const normalized_constructor: C.ConstructorType[] = []
     for (let i = 0; i < this.constructors.length; i++) {
-      
-      normalized_constructor.push(this.constructors[i].checkValid(extendedCtx, extendedRename, validValueType as any, i))
+      normalized_constructor.push(
+        this.constructors[i].checkValid(
+          extendedCtx,
+          extendedRename,
+          validValueType as any,
+          i
+        )
+      )
     }
-    
+
     // Build return context: start from original, add datatype and constructors
     // Do NOT include parameter bindings in return context - they're only for internal checking
     let ret_ctx = ctx;
@@ -93,8 +102,6 @@ export class DefineDatatypeSource {
   }
 }
 
-
-
 export class GeneralConstructor {
   constructor(
     public location: Location,
@@ -106,8 +113,8 @@ export class GeneralConstructor {
   checkValid(ctx: Context, rename: Renaming, target: V.Value, index: number) {
     let cur_ctx = ctx
     let cur_rename = rename
-    let normalized_args: C.Core[] = []
-    let normalized_rec_args: C.Core[] = []
+    const normalized_args: C.Core[] = []
+    const normalized_rec_args: C.Core[] = []
 
     for (let i = 0; i < this.args.length; i++) {
       const argName = this.args[i].binder.varName
@@ -137,15 +144,13 @@ export class GeneralConstructor {
     }
     const returnResult = (returnTemp as go<C.Core>).result
     return new C.ConstructorType(
-        this.name,
-        index,
-        this.returnType.name,
-        normalized_args,
-        normalized_rec_args,
-        returnResult
-      )
-
-
+      this.name,
+      index,
+      this.returnType.name,
+      normalized_args,
+      normalized_rec_args,
+      returnResult
+    )
   }
 }
 
@@ -169,9 +174,6 @@ export function handleDefineDatatype(ctx: Context, rename: Renaming, target: Def
   if (ctx.has(target.name)) {
     return new stop(target.location, new Message([`Name already in use: ${target.name}`]));
   }
-  let [new_ctx, new_rename] = target.normalize_constructor(ctx, rename)
+  const [new_ctx, new_rename] = target.normalize_constructor(ctx, rename)
   return new go<Context>(new_ctx);
-
-  
 }
-
