@@ -11,7 +11,9 @@ function stubNodeBuiltins() {
     'path': 'export default {}',
     'fs/promises': 'export default {}',
     'process': 'export default { argv: [] }',
-    'escodegen': 'export default {}'
+    'escodegen': 'export default {}',
+    'dotenv': 'export const config = () => ({ parsed: {} }); export default { config };',
+    'dotenv/config': 'export const config = () => ({ parsed: {} }); export default config;'
   };
 
   return {
@@ -54,11 +56,17 @@ export default [
       (function workerTodoSolverStub() {
         const filename = fileURLToPath(import.meta.url);
         const dirname = path.dirname(filename);
-        const browserTodoSolverPath = path.resolve(dirname, 'src/pie_interpreter/try_llm/todo_solver.browser.ts');
+        const browserTodoSolverPath = path.resolve(dirname, 'src/pie_interpreter/solver/todo_solver.browser.ts');
+        const browserTodoSolverSpecifiers = new Set([
+          '../solver/todo_solver',
+          '../../solver/todo_solver',
+          '../try_llm/todo_solver',
+          '../../try_llm/todo_solver'
+        ]);
         return {
           name: 'worker-todo-solver-stub',
           resolveId(source) {
-            if (source === '../try_llm/todo_solver') {
+            if (browserTodoSolverSpecifiers.has(source)) {
               return browserTodoSolverPath;
             }
             return null;
@@ -100,11 +108,17 @@ export default [
       (function workerTodoSolverStub() {
         const filename = fileURLToPath(import.meta.url);
         const dirname = path.dirname(filename);
-        const browserTodoSolverPath = path.resolve(dirname, 'src/pie_interpreter/try_llm/todo_solver.browser.ts');
+        const browserTodoSolverPath = path.resolve(dirname, 'src/pie_interpreter/solver/todo_solver.browser.ts');
+        const browserTodoSolverSpecifiers = new Set([
+          '../solver/todo_solver',
+          '../../solver/todo_solver',
+          '../try_llm/todo_solver',
+          '../../try_llm/todo_solver'
+        ]);
         return {
           name: 'worker-todo-solver-stub',
           resolveId(source) {
-            if (source === '../try_llm/todo_solver' || source === '../../try_llm/todo_solver') {
+            if (browserTodoSolverSpecifiers.has(source)) {
               return browserTodoSolverPath;
             }
             return null;
