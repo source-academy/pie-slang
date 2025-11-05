@@ -1,3 +1,6 @@
+import { PieLanguageClient, registerPieLanguage } from './lsp/lsp-client';
+import * as monaco from 'monaco-editor';
+
 const examples = {
   'Hello World': `(claim zero Nat)
 (define zero zero)
@@ -94,25 +97,21 @@ const examples = {
 
 const defaultSource = examples['Hello World'];
 
-const status = document.getElementById('status-pill');
-const previewSummary = document.getElementById('preview-summary');
-const previewOutput = document.getElementById('preview-output');
+const previewSummary = document.getElementById('preview-summary') as HTMLElement;
+const previewOutput = document.getElementById('preview-output') as HTMLElement;
 
-let diagnosticsWorker = null;
-let monacoApi = null;
+let diagnosticsWorker: Worker | null = null;
+let lspClient: PieLanguageClient | null = null;
+let monacoApi: typeof monaco | null = null;
 
-function setStatus(message) {
-  if (status) {
-    status.textContent = message;
+function setSummary(message: string, tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral') {
+  if (previewSummary) {
+    previewSummary.textContent = message;
+    previewSummary.dataset.tone = tone;
   }
 }
 
-function setSummary(message, tone = 'neutral') {
-  previewSummary.textContent = message;
-  previewSummary.dataset.tone = tone;
-}
-
-function renderPreviewText(text, tone) {
+function renderPreviewText(text: string | undefined, tone?: 'neutral' | 'success' | 'warning' | 'error') {
   if (tone) {
     previewOutput.dataset.tone = tone;
   } else {
@@ -126,11 +125,13 @@ function renderPreviewText(text, tone) {
   }
 }
 
-function applyDiagnostics(monaco, editor, payload) {
+function applyDiagnostics(monaco: typeof import('monaco-editor'), editor: monaco.editor.IStandaloneCodeEditor, payload: any) {
   const { diagnostics, pretty } = payload;
   const model = editor.getModel();
 
-  const markers = diagnostics.map(d => ({
+  if (!model) return;
+
+  const markers = diagnostics.map((d: any) => ({
     startLineNumber: d.startLineNumber,
     startColumn: d.startColumn,
     endLineNumber: d.endLineNumber,
@@ -145,7 +146,6 @@ function applyDiagnostics(monaco, editor, payload) {
 
   if (diagnostics.length === 0) {
     setSummary('SUCCESS', 'success');
-    setStatus('All clear');
     renderPreviewText(pretty?.trim() ?? undefined, 'success');
     return;
   }
@@ -153,17 +153,13 @@ function applyDiagnostics(monaco, editor, payload) {
   const primary = diagnostics[0];
   const tone = primary.severity === 'warning' ? 'warning' : 'error';
   const label = tone === 'warning' ? 'WARNING' : 'ERROR';
-  const statusLabel = diagnostics.length > 1
-    ? `${diagnostics.length} issues`
-    : tone === 'warning' ? 'Warning found' : 'Issue found';
 
   setSummary(label, tone);
-  setStatus(statusLabel);
   const location = `Line ${primary.startLineNumber}, Col ${primary.startColumn}`;
   renderPreviewText(`${location}\n${primary.message}`, tone);
 }
 
-function initializeDiagnostics(editor) {
+function initializeDiagnostics(editor: monaco.editor.IStandaloneCodeEditor) {
   if (!('Worker' in window)) {
     setSummary('Diagnostics unavailable in this browser.', 'warning');
     return null;
@@ -186,7 +182,6 @@ function initializeDiagnostics(editor) {
       colno: error.colno
     });
     setSummary('Diagnostics worker crashed.', 'error');
-    setStatus('Diagnostics error');
     renderPreviewText(
       `Worker failed to load. Check browser console for details.\nError: ${error.message || 'Unknown error'}`,
       'error'
@@ -196,10 +191,24 @@ function initializeDiagnostics(editor) {
   return worker;
 }
 
-function initializeEditor(monaco) {
-  const editor = monaco.editor.create(document.getElementById('editor'), {
+async function initializeLSP() {
+  try {
+    lspClient = new PieLanguageClient();
+    await lspClient.start();
+    console.log('LSP client initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize LSP client:', error);
+    setSummary('LSP features unavailable', 'warning');
+  }
+}
+
+function initializeEditor(monaco: typeof import('monaco-editor')) {
+  // Register Pie language
+  registerPieLanguage(monaco);
+
+  const editor = monaco.editor.create(document.getElementById('editor')!, {
     value: defaultSource,
-    language: 'scheme',
+    language: 'pie',
     theme: 'vs-dark',
     automaticLayout: true,
     minimap: {
@@ -220,9 +229,8 @@ function initializeEditor(monaco) {
 
   renderPreviewText(defaultSource.trim());
   setSummary('Ready for analysis.', 'neutral');
-  setStatus('Editor loaded');
 
-  const debounced = debounce((text) => {
+  const debounced = debounce((text: string) => {
     if (text.trim().length === 0) {
       setSummary('Waiting for input…', 'neutral');
       renderPreviewText(undefined);
@@ -230,10 +238,9 @@ function initializeEditor(monaco) {
       setSummary('Running checks…', 'warning');
       renderPreviewText('Analyzing…');
     }
-    setStatus('Typing…');
   }, 120);
 
-  const queueDiagnostics = debounce((text) => {
+  const queueDiagnostics = debounce((text: string) => {
     setSummary('Running checks…', 'warning');
     if (diagnosticsWorker) {
       diagnosticsWorker.postMessage({
@@ -249,15 +256,13 @@ function initializeEditor(monaco) {
     queueDiagnostics(content);
   });
 
-  editor.onDidBlurEditorWidget(() => {
-    setStatus('Idle');
-  });
-
   return editor;
 }
 
-function initializeExamplePicker(editor) {
-  const picker = document.getElementById('example-picker');
+function initializeExamplePicker(editor: monaco.editor.IStandaloneCodeEditor) {
+  const picker = document.getElementById('example-picker') as HTMLSelectElement;
+
+  if (!picker) return;
 
   // Populate the dropdown
   Object.keys(examples).forEach(name => {
@@ -272,36 +277,16 @@ function initializeExamplePicker(editor) {
 
   // Handle selection
   picker.addEventListener('change', (e) => {
-    const exampleName = e.target.value;
-    if (exampleName && examples[exampleName]) {
-      editor.setValue(examples[exampleName]);
+    const exampleName = (e.target as HTMLSelectElement).value;
+    if (exampleName && examples[exampleName as keyof typeof examples]) {
+      editor.setValue(examples[exampleName as keyof typeof examples]);
     }
   });
 }
 
-async function initializeLSP() {
-  try {
-    // Dynamically import the LSP client
-    const { PieLanguageClient, registerPieLanguage } = await import('./lsp/lsp-client-bundle.js');
-
-    // Register Pie language for Monaco
-    registerPieLanguage(window.monaco);
-
-    // Start LSP client
-    const lspClient = new PieLanguageClient();
-    await lspClient.start();
-    console.log('LSP client initialized successfully');
-    return lspClient;
-  } catch (error) {
-    console.error('Failed to initialize LSP client:', error);
-    console.log('LSP features will not be available. Falling back to basic diagnostics.');
-    return null;
-  }
-}
-
 async function boot() {
   if (!window.require) {
-    setStatus('Failed to load editor runtime');
+    console.error('Monaco loader not available');
     return;
   }
 
@@ -313,27 +298,27 @@ async function boot() {
 
   window.require(['vs/editor/editor.main'], async () => {
     monacoApi = window.monaco;
-
-    // Initialize LSP first (optional enhancement)
-    const lspClient = await initializeLSP();
-
     const editor = initializeEditor(monacoApi);
     diagnosticsWorker = initializeDiagnostics(editor);
     initializeExamplePicker(editor);
+
+    // Initialize LSP
+    await initializeLSP();
+
     if (diagnosticsWorker) {
       diagnosticsWorker.postMessage({
         type: 'analyze',
         payload: { source: editor.getValue() }
       });
     }
-    window.__pieEditor = editor;
-    window.__pieLSPClient = lspClient;
+
+    (window as any).__pieEditor = editor;
   });
 }
 
-function debounce(fn, delay) {
-  let handle;
-  return function debounced(...args) {
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
+  let handle: number;
+  return function debounced(this: any, ...args: Parameters<T>) {
     window.clearTimeout(handle);
     handle = window.setTimeout(() => fn.apply(this, args), delay);
   };

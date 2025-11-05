@@ -5,7 +5,16 @@ import * as S from './source';
 
 import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename } from '../typechecker/utils';
 import { Location, notForInfo } from '../utils/locations';
-import { bindFree, Context, readBackContext, valInContext, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder, EliminatorBinder, contextToEnvironment } from '../utils/context';
+import { 
+  bindFree, 
+  Context,
+  readBackContext,
+  valInContext,
+  getInductiveType,
+  InductiveDatatypeBinder,
+  ConstructorTypeBinder,
+  contextToEnvironment 
+} from '../utils/context';
 import { extendEnvironment } from '../utils/environment';
 
 import { go, stop, goOn, occurringBinderNames, Perhaps,
@@ -1988,7 +1997,7 @@ export class GeneralType extends Source {
   public prettyPrint(): string {
     throw new Error('Method not implemented.');
   }
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -1996,8 +2005,8 @@ export class GeneralType extends Source {
 
     let cur_ctx = ctx
     let cur_rename = rename
-    let normalizedParamType: C.Core[] = []
-    let normalizedIndicesType: C.Core[] = []
+    const normalizedParamType: C.Core[] = []
+    const normalizedIndicesType: C.Core[] = []
     for (let i = 0; i < this.paramType.length; i++) {
       const fresh_name = fresh(cur_ctx, this.paramType[i].binder.varName)
       const resultTemp = this.paramType[i].type.isType(cur_ctx, cur_rename)
@@ -2037,7 +2046,7 @@ export class GeneralTypeConstructor extends Source {
   public prettyPrint(): string {
     throw new Error('Method not implemented.');
   }
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
   constructor(
@@ -2083,11 +2092,9 @@ export class GeneralTypeConstructor extends Source {
   }
 
   public checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core> {
-    let cur_val = target.now()
-    let cur_ctx = ctx
-    let cur_rename = renames
-    let normalized_params: C.Core[] = []
-    let normalized_indices: C.Core[] = []
+    const cur_val = target.now()
+    const normalized_params: C.Core[] = []
+    const normalized_indices: C.Core[] = []
 
     //TODO: verify name sameness check is not necessary
 
@@ -2096,8 +2103,8 @@ export class GeneralTypeConstructor extends Source {
     }
 
     const targetType: V.InductiveType = cur_val as V.InductiveType
-    let paramTypes = targetType.parameterTypes
-    let idxTypes = targetType.indexTypes
+    const paramTypes = targetType.parameterTypes
+    const idxTypes = targetType.indexTypes
 
     if((this.params.length != paramTypes.length) || (this.indices.length != idxTypes.length)) {
       return new stop(this.location, new Message(['the number of parameters/indices is inconsistent in constructor']))
@@ -2131,7 +2138,7 @@ export class GeneralEliminator extends Source {
   public prettyPrint(): string {
     throw new Error('Method not implemented.');
   }
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     throw new Error('Method not implemented.');
   }
 
@@ -2182,7 +2189,7 @@ export class ConstructorApplication extends Source {
     return `(${this.constructorName}${args.length > 0 ? ' ' + args : ''})`;
   }
 
-  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
     // return Synth.synthConstructorApplication(ctx, renames, this);
     throw new Error('Method not implemented.');
   }
@@ -2205,8 +2212,6 @@ export class ConstructorApplication extends Source {
     if (!inductiveBinder || !(inductiveBinder instanceof InductiveDatatypeBinder)) {
       return new stop(this.location, new Message([`Unknown inductive type: ${ctorType.type}`]));
     }
-
-    const inductiveType = inductiveBinder.type;
 
     // Build substitution environment: parameter names -> concrete values
     // Following the OLD design pattern (like FirstOrderClosure.valOfClosure):
@@ -2253,11 +2258,9 @@ export class ConstructorApplication extends Source {
       indexArgNames.push(...extractVarNamesFromValue(i));
     });
 
-    console.log('Extracted index argument names:', indexArgNames);
-
     // Now check arguments using the substituted environment
-    let normalized_args: C.Core[] = [];
-    let normalized_rec_args: C.Core[] = [];
+    const normalized_args: C.Core[] = [];
+    const normalized_rec_args: C.Core[] = [];
 
     const allArgTypes = [...ctorType.argTypes, ...ctorType.rec_argTypes];
 

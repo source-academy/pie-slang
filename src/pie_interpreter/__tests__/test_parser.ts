@@ -1,4 +1,5 @@
 import 'jest';
+import { schemeParse, pieDeclarationParser } from '../parser/parser';
 
 function testParser(input: string) {
   const parsed = schemeParse(input);

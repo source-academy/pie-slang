@@ -7,7 +7,7 @@ import { Context, SerializableContext } from "../utils/context";
 import { go, stop, Perhaps, Message } from "../types/utils";
 import { alphaEquiv } from "../utils/alphaeqv";
 import { readBack } from "../evaluator/utils";
-import { todoQueue } from "../try_llm/todo_solver";
+import { todoQueue } from "../solver/todo_solver";
 
 
 type What = 'definition'
@@ -115,4 +115,3 @@ function isAlphabetic(char: string): boolean {
 export function makeApp(a: Source, b: Source, cs: Source[]): Source {
   return new Application(a.location, a, b, cs);
 }
-
