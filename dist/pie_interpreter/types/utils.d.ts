@@ -39,7 +39,7 @@ export declare class PerhapsM<T> {
     value: T;
     constructor(name: string, value?: T);
 }
-export declare function goOn<T>(bindings: [PerhapsM<any>, () => Perhaps<any>][], finalExpr: () => T): T;
+export declare function goOn<T>(bindings: [PerhapsM<unknown>, () => Perhaps<unknown>][], finalExpr: () => T): T;
 export declare abstract class Closure {
     constructor();
     abstract valOfClosure(v: Value): Value;

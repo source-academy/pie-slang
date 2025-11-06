@@ -13,7 +13,7 @@ export declare class DefineDatatypeSource {
     constructors: GeneralConstructor[];
     eliminatorName?: string | undefined;
     constructor(location: Location, name: string, parameters: TypedBinder[], indices: TypedBinder[], constructors: GeneralConstructor[], eliminatorName?: string | undefined);
-    normalize_constructor(ctx: Context, rename: Renaming): [Context, Renaming];
+    normalizeConstructor(ctx: Context, rename: Renaming): [Context, Renaming];
 }
 export declare class GeneralConstructor {
     location: Location;
