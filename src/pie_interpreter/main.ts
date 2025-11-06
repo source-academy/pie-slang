@@ -32,13 +32,14 @@ export function evaluatePie(str: string): string {
     } else if (src instanceof SamenessCheck) {
       const result = checkSame(ctx, src.location, src.type, src.left, src.right);
       if (result instanceof go) {
-        ctx = result.result;
+          // check-same verifies equality but does not modify the context
+          // -- fallthrough on success!
       } else if (result instanceof stop) {
         throw new Error("" + result.where + result.message);
       }
     } else if (src instanceof DefineDatatypeSource) {
       // Handle datatype definition
-      const [newCtx, newRenaming] = src.normalize_constructor(ctx, renaming);
+      const [newCtx, newRenaming] = src.normalizeConstructor(ctx, renaming);
       ctx = newCtx;
       renaming = newRenaming;
     } else if (src instanceof DefineTactically) {

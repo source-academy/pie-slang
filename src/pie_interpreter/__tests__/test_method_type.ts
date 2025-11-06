@@ -28,7 +28,7 @@
 //     );
 
 //     // First normalize constructors to get C.ConstructorType
-//     const normalizedCtors = boolDatatype.normalize_constructor(ctx, new Map());
+//     const normalizedCtors = boolDatatype.normalizeConstructor(ctx, new Map());
 //     const trueCtorType = normalizedCtors[0];
 
 //     // Create a dummy motive value (Lambda) for testing
@@ -66,7 +66,7 @@
 //       ]
 //     );
 
-//     const normalizedCtors = natDatatype.normalize_constructor(ctx, new Map());
+//     const normalizedCtors = natDatatype.normalizeConstructor(ctx, new Map());
 //     const succCtorType = normalizedCtors[1];
 
 //     // Create a dummy motive value (Lambda)
@@ -120,7 +120,7 @@
 //       ]
 //     );
 
-//     const normalizedCtors = listDatatype.normalize_constructor(ctx, new Map());
+//     const normalizedCtors = listDatatype.normalizeConstructor(ctx, new Map());
 //     const consCtorType = normalizedCtors[1];
 
 //     // Create a dummy motive value (Lambda)
