@@ -26,9 +26,9 @@ describe('boolean', () => {
   let ctx = initCtx
   let renameing = new Map<string, string>()
   it('test generate type and constructor', () => {
-    let result = define_boolean.normalize_constructor(ctx, renameing)
+    let result = define_boolean.normalizeConstructor(ctx, renameing)
   })
-  let [new_ctx, new_renaming] = define_boolean.normalize_constructor(ctx, renameing)
+  let [new_ctx, new_renaming] = define_boolean.normalizeConstructor(ctx, renameing)
   let Mytrue = new S.ConstructorApplication(
     testLoc,
     'true',
@@ -114,10 +114,10 @@ describe('mynat', () => {
   let renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_mynat.normalize_constructor(ctx, renaming)
+    let result = define_mynat.normalizeConstructor(ctx, renaming)
   })
 
-  let [new_ctx, new_renaming] = define_mynat.normalize_constructor(ctx, renaming)
+  let [new_ctx, new_renaming] = define_mynat.normalizeConstructor(ctx, renaming)
 
   it('test type check constructors', () => {
     let Myzero = new S.ConstructorApplication(testLoc, 'myzero', [])
@@ -227,10 +227,10 @@ describe('mylist', () => {
   let renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_mylist.normalize_constructor(ctx, renaming)
+    let result = define_mylist.normalizeConstructor(ctx, renaming)
   })
 
-  let [new_ctx, new_renaming] = define_mylist.normalize_constructor(ctx, renaming)
+  let [new_ctx, new_renaming] = define_mylist.normalizeConstructor(ctx, renaming)
 
   it('test type check constructors', () => {
     // MyList Nat: (mynil Nat)
@@ -381,10 +381,10 @@ describe('myvec', () => {
   let renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_myvec.normalize_constructor(ctx, renaming)
+    let result = define_myvec.normalizeConstructor(ctx, renaming)
   })
 
-  let [new_ctx, new_renaming] = define_myvec.normalize_constructor(ctx, renaming)
+  let [new_ctx, new_renaming] = define_myvec.normalizeConstructor(ctx, renaming)
 
   it('test type check constructors', () => {
     // MyVec Nat 0: (myvecnil Nat)
@@ -599,10 +599,10 @@ describe('less-than', () => {
   let renaming = new Map<string, string>()
 
   it('test generate type and constructors', () => {
-    let result = define_less_than.normalize_constructor(ctx, renaming)
+    let result = define_less_than.normalizeConstructor(ctx, renaming)
   })
 
-  let [new_ctx, new_renaming] = define_less_than.normalize_constructor(ctx, renaming)
+  let [new_ctx, new_renaming] = define_less_than.normalizeConstructor(ctx, renaming)
 
   it('test type check constructors', () => {
     // Proof of 0 < 1: (zero-smallest 0)
@@ -736,5 +736,3 @@ describe('less-than', () => {
 
   })
 })
-
-

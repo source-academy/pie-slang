@@ -9,7 +9,7 @@ import {
 import { Location, Syntax } from "../utils/locations";
 import { Location as Loc } from '../../scheme_parser/transpiler/types/location';
 import { isVarName, SiteBinder, TypedBinder } from "../types/utils";
-import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic } from "../tactics/tactics";
+import { Tactic } from "../tactics/tactics";
 import { DefineDatatypeSource, GeneralConstructor } from "../typechecker/definedatatype";
 import * as Maker from "./makers"
 
@@ -467,7 +467,7 @@ export class Parser {
         methods
       );
     } else if (element instanceof Extended.List && (element as Extended.List).elements.length >= 3) {
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       const firstElem = elements[0];
 
       // Check if this is a GeneralTypeConstructor without type- prefix
@@ -513,7 +513,7 @@ export class Parser {
       );
     } else if (element instanceof Extended.List && (element as Extended.List).elements.length > 1) {
       // Application with 2 elements
-      let elements = (element as Extended.List).elements;
+      const elements = (element as Extended.List).elements;
       return Maker.makeApp(
         locationToSyntax('App', element.location),
         this.parseElements(elements[0] as Element),
@@ -678,8 +678,8 @@ export class pieDeclarationParser {
         (elements[2] as Extended.List).elements.map((x: Expression) => Parser.parseToTactics(x as Element))
       );
     } else if (parsee === 'data') {
-      let elements = (ast as Extended.List).elements;
-      let loc = ast.location;
+      const elements = (ast as Extended.List).elements;
+      const loc = ast.location;
 
       // elements[0] = 'data' (keyword)
       // elements[1] = type name (e.g., 'Less-Than')

@@ -97,10 +97,13 @@ export function isPieKeywords(str : string) : boolean {
 
 
 export class Message {
+  
   constructor(public message: Array<string|Core>) { }
+  
   public toString(): string {
     return this.message.map(m => typeof m === 'string' ? m : (m as Core).prettyPrint()).join(' ');
   }
+
 }
 
 export abstract class Perhaps<T> { // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -131,15 +134,18 @@ export class PerhapsM<T> {
   bound to the contents of each go.
 */
 
-export function goOn<T>(
-  bindings: [PerhapsM<any>, () => Perhaps<any>][],
-  finalExpr: () => T): T {
+export function goOn<T>( bindings: [PerhapsM<unknown>, () => Perhaps<unknown>][], finalExpr: () => T): T {
   for(const [meta, lazy] of bindings) {
     const val = lazy();
     if (val instanceof go) {
-      meta.value = (val as go<any>).result;
+      meta.value = (val as go<unknown>).result;
     } else {
-      throw new Error(`Error message: ${(val as stop).message.message} at ${(val as stop).where}`);
+      // Propagate a well-formed error if computation returned a stop; otherwise guard against unexpected values
+      if (val instanceof stop) {
+        // Message has a custom toString; Location should stringify meaningfully as well
+        throw new Error(`Error: ${val.message.toString()} at ${val.where}`);
+      }
+      throw new Error(`Internal error: expected go/stop, got ${typeof val}`);
     }
   }
   return finalExpr();
