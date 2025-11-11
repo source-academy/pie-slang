@@ -301,40 +301,79 @@ function extractSymbolDefinitions(document: TextDocument): Map<string, SymbolDef
 function getWordAtPosition(document: TextDocument, position: Position): string | null {
 	const text = document.getText();
 	const lines = text.split('\n');
-	
+
 	if (position.line >= lines.length) {
 		return null;
 	}
-	
+
 	const line = lines[position.line];
 	const character = position.character;
-	
+
 	if (character >= line.length) {
 		return null;
 	}
-	
+
 	// Define what constitutes an identifier in Pie
 	const identifierRegex = /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/;
-	
+
 	// Find the start of the word
 	let start = character;
 	while (start > 0 && identifierRegex.test(line[start - 1])) {
 		start--;
 	}
-	
+
 	// Find the end of the word
 	let end = character;
 	while (end < line.length && identifierRegex.test(line[end])) {
 		end++;
 	}
-	
+
 	// Return the word if it's not empty and starts with a letter
 	const word = line.substring(start, end);
 	if (word.length > 0 && /[a-zA-Z]/.test(word[0])) {
 		return word;
 	}
-	
+
 	return null;
+}
+
+// Get word at position with range information
+function getWordAndRange(document: TextDocument, position: Position): { word: string, start: number, end: number, cursorOffset: number } | null {
+	const text = document.getText();
+	const lines = text.split('\n');
+
+	if (position.line >= lines.length) {
+		return null;
+	}
+
+	const line = lines[position.line];
+	const character = position.character;
+
+	// Define what constitutes an identifier in Pie
+	const identifierRegex = /[a-zA-Z0-9_\-!?*+=<>λΠΣ→]/;
+
+	// Find the start of the word
+	let start = character;
+	while (start > 0 && identifierRegex.test(line[start - 1])) {
+		start--;
+	}
+
+	// Find the end of the word
+	let end = character;
+	while (end < line.length && identifierRegex.test(line[end])) {
+		end++;
+	}
+
+	if (start === end) {
+		return null;
+	}
+
+	return {
+		word: line.substring(start, end),
+		start,
+		end,
+		cursorOffset: character - start
+	};
 }
 
 // Hover handler
@@ -533,16 +572,60 @@ connection.onCompletion(
 		if (!document) {
 			return PIE_COMPLETIONS;
 		}
-		
+
+		// Get the word at cursor for prefix filtering
+		const wordInfo = getWordAndRange(document, _textDocumentPosition.position);
+		const prefix = wordInfo ? wordInfo.word.substring(0, wordInfo.cursorOffset) : '';
+
 		// Get user-defined symbols for this document
 		const userSymbols = documentSymbols.get(_textDocumentPosition.textDocument.uri);
-		
-		if (userSymbols) {
-			// Combine built-in completions with user-defined symbols
-			return [...PIE_COMPLETIONS, ...Array.from(userSymbols.values())];
+
+		// Combine built-in completions with user-defined symbols
+		let allCompletions = userSymbols
+			? [...PIE_COMPLETIONS, ...Array.from(userSymbols.values())]
+			: PIE_COMPLETIONS;
+
+		// Filter completions based on prefix
+		if (prefix) {
+			allCompletions = allCompletions.filter(item =>
+				item.label.toLowerCase().startsWith(prefix.toLowerCase())
+			);
+
+			// Sort by relevance
+			allCompletions.sort((a, b) => {
+				const aLabel = a.label;
+				const bLabel = b.label;
+
+				// Exact match gets highest priority
+				if (aLabel === prefix && bLabel !== prefix) return -1;
+				if (bLabel === prefix && aLabel !== prefix) return 1;
+
+				// Case-sensitive prefix match
+				const aStartsWith = aLabel.startsWith(prefix);
+				const bStartsWith = bLabel.startsWith(prefix);
+				if (aStartsWith && !bStartsWith) return -1;
+				if (bStartsWith && !aStartsWith) return 1;
+
+				// Then sort alphabetically
+				return aLabel.localeCompare(bLabel);
+			});
 		}
-		
-		return PIE_COMPLETIONS;
+
+		// Add textEdit to replace the word range if we found one
+		if (wordInfo) {
+			allCompletions = allCompletions.map(item => ({
+				...item,
+				textEdit: {
+					range: {
+						start: { line: _textDocumentPosition.position.line, character: wordInfo.start },
+						end: { line: _textDocumentPosition.position.line, character: wordInfo.end }
+					},
+					newText: item.label
+				}
+			}));
+		}
+
+		return allCompletions;
 	}
 );
 

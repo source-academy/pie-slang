@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pie-Slang</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(135deg, #1a4d2e 0%, #0d2818 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .container {
+        background: #f4f9f6;
+        border-radius: 12px;
+        padding: 48px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        max-width: 680px;
+        width: 100%;
+      }
+      h1 {
+        font-size: 2.5em;
+        color: #333;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+      .pi-symbol {
+        color: #2d6a4f;
+        font-size: 1.2em;
+      }
+      p {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 32px;
+        text-align: center;
+      }
+      .links {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      a {
+        display: block;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #2d6a4f 0%, #1a4d2e 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 500;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      a:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(45, 106, 79, 0.5);
+      }
+      .secondary {
+        background: white;
+        color: #2d6a4f;
+        border: 2px solid #2d6a4f;
+      }
+      .secondary:hover {
+        box-shadow: 0 8px 16px rgba(45, 106, 79, 0.3);
+      }
+      .description {
+        margin-top: 12px;
+        font-size: 0.9em;
+        color: #888;
+      }
+      .footer {
+        margin-top: 36px;
+        padding-top: 24px;
+        border-top: 1px solid #d0e4d9;
+        text-align: center;
+        font-size: 0.9em;
+        color: #666;
+        line-height: 1.8;
+      }
+      .footer a {
+        display: inline;
+        padding: 0;
+        background: none;
+        color: #2d6a4f;
+        font-weight: 600;
+        border: none;
+        border-radius: 0;
+      }
+      .footer a:hover {
+        transform: none;
+        box-shadow: none;
+        text-decoration: underline;
+      }
+      .book-cover {
+        margin: 20px auto 16px;
+        display: block;
+        max-width: 180px;
+        height: auto;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(45, 106, 79, 0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .book-cover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(45, 106, 79, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1><span class="pi-symbol">Π</span> Pie-Slang</h1>
+      <p>A language server and interpreter for the Pie programming language</p>
+      <div class="links">
+        <a href="pie-playground/">
+          <div>🎮 Pie Playground</div>
+          <div class="description">Try Pie in your browser</div>
+        </a>
+        <a href="dist/index.js" class="secondary">
+          <div>📦 Distribution Files</div>
+          <div class="description">Access compiled dist/index.js</div>
+        </a>
+        <a href="https://github.com/source-academy/pie-slang" class="secondary">
+          <div>💻 View on GitHub</div>
+          <div class="description">Source code and documentation</div>
+        </a>
+      </div>
+      <div class="footer">
+        <a href="https://thelittletyper.com" target="_blank">
+          <img src="https://thelittletyper.com/the-little-typer.jpg" alt="The Little Typer Book Cover" class="book-cover">
+        </a>
+        <div>Inspired by <a href="https://thelittletyper.com" target="_blank">The Little Typer</a></div>
+        <div>Part of <a href="https://sourceacademy.org" target="_blank">Source Academy</a> @ <a href="https://www.comp.nus.edu.sg" target="_blank">NUS School of Computing</a></div>
+      </div>
+    </div>
+  </body>
+</html>

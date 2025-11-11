@@ -1,10 +1,8 @@
 import { Claim, Context, extendContext } from '../utils/context';
-import { Source } from '../types/source';
 import { Core } from '../types/core';
 import { Value } from '../types/value';
 import { Location } from '../utils/locations';
-import { Free } from '../utils/context';  // Add this import
-import { fresh, go, Perhaps, stop } from '../types/utils';
+import { fresh, go, Perhaps } from '../types/utils';
 import { Renaming } from '../typechecker/utils';
 
 type GoalId = string;

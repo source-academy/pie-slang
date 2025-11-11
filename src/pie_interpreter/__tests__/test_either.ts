@@ -2,19 +2,19 @@ import 'jest'
 import { evaluatePie } from '../main'
 
 describe("left and right", () => {
-    it("left trivial", () => {
-        const str = 
-        `(claim test_either
+  it("left trivial", () => {
+    const str =
+      `(claim test_either
   (Either Nat Nat))
 
 (define test_either
   (left zero))`
-        console.log(evaluatePie(str))
-    })
+    console.log(evaluatePie(str))
+  })
 
-    it("left trivial tactic", () => {
-        const str = 
-        `
+  it("left trivial tactic", () => {
+    const str =
+      `
         (claim test_either
   (Either Nat Nat))
 
@@ -22,27 +22,27 @@ describe("left and right", () => {
     ((left)
      (exact zero)))
         `
-        console.log(evaluatePie(str))
-    })
+    console.log(evaluatePie(str))
+  })
 
-    it("right trivial", () => {
-        const str = 
-        `(claim test_either
+  it("right trivial", () => {
+    const str =
+      `(claim test_either
   (Either Nat Nat))
 
   (define-tactically test_either
     ((right)
      (exact zero)))
         `
-        console.log(evaluatePie(str))
-    })
+    console.log(evaluatePie(str))
+  })
 }
 )
 
 describe("elimEither", () => {
-    it("trivial", () => {
-        const str = 
-    `(claim either-swap
+  it("trivial", () => {
+    const str =
+      `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
@@ -53,12 +53,12 @@ describe("elimEither", () => {
                 (lambda (_) (Either B A))
                 (lambda (x) (right x))
                 (lambda (x) (left x)))))`
-        console.log(evaluatePie(str))
-    })
+    console.log(evaluatePie(str))
+  })
 
-    it("trivial tactic ver0", () => {
-        const str =
-        `(claim either-swap
+  it("trivial tactic ver0", () => {
+    const str =
+      `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
@@ -70,12 +70,12 @@ describe("elimEither", () => {
            (elimEither e)
            (exact (lambda (x) (right x)))
            (exact (lambda (x) (left x)))))`
-        console.log(evaluatePie(str))
-    })
+    console.log(evaluatePie(str))
+  })
 
-    it("trivial tactic ver1", () => {
-        const str =
-        `(claim either-swap
+  it("trivial tactic ver1", () => {
+    const str =
+      `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
@@ -89,12 +89,12 @@ describe("elimEither", () => {
            (exact (right x))
            (intro x)
            (exact (left x))))`
-        console.log(evaluatePie(str))
-    })
+    console.log(evaluatePie(str))
+  })
 
-    it("trivial tactic ver2", () => {
-        const str =
-        `(claim either-swap
+  it("trivial tactic ver2", () => {
+    const str =
+      `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
@@ -110,11 +110,6 @@ describe("elimEither", () => {
            (intro x)
            (left)
            (exact x)))`
-        console.log(evaluatePie(str))
-    })
-
-    
-
-
-    
+    console.log(evaluatePie(str))
+  })
 })

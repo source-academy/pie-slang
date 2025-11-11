@@ -537,7 +537,7 @@ export class IndList extends Core {
 
 export class Trivial extends Core {
 
-  public valOf(env: Environment): V.Value {
+  public valOf(_env: Environment): V.Value {
     return new V.Trivial();
   }
 

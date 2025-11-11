@@ -6,7 +6,6 @@ export function alphaEquiv(e1: C.Core, e2: C.Core): boolean {
   return alphaEquivAux(0, new Map(), new Map(), e1, e2);
 }
 
-
 type Bindings = Map<string, number>;
 
 const FV = -1;
@@ -266,15 +265,3 @@ function sameLocation(e1: SourceLocation, e2: SourceLocation): boolean {
     e1.endLine === e2.endLine &&
     e1.endColumn === e2.endColumn;
 }
-
-/* function alphaEquivAuxSeq(lvl: number, b1: Bindings, b2: Bindings, es1: C.Core[], es2: C.Core[]): boolean {
-  if (es1.length !== es2.length) {
-    return false;
-  }
-  for (let i = 0; i < es1.length; i++) {
-    if (!alphaEquivAux(lvl, b1, b2, es1[i], es2[i])) {
-      return false;
-    }
-  }
-  return true;
-} */
