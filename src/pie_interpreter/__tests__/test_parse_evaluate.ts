@@ -173,5 +173,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (define result2 (either-to-nat right-val))
     `;
     const result = evaluatePie(input);
+    console.log(result);
   });
 });

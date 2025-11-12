@@ -631,43 +631,69 @@ export class InductiveTypeConstructor extends Value {
   ) { super() }
 
   public readBackType(context: Context): C.Core {
+    // Look up the inductive type definition to get index types
+    const readBackFn = require('../evaluator/utils').readBack;
+    const { InductiveDatatypeBinder } = require('../utils/context');
+    const inductiveBinder = context.get(this.name);
+    let indexTypes: Value[] = [];
+
+    if (inductiveBinder && inductiveBinder instanceof InductiveDatatypeBinder) {
+      const inductiveType = inductiveBinder.type;
+      if (inductiveType instanceof InductiveType) {
+        indexTypes = inductiveType.indexTypes;
+      }
+    }
+
     return new C.InductiveTypeConstructor(
       this.name,
       this.parameters.map(p => p.readBackType(context)),
-      this.indices.map(i => {
+      this.indices.map((i, idx) => {
+        // Indices are VALUES (like Zero, Add1), not types
+        // We need to use readBack with the appropriate type
+        const indexType = indexTypes[idx]?.now(); // Get the type for this index (e.g., Nat)
+
         // Check if this is a Delay that hasn't been forced yet
         if (i instanceof Delay) {
           const boxContent = i.val.get();
           if (boxContent instanceof DelayClosure) {
-            // It's a closure - try to force it, but if it fails, return the Core expression directly
+            // It's a closure - try to force it
             try {
               const iNow = i.now();
-              if (iNow instanceof Neutral) {
+              if (indexType) {
+                // Use readBack with the index type
+                return readBackFn(context, indexType, iNow);
+              } else if (iNow instanceof Neutral) {
                 return iNow.neutral.readBackNeutral(context);
               } else {
-                return readBack(context, new Nat(), iNow);
+                // Fallback: return the Core expression if we can't read back
+                return boxContent.expr;
               }
             } catch (e) {
               // If evaluation fails due to free variables, return the Core expression as-is
-              // This preserves VarNames and other constructs
               return boxContent.expr;
             }
           } else {
             // Already evaluated
             const val = boxContent as Value;
-            if (val instanceof Neutral) {
+            if (indexType) {
+              return readBackFn(context, indexType, val);
+            } else if (val instanceof Neutral) {
               return val.neutral.readBackNeutral(context);
             } else {
-              return readBack(context, new Nat(), val);
+              // Can't read back without type - this shouldn't happen
+              throw new Error(`Cannot read back index without type: ${val.prettyPrint()}`);
             }
           }
         } else {
-          // Not a Delay
+          // Not a Delay - force it and read back
           const iNow = i.now();
-          if (iNow instanceof Neutral) {
+          if (indexType) {
+            return readBackFn(context, indexType, iNow);
+          } else if (iNow instanceof Neutral) {
             return iNow.neutral.readBackNeutral(context);
           } else {
-            return readBack(context, new Nat(), iNow);
+            // Can't read back without type - this shouldn't happen
+            throw new Error(`Cannot read back index without type: ${iNow.prettyPrint()}`);
           }
         }
       }),
