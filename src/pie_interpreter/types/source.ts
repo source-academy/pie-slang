@@ -2094,6 +2094,13 @@ export class GeneralTypeConstructor extends Source {
 
   public checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core> {
     const cur_val = target.now()
+
+    // If checking against Universe, this is a type expression (e.g., (type-Even () (n)) : U)
+    // Verify it's well-formed and return its Core representation
+    if (cur_val instanceof V.Universe) {
+      return this.getType(ctx, renames);
+    }
+
     const normalized_params: C.Core[] = []
     const normalized_indices: C.Core[] = []
 
