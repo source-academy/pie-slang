@@ -14,7 +14,6 @@ import { notForInfo } from "../utils/locations";
 import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
 import { readBack } from '../evaluator/utils';
 import { Location } from '../utils/locations';
-import { inspect } from "util";
 
 
 export class synthesizer {
@@ -1506,7 +1505,7 @@ export class synthesizer {
     }
   }
 
-
+  
   // public static synthConstructorApplication(ctx: Context, r: Renaming, ctorApp: S.ConstructorApplication): Perhaps<C.The> {
   //   // Look up constructor in context
   //   const constructorBinder = ctx.get(ctorApp.constructorName);
@@ -1574,7 +1573,7 @@ export class synthesizer {
 
   //     // Bind this argument's value in the environment using its actual name
   //     // Now we have argNames available from the constructor type!
-
+      
   //   }
 
   //   // Compute the specific result type by substituting type parameters
@@ -1699,7 +1698,7 @@ export class synthesizer {
 
     // Verify target type matches the inductive type
     if (!(targetTypeValue instanceof V.InductiveTypeConstructor) ||
-      targetTypeValue.name !== elimApp.typeName) {
+        targetTypeValue.name !== elimApp.typeName) {
       return new stop(elimApp.location,
         new Message([`Expected type ${elimApp.typeName}, got ${targetTypeValue.readBackType(ctx)}`]));
     }
@@ -1708,26 +1707,26 @@ export class synthesizer {
     // Generate expected motive type: (Π [target : T] U)
     let indexTypes = inductiveTypeValue.indexTypes
     const buildMotive = (level: number, capturedIndices: V.Value[]): V.Value => {
-      if (level >= indexTypes.length) {
-        // Base case: build (Π [target : InductiveType(name, params, capturedIndices)] U)
-        return new V.Pi(
-          'target',
-          new V.InductiveTypeConstructor(targetTypeValue.name, targetTypeValue.parameters, capturedIndices),
-          new HigherOrderClosure(_ => new V.Universe())
-        );
-      }
-
-      // Recursive case: build (Π [index : τ] ...)
-      const indexType = indexTypes[level];
-      return new V.Pi(
-        fresh(ctx, 'idx'),
-        indexType,
-        new HigherOrderClosure(indexVal =>
-          buildMotive(level + 1, [...capturedIndices, indexVal])
-        )
-      );
-    };
-
+          if (level >= indexTypes.length) {
+            // Base case: build (Π [target : InductiveType(name, params, capturedIndices)] U)
+            return new V.Pi(
+              'target',
+              new V.InductiveTypeConstructor(targetTypeValue.name, targetTypeValue.parameters, capturedIndices),
+              new HigherOrderClosure(_ => new V.Universe())
+            );
+          }
+    
+          // Recursive case: build (Π [index : τ] ...)
+          const indexType = indexTypes[level];
+          return new V.Pi(
+            fresh(ctx, 'idx'),
+            indexType,
+            new HigherOrderClosure(indexVal =>
+              buildMotive(level + 1, [...capturedIndices, indexVal])
+            )
+          );
+        };
+    
     const expectedMotiveType = buildMotive(0, [])
 
     const motiveCheck = elimApp.motive.check(ctx, r, expectedMotiveType);
@@ -1745,33 +1744,20 @@ export class synthesizer {
         new Message([`Expected ${constructorTypes.length} methods, got ${elimApp.methods.length}`]));
     }
 
-    // Extend context with type parameters so we can evaluate constructor argument types
-    let extendedCtx = ctx;
-    if (constructorTypes.length > 0) {
-      const firstCtor = constructorTypes[0].core;
-      for (let i = 0; i < firstCtor.resultType.parameters.length && i < targetTypeValue.parameters.length; i++) {
-        const paramCore = firstCtor.resultType.parameters[i];
-        if (paramCore instanceof C.VarName) {
-          extendedCtx = bindFree(extendedCtx, paramCore.name, targetTypeValue.parameters[i]);
-        }
-      }
-    }
-
     const checkedMethods: C.Core[] = [];
     const methodTypeCores: C.Core[] = [];  // Store method types as Core
     for (let i = 0; i < elimApp.methods.length; i++) {
       const expectedMethodType = this.generateMethodTypeForConstructor(
-        extendedCtx,
-        constructorTypes[i].core,
-        readBack(ctx, expectedMotiveType, motiveValue),
+        ctx,
+        constructorTypes[i],
+        motiveValue,
         targetTypeValue.parameters
       );
 
       // Store the method type as Core for later use in evaluation
-      console.log('expmethodType', inspect(expectedMethodType, true, null, true))
-      methodTypeCores.push(expectedMethodType);
+      methodTypeCores.push(expectedMethodType.readBackType(ctx));
 
-      const methodCheck = elimApp.methods[i].check(ctx, r, valInContext(extendedCtx, expectedMethodType));
+      const methodCheck = elimApp.methods[i].check(ctx, r, expectedMethodType);
       if (methodCheck instanceof stop) return methodCheck;
 
       checkedMethods.push((methodCheck as go<C.Core>).result);
@@ -1807,74 +1793,25 @@ export class synthesizer {
   /**
    * Get constructor types for a datatype from context
    */
-  private static getConstructorTypesForDatatype(ctx: Context, typeName: string): { core: C.ConstructorType, resultTypeValue: V.InductiveTypeConstructor }[] {
-    const constructorTypes: { core: C.ConstructorType, resultTypeValue: V.InductiveTypeConstructor }[] = [];
+  private static getConstructorTypesForDatatype(ctx: Context, typeName: string): C.ConstructorType[] {
+    const constructorTypes: C.ConstructorType[] = [];
 
     for (const [name, binder] of ctx) {
       if (binder instanceof ConstructorTypeBinder) {
         const ctor = binder.constructorType;
         if (ctor.type === typeName) {
-          constructorTypes.push({ core: binder.constructorType, resultTypeValue: binder.type });
+          constructorTypes.push(binder.constructorType);
         }
       }
     }
 
-    return constructorTypes.sort((a, b) => a.core.index - b.core.index);
+    return constructorTypes.sort((a, b) => a.index - b.index);
   }
 
   /**
    * Generate method type for a constructor
    * Form: (Π [args...] (→ [IHs...] (P ctor)))
    */
-  private static generateMethodTypeForConstructor(
-    ctx: Context,
-    ctorType: C.ConstructorType,
-    motive_core: C.Core,
-    typeParams: V.Value[]
-  ): C.Core {
-    console.log('Context:', inspect(ctx, true, null, true));
-    let cur_ret = motive_core
-    for (const index of ctorType.resultType.indices) {
-      cur_ret = new C.Application(cur_ret, index)
-    }
-    const ctor = new C.Constructor(ctorType.name, ctorType.index,
-      ctorType.type, ctorType.argNames.map(name => new C.VarName(name)),
-      ctorType.rec_argNames.map(name => new C.VarName(name))
-    )
-    cur_ret = new C.Application(cur_ret, ctor)
-
-    for (let i = 0; i < ctorType.rec_argTypes.length; i++) {
-      const recArgTypeCore = ctorType.rec_argTypes[i];
-
-      if (recArgTypeCore instanceof C.InductiveTypeConstructor) {
-        let ihType = motive_core
-        for (const indexCore of recArgTypeCore.indices) {
-          const indexValue = indexCore
-          ihType = new C.Application(ihType, indexValue);
-        }
-        const recArgName = ctorType.rec_argNames[i];
-        const recArgVar = new C.VarName(recArgName)
-        ihType = new C.Application(ihType, recArgVar);
-        cur_ret = new C.Pi(recArgName, ihType, cur_ret)
-      } else {
-        throw new Error('not recursive arg')
-      }
-    }
-
-    for (let i = 0; i < ctorType.rec_argTypes.length; i++) {
-      const rec_argTypeCore = ctorType.rec_argTypes[i]
-      const rec_argName = ctorType.rec_argNames[i]
-      cur_ret = new C.Pi(rec_argName, rec_argTypeCore, cur_ret)
-    }
-
-    for (let i = 0; i < ctorType.argTypes.length; i++) {
-      const argTypeCore = ctorType.argTypes[i]
-      const argName = ctorType.argNames[i]
-      cur_ret = new C.Pi(argName, argTypeCore, cur_ret)
-    }
-    return cur_ret
-  }
-}
 
 function extractIndicesFromValue(val: V.Value): V.Value[] {
   if (val instanceof V.InductiveTypeConstructor) {

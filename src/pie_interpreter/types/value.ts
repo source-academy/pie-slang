@@ -765,8 +765,8 @@ export class ConstructorType extends Value {
     public argTypes: Value[],
     public rec_argTypes: Value[],
     public resultType: Value,
-    public numTypeParams: number = 0,  // Number of leading args that are type parameters
-    public argNames: string[] = []  // Names of ALL arguments (for binding during instantiation)
+    public argNames: string[],
+    public rec_argNames: string[]
 
   ) {super()}
   public readBackType(context: Context): C.Core {

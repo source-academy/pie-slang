@@ -18,17 +18,17 @@ describe("Test subtyping", () => {
 
 ;; Coercion function
 (claim coerce
-  (Pi ((T1 U) (T2 U))
-    (-> (type-Subtype () (T1 T2))
-        T1
-        T2)))
+  (Pi ((T11 U) (T22 U))
+    (-> (type-Subtype () (T11 T22))
+        T11
+        T22)))
 
 (claim basic (type-Subtype () (Nat Nat)))
 
 (define basic (data-refl Nat))
 
 (define coerce
-  (lambda (T1 T2 proof val)
+  (lambda (T11 T22 proof val)
     (elim-Subtype proof
       (lambda (t1 t2 sub) (-> t1 t2))
       ;; refl case
@@ -36,20 +36,22 @@ describe("Test subtyping", () => {
       ;; trans case
       (lambda (T1 T2 T3 p1 p2 x)
         (coerce T2 T3 p2 (coerce T1 T2 p1 x))))))
+        `
 
-;; Now A is just a variable, user provides subtyping proof
-(claim use-with-nat
-  (Pi ((A U))
-    (-> (type-Subtype () (A Nat))  ;; proof that A <: Nat
-        A                           ;; value of type A
-        Nat)))                      ;; result
+// ;; Now A is just a variable, user provides subtyping proof
+// (claim use-with-nat
+//   (Pi ((A U))
+//     (-> (type-Subtype () (A Nat))  ;; proof that A <: Nat
+//         A                           ;; value of type A
+//         Nat)))                      ;; result
 
-(define use-with-nat
-  (lambda (A proof x)
-    (add1 (coerce A Nat proof x))))
+// (define use-with-nat
+//   (lambda (A proof x)
+//     (add1 (coerce A Nat proof x))))
 
-;; User calls it with ANY type A and appropriate proof
-;; (use-with-nat MyType my-subtyping-proof my-value)`
+// ;; User calls it with ANY type A and appropriate proof
+// ;; (use-with-nat MyType my-subtyping-proof my-value)
+// `
     const result = evaluatePie(input);
     console.log(result);
   })

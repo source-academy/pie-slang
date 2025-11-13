@@ -115,6 +115,8 @@ export class GeneralConstructor {
     let cur_rename = rename
     const normalized_args: C.Core[] = []
     const normalized_rec_args: C.Core[] = []
+    const argNames: string[] = []
+    const rec_argNames: string[] = []
 
     for (let i = 0; i < this.args.length; i++) {
       const argName = this.args[i].binder.varName
@@ -130,8 +132,10 @@ export class GeneralConstructor {
       // Assume user puts non-recursive args before recursive args
       if (isRecursiveArgumentType(this.args[i].type, this.returnType.name)) {
         normalized_rec_args.push(result)
+        rec_argNames.push(xhat)
       } else {
         normalized_args.push(result)
+        argNames.push(xhat)
       }
 
       cur_ctx = bindFree(cur_ctx, xhat, valInContext(cur_ctx, result))
@@ -149,7 +153,9 @@ export class GeneralConstructor {
       this.returnType.name,
       normalized_args,
       normalized_rec_args,
-      returnResult
+      returnResult as C.InductiveTypeConstructor,
+      argNames,
+      rec_argNames
     )
   }
 }

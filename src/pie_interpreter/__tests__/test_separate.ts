@@ -5,28 +5,32 @@ describe("Parser Evaluate Integration Tests", () => {
 
 it("Evaluate myVec (parameterized and indexed)", () => {
     const input = `
-    (data myVec ((E U)) ((n Nat))
-      (myVecNil () (myVec (E) (zero)))
-      (myVecCons ((k Nat) (head E) (tail (type-myVec (E) (k)))) (myVec (E) ((add1 k))))
-      ind-myVec)
+    (data myList ((E U)) ()
+      (myNil () (myList (E) ()))
+      (myCons ((head E) (tail (type-myList (E) ()))) (myList (E) ()))
+      ind-myList)
 
-    (claim empty-vec (type-myVec (Nat) (zero)))
-    (define empty-vec (data-myVecNil))
+    (claim empty-list (type-myList (Nat) ()))
+    (define empty-list (data-myNil))
 
-    (claim one-vec (type-myVec (Nat) ((add1 zero))))
-    (define one-vec (data-myVecCons zero (add1 zero) empty-vec))
+    (claim one-elem-list (type-myList (Nat) ()))
+    (define one-elem-list (data-myCons zero empty-list))
 
-    (claim vec-to-nat (Pi ((n Nat)) (-> (type-myVec (Nat) (n)) Nat)))
-    (define vec-to-nat
-      (lambda (n v)
-        (elim-myVec v
-          (lambda (len vec) Nat)
+    (claim two-elem-list (type-myList (Nat) ()))
+    (define two-elem-list (data-myCons (add1 zero) one-elem-list))
+
+    (claim nat-list-length (-> (type-myList (Nat) ()) Nat))
+    (define nat-list-length
+      (lambda (xs)
+        (elim-myList xs
+          (lambda (l) Nat)
           zero
-          (lambda (k h t ih) (add1 ih)))))
+          (lambda (h t ih) (add1 ih)))))
 
     (claim result Nat)
-    (define result (vec-to-nat (add1 zero) one-vec))
+    (define result (nat-list-length two-elem-list))
     `;
     const result = evaluatePie(input);
+    console.log(result)
   });
 })
