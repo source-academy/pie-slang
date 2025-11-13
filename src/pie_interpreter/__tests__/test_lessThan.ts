@@ -5,6 +5,7 @@ describe("Parser Evaluate Integration Tests", () => {
 
 it("Evaluate Less-Than (no params, indexed)", () => {
     const input = `
+    ;; Define Less Than relation using our new inductive type definiton
     (data Less-Than () ((j Nat) (k Nat))
       (zero-smallest ((n Nat)) (Less-Than () (zero (add1 n))))
       (add1-smaller ((j Nat) (k Nat) (j<k (type-Less-Than () (j k)))) (Less-Than () ((add1 j) (add1 k))))

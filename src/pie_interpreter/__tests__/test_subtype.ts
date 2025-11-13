@@ -5,7 +5,6 @@ describe("Test subtyping", () => {
   it("Evaluate Bool (no params, no indices)", () => {
     const input =
     `
-    ;; Enhanced Subtype relation with injection constructor
 (data Subtype () ((T1 U) (T2 U))
   (refl ((T U))
     (Subtype () (T T)))
@@ -18,7 +17,6 @@ describe("Test subtyping", () => {
     (Subtype () (A B)))
   ind-Subtype)
 
-;; Coerce now handles injection case
 (claim coerce
   (Pi ((A U) (B U))
     (-> (type-Subtype () (A B)) A B)))
