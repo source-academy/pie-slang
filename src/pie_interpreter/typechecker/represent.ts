@@ -54,11 +54,11 @@ export function checkSame(ctx: Context, where: Location, t: Source, a: Source, b
   return goOn(
     [
       [typeOut, () => t.isType(ctx, new Map())],
-      [typeValue, () => valInContext(ctx, typeOut.value).readBackType(ctx)],
+      [typeValue, () => new go(valInContext(ctx, typeOut.value))],
       [leftOut, () => a.check(ctx, new Map(), typeValue.value)],
       [rightOut, () => b.check(ctx, new Map(), typeValue.value)],
-      [leftValue, () => valInContext(ctx, leftOut.value)],
-      [rightValue, () => valInContext(ctx, rightOut.value)]
+      [leftValue, () => new go(valInContext(ctx, leftOut.value))],
+      [rightValue, () => new go(valInContext(ctx, rightOut.value))]
     ],
     () => {
       return convert(ctx, where, typeValue.value, leftValue.value, rightValue.value);
