@@ -446,8 +446,9 @@ export class Parser {
         constructorName,
         args
       );
-    } else if (parsee.startsWith('elim-')) {
+    } else if (parsee.startsWith('elim-') && element instanceof Extended.List && element.elements[0] instanceof Atomic.Symbol) {
       // Eliminator application: (elim-TypeName target motive methods...)
+      // Only match if first element is directly a symbol (not a nested list)
       const typeName = parsee.substring(5); // Remove 'elim-' prefix
       const elements = (element as Extended.List).elements;
 
