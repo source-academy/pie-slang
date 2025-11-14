@@ -14,16 +14,16 @@ describe("Inductive Types Parser", () => {
       (false () (Bool () ()))
       ind-Bool)
 
-    (claim my-true (type-Bool () ()))
-    (define my-true (data-true))
+    (claim my-true (Bool () ()))
+    (define my-true (true))
 
-    (claim my-false (type-Bool () ()))
-    (define my-false (data-false))
+    (claim my-false (Bool () ()))
+    (define my-false (false))
 
-    (claim bool-to-nat (-> (type-Bool () ()) Nat))
+    (claim bool-to-nat (-> (Bool () ()) Nat))
     (define bool-to-nat
       (lambda (b)
-        (elim-Bool b
+        (ind-Bool b
           (lambda (x) Nat)
           (add1 zero)
           zero)))
@@ -37,23 +37,23 @@ describe("Inductive Types Parser", () => {
     const result = testParser(input);
   });
 
-  it("Parse myNat (no params, no indices)", () => {
+  it("Parse MyNat (no params, no indices)", () => {
     const input = `
-    (data myNat () ()
-      (myZero () (myNat () ()))
-      (mySucc ((n (type-myNat () ()))) (myNat () ()))
-      ind-myNat)
+    (data MyNat () ()
+      (myZero () (MyNat () ()))
+      (mySucc ((n (MyNat () ()))) (MyNat () ()))
+      ind-MyNat)
 
-    (claim zero-nat (type-myNat () ()))
-    (define zero-nat (data-myZero))
+    (claim zero-nat (MyNat () ()))
+    (define zero-nat (myZero))
 
-    (claim two-nat (type-myNat () ()))
-    (define two-nat (data-mySucc (data-mySucc zero-nat)))
+    (claim two-nat (MyNat () ()))
+    (define two-nat (mySucc (mySucc zero-nat)))
 
-    (claim count (-> (type-myNat () ()) Nat))
+    (claim count (-> (MyNat () ()) Nat))
     (define count
       (lambda (n)
-        (elim-myNat n
+        (ind-MyNat n
           (lambda (x) Nat)
           zero
           (lambda (n-1 ih) (add1 ih)))))
@@ -64,26 +64,26 @@ describe("Inductive Types Parser", () => {
     const result = testParser(input);
   });
 
-  it("Parse myList (parameterized, no indices)", () => {
+  it("Parse MyList (parameterized, no indices)", () => {
     const input = `
-    (data myList ((E U)) ()
-      (myNil () (myList (E) ()))
-      (myCons ((head E) (tail (type-myList (E) ()))) (myList (E) ()))
-      ind-myList)
+    (data MyList ((E U)) ()
+      (myNil () (MyList (E) ()))
+      (myCons ((head E) (tail (MyList (E) ()))) (MyList (E) ()))
+      ind-MyList)
 
-    (claim empty-list (type-myList (Nat) ()))
-    (define empty-list (data-myNil))
+    (claim empty-list (MyList (Nat) ()))
+    (define empty-list (myNil))
 
-    (claim one-elem-list (type-myList (Nat) ()))
-    (define one-elem-list (data-myCons zero empty-list))
+    (claim one-elem-list (MyList (Nat) ()))
+    (define one-elem-list (myCons zero empty-list))
 
-    (claim two-elem-list (type-myList (Nat) ()))
-    (define two-elem-list (data-myCons (add1 zero) one-elem-list))
+    (claim two-elem-list (MyList (Nat) ()))
+    (define two-elem-list (myCons (add1 zero) one-elem-list))
 
-    (claim nat-list-length (-> (type-myList (Nat) ()) Nat))
+    (claim nat-list-length (-> (MyList (Nat) ()) Nat))
     (define nat-list-length
       (lambda (xs)
-        (elim-myList xs
+        (ind-MyList xs
           (lambda (l) Nat)
           zero
           (lambda (h t ih) (add1 ih)))))
@@ -94,23 +94,23 @@ describe("Inductive Types Parser", () => {
     const result = testParser(input);
   });
 
-  it("Parse myVec (parameterized and indexed)", () => {
+  it("Parse MyVec (parameterized and indexed)", () => {
     const input = `
-    (data myVec ((E U)) ((n Nat))
-      (myVecNil () (myVec (E) (zero)))
-      (myVecCons ((k Nat) (head E) (tail (type-myVec (E) (k)))) (myVec (E) ((add1 k))))
-      ind-myVec)
+    (data MyVec ((E U)) ((n Nat))
+      (myVecNil () (MyVec (E) (zero)))
+      (myVecCons ((k Nat) (head E) (tail (MyVec (E) (k)))) (MyVec (E) ((add1 k))))
+      ind-MyVec)
 
-    (claim empty-vec (type-myVec (Nat) (zero)))
-    (define empty-vec (data-myVecNil))
+    (claim empty-vec (MyVec (Nat) (zero)))
+    (define empty-vec (myVecNil))
 
-    (claim one-vec (type-myVec (Nat) ((add1 zero))))
-    (define one-vec (data-myVecCons zero (add1 zero) empty-vec))
+    (claim one-vec (MyVec (Nat) ((add1 zero))))
+    (define one-vec (myVecCons zero (add1 zero) empty-vec))
 
-    (claim vec-to-nat (Pi ((n Nat)) (-> (type-myVec (Nat) (n)) Nat)))
+    (claim vec-to-nat (Pi ((n Nat)) (-> (MyVec (Nat) (n)) Nat)))
     (define vec-to-nat
       (lambda (n v)
-        (elim-myVec v
+        (ind-MyVec v
           (lambda (len vec) Nat)
           zero
           (lambda (k h t ih) (add1 ih)))))
@@ -125,21 +125,21 @@ describe("Inductive Types Parser", () => {
     const input = `
     (data Less-Than () ((j Nat) (k Nat))
       (zero-smallest ((n Nat)) (Less-Than () (zero (add1 n))))
-      (add1-smaller ((j Nat) (k Nat) (j<k (type-Less-Than () (j k)))) (Less-Than () ((add1 j) (add1 k))))
+      (add1-smaller ((j Nat) (k Nat) (j<k (Less-Than () (j k)))) (Less-Than () ((add1 j) (add1 k))))
       ind-Less-Than)
 
-    (claim proof-0<1 (type-Less-Than () (zero (add1 zero))))
-    (define proof-0<1 (data-zero-smallest zero))
+    (claim proof-0<1 (Less-Than () (zero (add1 zero))))
+    (define proof-0<1 (zero-smallest zero))
 
-    (claim proof-1<2 (type-Less-Than () ((add1 zero) (add1 (add1 zero)))))
-    (define proof-1<2 (data-add1-smaller zero (add1 zero) proof-0<1))
+    (claim proof-1<2 (Less-Than () ((add1 zero) (add1 (add1 zero)))))
+    (define proof-1<2 (add1-smaller zero (add1 zero) proof-0<1))
 
     (claim extract-smaller
       (Pi ((j Nat) (k Nat))
-        (-> (type-Less-Than () (j k)) Nat)))
+        (-> (Less-Than () (j k)) Nat)))
     (define extract-smaller
       (lambda (j k proof)
-        (elim-Less-Than proof
+        (ind-Less-Than proof
           (lambda (j-idx k-idx p) Nat)
           (lambda (n) zero)
           (lambda (j-arg k-arg j<k-arg ih) (add1 ih)))))
@@ -150,23 +150,23 @@ describe("Inductive Types Parser", () => {
     const result = testParser(input);
   });
 
-  it("Parse myEither (parameterized, no indices)", () => {
+  it("Parse MyEither (parameterized, no indices)", () => {
     const input = `
-    (data myEither ((L U) (R U)) ()
-      (myLeft ((value L)) (myEither (L R) ()))
-      (myRight ((value R)) (myEither (L R) ()))
-      ind-myEither)
+    (data MyEither ((L U) (R U)) ()
+      (myLeft ((value L)) (MyEither (L R) ()))
+      (myRight ((value R)) (MyEither (L R) ()))
+      ind-MyEither)
 
-    (claim left-val (type-myEither (Nat Atom) ()))
-    (define left-val (data-myLeft zero))
+    (claim left-val (MyEither (Nat Atom) ()))
+    (define left-val (myLeft zero))
 
-    (claim right-val (type-myEither (Nat Atom) ()))
-    (define right-val (data-myRight (quote foo)))
+    (claim right-val (MyEither (Nat Atom) ()))
+    (define right-val (myRight (quote foo)))
 
-    (claim either-to-nat (-> (type-myEither (Nat Atom) ()) Nat))
+    (claim either-to-nat (-> (MyEither (Nat Atom) ()) Nat))
     (define either-to-nat
       (lambda (e)
-        (elim-myEither e
+        (ind-MyEither e
           (lambda (x) Nat)
           (lambda (lval) (add1 zero))
           (lambda (rval) zero))))

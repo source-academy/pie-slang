@@ -112,15 +112,15 @@ body {
   color: var(--text-secondary);
 }
 
-.preview-summary[data-tone="success"] {
+.preview-summary[tone="success"] {
   color: #34d399;
 }
 
-.preview-summary[data-tone="error"] {
+.preview-summary[tone="error"] {
   color: #f87171;
 }
 
-.preview-summary[data-tone="warning"] {
+.preview-summary[tone="warning"] {
   color: #facc15;
 }
 
@@ -144,15 +144,15 @@ body {
   overflow: auto;
 }
 
-.preview-code[data-tone="error"] {
+.preview-code[tone="error"] {
   color: #fca5a5;
 }
 
-.preview-code[data-tone="success"] {
+.preview-code[tone="success"] {
   color: #bbf7d0;
 }
 
-.preview-code[data-tone="warning"] {
+.preview-code[tone="warning"] {
   color: #fde68a;
 }
 

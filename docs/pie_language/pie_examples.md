@@ -290,10 +290,10 @@ sole
 
 ### Bool Usage
 ```
-(data-true)
-(data-false)
+(true)
+(false)
 
-(data-ind-Bool (data-true)
+(ind-Bool (true)
   (λ (b) Nat)
   (add1 zero)
   zero)
@@ -312,14 +312,14 @@ sole
 ### Less-Than Usage
 ```
 (claim proof-0<1 (Less-Than zero (add1 zero)))
-(define proof-0<1 (data-zero-smallest zero))
+(define proof-0<1 (zero-smallest zero))
 
 (claim proof-1<2 (Less-Than (add1 zero) (add1 (add1 zero))))
 (define proof-1<2
-  (data-add1-smaller zero (add1 zero)
-    (data-zero-smallest zero)))
+  (add1-smaller zero (add1 zero)
+    (zero-smallest zero)))
 
-(data-ind-Less-Than proof-0<1
+(ind-Less-Than proof-0<1
   (λ (j k p) Nat)
   (λ (n) zero)
   (λ (j k j<k ih) (add1 ih)))
@@ -388,9 +388,9 @@ sole
    - `(the (List Nat) nil)` not `nil`
    - `(the (Vec Atom zero) vecnil)` not `vecnil`
 
-2. **User-defined constructors/eliminators get `data-` prefix**:
-   - `(data-true)` not `(true)`
-   - `(data-ind-Bool ...)` not `(ind-Bool ...)`
+2. **User-defined constructors/eliminators get `` prefix**:
+   - `(true)` not `(true)`
+   - `(ind-Bool ...)` not `(ind-Bool ...)`
 
 3. **Numeric literals are shorthand**:
    - `0` = `zero`
