@@ -5,15 +5,16 @@ import * as S from './source';
 
 import { PieInfoHook, Renaming, SendPieInfo, extendRenaming, makeApp, rename } from '../typechecker/utils';
 import { Location, notForInfo } from '../utils/locations';
-import { 
-  bindFree, 
+import {
+  bindFree,
+  bindVal,
   Context,
   readBackContext,
   valInContext,
   getInductiveType,
   InductiveDatatypeBinder,
   ConstructorTypeBinder,
-  contextToEnvironment 
+  contextToEnvironment
 } from '../utils/context';
 import { extendEnvironment } from '../utils/environment';
 
@@ -2093,6 +2094,13 @@ export class GeneralTypeConstructor extends Source {
 
   public checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core> {
     const cur_val = target.now()
+
+    // If checking against Universe, this is a type expression (e.g., (type-Even () (n)) : U)
+    // Verify it's well-formed and return its Core representation
+    if (cur_val instanceof V.Universe) {
+      return this.getType(ctx, renames);
+    }
+
     const normalized_params: C.Core[] = []
     const normalized_indices: C.Core[] = []
 
@@ -2213,18 +2221,14 @@ export class ConstructorApplication extends Source {
       return new stop(this.location, new Message([`Unknown inductive type: ${ctorType.type}`]));
     }
 
-    // Build substitution environment: parameter names -> concrete values
-    // Following the OLD design pattern (like FirstOrderClosure.valOfClosure):
-    // - Start with the context environment
-    // - Override parameter bindings with concrete values from expected type
-    // - Evaluate arg types in this new environment
-
+    // Build an extended context with parameter and index bindings
+    // This follows the type checking design: work with Context, not Environment
     // Get parameter names from constructor's return type (Core)
     const resultTypeCore = ctorType.resultType as C.InductiveTypeConstructor;
 
-    let substEnv = contextToEnvironment(ctx);
+    let currentCtx = ctx;
 
-    // Extract parameter names from constructor return type and override with concrete values
+    // Extract parameter names from constructor return type and bind to concrete values
     // expectedTypeNow.parameters[i] contains the concrete value (e.g., Nat)
     // resultTypeCore.parameters[i] contains the variable name (e.g., VarName("E"))
     for (let i = 0; i < resultTypeCore.parameters.length; i++) {
@@ -2232,8 +2236,9 @@ export class ConstructorApplication extends Source {
       if (paramCore instanceof C.VarName) {
         const paramName = paramCore.name;
         const concreteValue = expectedTypeNow.parameters[i].now();
-        // This OVERWRITES the abstract binding (E -> Neutral) with concrete (E -> Nat)
-        substEnv = extendEnvironment(substEnv, paramName, concreteValue);
+        // Bind the parameter in the context as a definition
+        // The type is Universe since parameters are types
+        currentCtx = bindVal(currentCtx, paramName, new V.Universe(), concreteValue);
       }
     }
 
@@ -2244,7 +2249,10 @@ export class ConstructorApplication extends Source {
       if (indexCore instanceof C.VarName) {
         const indexName = indexCore.name;
         const concreteValue = expectedTypeNow.indices[i].now();
-        substEnv = extendEnvironment(substEnv, indexName, concreteValue);
+        // For indices, we need to determine the type - typically Nat for length indices
+        // We can read back the type from the inductive type definition
+        const indexType = inductiveBinder.type.indexTypes[i].now();
+        currentCtx = bindVal(currentCtx, indexName, indexType, concreteValue);
       }
     }
 
@@ -2258,7 +2266,7 @@ export class ConstructorApplication extends Source {
       indexArgNames.push(...extractVarNamesFromValue(i));
     });
 
-    // Now check arguments using the substituted environment
+    // Now check arguments using the current context
     const normalized_args: C.Core[] = [];
     const normalized_rec_args: C.Core[] = [];
 
@@ -2272,11 +2280,11 @@ export class ConstructorApplication extends Source {
 
     // Check non-recursive arguments with incremental substitution
     for (let i = 0; i < ctorType.argTypes.length; i++) {
-      // Evaluate the argument type in the current substituted environment
+      // Evaluate the argument type in the current context
       const argTypeCore = ctorType.argTypes[i];
-      const argTypeValue = argTypeCore.valOf(substEnv);
+      const argTypeValue = valInContext(currentCtx, argTypeCore);
 
-      const result = this.args[i].check(ctx, renames, argTypeValue.now());
+      const result = this.args[i].check(currentCtx, renames, argTypeValue);
       if (result instanceof stop) {
         return result;
       }
@@ -2284,11 +2292,12 @@ export class ConstructorApplication extends Source {
       const checkedArgCore = (result as go<C.Core>).result;
       normalized_args.push(checkedArgCore);
 
-      // Extend substEnv with this argument's value for use in subsequent arguments
+      // Extend context with this argument's value for use in subsequent arguments
       if (i < indexArgNames.length) {
         const argName = indexArgNames[i];
-        const checkedArgValue = valInContext(ctx, checkedArgCore);
-        substEnv = extendEnvironment(substEnv, argName, checkedArgValue);
+        const checkedArgValue = valInContext(currentCtx, checkedArgCore);
+        const argType = argTypeValue;
+        currentCtx = bindVal(currentCtx, argName, argType, checkedArgValue);
       }
     }
 
@@ -2296,9 +2305,9 @@ export class ConstructorApplication extends Source {
     const recArgStartIdx = ctorType.argTypes.length;
     for (let i = 0; i < ctorType.rec_argTypes.length; i++) {
       const recArgTypeCore = ctorType.rec_argTypes[i];
-      const recArgTypeValue = recArgTypeCore.valOf(substEnv);
+      const recArgTypeValue = valInContext(currentCtx, recArgTypeCore);
 
-      const result = this.args[i + recArgStartIdx].check(ctx, renames, recArgTypeValue.now());
+      const result = this.args[i + recArgStartIdx].check(currentCtx, renames, recArgTypeValue);
       if (result instanceof stop) {
         return result;
       }
@@ -2306,12 +2315,12 @@ export class ConstructorApplication extends Source {
       const checkedRecArgCore = (result as go<C.Core>).result;
       normalized_rec_args.push(checkedRecArgCore);
 
-      // Extend substEnv with this recursive argument's value
+      // Extend context with this recursive argument's value
       const argNameIdx = recArgStartIdx + i;
       if (argNameIdx < indexArgNames.length) {
         const argName = indexArgNames[argNameIdx];
-        const checkedRecArgValue = valInContext(ctx, checkedRecArgCore);
-        substEnv = extendEnvironment(substEnv, argName, checkedRecArgValue);
+        const checkedRecArgValue = valInContext(currentCtx, checkedRecArgCore);
+        currentCtx = bindVal(currentCtx, argName, recArgTypeValue, checkedRecArgValue);
       }
     }
 
