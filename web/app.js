@@ -89,7 +89,244 @@ const examples = {
 (define add1-fn (λ (n) (add1 n)))
 
 (claim incremented-vec (Vec Nat 3))
-(define incremented-vec (vec-map Nat Nat 3 add1-fn nat-vec))`
+(define incremented-vec (vec-map Nat Nat 3 add1-fn nat-vec))`,
+'Tactics: Even or Odd' : `
+(claim +
+  (→ Nat Nat
+    Nat))
+
+(claim step-plus
+  (→ Nat
+    Nat))
+
+(define step-plus
+  (λ (n-1)
+    (add1 n-1 ) ))
+
+(define +
+  (λ (n j)
+    (iter-Nat n
+      j
+      step-plus )))
+
+(claim double
+  (→ Nat
+    Nat))
+
+(define double
+  (λ (n)
+    (iter-Nat n
+      0
+      (+ 2))))
+
+(claim Even
+  (→ Nat
+    U ))
+
+(define Even
+  (λ (n)
+    (Σ ((half Nat))
+      (= Nat n (double half )))))
+
+(claim Odd
+  (→ Nat
+    U ))
+
+(define Odd
+  (λ (n)
+    (Σ ((haf Nat))
+      (= Nat n (add1 (double haf )))))) 
+
+(claim zero-is-even
+  (Even 0))
+
+(define zero-is-even
+  (cons 0
+    (same 0)))
+
+(claim add1-even->odd
+  (Π ((n Nat))
+    (→ (Even n)
+    (Odd (add1 n)))))
+
+(define add1-even->odd
+  (λ (n en)
+    (cons (car en)
+    (cong (cdr en) (+ 1)))))
+
+(claim add1-odd->even
+  (Π ((n Nat))
+    (→ (Odd n)
+      (Even (add1 n)))))
+
+(define add1-odd->even
+  (λ (n on)
+    (cons (add1 (car on))
+      (cong (cdr on) (+ 1)))))
+
+(claim even-or-odd
+  (Π ((n Nat))
+    (Either (Even n) (Odd n))))
+
+;; This is the proof in The Little Typer
+;; (claim mot-even-or-odd
+;;   (→ Nat U )) 
+
+;; (define mot-even-or-odd
+;;   (λ (k) (Either (Even k) (Odd k))))
+
+;; (claim step-even-or-odd
+;;   (Π ((n-1 Nat))
+;;      (→ (mot-even-or-odd n-1)
+;;      (mot-even-or-odd (add1 n-1)))))
+
+;; (define step-even-or-odd
+;;   (λ (n-1)
+;;     (λ (e-or-on-1)
+;;        (ind-Either e-or-on-1
+;;     (λ (e-or-on-1)
+;;        (mot-even-or-odd (add1 n-1)))
+;;        (λ (en-1)
+;;          (right
+;;            (add1-even->odd
+;;              n-1 en-1)))
+;;        (λ (on-1)
+;;          (left
+;;            (add1-odd->even
+;;              n-1 on-1)))))))
+
+;; (define even-or-odd
+;;   (λ (n)
+;;     (ind-Nat n
+;;        mot-even-or-odd
+;;        (left zero-is-even)
+;;        step-even-or-odd)))
+
+
+;; This is the proof using our new tactic system
+(define-tactically even-or-odd
+  ( (intro n)
+    (elimNat n)
+    (left)
+    (exact zero-is-even)
+    (intro n-1)
+    (intro e-or-on-1)
+    (elimEither e-or-on-1)
+    (intro xr)
+    (right)
+    (exact ((add1-even->odd n-1) xr))
+    (intro x1)
+    (left)
+    ;; finish the proof with "(exact ((add1-odd->even n-1) x1))"
+   ))`,
+   'Inductive Type: Less Than': `;; Define Less Than relation using our new inductive type definiton
+    (data Less-Than () ((j Nat) (k Nat))
+      (zero-smallest ((n Nat)) (Less-Than () (zero (add1 n))))
+      (add1-smaller ((j Nat) (k Nat) (j<k (type-Less-Than () (j k)))) (Less-Than () ((add1 j) (add1 k))))
+      ind-Less-Than)
+
+    (claim proof-0<1 (type-Less-Than () (zero (add1 zero))))
+    (define proof-0<1 (data-zero-smallest zero))
+
+    (claim proof-1<2 (type-Less-Than () ((add1 zero) (add1 (add1 zero)))))
+    (define proof-1<2 (data-add1-smaller zero (add1 zero) proof-0<1))
+
+    (claim extract-smaller
+      (Pi ((j Nat) (k Nat))
+        (-> (type-Less-Than () (j k)) Nat)))
+    (define extract-smaller
+      (lambda (j k proof)
+        (elim-Less-Than proof
+          (lambda (j-idx k-idx p) Nat)
+          (lambda (n) zero)
+          (lambda (j-arg k-arg j<k-arg ih) (add1 ih)))))
+
+    (claim result Nat)
+    (define result (extract-smaller zero (add1 zero) proof-0<1))
+    `,
+    'Inductive Type: Subtype':`
+(data Subtype () ((T1 U) (T2 U))
+  (refl ((T U))
+    (Subtype () (T T)))
+  (trans ((T1 U) (T2 U) (T3 U)
+          (p1 (type-Subtype () (T1 T2)))
+          (p2 (type-Subtype () (T2 T3))))
+    (Subtype () (T1 T3)))
+  ;; Generic injection: if there exists a function A -> B, then A <: B
+  (inject ((A U) (B U) (f (-> A B)))
+    (Subtype () (A B)))
+  ind-Subtype)
+
+(claim coerce
+  (Pi ((A U) (B U))
+    (-> (type-Subtype () (A B)) A B)))
+(define coerce
+  (lambda (A B proof val)
+    ((elim-Subtype proof
+      (lambda (t1 t2 sub) (-> t1 t2))
+      (lambda (TT x) x)
+      (lambda (T11 T22 T33 p1 p2 ih1 ih2 x)
+        (ih2 (ih1 x)))
+      (lambda (AA BB ff x) (ff x))
+      )
+      val)))
+
+(data Even () ((n Nat))
+  (zero-even ()
+    (Even () (zero)))
+  (add2-even ((k Nat) (k-even (type-Even () (k))))
+    (Even () ((add1 (add1 k)))))
+  ind-Even)
+
+(claim even-to-nat
+  (Pi ((n Nat))
+    (-> (type-Even () (n)) Nat)))
+(define even-to-nat
+  (lambda (n proof)
+    (elim-Even proof
+      (lambda (m ev) Nat)
+      zero
+      (lambda (k prev ih) (add1 (add1 ih))))))
+
+(claim even-subtype-nat
+  (Pi ((n Nat))
+    (type-Subtype () ((type-Even () (n)) Nat))))
+(define even-subtype-nat
+  (lambda (n)
+    (data-inject (type-Even () (n)) Nat (even-to-nat n))))
+
+(claim + (-> Nat Nat Nat))
+(define +
+  (lambda (a b)
+    (rec-Nat a
+      b
+      (lambda (pred ih) (add1 ih)))))
+
+(claim double (-> Nat Nat))
+(define double
+  (lambda (n)
+    (+ n n)))
+
+;; Use Even with double
+(claim double-even
+  (Pi ((n Nat))
+    (-> (type-Even () (n)) Nat)))
+(define double-even
+  (lambda (n ev)
+    (double (coerce (type-Even () (n)) Nat
+                    (even-subtype-nat n)
+                    ev))))
+
+
+(claim even-four (type-Even () ((add1 (add1 (add1 (add1 zero)))))))
+(define even-four
+  (data-add2-even (add1 (add1 zero))
+    (data-add2-even zero
+      (data-zero-even))))
+
+(claim result2 Nat)
+(define result2 (double-even (add1 (add1 (add1 (add1 zero)))) even-four))
+        `
 };
 
 const defaultSource = examples['Hello World'];
