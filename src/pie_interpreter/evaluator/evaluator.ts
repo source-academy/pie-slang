@@ -809,8 +809,15 @@ export function doEliminator(name: string, target: V.Value, motive: V.Value, met
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.InductiveTypeConstructor && typeNow.name === name) {
       // Create neutral eliminator application
+      // For indexed types, apply motive to indices first, then to target
+      let resultType = motive;
+      for (const indexValue of typeNow.indices) {
+        resultType = doApp(resultType, indexValue);
+      }
+      resultType = doApp(resultType, target);
+
       return new V.Neutral(
-        doApp(motive, target),
+        resultType,
         new N.GenericEliminator(
           name,
           targetNow.neutral,
