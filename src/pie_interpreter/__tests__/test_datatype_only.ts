@@ -8,8 +8,8 @@ describe("Test datatype definition only", () => {
       (refl ((T U))
         (Subtype () (T T)))
       (trans ((T1 U) (T2 U) (T3 U)
-              (p1 (type-Subtype () (T1 T2)))
-              (p2 (type-Subtype () (T2 T3))))
+              (p1 (Subtype () (T1 T2)))
+              (p2 (Subtype () (T2 T3))))
         (Subtype () (T1 T3)))
       ind-Subtype)
     `;

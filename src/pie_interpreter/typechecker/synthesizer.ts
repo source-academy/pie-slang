@@ -1350,6 +1350,25 @@ export class synthesizer {
   }
 
   public static synthApplication(context: Context, r: Renaming, location: Location, fun: S.Source, arg: S.Source, args: S.Source[]): Perhaps<C.The> {
+    // Check if this is actually a constructor application (parsed as Application)
+    if (fun instanceof S.Name) {
+      const binder = context.get(fun.name);
+      if (binder instanceof ConstructorTypeBinder) {
+        // This is a constructor application - convert to ConstructorApplication and handle it
+        const constructorApp = new S.ConstructorApplication(
+          location,
+          fun.name,
+          [arg, ...args]
+        );
+        // Constructors need to be checked, not synthesized, so we can't synthesize a type directly
+        // Return an error suggesting the user provide type annotation
+        return new stop(
+          location,
+          new Message([`Constructor ${fun.name} requires a type annotation. Use (the Type (${fun.name} ...))`])
+        );
+      }
+    }
+
     if (args.length === 0) {
       const fout = new PerhapsM<C.The>('fout');
       return goOn(

@@ -1982,6 +1982,28 @@ export class Application extends Source {
     // Otherwise, use default behavior (check against Universe)
     return super.getType(ctx, renames);
   }
+
+  // Override checkOut to handle constructor applications
+  public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
+    // Check if func is a Name referring to a constructor
+    if (this.func instanceof Name) {
+      const funcName = this.func.name;
+      const binder = ctx.get(funcName);
+
+      // If it's a constructor, treat this as a ConstructorApplication
+      if (binder instanceof ConstructorTypeBinder) {
+        const constructorApp = new ConstructorApplication(
+          this.location,
+          funcName,
+          [this.arg, ...this.args]
+        );
+        return constructorApp.checkOut(ctx, renames, type);
+      }
+    }
+
+    // Otherwise, use default behavior
+    return super.checkOut(ctx, renames, type);
+  }
 }
 
 export class GeneralType extends Source {
@@ -2095,7 +2117,7 @@ export class GeneralTypeConstructor extends Source {
   public checkOut(ctx: Context, renames: Renaming, target: V.Value): Perhaps<C.Core> {
     const cur_val = target.now()
 
-    // If checking against Universe, this is a type expression (e.g., (type-Even () (n)) : U)
+    // If checking against Universe, this is a type expression (e.g., (Even () (n)) : U)
     // Verify it's well-formed and return its Core representation
     if (cur_val instanceof V.Universe) {
       return this.getType(ctx, renames);
@@ -2171,7 +2193,7 @@ export class EliminatorApplication extends Source {
 
   public prettyPrint(): string {
     const methods = this.methods.map(m => m.prettyPrint()).join(' ');
-    return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+    return `(ind-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
   }
 
   protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
