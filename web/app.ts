@@ -1,5 +1,16 @@
 import { PieLanguageClient, registerPieLanguage } from './lsp/lsp-client-simple';
-import * as monaco from 'monaco-editor';
+import type * as Monaco from 'monaco-editor';
+
+// Extend Window interface to include Monaco globals
+declare global {
+  interface Window {
+    monaco: typeof Monaco;
+    require: {
+      (modules: string[], callback: (...args: any[]) => void): void;
+      config(config: { paths: Record<string, string> }): void;
+    };
+  }
+}
 
 const examples = {
   'Hello World': `(claim zero Nat)
@@ -102,7 +113,7 @@ const previewOutput = document.getElementById('preview-output') as HTMLElement;
 
 let diagnosticsWorker: Worker | null = null;
 let lspClient: PieLanguageClient | null = null;
-let monacoApi: typeof monaco | null = null;
+let monacoApi: typeof Monaco | null = null;
 
 function setSummary(message: string, tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral') {
   if (previewSummary) {
@@ -125,7 +136,7 @@ function renderPreviewText(text: string | undefined, tone?: 'neutral' | 'success
   }
 }
 
-function applyDiagnostics(monaco: typeof import('monaco-editor'), editor: monaco.editor.IStandaloneCodeEditor, payload: any) {
+function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandaloneCodeEditor, payload: any) {
   const { diagnostics, pretty } = payload;
   const model = editor.getModel();
 
@@ -159,7 +170,7 @@ function applyDiagnostics(monaco: typeof import('monaco-editor'), editor: monaco
   renderPreviewText(`${location}\n${primary.message}`, tone);
 }
 
-function initializeDiagnostics(editor: monaco.editor.IStandaloneCodeEditor) {
+function initializeDiagnostics(editor: Monaco.editor.IStandaloneCodeEditor) {
   if (!('Worker' in window)) {
     setSummary('Diagnostics unavailable in this browser.', 'warning');
     return null;
@@ -191,7 +202,7 @@ function initializeDiagnostics(editor: monaco.editor.IStandaloneCodeEditor) {
   return worker;
 }
 
-async function initializeLSP(monacoLib: typeof monaco, editor: monaco.editor.IStandaloneCodeEditor) {
+async function initializeLSP(monacoLib: typeof Monaco, editor: Monaco.editor.IStandaloneCodeEditor) {
   try {
     if (lspClient && lspClient.isRunning()) {
       await lspClient.stop();
@@ -206,7 +217,7 @@ async function initializeLSP(monacoLib: typeof monaco, editor: monaco.editor.ISt
   }
 }
 
-function initializeEditor(monaco: typeof import('monaco-editor')) {
+function initializeEditor(monaco: typeof Monaco) {
   // Register Pie language
   registerPieLanguage(monaco);
 
@@ -263,7 +274,7 @@ function initializeEditor(monaco: typeof import('monaco-editor')) {
   return editor;
 }
 
-function initializeExamplePicker(editor: monaco.editor.IStandaloneCodeEditor) {
+function initializeExamplePicker(editor: Monaco.editor.IStandaloneCodeEditor) {
   const picker = document.getElementById('example-picker') as HTMLSelectElement;
 
   if (!picker) return;
