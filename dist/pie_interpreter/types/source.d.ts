@@ -513,6 +513,7 @@ export declare class Application extends Source {
     prettyPrint(): string;
     toString(): string;
     getType(ctx: Context, renames: Renaming): Perhaps<C.Core>;
+    checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core>;
 }
 export declare class GeneralType extends Source {
     location: Location;

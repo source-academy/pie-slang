@@ -243,10 +243,9 @@ export declare class ConstructorType extends Value {
     argTypes: Value[];
     rec_argTypes: Value[];
     resultType: Value;
-    numTypeParams: number;
     argNames: string[];
-    constructor(name: string, index: number, type: string, argTypes: Value[], rec_argTypes: Value[], resultType: Value, numTypeParams?: number, // Number of leading args that are type parameters
-    argNames?: string[]);
+    rec_argNames: string[];
+    constructor(name: string, index: number, type: string, argTypes: Value[], rec_argTypes: Value[], resultType: Value, argNames: string[], rec_argNames: string[]);
     readBackType(context: Context): C.Core;
     prettyPrint(): string;
 }

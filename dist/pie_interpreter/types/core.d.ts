@@ -387,8 +387,10 @@ export declare class ConstructorType extends Core {
     type: string;
     argTypes: Core[];
     rec_argTypes: Core[];
-    resultType: Core;
-    constructor(name: string, index: number, type: string, argTypes: Core[], rec_argTypes: Core[], resultType: Core);
+    resultType: InductiveTypeConstructor;
+    argNames: string[];
+    rec_argNames: string[];
+    constructor(name: string, index: number, type: string, argTypes: Core[], rec_argTypes: Core[], resultType: InductiveTypeConstructor, argNames: string[], rec_argNames: string[]);
     valOf(env: Environment): V.Value;
     prettyPrint(): string;
 }
