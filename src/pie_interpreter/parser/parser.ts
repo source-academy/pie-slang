@@ -38,6 +38,9 @@ function getValue(element: Element): string {
     return element.value;
   } else if (element instanceof Extended.List) {
     return getValue(element.elements[0] as Element);
+  } else if (element instanceof Atomic.Nil) {
+    // Empty list - return empty string or some placeholder
+    return "()";
   } else {
     const elem = element as any;
     throw new Error(`Expected a Element, but got: ${JSON.stringify(elem)} (type: ${typeof elem}, constructor: ${elem?.constructor?.name})`);
@@ -403,52 +406,10 @@ export class Parser {
       );
     } else if (parsee === 'TODO') {
       return Maker.makeTODO(locationToSyntax('TODO', element.location));
-    } else if (parsee.startsWith('type-')) {
-      // General type constructor application: (type-TypeName (params...) (indices...))
-      const typeName = parsee.substring(5); // Remove 'type-' prefix
-      const elements = (element as Extended.List).elements;
-
-      if (elements.length < 3) {
-        throw new Error(`Type constructor ${parsee} requires parameters and indices lists`);
-      }
-
-      // Parse parameters: (Nat) or (E) or (Nat Atom) or ()
-      const paramsElem = elements[1];
-      let params: S.Source[] = [];
-      if (paramsElem instanceof Extended.List) {
-        params = (paramsElem.elements || []).map(p => this.parseElements(p as Element));
-      } else if (paramsElem instanceof Atomic.Nil) {
-        params = []; // Empty list
-      }
-
-      // Parse indices: (zero) or (j k) or ()
-      const indicesElem = elements[2];
-      let indices: S.Source[] = [];
-      if (indicesElem instanceof Extended.List) {
-        indices = (indicesElem.elements || []).map(idx => this.parseElements(idx as Element));
-      } else if (indicesElem instanceof Atomic.Nil) {
-        indices = []; // Empty list
-      }
-
-      return Maker.makeGeneralTypeConstructor(
-        locationToSyntax(typeName, element.location),
-        typeName,
-        params,
-        indices
-      );
-    } else if (parsee.startsWith('data-')) {
-      // Constructor application: (data-constructor-name arg1 arg2...)
-      const constructorName = parsee.substring(5); // Remove 'data-' prefix
-      const elements = (element as Extended.List).elements;
-      const args = elements.slice(1).map(x => this.parseElements(x as Element));
-      return Maker.makeConstructorApplication(
-        locationToSyntax(constructorName, element.location),
-        constructorName,
-        args
-      );
-    } else if (parsee.startsWith('elim-')) {
-      // Eliminator application: (elim-TypeName target motive methods...)
-      const typeName = parsee.substring(5); // Remove 'elim-' prefix
+    } else if (parsee.startsWith('ind-') && element instanceof Extended.List && element.elements[0] instanceof Atomic.Symbol) {
+      // Eliminator application: (ind-TypeName target motive methods...)
+      // Only match if first element is directly a symbol (not a nested list)
+      const typeName = parsee.substring(4); // Remove 'ind-' prefix
       const elements = (element as Extended.List).elements;
 
       if (elements.length < 3) {
@@ -470,11 +431,12 @@ export class Parser {
       const elements = (element as Extended.List).elements;
       const firstElem = elements[0];
 
-      // Check if this is a GeneralTypeConstructor without type- prefix
-      // (used in constructor return types): (TypeName (params) (indices))
+      // Check if this is a GeneralTypeConstructor without prefix
+      // (used in constructor return types OR in user code): (TypeName (params) (indices))
+      // We require type names to start with a capital letter
       if (firstElem instanceof Atomic.Symbol) {
         const name = firstElem.value;
-        // If starts with capital letter and has 3 elements, might be type constructor
+        // If starts with capital letter and has exactly 3 elements, might be type constructor
         if (name && name[0] === name[0].toUpperCase() && name[0] !== name[0].toLowerCase() && elements.length === 3) {
           const secondElem = elements[1];
           const thirdElem = elements[2];
@@ -512,7 +474,8 @@ export class Parser {
         )
       );
     } else if (element instanceof Extended.List && (element as Extended.List).elements.length > 1) {
-      // Application with 2 elements
+      // For lists with 2+ elements, parse as Application by default
+      // The typechecker will disambiguate between function application and constructor application
       const elements = (element as Extended.List).elements;
       return Maker.makeApp(
         locationToSyntax('App', element.location),
@@ -520,6 +483,17 @@ export class Parser {
         this.parseElements(elements[1] as Element),
         elements.slice(2).map((x: Expression) => this.parseElements(x as Element)
         )
+      );
+    } else if (element instanceof Extended.List && (element as Extended.List).elements.length === 1) {
+      // Single-element lists like (zero-even) - could be zero-argument constructor
+      // Parse as ConstructorApplication with empty args
+      // The typechecker will validate if it's actually a constructor
+      const elements = (element as Extended.List).elements;
+      const name = getValue(elements[0] as Element);
+      return Maker.makeConstructorApplication(
+        locationToSyntax(name, element.location),
+        name,
+        []
       );
     } else if (isVarName(parsee)) {
       return Maker.makeVarRef(locationToSyntax(parsee, element.location), parsee);
@@ -721,10 +695,19 @@ export class pieDeclarationParser {
       for (let i = 4; i < constructorEndIdx; i++) {
         const ctorElement = elements[i] as Extended.List;
         const ctorName = getValue(ctorElement.elements[0] as Element);
-        const ctorArgsRaw = (ctorElement.elements[1] as Extended.List).elements || [];
+        
+        // Handle constructor arguments - could be () (Nil) or ((arg1) (arg2)...) (List)
+        const ctorArgsElem = ctorElement.elements[1];
+        let ctorArgsRaw: Expression[] = [];
+        if (ctorArgsElem instanceof Extended.List) {
+          ctorArgsRaw = ctorArgsElem.elements || [];
+        } else if (ctorArgsElem instanceof Atomic.Nil) {
+          ctorArgsRaw = []; // Empty arguments
+        }
+        
         const ctorReturnType = ctorElement.elements[2] as Element;
 
-        // Parse constructor arguments: ((n Nat)) or ((j Nat) (k Nat) (j<k (type-Less-Than () (j k))))
+        // Parse constructor arguments: ((n Nat)) or ((j Nat) (k Nat) (j<k (Less-Than () (j k))))
         const ctorArgs = ctorArgsRaw.map(arg => {
           const pair = arg as Extended.List;
           const argType = pair.elements[1] as Element;
@@ -739,7 +722,7 @@ export class pieDeclarationParser {
         });
 
         // Parse return type: (TypeName (params...) (indices...))
-        // Note: Constructor return types do NOT use type- prefix
+        // Note: Constructor return types do NOT use  prefix
         const returnTypeList = ctorReturnType as Extended.List;
         const returnTypeName = getValue(returnTypeList.elements[0] as Element);
 

@@ -1160,7 +1160,9 @@ export class ConstructorType extends Core {
     public type: string,
     public argTypes: Core[],
     public rec_argTypes: Core[],
-    public resultType: Core,
+    public resultType: InductiveTypeConstructor,
+    public argNames: string[],
+    public rec_argNames: string[]
   ) { super(); }
 
   public valOf(env: Environment): V.Value {
@@ -1171,6 +1173,8 @@ export class ConstructorType extends Core {
       this.argTypes.map(a => a.toLazy(env)),
       this.rec_argTypes.map(a => a.toLazy(env)),
       this.resultType.toLazy(env),
+      this.argNames,
+      this.rec_argNames
     )
   }
 
@@ -1202,7 +1206,7 @@ export class Eliminator extends Core {
   }
   public prettyPrint(): string {
     const methods = this.methods.map(m => m.prettyPrint()).join(' ');
-    return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+    return `(ind-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
   }
 }
 
