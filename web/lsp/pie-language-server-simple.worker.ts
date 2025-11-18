@@ -4,7 +4,7 @@
  */
 
 import { pieDeclarationParser, Claim, Definition, DefineTactically, schemeParse } from '../../src/pie_interpreter/parser/parser';
-import { DefineDatatypeSource } from '../../src/pie_interpreter/typechecker/definedatatype';
+import { DefineDatatypeSource, handleDefineDatatype } from '../../src/pie_interpreter/typechecker/definedatatype';
 import { Context, initCtx, addClaimToContext, addDefineToContext } from '../../src/pie_interpreter/utils/context';
 import { Renaming } from '../../src/pie_interpreter/typechecker/utils';
 import { go, stop } from '../../src/pie_interpreter/types/utils';
@@ -123,8 +123,19 @@ function processDefineDatatypeDeclaration(
 	diagnostics: Diagnostic[]
 ): { context: Context, renaming: Renaming } {
 	try {
-		const [newCtx, newRenaming] = datatype.normalizeConstructor(context, renaming);
-		return { context: newCtx, renaming: newRenaming };
+		const result = handleDefineDatatype(context, renaming, datatype);
+		if (result instanceof go) {
+			return { context: result.result, renaming };
+		} else if (result instanceof stop) {
+			const range = locationToRange(datatype.location);
+			diagnostics.push({
+				severity: 'error',
+				...range,
+				message: `Error in datatype definition '${datatype.name}': ${result.message}`
+			});
+			return { context, renaming };
+		}
+		return { context, renaming };
 	} catch (error) {
 		const range = locationToRange(datatype.location);
 		diagnostics.push({
