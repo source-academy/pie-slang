@@ -157,7 +157,7 @@ export class EliminateNatTactic extends Tactic {
   }
 
   toString(): string {
-    return `elim-nat ${this.target}`;
+    return `ind-nat ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -248,8 +248,8 @@ export class EliminateListTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `elim-list ${this.target} to prove ${this.motive.prettyPrint()}`
-      : `elim-list ${this.target}`;
+      ? `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`
+      : `ind-list ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -362,7 +362,7 @@ export class EliminateVecTactic extends Tactic {
   }
 
   toString(): string {
-    return `elim-list ${this.target} to prove ${this.motive.prettyPrint()}`;
+    return `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -448,8 +448,8 @@ export class EliminateEqualTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `elim-equal ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `elim-equal ${this.target}`;
+      ? `ind-equal ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `ind-equal ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -589,8 +589,8 @@ export class EliminateEitherTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `elim-either ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `elim-either ${this.target}`;
+      ? `ind-either ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `ind-either ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -746,8 +746,8 @@ export class EliminateAbsurdTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `elim-absurd ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `elim-absurd ${this.target}`;
+      ? `ind-absurd ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `ind-absurd ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {

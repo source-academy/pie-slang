@@ -11,7 +11,7 @@ describe("Debug constructor with type params", () => {
 
 ;; Test: can we construct a refl?
 (claim nat-refl (Subtype () (Nat Nat)))
-(define nat-refl (data-refl Nat))`;
+(define nat-refl (refl Nat))`;
     const result = evaluatePie(input);
     console.log(result);
   })

@@ -492,12 +492,12 @@ You can define your own inductive types with parameters and indices.
 
 **Using Bool:**
 ```
-; Constructors get prefix data-
-(data-true)                          ; : Bool
-(data-false)                         ; : Bool
+; Constructors get prefix 
+(true)                          ; : Bool
+(false)                         ; : Bool
 
-; Eliminator also gets prefix data-
-(data-ind-Bool (data-true)
+; Eliminator also gets prefix 
+(ind-Bool (true)
   (lambda (b) Nat)                   ; Motive
   (add1 zero)                        ; Case for true
   zero)                              ; Case for false
@@ -516,12 +516,12 @@ You can define your own inductive types with parameters and indices.
 **Using Less-Than:**
 ```
 ; Constructors
-(data-zero-smallest zero)             ; : (Less-Than 0 1)
-(data-add1-smaller zero (add1 zero)
-  (data-zero-smallest zero))          ; : (Less-Than 1 2)
+(zero-smallest zero)             ; : (Less-Than 0 1)
+(add1-smaller zero (add1 zero)
+  (zero-smallest zero))          ; : (Less-Than 1 2)
 
 ; Eliminator
-(data-ind-Less-Than proof
+(ind-Less-Than proof
   (lambda (j k p) Nat)                ; Motive depends on indices and proof
   (lambda (n) zero)                   ; Case for zero-smallest
   (lambda (j k j<k ih) (add1 ih)))    ; Case for add1-smaller
@@ -534,13 +534,13 @@ You can define your own inductive types with parameters and indices.
   (TypeName index1 index2 ...))
 ```
 
-- Constructor names get `data-` prefix when used
+- Constructor names get `` prefix when used
 - Parameters before the colon
 - Result type must be the datatype with indices
 
 ### General Eliminator Pattern
 ```
-(data-ind-TypeName target motive method1 method2 ...)
+(ind-TypeName target motive method1 method2 ...)
 
 target  : (TypeName idx1 idx2 ...)   ; The value to eliminate
 motive  : Depends on indices + target
@@ -575,8 +575,8 @@ Each method gets:
 ### User-defined constructors need prefix:
 ```
 ✗ (true)                             ; ERROR
-✓ (data-true)                        ; Correct
+✓ (true)                        ; Correct
 
 ✗ (ind-Bool ...)                     ; ERROR
-✓ (data-ind-Bool ...)                ; Correct
+✓ (ind-Bool ...)                ; Correct
 ```

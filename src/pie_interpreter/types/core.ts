@@ -1206,7 +1206,7 @@ export class Eliminator extends Core {
   }
   public prettyPrint(): string {
     const methods = this.methods.map(m => m.prettyPrint()).join(' ');
-    return `(elim-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
+    return `(ind-${this.typeName} ${this.target.prettyPrint()} ${this.motive.prettyPrint()} ${methods})`;
   }
 }
 

@@ -9,8 +9,8 @@ describe("Test subtyping", () => {
   (refl ((T U))
     (Subtype () (T T)))
   (trans ((T1 U) (T2 U) (T3 U)
-          (p1 (type-Subtype () (T1 T2)))
-          (p2 (type-Subtype () (T2 T3))))
+          (p1 (Subtype () (T1 T2)))
+          (p2 (Subtype () (T2 T3))))
     (Subtype () (T1 T3)))
   ;; Generic injection: if there exists a function A -> B, then A <: B
   (inject ((A U) (B U) (f (-> A B)))
@@ -19,10 +19,10 @@ describe("Test subtyping", () => {
 
 (claim coerce
   (Pi ((A U) (B U))
-    (-> (type-Subtype () (A B)) A B)))
+    (-> (Subtype () (A B)) A B)))
 (define coerce
   (lambda (A B proof val)
-    ((elim-Subtype proof
+    ((ind-Subtype proof
       (lambda (t1 t2 sub) (-> t1 t2))
       (lambda (TT x) x)
       (lambda (T11 T22 T33 p1 p2 ih1 ih2 x)
@@ -34,26 +34,26 @@ describe("Test subtyping", () => {
 (data Even () ((n Nat))
   (zero-even ()
     (Even () (zero)))
-  (add2-even ((k Nat) (k-even (type-Even () (k))))
+  (add2-even ((k Nat) (k-even (Even () (k))))
     (Even () ((add1 (add1 k)))))
   ind-Even)
 
 (claim even-to-nat
   (Pi ((n Nat))
-    (-> (type-Even () (n)) Nat)))
+    (-> (Even () (n)) Nat)))
 (define even-to-nat
   (lambda (n proof)
-    (elim-Even proof
+    (ind-Even proof
       (lambda (m ev) Nat)
       zero
       (lambda (k prev ih) (add1 (add1 ih))))))
 
 (claim even-subtype-nat
   (Pi ((n Nat))
-    (type-Subtype () ((type-Even () (n)) Nat))))
+    (Subtype () ((Even () (n)) Nat))))
 (define even-subtype-nat
   (lambda (n)
-    (data-inject (type-Even () (n)) Nat (even-to-nat n))))
+    (inject (Even () (n)) Nat (even-to-nat n))))
 
 (claim + (-> Nat Nat Nat))
 (define +
@@ -70,19 +70,19 @@ describe("Test subtyping", () => {
 ;; Use Even with double
 (claim double-even
   (Pi ((n Nat))
-    (-> (type-Even () (n)) Nat)))
+    (-> (Even () (n)) Nat)))
 (define double-even
   (lambda (n ev)
-    (double (coerce (type-Even () (n)) Nat
+    (double (coerce (Even () (n)) Nat
                     (even-subtype-nat n)
                     ev))))
 
 
-(claim even-four (type-Even () ((add1 (add1 (add1 (add1 zero)))))))
+(claim even-four (Even () ((add1 (add1 (add1 (add1 zero)))))))
 (define even-four
-  (data-add2-even (add1 (add1 zero))
-    (data-add2-even zero
-      (data-zero-even))))
+  (add2-even (add1 (add1 zero))
+    (add2-even zero
+      (zero-even))))
 
 (claim result2 Nat)
 (define result2 (double-even (add1 (add1 (add1 (add1 zero)))) even-four))

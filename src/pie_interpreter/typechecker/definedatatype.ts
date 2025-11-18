@@ -180,6 +180,7 @@ export function handleDefineDatatype(ctx: Context, rename: Renaming, target: Def
   if (ctx.has(target.name)) {
     return new stop(target.location, new Message([`Name already in use: ${target.name}`]));
   }
-  const [new_ctx, new_rename] = target.normalizeConstructor(ctx, rename)
+
+  const [new_ctx, new_rename] = target.normalizeConstructor(ctx, rename);
   return new go<Context>(new_ctx);
 }
