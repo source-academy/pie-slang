@@ -13,7 +13,8 @@ function stubNodeBuiltins() {
     'process': 'export default { argv: [] }',
     'escodegen': 'export default {}',
     'dotenv': 'export const config = () => ({ parsed: {} }); export default { config };',
-    'dotenv/config': 'export const config = () => ({ parsed: {} }); export default config;'
+    'dotenv/config': 'export const config = () => ({ parsed: {} }); export default config;',
+    'util': 'export function inspect() { return ""; } export default { inspect };'
   };
 
   return {
