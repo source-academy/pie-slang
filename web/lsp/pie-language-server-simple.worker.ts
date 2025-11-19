@@ -4,7 +4,9 @@
  */
 
 import { pieDeclarationParser, Claim, Definition, DefineTactically, schemeParse } from '../../src/pie_interpreter/parser/parser';
+import { DefineDatatypeSource, handleDefineDatatype } from '../../src/pie_interpreter/typechecker/definedatatype';
 import { Context, initCtx, addClaimToContext, addDefineToContext } from '../../src/pie_interpreter/utils/context';
+import { Renaming } from '../../src/pie_interpreter/typechecker/utils';
 import { go, stop } from '../../src/pie_interpreter/types/utils';
 import { ProofManager } from '../../src/pie_interpreter/tactics/proofmanager';
 import { PIE_HOVER_INFO } from './pie_hover_info';
@@ -45,6 +47,7 @@ function locationToRange(location: any): { startLine: number, startColumn: numbe
 function validatePieSource(source: string): ValidationResult {
 	const diagnostics: Diagnostic[] = [];
 	let context = initCtx;
+	let renaming: Renaming = new Map();
 
 	try {
 		// Parse the document into declarations
@@ -53,9 +56,10 @@ function validatePieSource(source: string): ValidationResult {
 		// Process each declaration
 		for (const ast of astList) {
 			const declaration = pieDeclarationParser.parseDeclaration(ast);
-			const result = processDeclaration(declaration, context);
+			const result = processDeclaration(declaration, context, renaming);
 			diagnostics.push(...result.diagnostics);
 			context = result.context;
+			renaming = result.renaming;
 		}
 
 	} catch (error) {
@@ -73,9 +77,10 @@ function validatePieSource(source: string): ValidationResult {
 }
 
 // Process a single declaration for type checking
-function processDeclaration(decl: any, context: Context): { diagnostics: Diagnostic[], context: Context } {
+function processDeclaration(decl: any, context: Context, renaming: Renaming): { diagnostics: Diagnostic[], context: Context, renaming: Renaming } {
 	const diagnostics: Diagnostic[] = [];
 	let newContext = context;
+	let newRenaming = renaming;
 
 	try {
 		if (decl instanceof Claim) {
@@ -84,6 +89,10 @@ function processDeclaration(decl: any, context: Context): { diagnostics: Diagnos
 			newContext = processDefineDeclaration(decl, context, diagnostics);
 		} else if (decl instanceof DefineTactically) {
 			newContext = processDefineTacticallyDeclaration(decl, context, diagnostics);
+		} else if (decl instanceof DefineDatatypeSource) {
+			const result = processDefineDatatypeDeclaration(decl, context, renaming, diagnostics);
+			newContext = result.context;
+			newRenaming = result.renaming;
 		} else {
 			const range = (decl as any).location ? locationToRange((decl as any).location) : locationToRange(null);
 			const diagnostic: Diagnostic = {
@@ -103,7 +112,39 @@ function processDeclaration(decl: any, context: Context): { diagnostics: Diagnos
 		diagnostics.push(diagnostic);
 	}
 
-	return { diagnostics, context: newContext };
+	return { diagnostics, context: newContext, renaming: newRenaming };
+}
+
+// Process define-datatype declarations (inductive types)
+function processDefineDatatypeDeclaration(
+	datatype: DefineDatatypeSource,
+	context: Context,
+	renaming: Renaming,
+	diagnostics: Diagnostic[]
+): { context: Context, renaming: Renaming } {
+	try {
+		const result = handleDefineDatatype(context, renaming, datatype);
+		if (result instanceof go) {
+			return { context: result.result, renaming };
+		} else if (result instanceof stop) {
+			const range = locationToRange(datatype.location);
+			diagnostics.push({
+				severity: 'error',
+				...range,
+				message: `Error in datatype definition '${datatype.name}': ${result.message}`
+			});
+			return { context, renaming };
+		}
+		return { context, renaming };
+	} catch (error) {
+		const range = locationToRange(datatype.location);
+		diagnostics.push({
+			severity: 'error',
+			...range,
+			message: `Error in datatype definition '${datatype.name}': ${error}`
+		});
+		return { context, renaming };
+	}
 }
 
 // Process claim declarations

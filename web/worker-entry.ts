@@ -1,11 +1,9 @@
 import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from '../src/pie_interpreter/parser/parser';
-import { initCtx, addClaimToContext, addDefineToContext, Context, Define } from '../src/pie_interpreter/utils/context';
+import { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext, Context, Define } from '../src/pie_interpreter/utils/context';
 import { checkSame, represent } from '../src/pie_interpreter/typechecker/represent';
 import { go, stop, Message } from '../src/pie_interpreter/types/utils';
-import { ProofManager } from '../src/pie_interpreter/tactics/proofmanager';
 import { readBack } from '../src/pie_interpreter/evaluator/utils';
 import { prettyPrintCore } from '../src/pie_interpreter/unparser/pretty';
-import { Tactic } from '../src/pie_interpreter/tactics/tactics';
 import { DefineDatatypeSource, handleDefineDatatype } from '../src/pie_interpreter/typechecker/definedatatype';
 
 export interface Diagnostic {
@@ -21,6 +19,7 @@ export interface AnalysisResult {
   diagnostics: Diagnostic[];
   summary: string;
   pretty?: string;
+  messages?: string;
 }
 
 export function analyzePieSource(source: string): AnalysisResult {
@@ -34,16 +33,20 @@ export function analyzePieSource(source: string): AnalysisResult {
 
   const diagnostics: Diagnostic[] = [];
   const ctx = cloneContext(initCtx);
+  let messages = '';
 
   try {
     const astList = schemeParse(source);
 
     for (const ast of astList) {
       const declaration = pieDeclarationParser.parseDeclaration(ast);
-      const diagnostic = processDeclaration(ctx, declaration);
-      if (diagnostic) {
-        diagnostics.push(diagnostic);
+      const result = processDeclaration(ctx, declaration);
+      if (result.diagnostic) {
+        diagnostics.push(result.diagnostic);
         break;
+      }
+      if (result.message) {
+        messages += result.message;
       }
     }
   } catch (error) {
@@ -54,70 +57,72 @@ export function analyzePieSource(source: string): AnalysisResult {
     ? 'No issues detected.'
     : diagnostics.some(item => item.severity === 'error') ? 'Errors detected.' : 'Warnings detected.';
 
+  let pretty: string | undefined;
+  if (diagnostics.length === 0) {
+    const contextOutput = formatContext(ctx);
+    // Combine messages (tactic output) with context output
+    pretty = messages ? messages + '\n' + contextOutput : contextOutput;
+  }
+
   return {
     diagnostics,
     summary,
-    pretty: diagnostics.length === 0 ? formatContext(ctx) : undefined
+    pretty,
+    messages: messages || undefined
   };
 }
 
-function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDeclarationParser.parseDeclaration>): Diagnostic | null {
+interface DeclarationResult {
+  diagnostic: Diagnostic | null;
+  message?: string;
+}
+
+function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDeclarationParser.parseDeclaration>): DeclarationResult {
   try {
     if (declaration instanceof Claim) {
       const result = addClaimToContext(ctx, declaration.name, declaration.location, declaration.type);
       if (result instanceof go) {
         assignContext(ctx, result.result);
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(result as stop);
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else if (declaration instanceof Definition) {
       const result = addDefineToContext(ctx, declaration.name, declaration.location, declaration.expr);
       if (result instanceof go) {
         assignContext(ctx, result.result);
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(result as stop);
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else if (declaration instanceof SamenessCheck) {
       const outcome = checkSame(ctx, declaration.location, declaration.type, declaration.left, declaration.right);
       if (outcome instanceof go) {
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(outcome as stop);
+      return { diagnostic: diagnosticFromStop(outcome as stop) };
     } else if (declaration instanceof DefineTactically) {
-      return processDefineTactically(ctx, declaration);
+      const result = addDefineTacticallyToContext(ctx, declaration.name, declaration.location, declaration.tactics);
+      if (result instanceof go) {
+        assignContext(ctx, result.result.context);
+        return { diagnostic: null, message: result.result.message };
+      }
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else if (declaration instanceof DefineDatatypeSource) {
       const result = handleDefineDatatype(ctx, new Map(), declaration);
       if (result instanceof go) {
         assignContext(ctx, result.result);
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(result as stop);
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else {
       const outcome = represent(ctx, declaration);
       if (outcome instanceof go) {
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(outcome as stop);
+      return { diagnostic: diagnosticFromStop(outcome as stop) };
     }
   } catch (error) {
-    return parseThrownError(error);
+    return { diagnostic: parseThrownError(error) };
   }
-}
-
-function processDefineTactically(ctx: Context, declaration: DefineTactically): Diagnostic | null {
-  const proofManager = new ProofManager();
-  const start = proofManager.startProof(declaration.name, ctx, declaration.location);
-  if (start instanceof stop) {
-    return diagnosticFromStop(start);
-  }
-
-  for (const tactic of declaration.tactics as Tactic[]) {
-    const result = proofManager.applyTactic(tactic);
-    if (result instanceof stop) {
-      return diagnosticFromStop(result);
-    }
-  }
-  return null;
 }
 
 function diagnosticFromStop(result: stop): Diagnostic {
