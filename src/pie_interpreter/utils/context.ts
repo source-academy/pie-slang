@@ -168,11 +168,24 @@ export function addDefineTacticallyToContext(
   }
 
   const type = claim.type;
-  // TODO: Extract actual proof term from proofManager.currentState
-  // For now, using type as placeholder value
-  const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, type);
 
-  return new go({ context: newCtx, message });
+  // TODO: Extract actual proof term from proofManager.currentState
+  // The Goal.term field should contain the proof term, but tactics don't set it yet
+  // For now, we keep the claim in context rather than adding a faulty placeholder
+  // that would fail during readback
+  const goalTree = proofManager.currentState?.goalTree;
+  const proofTerm = goalTree?.goal.term;
+
+  if (proofTerm) {
+    // We have the actual proof term
+    const proofValue = valInContext(ctx, proofTerm);
+    const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, proofValue);
+    return new go({ context: newCtx, message });
+  } else {
+    // Proof term extraction not implemented yet - keep claim in context
+    // This allows the proof to complete without error, but the definition won't be usable
+    return new go({ context: ctx, message: message + `\nWarning: Proof term extraction not yet implemented for '${name}'` });
+  }
 }
 
 export function contextToEnvironment(ctx: Context): Environment {
