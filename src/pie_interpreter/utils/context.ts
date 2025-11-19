@@ -153,7 +153,7 @@ export function addDefineTacticallyToContext(
     let goalInfo = '';
     if (currentGoal instanceof go) {
       const goal = currentGoal.result;
-      goalInfo = `\nCurrent goal: ${goal.type.readBackType(goal.context).prettyPrint()}`;
+      goalInfo = `\n\n${goal.prettyPrintWithContext()}`;
     }
     return new stop(
       location,

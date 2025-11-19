@@ -19,6 +19,7 @@ export interface AnalysisResult {
   diagnostics: Diagnostic[];
   summary: string;
   pretty?: string;
+  messages?: string;
 }
 
 export function analyzePieSource(source: string): AnalysisResult {
@@ -32,16 +33,20 @@ export function analyzePieSource(source: string): AnalysisResult {
 
   const diagnostics: Diagnostic[] = [];
   const ctx = cloneContext(initCtx);
+  let messages = '';
 
   try {
     const astList = schemeParse(source);
 
     for (const ast of astList) {
       const declaration = pieDeclarationParser.parseDeclaration(ast);
-      const diagnostic = processDeclaration(ctx, declaration);
-      if (diagnostic) {
-        diagnostics.push(diagnostic);
+      const result = processDeclaration(ctx, declaration);
+      if (result.diagnostic) {
+        diagnostics.push(result.diagnostic);
         break;
+      }
+      if (result.message) {
+        messages += result.message;
       }
     }
   } catch (error) {
@@ -55,55 +60,61 @@ export function analyzePieSource(source: string): AnalysisResult {
   return {
     diagnostics,
     summary,
-    pretty: diagnostics.length === 0 ? formatContext(ctx) : undefined
+    pretty: diagnostics.length === 0 ? formatContext(ctx) : undefined,
+    messages: messages || undefined
   };
 }
 
-function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDeclarationParser.parseDeclaration>): Diagnostic | null {
+interface DeclarationResult {
+  diagnostic: Diagnostic | null;
+  message?: string;
+}
+
+function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDeclarationParser.parseDeclaration>): DeclarationResult {
   try {
     if (declaration instanceof Claim) {
       const result = addClaimToContext(ctx, declaration.name, declaration.location, declaration.type);
       if (result instanceof go) {
         assignContext(ctx, result.result);
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(result as stop);
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else if (declaration instanceof Definition) {
       const result = addDefineToContext(ctx, declaration.name, declaration.location, declaration.expr);
       if (result instanceof go) {
         assignContext(ctx, result.result);
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(result as stop);
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else if (declaration instanceof SamenessCheck) {
       const outcome = checkSame(ctx, declaration.location, declaration.type, declaration.left, declaration.right);
       if (outcome instanceof go) {
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(outcome as stop);
+      return { diagnostic: diagnosticFromStop(outcome as stop) };
     } else if (declaration instanceof DefineTactically) {
       const result = addDefineTacticallyToContext(ctx, declaration.name, declaration.location, declaration.tactics);
       if (result instanceof go) {
         assignContext(ctx, result.result.context);
-        return null;
+        return { diagnostic: null, message: result.result.message };
       }
-      return diagnosticFromStop(result as stop);
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else if (declaration instanceof DefineDatatypeSource) {
       const result = handleDefineDatatype(ctx, new Map(), declaration);
       if (result instanceof go) {
         assignContext(ctx, result.result);
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(result as stop);
+      return { diagnostic: diagnosticFromStop(result as stop) };
     } else {
       const outcome = represent(ctx, declaration);
       if (outcome instanceof go) {
-        return null;
+        return { diagnostic: null };
       }
-      return diagnosticFromStop(outcome as stop);
+      return { diagnostic: diagnosticFromStop(outcome as stop) };
     }
   } catch (error) {
-    return parseThrownError(error);
+    return { diagnostic: parseThrownError(error) };
   }
 }
 
