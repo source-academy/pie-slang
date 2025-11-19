@@ -7,6 +7,8 @@ import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
 import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
+import { ProofManager } from '../tactics/proofmanager';
+import { Tactic } from '../tactics/tactics';
 
 /*
     ## Contexts ##
@@ -113,6 +115,64 @@ export function addDefineToContext(ctx: Context, fun: string, funLoc: Location, 
       )
     )
   )
+}
+
+export interface TacticalResult {
+  context: Context;
+  message: string;
+}
+
+export function addDefineTacticallyToContext(
+  ctx: Context,
+  name: string,
+  location: Location,
+  tactics: Tactic[]
+): Perhaps<TacticalResult> {
+  const proofManager = new ProofManager();
+  let message = '';
+
+  // Start the proof
+  const startResult = proofManager.startProof(name, ctx, location);
+  if (startResult instanceof stop) {
+    return startResult;
+  }
+  message += (startResult as go<string>).result + '\n';
+
+  // Apply each tactic
+  for (const tactic of tactics) {
+    const tacticResult = proofManager.applyTactic(tactic);
+    if (tacticResult instanceof stop) {
+      return tacticResult;
+    }
+    message += (tacticResult as go<string>).result;
+  }
+
+  // Check if proof is complete
+  if (!proofManager.currentState || !proofManager.currentState.isComplete()) {
+    const currentGoal = proofManager.currentState?.getCurrentGoal();
+    let goalInfo = '';
+    if (currentGoal instanceof go) {
+      const goal = currentGoal.result;
+      goalInfo = `\nCurrent goal: ${goal.type.readBackType(goal.context).prettyPrint()}`;
+    }
+    return new stop(
+      location,
+      new Message([`Proof incomplete. Not all goals have been solved.${goalInfo}`])
+    );
+  }
+
+  // Proof complete - add definition to context
+  const claim = ctx.get(name);
+  if (!(claim instanceof Claim)) {
+    return new stop(location, new Message([`${name} is not a valid claim`]));
+  }
+
+  const type = claim.type;
+  // TODO: Extract actual proof term from proofManager.currentState
+  // For now, using type as placeholder value
+  const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, type);
+
+  return new go({ context: newCtx, message });
 }
 
 export function contextToEnvironment(ctx: Context): Environment {

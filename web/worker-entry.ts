@@ -1,11 +1,9 @@
 import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from '../src/pie_interpreter/parser/parser';
-import { initCtx, addClaimToContext, addDefineToContext, Context, Define } from '../src/pie_interpreter/utils/context';
+import { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext, Context, Define } from '../src/pie_interpreter/utils/context';
 import { checkSame, represent } from '../src/pie_interpreter/typechecker/represent';
 import { go, stop, Message } from '../src/pie_interpreter/types/utils';
-import { ProofManager } from '../src/pie_interpreter/tactics/proofmanager';
 import { readBack } from '../src/pie_interpreter/evaluator/utils';
 import { prettyPrintCore } from '../src/pie_interpreter/unparser/pretty';
-import { Tactic } from '../src/pie_interpreter/tactics/tactics';
 import { DefineDatatypeSource, handleDefineDatatype } from '../src/pie_interpreter/typechecker/definedatatype';
 
 export interface Diagnostic {
@@ -84,7 +82,12 @@ function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDecl
       }
       return diagnosticFromStop(outcome as stop);
     } else if (declaration instanceof DefineTactically) {
-      return processDefineTactically(ctx, declaration);
+      const result = addDefineTacticallyToContext(ctx, declaration.name, declaration.location, declaration.tactics);
+      if (result instanceof go) {
+        assignContext(ctx, result.result.context);
+        return null;
+      }
+      return diagnosticFromStop(result as stop);
     } else if (declaration instanceof DefineDatatypeSource) {
       const result = handleDefineDatatype(ctx, new Map(), declaration);
       if (result instanceof go) {
@@ -102,22 +105,6 @@ function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDecl
   } catch (error) {
     return parseThrownError(error);
   }
-}
-
-function processDefineTactically(ctx: Context, declaration: DefineTactically): Diagnostic | null {
-  const proofManager = new ProofManager();
-  const start = proofManager.startProof(declaration.name, ctx, declaration.location);
-  if (start instanceof stop) {
-    return diagnosticFromStop(start);
-  }
-
-  for (const tactic of declaration.tactics as Tactic[]) {
-    const result = proofManager.applyTactic(tactic);
-    if (result instanceof stop) {
-      return diagnosticFromStop(result);
-    }
-  }
-  return null;
 }
 
 function diagnosticFromStop(result: stop): Diagnostic {
