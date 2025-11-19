@@ -57,10 +57,17 @@ export function analyzePieSource(source: string): AnalysisResult {
     ? 'No issues detected.'
     : diagnostics.some(item => item.severity === 'error') ? 'Errors detected.' : 'Warnings detected.';
 
+  let pretty: string | undefined;
+  if (diagnostics.length === 0) {
+    const contextOutput = formatContext(ctx);
+    // Combine messages (tactic output) with context output
+    pretty = messages ? messages + '\n' + contextOutput : contextOutput;
+  }
+
   return {
     diagnostics,
     summary,
-    pretty: diagnostics.length === 0 ? formatContext(ctx) : undefined,
+    pretty,
     messages: messages || undefined
   };
 }
