@@ -511,6 +511,31 @@ function initializeEditor(monaco: typeof Monaco) {
   return editor;
 }
 
+function initializeCopyButton(editor: Monaco.editor.IStandaloneCodeEditor) {
+  const copyBtn = document.getElementById('copy-btn') as HTMLButtonElement;
+
+  if (!copyBtn) return;
+
+  copyBtn.addEventListener('click', async () => {
+    const code = editor.getValue();
+    try {
+      await navigator.clipboard.writeText(code);
+      copyBtn.textContent = 'Copied!';
+      copyBtn.dataset.copied = 'true';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+        delete copyBtn.dataset.copied;
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      copyBtn.textContent = 'Failed';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+      }, 1500);
+    }
+  });
+}
+
 function initializeExamplePicker(editor: Monaco.editor.IStandaloneCodeEditor) {
   const picker = document.getElementById('example-picker') as HTMLSelectElement;
 
@@ -553,6 +578,7 @@ async function boot() {
     const editor = initializeEditor(monacoApi);
     diagnosticsWorker = initializeDiagnostics(editor);
     initializeExamplePicker(editor);
+    initializeCopyButton(editor);
 
     // Initialize LSP
     if (monacoApi) {

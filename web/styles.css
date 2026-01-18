@@ -190,6 +190,36 @@ body {
   padding: 8px;
 }
 
+.copy-btn {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+  outline: none;
+}
+
+.copy-btn:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--accent);
+}
+
+.copy-btn:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.copy-btn[data-copied="true"] {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: #34d399;
+  color: #34d399;
+}
+
 
 @media (max-width: 1024px) {
   .app-shell {
