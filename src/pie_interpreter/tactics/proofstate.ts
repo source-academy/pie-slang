@@ -49,6 +49,22 @@ export class Goal {
       `Context:\n  ${contextStr}\n────────────────\nGoal: ${goalStr}` :
       `Goal: ${goalStr}`;
   }
+
+  toSerializable(isComplete: boolean, isCurrent: boolean): SerializableGoal {
+    const contextEntries: SerializableContextEntry[] = Array.from(this.context.entries())
+      .map(([name, binder]) => ({
+        name,
+        type: binder.type.readBackType(this.context).prettyPrint()
+      }));
+
+    return {
+      id: this.id,
+      type: this.type.readBackType(this.context).prettyPrint(),
+      contextEntries,
+      isComplete,
+      isCurrent
+    };
+  }
 }
 
 export class GoalNode {
@@ -56,6 +72,8 @@ export class GoalNode {
   public parent: GoalNode | null = null;
   public isComplete: boolean = false;
   public childFocusIndex: number = -1;
+  public appliedTactic?: string;  // Tactic that was applied to create children
+  public completedBy?: string;    // Tactic that directly solved this goal (for leaf nodes)
 
   constructor(
     public goal: Goal,
@@ -79,6 +97,17 @@ export class GoalNode {
     }
 
     return null;
+  }
+
+  toSerializable(currentGoalId: string | null): SerializableGoalNode {
+    const isCurrent = this.goal.id === currentGoalId;
+
+    return {
+      goal: this.goal.toSerializable(this.isComplete, isCurrent),
+      children: this.children.map(child => child.toSerializable(currentGoalId)),
+      appliedTactic: this.appliedTactic,
+      completedBy: this.completedBy
+    };
   }
 }
 
@@ -166,7 +195,14 @@ export class ProofState {
 
   private nextGoalAux(curParent): GoalNode | null {
     if (curParent.childFocusIndex === -1 || curParent.childFocusIndex >= curParent.children.length - 1) {
-      curParent.isComplete = true;
+      // Only mark parent complete if ALL children are actually complete
+      const allChildrenComplete = curParent.children.length === 0 ||
+        curParent.children.every(child => child.isComplete);
+
+      if (allChildrenComplete) {
+        curParent.isComplete = true;
+      }
+
       if (curParent.parent === null) {
         return null;
       } else {
@@ -210,9 +246,45 @@ export class ProofState {
     return null; // Add explicit return for the else branch
 
   }
+
+  getProofTreeData(): ProofTreeData {
+    const currentGoalId = this.currentGoal ? this.currentGoal.goal.id : null;
+    return {
+      root: this.goalTree.toSerializable(currentGoalId),
+      isComplete: this.isComplete(),
+      currentGoalId
+    };
+  }
 }
 
 export interface ProofSummary {
   totalGoals: number;
   completedGoals: number;
+}
+
+// Serializable types for proof tree visualization
+export interface SerializableContextEntry {
+  name: string;
+  type: string;
+}
+
+export interface SerializableGoal {
+  id: string;
+  type: string;
+  contextEntries: SerializableContextEntry[];
+  isComplete: boolean;
+  isCurrent: boolean;
+}
+
+export interface SerializableGoalNode {
+  goal: SerializableGoal;
+  children: SerializableGoalNode[];
+  appliedTactic?: string;
+  completedBy?: string;  // Tactic that directly solved this leaf goal
+}
+
+export interface ProofTreeData {
+  root: SerializableGoalNode;
+  isComplete: boolean;
+  currentGoalId: string | null;
 }

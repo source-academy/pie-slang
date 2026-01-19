@@ -90,6 +90,7 @@ export class ExactTactic extends Tactic {
     }
 
     state.currentGoal.isComplete = true;
+    state.currentGoal.completedBy = this.toString();
 
     state.nextGoal()
 
@@ -785,6 +786,7 @@ export class EliminateAbsurdTactic extends Tactic {
     // For Absurd elimination, the motive is irrelevant since we can derive anything
     // Just mark the goal as complete
     state.currentGoal.isComplete = true;
+    state.currentGoal.completedBy = this.toString();
     state.nextGoal()
 
     return new go(state);

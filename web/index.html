@@ -36,9 +36,25 @@
         Start typing to see feedback.
       </div>
       <pre id="preview-output" class="preview-code"></pre>
+
+      <!-- Proof Tree Visualizer Panel -->
+      <div id="proof-tree-container" class="proof-tree-container" style="display: none;">
+        <div class="proof-tree-header">
+          <h3 class="panel-title proof-tree-title">
+            <span class="panel-icon">T</span>
+            Proof Tree
+          </h3>
+          <button id="proof-tree-toggle" class="proof-tree-toggle">Hide</button>
+        </div>
+        <div class="proof-tree-content">
+          <div id="proof-context-panel" class="proof-context-panel"></div>
+          <div id="proof-tree-canvas" class="proof-tree-canvas"></div>
+          <div id="proof-goal-panel" class="proof-goal-panel"></div>
+        </div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.min.js"></script>
-    <script src="app.js?v=7" type="module"></script>
+    <script src="app.bundle.js?v=1" type="module"></script>
   </body>
 </html>

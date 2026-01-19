@@ -5,6 +5,7 @@ import { go, stop, Message } from '../src/pie_interpreter/types/utils';
 import { readBack } from '../src/pie_interpreter/evaluator/utils';
 import { prettyPrintCore } from '../src/pie_interpreter/unparser/pretty';
 import { DefineDatatypeSource, handleDefineDatatype } from '../src/pie_interpreter/typechecker/definedatatype';
+import { ProofTreeData } from '../src/pie_interpreter/tactics/proofstate';
 
 export interface Diagnostic {
   message: string;
@@ -20,6 +21,7 @@ export interface AnalysisResult {
   summary: string;
   pretty?: string;
   messages?: string;
+  proofTree?: ProofTreeData;
 }
 
 export function analyzePieSource(source: string): AnalysisResult {
@@ -34,6 +36,7 @@ export function analyzePieSource(source: string): AnalysisResult {
   const diagnostics: Diagnostic[] = [];
   const ctx = cloneContext(initCtx);
   let messages = '';
+  let proofTree: ProofTreeData | undefined;
 
   try {
     const astList = schemeParse(source);
@@ -41,12 +44,17 @@ export function analyzePieSource(source: string): AnalysisResult {
     for (const ast of astList) {
       const declaration = pieDeclarationParser.parseDeclaration(ast);
       const result = processDeclaration(ctx, declaration);
+      // Capture message and proofTree even when there's a diagnostic
+      // (e.g., incomplete proofs still have useful visualization data)
+      if (result.message) {
+        messages += result.message;
+      }
+      if (result.proofTree) {
+        proofTree = result.proofTree;
+      }
       if (result.diagnostic) {
         diagnostics.push(result.diagnostic);
         break;
-      }
-      if (result.message) {
-        messages += result.message;
       }
     }
   } catch (error) {
@@ -68,13 +76,15 @@ export function analyzePieSource(source: string): AnalysisResult {
     diagnostics,
     summary,
     pretty,
-    messages: messages || undefined
+    messages: messages || undefined,
+    proofTree
   };
 }
 
 interface DeclarationResult {
   diagnostic: Diagnostic | null;
   message?: string;
+  proofTree?: ProofTreeData;
 }
 
 function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDeclarationParser.parseDeclaration>): DeclarationResult {
@@ -103,7 +113,23 @@ function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDecl
       const result = addDefineTacticallyToContext(ctx, declaration.name, declaration.location, declaration.tactics);
       if (result instanceof go) {
         assignContext(ctx, result.result.context);
-        return { diagnostic: null, message: result.result.message };
+        // Check if proof was incomplete
+        if (result.result.isIncomplete) {
+          const loc = declaration.location.locationToSrcLoc();
+          return {
+            diagnostic: {
+              message: 'Proof incomplete. Not all goals have been solved.',
+              startLineNumber: loc.startLine,
+              startColumn: Math.max(1, loc.startColumn),
+              endLineNumber: loc.endLine ?? loc.startLine,
+              endColumn: Math.max(loc.endColumn ?? loc.startColumn + 1, loc.startColumn + 1),
+              severity: 'error' as const
+            },
+            message: result.result.message,
+            proofTree: result.result.proofTree
+          };
+        }
+        return { diagnostic: null, message: result.result.message, proofTree: result.result.proofTree };
       }
       return { diagnostic: diagnosticFromStop(result as stop) };
     } else if (declaration instanceof DefineDatatypeSource) {

@@ -9,6 +9,7 @@ import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
 import { ProofManager } from '../tactics/proofmanager';
 import { Tactic } from '../tactics/tactics';
+import { ProofTreeData } from '../tactics/proofstate';
 
 /*
     ## Contexts ##
@@ -120,6 +121,8 @@ export function addDefineToContext(ctx: Context, fun: string, funLoc: Location, 
 export interface TacticalResult {
   context: Context;
   message: string;
+  proofTree?: ProofTreeData;
+  isIncomplete?: boolean;
 }
 
 export function addDefineTacticallyToContext(
@@ -155,10 +158,14 @@ export function addDefineTacticallyToContext(
       const goal = currentGoal.result;
       goalInfo = `\n\n${goal.prettyPrintWithContext()}`;
     }
-    return new stop(
-      location,
-      new Message([`Proof incomplete. Not all goals have been solved.${goalInfo}`])
-    );
+    // Include proof tree even on incomplete proofs for visualization
+    const proofTree = proofManager.getProofTreeData() ?? undefined;
+    return new go({
+      context: ctx,
+      message: message + `\n\nProof incomplete. Not all goals have been solved.${goalInfo}`,
+      proofTree,
+      isIncomplete: true
+    });
   }
 
   // Proof complete - add definition to context
@@ -176,15 +183,18 @@ export function addDefineTacticallyToContext(
   const goalTree = proofManager.currentState?.goalTree;
   const proofTerm = goalTree?.goal.term;
 
+  // Get proof tree data for visualization
+  const proofTree = proofManager.getProofTreeData() ?? undefined;
+
   if (proofTerm) {
     // We have the actual proof term
     const proofValue = valInContext(ctx, proofTerm);
     const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, proofValue);
-    return new go({ context: newCtx, message });
+    return new go({ context: newCtx, message, proofTree });
   } else {
     // Proof term extraction not implemented yet - keep claim in context
     // This allows the proof to complete without error, but the definition won't be usable
-    return new go({ context: ctx, message: message + `\nWarning: Proof term extraction not yet implemented for '${name}'` });
+    return new go({ context: ctx, message: message + `\nWarning: Proof term extraction not yet implemented for '${name}'`, proofTree });
   }
 }
 

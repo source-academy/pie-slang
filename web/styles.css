@@ -36,7 +36,7 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1.8fr) minmax(240px, 1fr);
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto 1fr auto;
   max-width: 1280px;
   width: 100%;
   height: 100vh;
@@ -258,3 +258,366 @@ body {
     row-gap: 18px;
   }
 }
+
+/* ==================== Proof Tree Visualizer ==================== */
+
+.proof-tree-container {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  min-height: 200px;
+  max-height: 400px;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.45);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.proof-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(15, 23, 42, 0.3);
+  border-bottom: 1px solid var(--border);
+}
+
+.proof-tree-title {
+  font-size: 14px;
+}
+
+.proof-tree-toggle {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.proof-tree-toggle:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.proof-tree-content {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.proof-context-panel {
+  width: 220px;
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.3);
+  font-family: Menlo, 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+.proof-tree-canvas {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.proof-goal-panel {
+  width: 280px;
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.3);
+  font-family: Menlo, 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+/* Shared Panel Styles */
+.panel-placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.panel-header {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.panel-goal-id {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.panel-status {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.panel-status.status-ongoing {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.panel-status.status-completed {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+
+.panel-status.status-pending {
+  background: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+}
+
+.panel-content {
+  overflow-y: auto;
+}
+
+.panel-empty {
+  color: var(--text-secondary);
+  font-style: italic;
+  opacity: 0.6;
+}
+
+/* Context List Styles */
+.context-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.context-entry {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.context-entry-name {
+  color: #93c5fd;
+}
+
+.context-entry-colon {
+  color: var(--text-secondary);
+}
+
+.context-entry-type {
+  color: #fde68a;
+}
+
+/* Goal Type Tree Styles */
+.goal-type-tree {
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 6px;
+}
+
+/* SVG Goal Node Styles */
+.goal-node.highlighted rect {
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .proof-tree-container {
+    grid-column: 1;
+    grid-row: 5;
+  }
+
+  .proof-tree-content {
+    flex-direction: column;
+  }
+
+  .proof-context-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 120px;
+  }
+
+  .proof-goal-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 150px;
+  }
+}
+
+/* ==================== Collapsible Type Tree ==================== */
+
+/* Type color variables */
+:root {
+  --type-pi: #4ade80;       /* green */
+  --type-sigma: #60a5fa;    /* blue */
+  --type-either: #fb923c;   /* orange */
+  --type-equality: #22d3ee; /* cyan */
+  --type-list: #c084fc;     /* purple */
+  --type-vec: #f472b6;      /* pink */
+  --type-nat: #facc15;      /* yellow */
+  --type-universe: #94a3b8; /* gray */
+  --type-lambda: #a3e635;   /* lime */
+  --type-variable: #93c5fd; /* light blue */
+  --type-default: #e2e8f0;  /* slate */
+}
+
+/* Main tree container */
+.type-tree {
+  font-family: Menlo, 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.type-tree__placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.type-tree__fallback {
+  margin: 0;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 6px;
+  color: #a5f3fc;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* Node structure */
+.type-node {
+  position: relative;
+}
+
+.type-node--list {
+  margin: 2px 0;
+}
+
+.type-node--atom {
+  display: inline;
+}
+
+.type-node__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  cursor: default;
+}
+
+.type-node__toggle {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.type-node__toggle:hover {
+  color: var(--text-primary);
+}
+
+.type-node__toggle-spacer {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.type-node__kind {
+  font-weight: 600;
+}
+
+.type-node__binding {
+  color: var(--text-secondary);
+}
+
+.type-node__abbrev {
+  color: var(--text-secondary);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.type-node__children {
+  margin-left: 8px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+/* Type kind color classes */
+.type-kind--pi {
+  color: var(--type-pi);
+}
+
+.type-kind--sigma {
+  color: var(--type-sigma);
+}
+
+.type-kind--either {
+  color: var(--type-either);
+}
+
+.type-kind--equality {
+  color: var(--type-equality);
+}
+
+.type-kind--list {
+  color: var(--type-list);
+}
+
+.type-kind--vec {
+  color: var(--type-vec);
+}
+
+.type-kind--nat {
+  color: var(--type-nat);
+}
+
+.type-kind--universe {
+  color: var(--type-universe);
+}
+
+.type-kind--lambda {
+  color: var(--type-lambda);
+}
+
+.type-kind--variable {
+  color: var(--type-variable);
+}
+
+.type-kind--default {
+  color: var(--type-default);
+}
+
