@@ -56,6 +56,9 @@ export function analyzePieSource(source: string): AnalysisResult {
         diagnostics.push(result.diagnostic);
         break;
       }
+      if (result.message) {
+        messages += result.message;
+      }
     }
   } catch (error) {
     diagnostics.push(parseThrownError(error));
