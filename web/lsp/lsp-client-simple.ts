@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface WorkerDiagnostic {
-  severity: 'error' | 'warning';
+  severity: "error" | "warning";
   startLine: number;
   startColumn: number;
   endLine: number;
@@ -11,12 +11,12 @@ interface WorkerDiagnostic {
 }
 
 interface ValidationResultMessage {
-  type: 'validation-result';
+  type: "validation-result";
   diagnostics: WorkerDiagnostic[];
 }
 
 interface ValidationErrorMessage {
-  type: 'validation-error';
+  type: "validation-error";
   error: string;
 }
 
@@ -45,13 +45,16 @@ export class PieLanguageClient {
    * Initialize the language client and connect it to the language server worker.
    */
   async start(): Promise<void> {
-    this.worker = new Worker(new URL('./pie-lsp-worker-bundle.js', import.meta.url), { type: 'module' });
+    this.worker = new Worker(
+      new URL("./pie-lsp-worker-bundle.js", import.meta.url),
+      { type: "module" },
+    );
 
     this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       this.handleWorkerMessage(event.data);
     };
     this.worker.onerror = (error) => {
-      console.error('LSP Worker error:', error);
+      console.error("LSP Worker error:", error);
     };
 
     const model = this.editor?.getModel?.();
@@ -64,7 +67,7 @@ export class PieLanguageClient {
         return;
       }
       const source = model.getValue();
-      this.worker.postMessage({ type: 'validate', source });
+      this.worker.postMessage({ type: "validate", source });
     }, 220);
 
     const changeDisposable = this.editor?.onDidChangeModelContent?.(() => {
@@ -76,21 +79,26 @@ export class PieLanguageClient {
       this.disposables.push(changeDisposable);
     }
 
-    const hoverDisposable = this.monaco.languages.registerHoverProvider('pie', {
-      provideHover: (model: any, position: any) => this.provideHover(model, position)
+    const hoverDisposable = this.monaco.languages.registerHoverProvider("pie", {
+      provideHover: (model: any, position: any) =>
+        this.provideHover(model, position),
     });
     this.disposables.push(hoverDisposable);
 
     // Register completion provider
-    const completionDisposable = this.monaco.languages.registerCompletionItemProvider('pie', {
-      provideCompletionItems: (model: any, position: any) => this.provideCompletionItems(model, position)
-    });
+    const completionDisposable =
+      this.monaco.languages.registerCompletionItemProvider("pie", {
+        provideCompletionItems: (model: any, position: any) =>
+          this.provideCompletionItems(model, position),
+      });
     this.disposables.push(completionDisposable);
 
     // Register definition provider
-    const definitionDisposable = this.monaco.languages.registerDefinitionProvider('pie', {
-      provideDefinition: (model: any, position: any) => this.provideDefinition(model, position)
-    });
+    const definitionDisposable =
+      this.monaco.languages.registerDefinitionProvider("pie", {
+        provideDefinition: (model: any, position: any) =>
+          this.provideDefinition(model, position),
+      });
     this.disposables.push(definitionDisposable);
 
     if (this.debouncedValidate) {
@@ -104,8 +112,8 @@ export class PieLanguageClient {
   async stop(): Promise<void> {
     this.clearMarkers();
 
-    this.disposables.forEach(disposable => {
-      if (disposable && typeof disposable.dispose === 'function') {
+    this.disposables.forEach((disposable) => {
+      if (disposable && typeof disposable.dispose === "function") {
         disposable.dispose();
       }
     });
@@ -131,18 +139,18 @@ export class PieLanguageClient {
       return;
     }
 
-    if (message.type === 'validation-result') {
+    if (message.type === "validation-result") {
       this.updateDiagnostics(message.diagnostics ?? []);
-    } else if (message.type === 'validation-error') {
+    } else if (message.type === "validation-error") {
       this.updateDiagnostics([
         {
-          severity: 'error',
+          severity: "error",
           startLine: 1,
           startColumn: 1,
           endLine: 1,
           endColumn: 2,
-          message: message.error
-        }
+          message: message.error,
+        },
       ]);
     }
   }
@@ -158,33 +166,46 @@ export class PieLanguageClient {
       const startLine = this.ensurePositiveNumber(diag.startLine, 1);
       const endLine = this.ensurePositiveNumber(diag.endLine, startLine);
       const startColumn = this.ensurePositiveNumber(diag.startColumn, 1);
-      const endColumn = this.ensurePositiveNumber(diag.endColumn, startColumn + 1);
+      const endColumn = this.ensurePositiveNumber(
+        diag.endColumn,
+        startColumn + 1,
+      );
       return {
         startLineNumber: startLine,
         startColumn,
         endLineNumber: endLine,
         endColumn,
         message: diag.message,
-        severity: diag.severity === 'warning'
-          ? this.monaco.MarkerSeverity.Warning
-          : this.monaco.MarkerSeverity.Error
+        severity:
+          diag.severity === "warning"
+            ? this.monaco.MarkerSeverity.Warning
+            : this.monaco.MarkerSeverity.Error,
       };
     });
 
-    this.monaco.editor.setModelMarkers(model, 'pie-lsp', markers);
+    this.monaco.editor.setModelMarkers(model, "pie-lsp", markers);
   }
 
-  private async provideHover(model: any, position: { lineNumber: number; column: number; }) {
+  private async provideHover(
+    model: any,
+    position: { lineNumber: number; column: number },
+  ) {
     if (!this.worker) {
       return null;
     }
 
     // First, check if there's a diagnostic at this position
     const diagnostic = this.diagnostics.find((diag) => {
-      const startLine = this.ensurePositiveNumber(diag.startLine, position.lineNumber);
+      const startLine = this.ensurePositiveNumber(
+        diag.startLine,
+        position.lineNumber,
+      );
       const endLine = this.ensurePositiveNumber(diag.endLine, startLine);
       const startColumn = this.ensurePositiveNumber(diag.startColumn, 1);
-      const endColumn = this.ensurePositiveNumber(diag.endColumn, startColumn + 1);
+      const endColumn = this.ensurePositiveNumber(
+        diag.endColumn,
+        startColumn + 1,
+      );
 
       if (position.lineNumber < startLine || position.lineNumber > endLine) {
         return false;
@@ -199,21 +220,29 @@ export class PieLanguageClient {
     });
 
     if (diagnostic) {
-      const startLine = this.ensurePositiveNumber(diagnostic.startLine, position.lineNumber);
+      const startLine = this.ensurePositiveNumber(
+        diagnostic.startLine,
+        position.lineNumber,
+      );
       const endLine = this.ensurePositiveNumber(diagnostic.endLine, startLine);
       const startColumn = this.ensurePositiveNumber(diagnostic.startColumn, 1);
-      const endColumn = this.ensurePositiveNumber(diagnostic.endColumn, startColumn + 1);
+      const endColumn = this.ensurePositiveNumber(
+        diagnostic.endColumn,
+        startColumn + 1,
+      );
 
       return {
         contents: [
-          { value: `**${diagnostic.severity === 'warning' ? 'Warning' : 'Error'}**\n\n${diagnostic.message}` }
+          {
+            value: `**${diagnostic.severity === "warning" ? "Warning" : "Error"}**\n\n${diagnostic.message}`,
+          },
         ],
         range: {
           startLineNumber: startLine,
           startColumn,
           endLineNumber: endLine,
-          endColumn
-        }
+          endColumn,
+        },
       };
     }
 
@@ -221,8 +250,8 @@ export class PieLanguageClient {
     return new Promise((resolve) => {
       const handleHover = (event: MessageEvent) => {
         const message = event.data;
-        if (message.type === 'hover-result') {
-          this.worker?.removeEventListener('message', handleHover);
+        if (message.type === "hover-result") {
+          this.worker?.removeEventListener("message", handleHover);
 
           if (!message.hoverInfo) {
             resolve(null);
@@ -241,34 +270,35 @@ export class PieLanguageClient {
           }
 
           resolve({
-            contents: [
-              { value: markdownContent }
-            ]
+            contents: [{ value: markdownContent }],
           });
         }
       };
 
       if (this.worker) {
-        this.worker.addEventListener('message', handleHover);
+        this.worker.addEventListener("message", handleHover);
 
         const source = model.getValue();
         this.worker.postMessage({
-          type: 'hover',
+          type: "hover",
           source,
           line: position.lineNumber - 1,
-          column: position.column - 1
+          column: position.column - 1,
         });
       }
 
       // Timeout fallback
       setTimeout(() => {
-        this.worker?.removeEventListener('message', handleHover);
+        this.worker?.removeEventListener("message", handleHover);
         resolve(null);
       }, 1000);
     });
   }
 
-  private async provideCompletionItems(model: any, position: any): Promise<any> {
+  private async provideCompletionItems(
+    model: any,
+    position: any,
+  ): Promise<any> {
     if (!this.worker) {
       return { suggestions: [] };
     }
@@ -276,43 +306,45 @@ export class PieLanguageClient {
     return new Promise((resolve) => {
       const handleCompletion = (event: MessageEvent) => {
         const message = event.data;
-        if (message.type === 'completion-result') {
-          this.worker?.removeEventListener('message', handleCompletion);
+        if (message.type === "completion-result") {
+          this.worker?.removeEventListener("message", handleCompletion);
 
           // Calculate the range to replace based on word boundaries
           const wordRange = message.wordRange;
-          const range = wordRange ? {
-            startLineNumber: position.lineNumber,
-            startColumn: wordRange.start + 1, // Monaco uses 1-based columns
-            endLineNumber: position.lineNumber,
-            endColumn: wordRange.end + 1
-          } : {
-            startLineNumber: position.lineNumber,
-            startColumn: position.column,
-            endLineNumber: position.lineNumber,
-            endColumn: position.column
-          };
+          const range = wordRange
+            ? {
+                startLineNumber: position.lineNumber,
+                startColumn: wordRange.start + 1, // Monaco uses 1-based columns
+                endLineNumber: position.lineNumber,
+                endColumn: wordRange.end + 1,
+              }
+            : {
+                startLineNumber: position.lineNumber,
+                startColumn: position.column,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column,
+              };
 
           const suggestions = message.completions.map((item: any) => {
             // Map kind strings to Monaco CompletionItemKind
             let kind = this.monaco.languages.CompletionItemKind.Text;
             switch (item.kind) {
-              case 'Keyword':
+              case "Keyword":
                 kind = this.monaco.languages.CompletionItemKind.Keyword;
                 break;
-              case 'Function':
+              case "Function":
                 kind = this.monaco.languages.CompletionItemKind.Function;
                 break;
-              case 'Variable':
+              case "Variable":
                 kind = this.monaco.languages.CompletionItemKind.Variable;
                 break;
-              case 'TypeParameter':
+              case "TypeParameter":
                 kind = this.monaco.languages.CompletionItemKind.Class;
                 break;
-              case 'Value':
+              case "Value":
                 kind = this.monaco.languages.CompletionItemKind.Value;
                 break;
-              case 'Snippet':
+              case "Snippet":
                 kind = this.monaco.languages.CompletionItemKind.Snippet;
                 break;
             }
@@ -322,7 +354,7 @@ export class PieLanguageClient {
               kind,
               detail: item.detail,
               insertText: item.label,
-              range
+              range,
             };
           });
 
@@ -331,20 +363,20 @@ export class PieLanguageClient {
       };
 
       if (this.worker) {
-        this.worker.addEventListener('message', handleCompletion);
+        this.worker.addEventListener("message", handleCompletion);
 
         const source = model.getValue();
         this.worker.postMessage({
-          type: 'completion',
+          type: "completion",
           source,
           line: position.lineNumber - 1,
-          column: position.column - 1
+          column: position.column - 1,
         });
       }
 
       // Timeout fallback
       setTimeout(() => {
-        this.worker?.removeEventListener('message', handleCompletion);
+        this.worker?.removeEventListener("message", handleCompletion);
         resolve({ suggestions: [] });
       }, 1000);
     });
@@ -358,8 +390,8 @@ export class PieLanguageClient {
     return new Promise((resolve) => {
       const handleDefinition = (event: MessageEvent) => {
         const message = event.data;
-        if (message.type === 'definition-result') {
-          this.worker?.removeEventListener('message', handleDefinition);
+        if (message.type === "definition-result") {
+          this.worker?.removeEventListener("message", handleDefinition);
 
           if (message.location) {
             resolve({
@@ -368,8 +400,8 @@ export class PieLanguageClient {
                 startLineNumber: message.location.line + 1,
                 startColumn: message.location.startColumn + 1,
                 endLineNumber: message.location.line + 1,
-                endColumn: message.location.endColumn + 1
-              }
+                endColumn: message.location.endColumn + 1,
+              },
             });
           } else {
             resolve(null);
@@ -378,20 +410,20 @@ export class PieLanguageClient {
       };
 
       if (this.worker) {
-        this.worker.addEventListener('message', handleDefinition);
+        this.worker.addEventListener("message", handleDefinition);
 
         const source = model.getValue();
         this.worker.postMessage({
-          type: 'definition',
+          type: "definition",
           source,
           line: position.lineNumber - 1,
-          column: position.column - 1
+          column: position.column - 1,
         });
       }
 
       // Timeout fallback
       setTimeout(() => {
-        this.worker?.removeEventListener('message', handleDefinition);
+        this.worker?.removeEventListener("message", handleDefinition);
         resolve(null);
       }, 1000);
     });
@@ -400,12 +432,15 @@ export class PieLanguageClient {
   private clearMarkers(): void {
     const model = this.editor?.getModel?.();
     if (model) {
-      this.monaco.editor.setModelMarkers(model, 'pie-lsp', []);
+      this.monaco.editor.setModelMarkers(model, "pie-lsp", []);
     }
   }
 
-  private ensurePositiveNumber(value: number | null | undefined, fallback: number): number {
-    if (typeof value !== 'number' || Number.isNaN(value)) {
+  private ensurePositiveNumber(
+    value: number | null | undefined,
+    fallback: number,
+  ): number {
+    if (typeof value !== "number" || Number.isNaN(value)) {
       return fallback;
     }
     return value < 1 ? fallback : value;
@@ -430,56 +465,85 @@ export class PieLanguageClient {
  */
 export function registerPieLanguage(monaco: any): void {
   // Register a new language
-  monaco.languages.register({ id: 'pie' });
+  monaco.languages.register({ id: "pie" });
 
   // Register language configuration
-  monaco.languages.setLanguageConfiguration('pie', {
+  monaco.languages.setLanguageConfiguration("pie", {
     comments: {
-      lineComment: ';',
-      blockComment: ['#|', '|#']
+      lineComment: ";",
+      blockComment: ["#|", "|#"],
     },
     brackets: [
-      ['(', ')'],
-      ['[', ']'],
-      ['{', '}']
+      ["(", ")"],
+      ["[", "]"],
+      ["{", "}"],
     ],
     autoClosingPairs: [
-      { open: '(', close: ')' },
-      { open: '[', close: ']' },
-      { open: '{', close: '}' },
-      { open: '"', close: '"' }
+      { open: "(", close: ")" },
+      { open: "[", close: "]" },
+      { open: "{", close: "}" },
+      { open: '"', close: '"' },
     ],
     surroundingPairs: [
-      { open: '(', close: ')' },
-      { open: '[', close: ']' },
-      { open: '{', close: '}' },
-      { open: '"', close: '"' }
-    ]
+      { open: "(", close: ")" },
+      { open: "[", close: "]" },
+      { open: "{", close: "}" },
+      { open: '"', close: '"' },
+    ],
   });
 
   // Register a tokens provider for syntax highlighting
-  monaco.languages.setMonarchTokensProvider('pie', {
-    defaultToken: '',
-    tokenPostfix: '.pie',
+  monaco.languages.setMonarchTokensProvider("pie", {
+    defaultToken: "",
+    tokenPostfix: ".pie",
 
     keywords: [
-      'lambda', 'λ', 'Pi', 'Π', 'Sigma', 'Σ',
-      'define', 'claim', 'the', 'check-same',
-      'define-tactically', 'TODO',
-      'U', 'Universe', 'Nat', 'Atom', 'List', 'Vec', 'Either',
-      'zero', 'add1', 'nil', 'cons', 'car', 'cdr',
-      'ind-Nat', 'rec-Nat', 'iter-Nat',
-      'ind-List', 'rec-List',
-      'ind-Vec', 'rec-Vec',
-      'ind-Either',
-      'replace', 'trans', 'cong', 'symm', 'same',
-      'left', 'right', 'ind-Either',
-      'vecnil', 'vec::'
+      "lambda",
+      "λ",
+      "Pi",
+      "Π",
+      "Sigma",
+      "Σ",
+      "define",
+      "claim",
+      "the",
+      "check-same",
+      "define-tactically",
+      "TODO",
+      "U",
+      "Universe",
+      "Nat",
+      "Atom",
+      "List",
+      "Vec",
+      "Either",
+      "zero",
+      "add1",
+      "nil",
+      "cons",
+      "car",
+      "cdr",
+      "ind-Nat",
+      "rec-Nat",
+      "iter-Nat",
+      "ind-List",
+      "rec-List",
+      "ind-Vec",
+      "rec-Vec",
+      "ind-Either",
+      "replace",
+      "trans",
+      "cong",
+      "symm",
+      "same",
+      "left",
+      "right",
+      "ind-Either",
+      "vecnil",
+      "vec::",
     ],
 
-    operators: [
-      '->', '→', '=', '::'
-    ],
+    operators: ["->", "→", "=", "::"],
 
     // Common regular expressions
     symbols: /[=><!~?:&|+\-*/^%]+/,
@@ -488,55 +552,64 @@ export function registerPieLanguage(monaco: any): void {
     tokenizer: {
       root: [
         // Whitespace
-        { include: '@whitespace' },
+        { include: "@whitespace" },
 
         // Special forms and keywords
-        [/\((?:lambda|λ|Pi|Π|Sigma|Σ|define|claim|the|check-same|define-tactically)\b/, 'keyword'],
+        [
+          /\((?:lambda|λ|Pi|Π|Sigma|Σ|define|claim|the|check-same|define-tactically)\b/,
+          "keyword",
+        ],
 
         // Identifiers and keywords
-        [/[a-zA-Z][a-zA-Z0-9\-_!?*+=<>λΠΣ→]*/, {
-          cases: {
-            '@keywords': 'keyword',
-            '@default': 'identifier'
-          }
-        }],
+        [
+          /[a-zA-Z][a-zA-Z0-9\-_!?*+=<>λΠΣ→]*/,
+          {
+            cases: {
+              "@keywords": "keyword",
+              "@default": "identifier",
+            },
+          },
+        ],
 
         // Numbers
-        [/\d+/, 'number'],
+        [/\d+/, "number"],
 
         // Strings
-        [/"([^"\\]|\\.)*$/, 'string.invalid'],
-        [/"/, 'string', '@string'],
+        [/"([^"\\]|\\.)*$/, "string.invalid"],
+        [/"/, "string", "@string"],
 
         // Quoted atoms
-        [/'[a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*/, 'string.quoted'],
+        [/'[a-zA-Z][a-zA-Z0-9\-_!?*+=<>]*/, "string.quoted"],
 
         // Delimiters and operators
-        [/[()[\]]/, '@brackets'],
-        [/@symbols/, {
-          cases: {
-            '@operators': 'operator',
-            '@default': ''
-          }
-        }],
+        [/[()[\]]/, "@brackets"],
+        [
+          /@symbols/,
+          {
+            cases: {
+              "@operators": "operator",
+              "@default": "",
+            },
+          },
+        ],
       ],
 
       whitespace: [
-        [/[ \t\r\n]+/, 'white'],
-        [/;.*$/, 'comment'],
-        [/#\|/, 'comment', '@comment'],
+        [/[ \t\r\n]+/, "white"],
+        [/;.*$/, "comment"],
+        [/#\|/, "comment", "@comment"],
       ],
 
       comment: [
-        [/[^#|]+/, 'comment'],
-        [/\|#/, 'comment', '@pop'],
-        [/[#|]/, 'comment']
+        [/[^#|]+/, "comment"],
+        [/\|#/, "comment", "@pop"],
+        [/[#|]/, "comment"],
       ],
 
       string: [
-        [/[^\\"]+/, 'string'],
-        [/\\./, 'string.escape'],
-        [/"/, 'string', '@pop']
+        [/[^\\"]+/, "string"],
+        [/\\./, "string.escape"],
+        [/"/, "string", "@pop"],
       ],
     },
   });
