@@ -652,7 +652,7 @@ self.onmessage = (event: MessageEvent) => {
           ? { start: wordInfo.start, end: wordInfo.end }
           : null,
       });
-    } catch (error) {
+    } catch {
       self.postMessage({
         type: "completion-result",
         completions: PIE_COMPLETIONS,
@@ -688,7 +688,7 @@ self.onmessage = (event: MessageEvent) => {
           location: null,
         });
       }
-    } catch (error) {
+    } catch {
       self.postMessage({
         type: "definition-result",
         location: null,
@@ -773,7 +773,7 @@ self.onmessage = (event: MessageEvent) => {
         type: "hover-result",
         hoverInfo: null,
       });
-    } catch (error) {
+    } catch {
       self.postMessage({
         type: "hover-result",
         hoverInfo: null,
