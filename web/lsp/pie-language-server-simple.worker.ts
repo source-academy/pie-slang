@@ -38,8 +38,15 @@ interface ValidationResult {
   diagnostics: Diagnostic[];
 }
 
+interface ExpectedLocation {
+  syntax: {
+    start: { line: number; column: number };
+    end: { line: number; column: number };
+  };
+}
+
 // Helper function to convert Pie location to diagnostic range
-function locationToRange(location: any): {
+function locationToRange(location: ExpectedLocation | null): {
   startLine: number;
   startColumn: number;
   endLine: number;
@@ -62,6 +69,13 @@ function locationToRange(location: any): {
   };
 }
 
+interface ParseErrorWithLocation extends Error {
+  loc: {
+    line: number;
+    column: number;
+  };
+}
+
 // Main function to type check a Pie document and return diagnostics
 function validatePieSource(source: string): ValidationResult {
   const diagnostics: Diagnostic[] = [];
@@ -81,8 +95,14 @@ function validatePieSource(source: string): ValidationResult {
       renaming = result.renaming;
     }
   } catch (error) {
-    // Handle parsing errors
-    const range = locationToRange(null);
+    const err = error as ParseErrorWithLocation;
+
+    const range = locationToRange({
+      syntax: {
+        start: { line: err.loc.line, column: err.loc.column },
+        end: { line: err.loc.line, column: err.loc.column + 1 }, // squiggly of 1 char
+      },
+    });
     const diagnostic: Diagnostic = {
       severity: "error",
       ...range,
@@ -128,6 +148,7 @@ function processDeclaration(
       const range = (decl as any).location
         ? locationToRange((decl as any).location)
         : locationToRange(null);
+
       const diagnostic: Diagnostic = {
         severity: "warning",
         ...range,
