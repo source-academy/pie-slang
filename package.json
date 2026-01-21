@@ -56,6 +56,7 @@
   "dependencies": {
     "@google/genai": "^1.25.0",
     "@google/generative-ai": "^0.24.1",
+    "blockly": "^10.4.3",
     "conductor": "https://github.com/source-academy/conductor.git#0.3.0",
     "dotenv": "^17.2.3",
     "js-base64": "^3.7.8"

@@ -4,6 +4,7 @@ import { ContextPanel } from './proof-tree/ContextPanel';
 import { GoalPanel } from './proof-tree/GoalPanel';
 import type { ProofTreeData } from './proof-tree/types';
 import type * as Monaco from 'monaco-editor';
+import { BlocklyEditor } from './blockly';
 
 // Extend Window interface to include Monaco globals
 declare global {
@@ -358,6 +359,8 @@ let monacoApi: typeof Monaco | null = null;
 let proofTreeVisualizer: ProofTreeVisualizer | null = null;
 let contextPanel: ContextPanel | null = null;
 let goalPanel: GoalPanel | null = null;
+let blocklyEditor: BlocklyEditor | null = null;
+let currentMode: 'text' | 'blocks' = 'text';
 
 function setSummary(message: string, tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral') {
   if (previewSummary) {
@@ -653,6 +656,133 @@ function initializeExamplePicker(editor: Monaco.editor.IStandaloneCodeEditor) {
   });
 }
 
+function initializeBlocklyEditor() {
+  const container = document.getElementById('blockly-workspace');
+  const codePreview = document.getElementById('blockly-code-preview');
+
+  if (!container || !codePreview) {
+    console.error('Blockly container elements not found');
+    return null;
+  }
+
+  const editor = new BlocklyEditor({
+    container,
+    codePreview,
+    onCodeChange: (code: string) => {
+      // Only run diagnostics if we're in blocks mode
+      if (currentMode === 'blocks' && diagnosticsWorker) {
+        if (code.trim().length === 0) {
+          setSummary('Waiting for blocks…', 'neutral');
+          renderPreviewText('; (empty workspace)');
+        } else {
+          setSummary('Running checks…', 'warning');
+          diagnosticsWorker.postMessage({
+            type: 'analyze',
+            payload: { source: code }
+          });
+        }
+      }
+    }
+  });
+
+  // Load starter example
+  editor.loadStarterExample();
+
+  return editor;
+}
+
+function initializeModeToggle(monacoEditor: Monaco.editor.IStandaloneCodeEditor) {
+  const textBtn = document.getElementById('mode-text') as HTMLButtonElement;
+  const blocksBtn = document.getElementById('mode-blocks') as HTMLButtonElement;
+  const monacoContainer = document.getElementById('editor') as HTMLElement;
+  const blocklyContainer = document.getElementById('blockly-container') as HTMLElement;
+  const examplePicker = document.getElementById('example-picker') as HTMLSelectElement;
+
+  if (!textBtn || !blocksBtn || !monacoContainer || !blocklyContainer) {
+    console.error('Mode toggle elements not found');
+    return;
+  }
+
+  function switchToTextMode() {
+    if (currentMode === 'text') return;
+    currentMode = 'text';
+
+    // Update button states
+    textBtn.classList.add('mode-btn--active');
+    blocksBtn.classList.remove('mode-btn--active');
+
+    // Show/hide editors
+    monacoContainer.style.display = '';
+    blocklyContainer.style.display = 'none';
+
+    // Show example picker in text mode
+    if (examplePicker) {
+      examplePicker.style.display = '';
+    }
+
+    // Re-run diagnostics for Monaco editor content
+    if (diagnosticsWorker) {
+      const content = monacoEditor.getValue();
+      if (content.trim().length === 0) {
+        setSummary('Waiting for input…', 'neutral');
+        renderPreviewText(undefined);
+      } else {
+        setSummary('Running checks…', 'warning');
+        diagnosticsWorker.postMessage({
+          type: 'analyze',
+          payload: { source: content }
+        });
+      }
+    }
+  }
+
+  function switchToBlocksMode() {
+    if (currentMode === 'blocks') return;
+    currentMode = 'blocks';
+
+    // Update button states
+    blocksBtn.classList.add('mode-btn--active');
+    textBtn.classList.remove('mode-btn--active');
+
+    // Show/hide editors
+    monacoContainer.style.display = 'none';
+    blocklyContainer.style.display = '';
+
+    // Hide example picker in blocks mode (not applicable)
+    if (examplePicker) {
+      examplePicker.style.display = 'none';
+    }
+
+    // Initialize Blockly editor if not already done
+    if (!blocklyEditor) {
+      blocklyEditor = initializeBlocklyEditor();
+    }
+
+    // Resize Blockly workspace to fit container
+    if (blocklyEditor) {
+      blocklyEditor.resize();
+
+      // Run diagnostics for Blockly generated code
+      const code = blocklyEditor.getCode();
+      if (diagnosticsWorker) {
+        if (code.trim().length === 0) {
+          setSummary('Waiting for blocks…', 'neutral');
+          renderPreviewText('; (empty workspace)');
+        } else {
+          setSummary('Running checks…', 'warning');
+          diagnosticsWorker.postMessage({
+            type: 'analyze',
+            payload: { source: code }
+          });
+        }
+      }
+    }
+  }
+
+  textBtn.addEventListener('click', switchToTextMode);
+  blocksBtn.addEventListener('click', switchToBlocksMode);
+}
+
 async function boot() {
   if (!window.require) {
     console.error('Monaco loader not available');
@@ -672,6 +802,7 @@ async function boot() {
     initializeExamplePicker(editor);
     initializeCopyButton(editor);
     initializeProofTreeVisualizer();
+    initializeModeToggle(editor);
 
     // Initialize LSP
     if (monacoApi) {

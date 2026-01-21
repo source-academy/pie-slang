@@ -621,3 +621,172 @@ body {
   color: var(--type-default);
 }
 
+/* ==================== Editor Mode Toggle ==================== */
+
+.editor-mode-toggle {
+  display: flex;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-btn {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.mode-btn:hover {
+  color: var(--text-primary);
+  background: rgba(61, 139, 95, 0.15);
+}
+
+.mode-btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.mode-btn--active:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ==================== Blockly Editor ==================== */
+
+.blockly-container {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  height: 100%;
+  border-radius: 20px;
+  background: var(--bg-editor);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.45);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.blockly-workspace {
+  flex: 1;
+  min-height: 0;
+}
+
+.blockly-code-preview {
+  height: 180px;
+  border-top: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  flex-direction: column;
+}
+
+.code-preview-header {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  background: rgba(15, 23, 42, 0.3);
+  border-bottom: 1px solid var(--border);
+}
+
+.code-preview-content {
+  flex: 1;
+  margin: 0;
+  padding: 12px 16px;
+  overflow: auto;
+  font-family: Menlo, 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Blockly dark theme overrides */
+.blocklyMainBackground {
+  fill: var(--bg-editor) !important;
+}
+
+.blocklyToolboxDiv {
+  background: var(--bg-header) !important;
+}
+
+.blocklyTreeRow:not(.blocklyTreeSelected):hover {
+  background-color: rgba(61, 139, 95, 0.2) !important;
+}
+
+.blocklyTreeSelected {
+  background-color: var(--accent) !important;
+}
+
+.blocklyFlyout {
+  background-color: #152119 !important;
+}
+
+.blocklyFlyoutBackground {
+  fill: #152119 !important;
+}
+
+.blocklyScrollbarHandle {
+  fill: var(--accent) !important;
+}
+
+.blocklyScrollbarBackground {
+  fill: transparent !important;
+}
+
+.blocklyText {
+  font-family: Menlo, 'Fira Code', 'JetBrains Mono', monospace !important;
+}
+
+.blocklyTreeLabel {
+  color: var(--text-primary) !important;
+}
+
+.blocklyTreeIcon {
+  color: var(--text-secondary) !important;
+}
+
+/* Blockly trash can styling */
+.blocklyTrash {
+  opacity: 0.7;
+}
+
+.blocklyTrash:hover {
+  opacity: 1;
+}
+
+/* Responsive adjustments for Blockly */
+@media (max-width: 1024px) {
+  .blockly-container {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .blockly-code-preview {
+    height: 120px;
+  }
+}
+
+@media (max-width: 720px) {
+  .editor-mode-toggle {
+    padding: 1px;
+  }
+
+  .mode-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+}
+
