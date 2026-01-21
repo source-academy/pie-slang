@@ -1,0 +1,34 @@
+name: Usability Issue
+description: Report a usability or UX problem
+title: "[Usability]: "
+labels: ["usability", "ux"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for reporting issues related to usability or user experience.
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: Usability issue
+      description: What about the software feels awkward, inconvenient, or inefficient.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: How you encountered this issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+      description: If you have ideas on how this could be improved, share them here.
+    validations:
+      required: false
