@@ -47,8 +47,8 @@ U ))
 U ))
 (define Odd
 (λ (n)
-(Σ ((haf Nat))
-(= Nat n (add1 (double haf )))))) 
+(Σ ((half Nat))
+(= Nat n (add1 (double half )))))) 
 
 (claim zero-is-even
 (Even 0))
@@ -167,8 +167,8 @@ step-even-or-odd)))
 
 (define Odd
   (λ (n)
-    (Σ ((haf Nat))
-      (= Nat n (add1 (double haf )))))) 
+    (Σ ((half Nat))
+      (= Nat n (add1 (double half )))))) 
 
 (claim zero-is-even
   (Even 0))

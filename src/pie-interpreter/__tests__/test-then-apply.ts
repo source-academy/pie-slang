@@ -53,7 +53,7 @@ describe("ThenTactic Tests", () => {
 (define Even (λ (n) (Σ ((half Nat)) (= Nat n (double half)))))
 
 (claim Odd (→ Nat U))
-(define Odd (λ (n) (Σ ((haf Nat)) (= Nat n (add1 (double haf))))))
+(define Odd (λ (n) (Σ ((half Nat)) (= Nat n (add1 (double half))))))
 
 (claim zero-is-even (Even 0))
 (define zero-is-even (cons 0 (same 0)))

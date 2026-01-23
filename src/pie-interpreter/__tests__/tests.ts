@@ -5,7 +5,7 @@ import { go } from '../types/utils';
 import { initCtx } from '../utils/context';
 import { normType, represent } from '../typechecker/represent';
 import * as C from '../types/core';
-import { evaluatePie } from '@pie-interpreter/main';
+import { evaluatePie } from '../main';
 
 
 const parsePie = Parser.parsePie;
