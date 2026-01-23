@@ -3,12 +3,12 @@
  * This provides diagnostics via a Web Worker without full LSP protocol
  */
 
-import { pieDeclarationParser, Claim, Definition, DefineTactically, schemeParse } from '../../src/pie_interpreter/parser/parser';
-import { DefineDatatypeSource, handleDefineDatatype } from '../../src/pie_interpreter/typechecker/definedatatype';
-import { Context, initCtx, addClaimToContext, addDefineToContext } from '../../src/pie_interpreter/utils/context';
-import { Renaming } from '../../src/pie_interpreter/typechecker/utils';
-import { go, stop } from '../../src/pie_interpreter/types/utils';
-import { ProofManager } from '../../src/pie_interpreter/tactics/proofmanager';
+import { pieDeclarationParser, Claim, Definition, DefineTactically, schemeParse } from '../../src/pie-interpreter/parser/parser';
+import { TypeDefinition, handleTypeDefinition } from '../../src/pie-interpreter/typechecker/type-definition';
+import { Context, initCtx, addClaimToContext, addDefineToContext } from '../../src/pie-interpreter/utils/context';
+import { Renaming } from '../../src/pie-interpreter/typechecker/utils';
+import { go, stop } from '../../src/pie-interpreter/types/utils';
+import { ProofManager } from '../../src/pie-interpreter/tactics/proof-manager';
 import { PIE_HOVER_INFO } from './pie_hover_info';
 
 interface Diagnostic {
@@ -89,12 +89,12 @@ function processDeclaration(decl: any, context: Context, renaming: Renaming): { 
 			newContext = processDefineDeclaration(decl, context, diagnostics);
 		} else if (decl instanceof DefineTactically) {
 			newContext = processDefineTacticallyDeclaration(decl, context, diagnostics);
-		} else if (decl instanceof DefineDatatypeSource) {
+		} else if (decl instanceof TypeDefinition) {
 			const result = processDefineDatatypeDeclaration(decl, context, renaming, diagnostics);
 			newContext = result.context;
 			newRenaming = result.renaming;
 		} else {
-			const range = (decl as any).location ? locationToRange((decl as any).location) : locationToRange(null);
+			const range = decl.location ? locationToRange(decl.location) : locationToRange(null);
 			const diagnostic: Diagnostic = {
 				severity: 'warning',
 				...range,
@@ -103,7 +103,7 @@ function processDeclaration(decl: any, context: Context, renaming: Renaming): { 
 			diagnostics.push(diagnostic);
 		}
 	} catch (error) {
-		const range = (decl as any).location ? locationToRange((decl as any).location) : locationToRange(null);
+		const range = decl.location ? locationToRange(decl.location) : locationToRange(null);
 		const diagnostic: Diagnostic = {
 			severity: 'error',
 			...range,
@@ -117,13 +117,13 @@ function processDeclaration(decl: any, context: Context, renaming: Renaming): { 
 
 // Process define-datatype declarations (inductive types)
 function processDefineDatatypeDeclaration(
-	datatype: DefineDatatypeSource,
+	datatype: TypeDefinition,
 	context: Context,
 	renaming: Renaming,
 	diagnostics: Diagnostic[]
 ): { context: Context, renaming: Renaming } {
 	try {
-		const result = handleDefineDatatype(context, renaming, datatype);
+		const result = handleTypeDefinition(context, renaming, datatype);
 		if (result instanceof go) {
 			return { context: result.result, renaming };
 		} else if (result instanceof stop) {
@@ -559,7 +559,7 @@ self.onmessage = (event: MessageEvent) => {
 				completions: allCompletions,
 				wordRange: wordInfo ? { start: wordInfo.start, end: wordInfo.end } : null
 			});
-		} catch (error) {
+		} catch {
 			self.postMessage({
 				type: 'completion-result',
 				completions: PIE_COMPLETIONS,
@@ -595,7 +595,7 @@ self.onmessage = (event: MessageEvent) => {
 					location: null
 				});
 			}
-		} catch (error) {
+		} catch {
 			self.postMessage({
 				type: 'definition-result',
 				location: null

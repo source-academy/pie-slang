@@ -104,7 +104,7 @@ const examples = {
 
 (claim incremented-vec (Vec Nat 3))
 (define incremented-vec (vec-map Nat Nat 3 add1-fn nat-vec))`,
-'Tactics: Even or Odd' : `
+  'Tactics: Even or Odd': `
 (claim +
   (→ Nat Nat
     Nat))
@@ -219,21 +219,24 @@ const examples = {
 
 ;; This is the proof using our new tactic system
 (define-tactically even-or-odd
-  ( (intro n)
-    (elimNat n)
-    (left)
-    (exact zero-is-even)
+  ((intro n)
+  (elim-Nat n)
+  (then
+    (exact (left zero-is-even)))
+  (then
     (intro n-1)
     (intro e-or-on-1)
-    (elimEither e-or-on-1)
-    (intro xr)
-    (right)
-    (exact ((add1-even->odd n-1) xr))
-    (intro x1)
-    (left)
-    ;; finish the proof with "(exact ((add1-odd->even n-1) x1))"
-   ))`,
-   'Inductive Type: Less Than': `;; Define Less Than relation using our new inductive type definiton
+    (elim-Either e-or-on-1)
+    (then
+      (intro xr)
+      (go-Right)
+      (exact (add1-even->odd n-1 xr)))
+    (then
+      (intro xl)
+      (go-Left)
+      (exact (add1-odd->even n-1 xl))))))`,
+
+  'Inductive Type: Less Than': `;; Define Less Than relation using our new inductive type definiton
     (data Less-Than () ((j Nat) (k Nat))
       (zero-smallest ((n Nat)) (Less-Than () (zero (add1 n))))
       (add1-smaller ((j Nat) (k Nat) (j<k (Less-Than () (j k)))) (Less-Than () ((add1 j) (add1 k))))
@@ -258,7 +261,7 @@ const examples = {
     (claim result Nat)
     (define result (extract-smaller zero (add1 zero) proof-0<1))
     `,
-    'Inductive Type: Subtype':`
+  'Inductive Type: Subtype': `
 (data Subtype () ((T1 U) (T2 U))
   (refl ((T U))
     (Subtype () (T T)))
@@ -544,7 +547,7 @@ async function boot() {
 
   window.require.config({
     paths: {
-      vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs'
+      vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs'
     }
   });
 

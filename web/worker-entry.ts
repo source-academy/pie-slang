@@ -1,10 +1,10 @@
-import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from '../src/pie_interpreter/parser/parser';
-import { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext, Context, Define } from '../src/pie_interpreter/utils/context';
-import { checkSame, represent } from '../src/pie_interpreter/typechecker/represent';
-import { go, stop, Message } from '../src/pie_interpreter/types/utils';
-import { readBack } from '../src/pie_interpreter/evaluator/utils';
-import { prettyPrintCore } from '../src/pie_interpreter/unparser/pretty';
-import { DefineDatatypeSource, handleDefineDatatype } from '../src/pie_interpreter/typechecker/definedatatype';
+import { schemeParse, pieDeclarationParser, Claim, Definition, SamenessCheck, DefineTactically } from '../src/pie-interpreter/parser/parser';
+import { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext, Context, Define } from '../src/pie-interpreter/utils/context';
+import { checkSame, represent } from '../src/pie-interpreter/typechecker/represent';
+import { go, stop, Message } from '../src/pie-interpreter/types/utils';
+import { readBack } from '../src/pie-interpreter/evaluator/utils';
+import { prettyPrintCore } from '../src/pie-interpreter/unparser/pretty';
+import { TypeDefinition, handleTypeDefinition } from '../src/pie-interpreter/typechecker/type-definition';
 
 export interface Diagnostic {
   message: string;
@@ -106,8 +106,8 @@ function processDeclaration(ctx: Context, declaration: ReturnType<typeof pieDecl
         return { diagnostic: null, message: result.result.message };
       }
       return { diagnostic: diagnosticFromStop(result as stop) };
-    } else if (declaration instanceof DefineDatatypeSource) {
-      const result = handleDefineDatatype(ctx, new Map(), declaration);
+    } else if (declaration instanceof TypeDefinition) {
+      const result = handleTypeDefinition(ctx, new Map(), declaration);
       if (result instanceof go) {
         assignContext(ctx, result.result);
         return { diagnostic: null };

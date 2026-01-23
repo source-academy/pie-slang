@@ -1,0 +1,43 @@
+{
+	"compilerOptions": {
+		"target": "ES2024",
+		"lib": [
+			"ES2024",
+			"WebWorker"
+		],
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"sourceMap": true,
+		"strict": false,
+		"outDir": "out",
+		"rootDir": "../..",
+		"baseUrl": "../..",
+		"paths": {
+			"@pie-interpreter/*": ["src/pie-interpreter/*"],
+			"@scheme-parser/*": ["src/scheme-parser/*"],
+			"js-base64": ["src/language_server/node_modules/js-base64"]
+		},
+		"skipLibCheck": true,
+		"skipDefaultLibCheck": true,
+		"noEmitOnError": false,
+		"noImplicitAny": false,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"types": ["node", "vscode", "jest"]
+	},
+	"include": [
+		"client/src/**/*.ts",
+		"server/src/**/*.ts",
+		"../pie-interpreter/**/*.ts",
+		"../scheme-parser/**/*.ts"
+	],
+	"exclude": [
+		"node_modules/**/*",
+		".vscode-test/**/*",
+		"**/*.test.ts",
+		"**/*.spec.ts",
+		"**/__tests__/**/*",
+		"../../node_modules/**/*",
+		"**/conductor/**/*"
+	]
+}
