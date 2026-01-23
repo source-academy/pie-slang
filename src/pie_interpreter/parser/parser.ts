@@ -42,8 +42,8 @@ function getValue(element: Element): string {
     // Empty list - return empty string or some placeholder
     return "()";
   } else {
-    const elem = element as any;
-    throw new Error(`Expected a Element, but got: ${JSON.stringify(elem)} (type: ${typeof elem}, constructor: ${elem?.constructor?.name})`);
+    const _exaustiveCheck: never = element;
+    throw new Error('Unexpected element type in getValue: ' + _exaustiveCheck);
   }
 }
 

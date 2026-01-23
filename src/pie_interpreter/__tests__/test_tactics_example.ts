@@ -250,7 +250,7 @@ step-even-or-odd)))
     (exact ((add1-even->odd n-1) xr))
     (intro x1)
     (left)
-    ;; finish the proof with "(exact ((add1-odd->even n-1) x1))"
+    (exact ((add1-odd->even n-1) x1))
    ))
 
 
