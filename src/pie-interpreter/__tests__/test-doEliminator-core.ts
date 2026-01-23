@@ -77,149 +77,6 @@ export function createListExample(): {
   };
 }
 
-// // Example 2: Binary Tree elimination test  
-// export function createBinaryTreeExample(): {
-//   treeType: C.InductiveType,
-//   sampleTree: C.Core,
-//   eliminator: C.Eliminator
-// } {
-
-//   // Create Tree constructors
-//   const leafConstructor = new C.Constructor(
-//     "leaf",
-//     new C.VarName("Tree"), // type: Tree A
-//     [],  // no arguments
-//     0,   // constructor index
-//     false // not recursive
-//   );
-
-//   const nodeConstructor = new C.Constructor(
-//     "node",
-//     new C.Pi("value", new C.VarName("A"),
-//       new C.Pi("left", new C.VarName("Tree"),
-//         new C.Pi("right", new C.VarName("Tree"), 
-//           new C.VarName("Tree")))), // type: A -> Tree A -> Tree A -> Tree A
-//     [], // no arguments for constructor schema
-//     1,   // constructor index
-//     true // recursive (contains Tree A)
-//   );
-
-//   // Create the Tree inductive type
-//   const treeType = new C.InductiveType(
-//     "Tree", 
-//     [new C.VarName("A")], // parameters
-//     [],                   // no indices
-//     [leafConstructor, nodeConstructor],
-//     new C.Eliminator("Tree",
-//       new C.VarName("tree"), // target
-//       new C.VarName("P"),    // motive
-//       [
-//         new C.VarName("base_leaf"),     // method for leaf
-//         new C.VarName("step_node")     // method for node
-//       ]
-//     )
-//   );
-
-//   // Create a sample tree: node 5 (node 3 leaf (node 4 leaf leaf)) (node 7 leaf leaf)
-
-//   // Create leaf instances
-//   const leaf1 = new C.Constructor("leaf", new C.VarName("Tree"), [], 0, false);
-//   const leaf2 = new C.Constructor("leaf", new C.VarName("Tree"), [], 0, false);
-//   const leaf3 = new C.Constructor("leaf", new C.VarName("Tree"), [], 0, false);
-//   const leaf4 = new C.Constructor("leaf", new C.VarName("Tree"), [], 0, false);
-
-//   // Create node 4 leaf leaf
-//   const node4 = new C.Constructor(
-//     "node",
-//     new C.VarName("Tree"),
-//     [
-//       new C.Add1(new C.Add1(new C.Add1(new C.Add1(new C.Zero())))), // 4
-//       leaf1,
-//       leaf2
-//     ],
-//     1,
-//     true
-//   );
-
-//   // Create node 3 leaf (node 4 leaf leaf)
-//   const node3 = new C.Constructor(
-//     "node", 
-//     new C.VarName("Tree"),
-//     [
-//       new C.Add1(new C.Add1(new C.Add1(new C.Zero()))), // 3
-//       leaf3,
-//       node4
-//     ],
-//     1,
-//     true
-//   );
-
-//   // Create node 7 leaf leaf
-//   const node7 = new C.Constructor(
-//     "node",
-//     new C.VarName("Tree"),
-//     [
-//       new C.Add1(new C.Add1(new C.Add1(new C.Add1(new C.Add1(new C.Add1(new C.Add1(new C.Zero()))))))), // 7
-//       leaf4,
-//       new C.Constructor("leaf", new C.VarName("Tree"), [], 0, false)
-//     ],
-//     1,
-//     true
-//   );
-
-//   // Create root node 5 (node 3 ...) (node 7 ...)
-//   const sampleTree = new C.Constructor(
-//     "node",
-//     new C.VarName("Tree"),
-//     [
-//       new C.Add1(new C.Add1(new C.Add1(new C.Add1(new C.Add1(new C.Zero()))))), // 5
-//       node3,
-//       node7
-//     ],
-//     1,
-//     true
-//   );
-
-//   // Create eliminator for summing tree values
-//   const sumEliminator = new C.Eliminator(
-//     "Tree",
-//     sampleTree,
-//     new C.Lambda("tree", new C.Nat()), // motive: always Nat
-//     [
-//       new C.Zero(), // base case: leaf -> 0
-//       new C.Lambda("value",
-//         new C.Lambda("left",
-//           new C.Lambda("right", 
-//             new C.Lambda("left_sum",
-//               new C.Lambda("right_sum",
-//                 new C.Application( // value + (left_sum + right_sum)
-//                   new C.Application(
-//                     new C.VarName("+"),
-//                     new C.VarName("value")
-//                   ),
-//                   new C.Application(
-//                     new C.Application(
-//                       new C.VarName("+"),
-//                       new C.VarName("left_sum")
-//                     ),
-//                     new C.VarName("right_sum")
-//                   )
-//                 )
-//               )
-//             )
-//           )
-//         )
-//       ) // step case: value -> left -> right -> left_sum -> right_sum -> value + left_sum + right_sum
-//     ]
-//   );
-
-//   return {
-//     treeType,
-//     sampleTree,
-//     eliminator: sumEliminator
-//   };
-// }
-
 // Jest test cases
 describe("doEliminator tests", () => {
 
@@ -235,25 +92,9 @@ describe("doEliminator tests", () => {
         listExample.eliminator.methods.map(m => m.toLazy(env))
       );
       const context: Context = new Map();
-      const normalizedResult = readBack(context, new V.Nat(), listResult);
+      readBack(context, new V.Nat(), listResult);
     }).not.toThrow();
   });
-
-  // it("should handle binary tree elimination", () => {
-  
-  //   const env: Environment = new Map();
-  //   const treeExample = createBinaryTreeExample();
-
-  //   expect(() => {
-  //     const treeResult = Evaluator.doEliminator(
-  //       "Tree", 
-  //       treeExample.sampleTree.toLazy(env),
-  //       treeExample.eliminator.motive.toLazy(env),
-  //       treeExample.eliminator.methods.map(m => m.toLazy(env))
-  //     );
-  //     console.log("Tree elimination result:", treeResult);
-  //   }).not.toThrow();
-  // });
 
   it("should test list elimination with specific values", () => {
     const env: Environment = new Map();
@@ -270,18 +111,4 @@ describe("doEliminator tests", () => {
     expect(listResult).toBeDefined();
   });
 
-  // it("should test tree elimination with specific values", () => {
-  //   const env: Environment = new Map();
-  //   const treeExample = createBinaryTreeExample();
-
-  //   const treeResult = Evaluator.doEliminator(
-  //     "Tree",
-  //     treeExample.sampleTree.toLazy(env),
-  //     treeExample.eliminator.motive.toLazy(env),
-  //     treeExample.eliminator.methods.map(m => m.toLazy(env))
-  //   );
-
-  //   // Add specific assertions based on expected behavior
-  //   expect(treeResult).toBeDefined();
-  //   });
 });

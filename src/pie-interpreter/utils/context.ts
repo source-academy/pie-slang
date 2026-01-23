@@ -126,7 +126,8 @@ export function addDefineTacticallyToContext(
   ctx: Context,
   name: string,
   location: Location,
-  tactics: Tactic[]
+  tactics: Tactic[],
+  verbose: boolean = false
 ): Perhaps<TacticalResult> {
   const proofManager = new ProofManager();
   let message = '';
@@ -136,7 +137,9 @@ export function addDefineTacticallyToContext(
   if (startResult instanceof stop) {
     return startResult;
   }
-  message += (startResult as go<string>).result + '\n';
+  if (verbose) {
+    message += (startResult as go<string>).result + '\n';
+  }
 
   // Apply each tactic
   for (const tactic of tactics) {
@@ -144,7 +147,9 @@ export function addDefineTacticallyToContext(
     if (tacticResult instanceof stop) {
       return tacticResult;
     }
-    message += (tacticResult as go<string>).result;
+    if (verbose) {
+      message += (tacticResult as go<string>).result;
+    }
   }
 
   // Check if proof is complete

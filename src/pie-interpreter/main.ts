@@ -7,7 +7,7 @@ import { addClaimToContext, addDefineToContext, addDefineTacticallyToContext, De
 import { The } from './types/core';
 import { readBack } from './evaluator/utils';
 
-export function evaluatePie(str: string): string {
+function evaluatePieInternal(str: string, verbose: boolean = false): string {
   const astList = schemeParse(str);
   let ctx = initCtx;
   let renaming = new Map<string, string>();
@@ -42,7 +42,7 @@ export function evaluatePie(str: string): string {
       ctx = newCtx;
       renaming = newRenaming;
     } else if (src instanceof DefineTactically) {
-      const result = addDefineTacticallyToContext(ctx, src.name, src.location, src.tactics);
+      const result = addDefineTacticallyToContext(ctx, src.name, src.location, src.tactics, verbose);
       if (result instanceof go) {
         ctx = result.result.context;
         output += result.result.message;
@@ -69,4 +69,12 @@ export function evaluatePie(str: string): string {
   }
   return output;
 
+}
+
+export function evaluatePie(str: string): string {
+  return evaluatePieInternal(str, false);
+}
+
+export function evaluatePieVerbose(str: string): string {
+  return evaluatePieInternal(str, true);
 }
