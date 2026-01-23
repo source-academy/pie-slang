@@ -7,6 +7,9 @@ import { Renaming } from '../typechecker/utils';
 
 type GoalId = string;
 
+// A term builder takes the terms from child goals and produces the term for this goal
+export type TermBuilder = (childTerms: Core[]) => Core;
+
 //TODO: Add location
 export class Goal {
   constructor(
@@ -55,6 +58,8 @@ export class GoalNode {
   public parent: GoalNode | null = null;
   public isComplete: boolean = false;
   public childFocusIndex: number = -1;
+  // Term builder: takes child terms and produces the term for this node
+  public termBuilder?: TermBuilder;
 
   constructor(
     public goal: Goal,
@@ -65,6 +70,45 @@ export class GoalNode {
       child.parent = this;
     });
     this.children = children;
+  }
+
+  /**
+   * Extract the proof term from this node.
+   * If the node has a direct term, return it.
+   * If the node has children and a term builder, combine child terms.
+   */
+  extractTerm(): Core | undefined {
+    // If goal has a direct term (set by exact), return it
+    if (this.goal.term) {
+      return this.goal.term;
+    }
+
+    // If no children, we can't extract a term
+    if (this.children.length === 0) {
+      return undefined;
+    }
+
+    // Extract terms from all children
+    const childTerms: Core[] = [];
+    for (const child of this.children) {
+      const childTerm = child.extractTerm();
+      if (!childTerm) {
+        return undefined; // Missing child term
+      }
+      childTerms.push(childTerm);
+    }
+
+    // If we have a term builder, use it to combine child terms
+    if (this.termBuilder) {
+      return this.termBuilder(childTerms);
+    }
+
+    // Default: if single child, just return its term (for identity-like tactics)
+    if (childTerms.length === 1) {
+      return childTerms[0];
+    }
+
+    return undefined;
   }
 
   findById(goalId: GoalId): GoalNode | null {

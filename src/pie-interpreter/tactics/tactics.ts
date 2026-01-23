@@ -6,6 +6,7 @@ import { Value, Pi, Neutral, Nat } from '../types/value';
 import { Context, contextToEnvironment, Define, extendContext, Free, valInContext } from '../utils/context';
 
 import { doApp, indVecStepType } from '../evaluator/evaluator';
+import { readBack } from '../evaluator/utils';
 import { fresh } from '../types/utils';
 import { Variable } from '../types/neutral';
 import { convert, extendRenaming, Renaming} from '../typechecker/utils';
@@ -81,6 +82,13 @@ export class IntroTactic extends Tactic {
     );
 
     const newGoalNode = new GoalNode(new Goal(state.generateGoalId(), newGoalType, newContext, newRenaming))
+    
+    // Set term builder: wrap the subgoal's term in a lambda
+    const paramName = name;
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Lambda(paramName, childTerms[0]);
+    };
+    
     state.addGoal([newGoalNode])
 
     return new go(state);
@@ -114,6 +122,9 @@ export class ExactTactic extends Tactic {
     if (result instanceof stop) {
       return result;
     }
+
+    // Set the proof term for this goal
+    state.currentGoal.goal.term = (result as go<Core>).result;
 
     state.currentGoal.isComplete = true;
 
@@ -164,7 +175,8 @@ export class ExistsTactic extends Tactic {
       return result_temp;
     }
 
-    const result = (result_temp as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+    const firstCore = (result_temp as go<Core>).result;
+    const result = firstCore.valOf(contextToEnvironment(currentGoal.context));
 
     const newContext = extendContext(currentGoal.context, name, new Define(goalType.carType, result));
 
@@ -172,6 +184,11 @@ export class ExistsTactic extends Tactic {
     const newGoalType = goalType.cdrType.valOfClosure(
       result
     );
+
+    // Set term builder: wrap in cons with the provided first value
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Cons(firstCore, childTerms[0]);
+    };
 
     const newGoalNode = new GoalNode(new Goal(state.generateGoalId(), newGoalType, newContext, newRenaming))
     state.addGoal([newGoalNode])
@@ -218,16 +235,33 @@ export class EliminateNatTactic extends Tactic {
     }
 
     // Use the same variable name as the target for the motive parameter
-    const motiveRst = this.generateNatMotive(currentGoal.context, currentGoal.type, this.target);
-      const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming,motiveRst)
-      state.addGoal(
-        rst.map((type) => {
-          const newGoalNode = new GoalNode(
-            new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
-          );
-          return newGoalNode;
-        }))
-      return new go(state);
+    const motiveValue = this.generateNatMotive(currentGoal.context, currentGoal.type, this.target);
+    // The motive is a function (-> Nat U), so we read it back with that type
+    const motiveType = new V.Pi(this.target, new V.Nat(), new HigherOrderClosure(() => new V.Universe()));
+    const motiveCore = readBack(currentGoal.context, motiveType, motiveValue);
+    const targetName = this.target;
+    
+    // Set term builder for ind-Nat: (ind-Nat target motive base step)
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      // childTerms[0] = base case term
+      // childTerms[1] = step case term
+      return new C.IndNat(
+        new C.VarName(targetName),
+        motiveCore,
+        childTerms[0],
+        childTerms[1]
+      );
+    };
+    
+    const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, motiveValue)
+    state.addGoal(
+      rst.map((type) => {
+        const newGoalNode = new GoalNode(
+          new Goal(state.generateGoalId(), type, currentGoal.context, currentGoal.renaming)
+        );
+        return newGoalNode;
+      }))
+    return new go(state);
 
   }
 
@@ -320,27 +354,40 @@ export class EliminateListTactic extends Tactic {
     const E = targetType.entryType
 
     let motiveType: Value;
+    let motiveCore: Core;
+    // The type of the motive is (-> (List E) U)
+    const motiveMetaType = new V.Pi(
+      'xs',
+      new V.List(E),
+      new HigherOrderClosure((_) => new V.Universe())
+    );
+    
     if (this.motive) {
       // User provided a motive
-      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-        new V.Pi(
-          'xs',
-          new V.List(E),
-          new FirstOrderClosure(
-            contextToEnvironment(currentGoal.context),
-            'xs',
-            new C.Universe()
-          )
-        ))
+      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming, motiveMetaType)
 
       if (motiveRst instanceof stop) {
         return motiveRst;
       }
-      motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      motiveCore = (motiveRst as go<Core>).result;
+      motiveType = motiveCore.valOf(contextToEnvironment(currentGoal.context));
     } else {
       // Auto-generate motive from goal
       motiveType = this.generateListMotive(currentGoal.context, currentGoal.type, this.target);
+      motiveCore = readBack(currentGoal.context, motiveMetaType, motiveType);
     }
+
+    const targetName = this.target;
+    
+    // Set term builder for ind-List: (ind-List target motive base step)
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.IndList(
+        new C.VarName(targetName),
+        motiveCore,
+        childTerms[0],
+        childTerms[1]
+      );
+    };
 
     const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
     state.addGoal(
@@ -467,7 +514,22 @@ export class EliminateVecTactic extends Tactic {
     if (motiveRst instanceof stop) {
       return motiveRst;
     } else {
-      const motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      const motiveCore = (motiveRst as go<Core>).result;
+      const motiveType = motiveCore.valOf(contextToEnvironment(currentGoal.context));
+      const lengthCore = (lenout as go<Core>).result;
+      const targetName = this.target;
+      
+      // Set term builder for ind-Vec: (ind-Vec length target motive base step)
+      state.currentGoal.termBuilder = (childTerms: Core[]) => {
+        return new C.IndVec(
+          lengthCore,
+          new C.VarName(targetName),
+          motiveCore,
+          childTerms[0],
+          childTerms[1]
+        );
+      };
+      
       const rst = this.eliminateVec(currentGoal.context, currentGoal.renaming, motiveType, E);
       state.addGoal(
         rst.map((type) => {
@@ -530,6 +592,7 @@ export class EliminateEqualTactic extends Tactic {
     const [Av, fromv,] = [targetType.type, targetType.from, targetType.to]
 
     let motiveType: Value;
+    let motiveCore: Core;
     if (this.motive) {
       // User provided a motive
       const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
@@ -551,7 +614,8 @@ export class EliminateEqualTactic extends Tactic {
       if (motiveRst instanceof stop) {
         return motiveRst;
       }
-      motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      motiveCore = (motiveRst as go<Core>).result;
+      motiveType = motiveCore.valOf(contextToEnvironment(currentGoal.context));
     } else {
       // Auto-generate motive from goal
       // For = elimination, the motive doesn't depend on the target variable directly
@@ -559,6 +623,17 @@ export class EliminateEqualTactic extends Tactic {
       // This is too complex for auto-generation, so we require the user to provide it
       return new stop(this.location, new Message([`Motive required for = elimination (too complex for auto-generation)`]));
     }
+
+    const targetName = this.target;
+    
+    // Set term builder for ind-=: (ind-= target motive base)
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.IndEqual(
+        new C.VarName(targetName),
+        motiveCore,
+        childTerms[0]
+      );
+    };
 
     const rst = [doApp(doApp(motiveType, fromv), new V.Same(fromv))];
     state.addGoal(
@@ -597,6 +672,11 @@ export class LeftTactic extends Tactic {
 
     const leftType = (currentGoal.type as V.Either).leftType.now();
 
+    // Set term builder: wrap the subgoal's term in Left
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Left(childTerms[0]);
+    };
+
     state.addGoal([new GoalNode(
       new Goal(
         state.generateGoalId(),
@@ -633,6 +713,11 @@ export class RightTactic extends Tactic {
     }
 
     const rightType = (currentGoal.type as V.Either).rightType.now();
+
+    // Set term builder: wrap the subgoal's term in Right
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Right(childTerms[0]);
+    };
 
     state.addGoal([new GoalNode(
       new Goal(
@@ -688,26 +773,40 @@ export class EliminateEitherTactic extends Tactic {
     const [Lv, Rv] = [targetType.leftType, targetType.rightType]
 
     let motiveType: Value;
+    let motiveCore: Core;
+    // The type of the motive is (-> (Either L R) U)
+    const motiveMetaType = new V.Pi(
+      'x',
+      new V.Either(Lv, Rv),
+      new HigherOrderClosure((_) => new V.Universe())
+    );
+    
     if (this.motive) {
       // User provided a motive
-      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming,
-        new V.Pi(
-          'x',
-          new V.Either(Lv, Rv),
-          new HigherOrderClosure(
-            (_) => new V.Universe()
-          )
-        )
-      )
+      const motiveRst = this.motive.check(currentGoal.context, currentGoal.renaming, motiveMetaType)
 
       if (motiveRst instanceof stop) {
         return motiveRst;
       }
-      motiveType = (motiveRst as go<Core>).result.valOf(contextToEnvironment(currentGoal.context));
+      motiveCore = (motiveRst as go<Core>).result;
+      motiveType = motiveCore.valOf(contextToEnvironment(currentGoal.context));
     } else {
       // Auto-generate motive from goal
       motiveType = this.generateEitherMotive(currentGoal.context, currentGoal.type, this.target);
+      motiveCore = readBack(currentGoal.context, motiveMetaType, motiveType);
     }
+
+    const targetName = this.target;
+    
+    // Set term builder for ind-Either: (ind-Either target motive leftCase rightCase)
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.IndEither(
+        new C.VarName(targetName),
+        motiveCore,
+        childTerms[0],
+        childTerms[1]
+      );
+    };
 
     const leftType = new V.Pi(
       'x',
@@ -791,6 +890,11 @@ export class SpiltTactic extends Tactic {
       pairType
     );
 
+    // Set term builder: combine car and cdr into cons
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Cons(childTerms[0], childTerms[1]);
+    };
+
     state.addGoal(
       [
         new GoalNode(
@@ -856,6 +960,11 @@ export class EliminateAbsurdTactic extends Tactic {
       return new stop(state.location, new Message([`Cannot eliminate non-Absurd type: ${targetType.prettyPrint()}`]));
     }
 
+    // Get the motive (the goal type we're proving)
+    const goalType = currentGoal.type;
+    const goalTypeCore = goalType.readBackType(currentGoal.context);
+    const targetName = this.target;
+
     if (this.motive) {
       // User provided a motive, check it
       const motiveRst = this.motive.check(
@@ -868,8 +977,14 @@ export class EliminateAbsurdTactic extends Tactic {
         return motiveRst;
       }
     }
-    // For Absurd elimination, the motive is irrelevant since we can derive anything
-    // Just mark the goal as complete
+    
+    // For Absurd elimination, we directly produce the proof term
+    // (ind-Absurd target motive) where motive is the goal type
+    state.currentGoal.goal.term = new C.IndAbsurd(
+      new C.VarName(targetName),
+      goalTypeCore
+    );
+    
     state.currentGoal.isComplete = true;
     state.nextGoal()
 
@@ -970,6 +1085,7 @@ export class ApplyTactic extends Tactic {
     }
 
     const theResult = (synthResult as go<C.The>).result;
+    const funcCore = theResult.expr;
     const funcTypeCore = theResult.type;
     const funcType = funcTypeCore.valOf(contextToEnvironment(currentGoal.context));
 
@@ -1004,6 +1120,11 @@ export class ApplyTactic extends Tactic {
         new Message([`Function result type ${resultType.prettyPrint()} does not match goal type ${goalType.prettyPrint()}`])
       );
     }
+
+    // Set term builder: apply the function to the argument
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Application(funcCore, childTerms[0]);
+    };
 
     // Create a new goal with the argument type
     const newGoalNode = new GoalNode(
