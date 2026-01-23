@@ -571,6 +571,7 @@ export function registerPieLanguage(monaco: any): void {
       "->",
       "→",
     ],
+    operators: [],
 
     // Common regular expressions
     symbols: /[=><!~?:&|+\-*/^%]+/,
