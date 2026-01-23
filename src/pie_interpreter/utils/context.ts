@@ -7,6 +7,8 @@ import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
 import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
+import { ProofManager } from '../tactics/proofmanager';
+import { Tactic } from '../tactics/tactics';
 
 /*
     ## Contexts ##
@@ -113,6 +115,77 @@ export function addDefineToContext(ctx: Context, fun: string, funLoc: Location, 
       )
     )
   )
+}
+
+export interface TacticalResult {
+  context: Context;
+  message: string;
+}
+
+export function addDefineTacticallyToContext(
+  ctx: Context,
+  name: string,
+  location: Location,
+  tactics: Tactic[]
+): Perhaps<TacticalResult> {
+  const proofManager = new ProofManager();
+  let message = '';
+
+  // Start the proof
+  const startResult = proofManager.startProof(name, ctx, location);
+  if (startResult instanceof stop) {
+    return startResult;
+  }
+  message += (startResult as go<string>).result + '\n';
+
+  // Apply each tactic
+  for (const tactic of tactics) {
+    const tacticResult = proofManager.applyTactic(tactic);
+    if (tacticResult instanceof stop) {
+      return tacticResult;
+    }
+    message += (tacticResult as go<string>).result;
+  }
+
+  // Check if proof is complete
+  if (!proofManager.currentState || !proofManager.currentState.isComplete()) {
+    const currentGoal = proofManager.currentState?.getCurrentGoal();
+    let goalInfo = '';
+    if (currentGoal instanceof go) {
+      const goal = currentGoal.result;
+      goalInfo = `\n\n${goal.prettyPrintWithContext()}`;
+    }
+    return new stop(
+      location,
+      new Message([`Proof incomplete. Not all goals have been solved.${goalInfo}`])
+    );
+  }
+
+  // Proof complete - add definition to context
+  const claim = ctx.get(name);
+  if (!(claim instanceof Claim)) {
+    return new stop(location, new Message([`${name} is not a valid claim`]));
+  }
+
+  const type = claim.type;
+
+  // TODO: Extract actual proof term from proofManager.currentState
+  // The Goal.term field should contain the proof term, but tactics don't set it yet
+  // For now, we keep the claim in context rather than adding a faulty placeholder
+  // that would fail during readback
+  const goalTree = proofManager.currentState?.goalTree;
+  const proofTerm = goalTree?.goal.term;
+
+  if (proofTerm) {
+    // We have the actual proof term
+    const proofValue = valInContext(ctx, proofTerm);
+    const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, proofValue);
+    return new go({ context: newCtx, message });
+  } else {
+    // Proof term extraction not implemented yet - keep claim in context
+    // This allows the proof to complete without error, but the definition won't be usable
+    return new go({ context: ctx, message: message + `\nWarning: Proof term extraction not yet implemented for '${name}'` });
+  }
 }
 
 export function contextToEnvironment(ctx: Context): Environment {

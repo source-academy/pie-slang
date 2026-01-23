@@ -1,7 +1,7 @@
 import * as C from "./core";
 import * as N from "./neutral";
 
-import { bindFree, Context } from "../utils/context";
+import { bindFree, Context, InductiveDatatypeBinder } from "../utils/context";
 import { Environment } from "../utils/environment";
 import { Closure } from "./utils";
 import { fresh } from "./utils";
@@ -632,8 +632,6 @@ export class InductiveTypeConstructor extends Value {
 
   public readBackType(context: Context): C.Core {
     // Look up the inductive type definition to get index types
-    const readBackFn = require('../evaluator/utils').readBack;
-    const { InductiveDatatypeBinder } = require('../utils/context');
     const inductiveBinder = context.get(this.name);
     let indexTypes: Value[] = [];
 
@@ -661,7 +659,7 @@ export class InductiveTypeConstructor extends Value {
               const iNow = i.now();
               if (indexType) {
                 // Use readBack with the index type
-                return readBackFn(context, indexType, iNow);
+                return readBack(context, indexType, iNow);
               } else if (iNow instanceof Neutral) {
                 return iNow.neutral.readBackNeutral(context);
               } else {
@@ -676,7 +674,7 @@ export class InductiveTypeConstructor extends Value {
             // Already evaluated
             const val = boxContent as Value;
             if (indexType) {
-              return readBackFn(context, indexType, val);
+              return readBack(context, indexType, val);
             } else if (val instanceof Neutral) {
               return val.neutral.readBackNeutral(context);
             } else {
@@ -688,7 +686,7 @@ export class InductiveTypeConstructor extends Value {
           // Not a Delay - force it and read back
           const iNow = i.now();
           if (indexType) {
-            return readBackFn(context, indexType, iNow);
+            return readBack(context, indexType, iNow);
           } else if (iNow instanceof Neutral) {
             return iNow.neutral.readBackNeutral(context);
           } else {
