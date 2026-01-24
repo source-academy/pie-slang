@@ -39,7 +39,7 @@ export class Goal {
     const binder = this.context.get(name);
     return binder?.type;
   }
-  
+
   prettyPrintWithContext(): string {
     const contextStr = Array.from(this.context.entries())
       .map(([name, binder]) => `${name} : ${binder.type.readBackType(this.context).prettyPrint()}`)
@@ -257,7 +257,6 @@ export class ProofState {
 
     }
     return null; // Add explicit return for the else branch
-
   }
 }
 

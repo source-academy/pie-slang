@@ -100,7 +100,7 @@ export default [
     input: 'web/lsp/pie-language-server-simple.worker.ts',
     output: {
       file: 'web/lsp/pie-lsp-worker-bundle.js',
-      format: 'esm',
+      format: 'iife',
       sourcemap: true
     },
     plugins: [

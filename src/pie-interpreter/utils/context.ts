@@ -183,11 +183,16 @@ export function addDefineTacticallyToContext(
     const proofValue = valInContext(ctx, proofTerm);
     const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, proofValue);
     return new go({ context: newCtx, message });
-  } else {
+  } else if (proofManager.currentState.isComplete()) {
     // Proof term extraction failed - this shouldn't happen if all tactics are implemented correctly
     return new stop(
       location,
-      new Message([`Failed to extract proof term for '${name}'. This may indicate incomplete tactic implementation.`])
+      new Message([`Failed to extract proof term for '${name}'.`])
+    );
+  } else {
+    return new stop(
+      location,
+      new Message([`Proof incomplete. Cannot extract proof term for '${name}'.`])
     );
   }
 }

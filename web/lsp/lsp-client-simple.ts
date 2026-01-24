@@ -20,9 +20,24 @@ interface ValidationErrorMessage {
   error: string;
 }
 
-type WorkerResponse = ValidationResultMessage | ValidationErrorMessage;
+interface ContextInfoResult {
+  type: "context-info-result";
+  contextLines: string[];
+  inTacticalProof: boolean;
+  proofInfo: string | null;
+  error?: string;
+}
+
+type WorkerResponse = ValidationResultMessage | ValidationErrorMessage | ContextInfoResult;
 
 type MonacoDisposable = { dispose(): void };
+
+// Callback type for context info updates
+export type ContextInfoCallback = (
+  contextLines: string[],
+  inTacticalProof: boolean,
+  proofInfo: string | null
+) => void;
 
 /**
  * Simple LSP client that connects Monaco Editor to our browser-based language server
@@ -34,7 +49,9 @@ export class PieLanguageClient {
   private readonly editor: any;
   private disposables: MonacoDisposable[] = [];
   private debouncedValidate: (() => void) | null = null;
+  private debouncedContextInfo: (() => void) | null = null;
   private diagnostics: WorkerDiagnostic[] = [];
+  private contextInfoCallback: ContextInfoCallback | null = null;
 
   constructor(monacoInstance: any, editorInstance: any) {
     this.monaco = monacoInstance;
@@ -42,13 +59,18 @@ export class PieLanguageClient {
   }
 
   /**
+   * Set a callback to receive context info updates.
+   */
+  setContextInfoCallback(callback: ContextInfoCallback): void {
+    this.contextInfoCallback = callback;
+  }
+
+  /**
    * Initialize the language client and connect it to the language server worker.
    */
   async start(): Promise<void> {
-    this.worker = new Worker(
-      new URL("./pie-lsp-worker-bundle.js", import.meta.url),
-      { type: "module" },
-    );
+    // Use absolute path since this gets bundled into app.js at the root
+    this.worker = new Worker("lsp/pie-lsp-worker-bundle.js");
 
     this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       this.handleWorkerMessage(event.data);
@@ -70,13 +92,31 @@ export class PieLanguageClient {
       this.worker.postMessage({ type: "validate", source });
     }, 220);
 
+    // Debounced context info request
+    this.debouncedContextInfo = this.debounce(() => {
+      this.requestContextInfo();
+    }, 100);
+
     const changeDisposable = this.editor?.onDidChangeModelContent?.(() => {
       if (this.debouncedValidate) {
         this.debouncedValidate();
       }
+      if (this.debouncedContextInfo) {
+        this.debouncedContextInfo();
+      }
     });
     if (changeDisposable) {
       this.disposables.push(changeDisposable);
+    }
+
+    // Listen for cursor position changes
+    const cursorDisposable = this.editor?.onDidChangeCursorPosition?.(() => {
+      if (this.debouncedContextInfo) {
+        this.debouncedContextInfo();
+      }
+    });
+    if (cursorDisposable) {
+      this.disposables.push(cursorDisposable);
     }
 
     const hoverDisposable = this.monaco.languages.registerHoverProvider("pie", {
@@ -119,7 +159,9 @@ export class PieLanguageClient {
     });
     this.disposables = [];
     this.debouncedValidate = null;
+    this.debouncedContextInfo = null;
     this.diagnostics = [];
+    this.contextInfoCallback = null;
 
     if (this.worker) {
       this.worker.terminate();
@@ -152,7 +194,40 @@ export class PieLanguageClient {
           message: message.error,
         },
       ]);
+    } else if (message.type === "context-info-result") {
+      // Handle context info result
+      if (this.contextInfoCallback) {
+        this.contextInfoCallback(
+          message.contextLines,
+          message.inTacticalProof,
+          message.proofInfo
+        );
+      }
     }
+  }
+
+  /**
+   * Request context info at the current cursor position.
+   */
+  requestContextInfo(): void {
+    if (!this.worker) {
+      return;
+    }
+    
+    const model = this.editor?.getModel?.();
+    const position = this.editor?.getPosition?.();
+    
+    if (!model || !position) {
+      return;
+    }
+    
+    const source = model.getValue();
+    this.worker.postMessage({
+      type: "context-info",
+      source,
+      line: position.lineNumber - 1, // Convert to 0-based
+      column: position.column - 1,
+    });
   }
 
   private updateDiagnostics(diagnostics: WorkerDiagnostic[]): void {

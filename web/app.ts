@@ -1,4 +1,4 @@
-import { PieLanguageClient, registerPieLanguage } from './lsp/lsp-client-simple';
+import { PieLanguageClient, registerPieLanguage, ContextInfoCallback } from './lsp/lsp-client-simple';
 import type * as Monaco from 'monaco-editor';
 
 // Extend Window interface to include Monaco globals
@@ -148,8 +148,8 @@ const examples = {
 
 (define Odd
   (λ (n)
-    (Σ ((haf Nat))
-      (= Nat n (add1 (double haf )))))) 
+    (Σ ((half Nat))
+      (= Nat n (add1 (double half )))))) 
 
 (claim zero-is-even
   (Even 0))
@@ -355,11 +355,89 @@ let diagnosticsWorker: Worker | null = null;
 let lspClient: PieLanguageClient | null = null;
 let monacoApi: typeof Monaco | null = null;
 
+// Store the latest context info for display
+let latestContextInfo: {
+  contextLines: string[];
+  inTacticalProof: boolean;
+  proofInfo: string | null;
+} | null = null;
+
+// Store the latest diagnostics status
+let latestDiagnosticsStatus: {
+  hasErrors: boolean;
+  message: string;
+} = { hasErrors: false, message: '' };
+
 function setSummary(message: string, tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral') {
   if (previewSummary) {
     previewSummary.textContent = message;
     previewSummary.dataset.tone = tone;
   }
+}
+
+// Convert ANSI color codes to HTML spans with appropriate CSS classes
+function ansiToHtml(text: string): string {
+  // ANSI escape code regex
+  const ansiRegex = /\x1b\[(\d+)m/g;
+  
+  // Map ANSI codes to CSS classes
+  const codeToClass: { [key: string]: string } = {
+    '0': '',           // Reset
+    '1': 'ansi-bright',
+    '2': 'ansi-dim',
+    '32': 'ansi-green',
+    '33': 'ansi-yellow',
+    '36': 'ansi-cyan',
+  };
+  
+  let result = '';
+  let lastIndex = 0;
+  let openSpans = 0;
+  let match;
+  
+  while ((match = ansiRegex.exec(text)) !== null) {
+    // Add text before this escape code
+    const textBefore = text.slice(lastIndex, match.index);
+    result += escapeHtml(textBefore);
+    
+    const code = match[1];
+    if (code === '0') {
+      // Reset: close all open spans
+      while (openSpans > 0) {
+        result += '</span>';
+        openSpans--;
+      }
+    } else {
+      const className = codeToClass[code];
+      if (className) {
+        result += `<span class="${className}">`;
+        openSpans++;
+      }
+    }
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  result += escapeHtml(text.slice(lastIndex));
+  
+  // Close any remaining open spans
+  while (openSpans > 0) {
+    result += '</span>';
+    openSpans--;
+  }
+  
+  return result;
+}
+
+// Escape HTML special characters
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function renderPreviewText(text: string | undefined, tone?: 'neutral' | 'success' | 'warning' | 'error') {
@@ -372,9 +450,69 @@ function renderPreviewText(text: string | undefined, tone?: 'neutral' | 'success
   if (text === undefined) {
     previewOutput.textContent = 'Program is empty.';
   } else {
-    previewOutput.textContent = text;
+    // Check if text contains ANSI codes
+    if (text.includes('\x1b[')) {
+      previewOutput.innerHTML = ansiToHtml(text);
+    } else {
+      previewOutput.textContent = text;
+    }
   }
 }
+
+// Render combined context info and diagnostics
+function renderContextInfo() {
+  if (!latestContextInfo) {
+    return;
+  }
+
+  const lines: string[] = [];
+  
+  if (latestContextInfo.inTacticalProof && latestContextInfo.proofInfo) {
+    // Inside a tactical proof - show proof state prominently
+    lines.push('═══════════════════════════════════');
+    lines.push('     TACTICAL PROOF STATE');
+    lines.push('═══════════════════════════════════');
+    lines.push('');
+    lines.push(latestContextInfo.proofInfo);
+    lines.push('');
+    
+    if (latestContextInfo.contextLines.length > 0) {
+      lines.push('───────────────────────────────────');
+      lines.push('     Global Context:');
+      lines.push('───────────────────────────────────');
+      for (const line of latestContextInfo.contextLines) {
+        lines.push(`  ${line}`);
+      }
+    }
+  } else {
+    // Normal context display
+    if (latestContextInfo.contextLines.length > 0) {
+      lines.push('═══════════════════════════════════');
+      lines.push('     Context at Cursor');
+      lines.push('═══════════════════════════════════');
+      lines.push('');
+      for (const line of latestContextInfo.contextLines) {
+        lines.push(`  ${line}`);
+      }
+    } else {
+      lines.push('(No definitions before cursor)');
+    }
+  }
+
+  // Show the combined output
+  const tone = latestDiagnosticsStatus.hasErrors ? 'error' : 'success';
+  renderPreviewText(lines.join('\n'), tone);
+}
+
+// Callback for context info updates
+const handleContextInfoUpdate: ContextInfoCallback = (
+  contextLines: string[],
+  inTacticalProof: boolean,
+  proofInfo: string | null
+) => {
+  latestContextInfo = { contextLines, inTacticalProof, proofInfo };
+  renderContextInfo();
+};
 
 function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandaloneCodeEditor, payload: any) {
   const { diagnostics, pretty } = payload;
@@ -397,7 +535,9 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
 
   if (diagnostics.length === 0) {
     setSummary('SUCCESS', 'success');
-    renderPreviewText(pretty?.trim() ?? undefined, 'success');
+    latestDiagnosticsStatus = { hasErrors: false, message: pretty?.trim() ?? '' };
+    // Trigger context info display with success status
+    renderContextInfo();
     return;
   }
 
@@ -407,6 +547,7 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
 
   setSummary(label, tone);
   const location = `Line ${primary.startLineNumber}, Col ${primary.startColumn}`;
+  latestDiagnosticsStatus = { hasErrors: true, message: `${location}\n${primary.message}` };
   renderPreviewText(`${location}\n${primary.message}`, tone);
 }
 
@@ -449,8 +590,15 @@ async function initializeLSP(monacoLib: typeof Monaco, editor: Monaco.editor.ISt
     }
 
     lspClient = new PieLanguageClient(monacoLib, editor);
+    
+    // Set up the context info callback
+    lspClient.setContextInfoCallback(handleContextInfoUpdate);
+    
     await lspClient.start();
     console.log('LSP client initialized successfully');
+    
+    // Request initial context info
+    lspClient.requestContextInfo();
   } catch (error) {
     console.error('Failed to initialize LSP client:', error);
     setSummary('LSP features unavailable', 'warning');
