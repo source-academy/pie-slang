@@ -1,4 +1,4 @@
-import { ProofState, Goal } from './proofstate';
+import { ProofState, Goal, ProofTreeData } from './proofstate';
 import { Tactic } from './tactics';
 import { Context, Claim} from '../utils/context';
 
@@ -14,7 +14,7 @@ export class ProofManager {
     if (! (claim instanceof Claim)) {
       return new stop(location, new Message([`${name} is not a valid type or has already been proved`]));
     }
-    
+
     this.currentState = ProofState.initialize(context, claim.type, location);
 
     return new go(`Started proof of ${name}` + `\nCurrent goal: \n${claim.type.readBackType(context).prettyPrint()}`);
@@ -25,7 +25,10 @@ export class ProofManager {
 
     if (!this.currentState) {
       return new stop(tactic.location, new Message([`No proof has been initialized`]));
-    } 
+    }
+
+    // Store the current goal node before applying tactic
+    const previousGoalNode = this.currentState.currentGoal;
 
     const newStateResult = tactic.apply(this.currentState);
     if (newStateResult instanceof stop) {
@@ -33,6 +36,11 @@ export class ProofManager {
     }
 
     this.currentState = (newStateResult as go<ProofState>).result;
+
+    // Record which tactic was applied to create children
+    if (previousGoalNode.children.length > 0) {
+      previousGoalNode.appliedTactic = tactic.toString();
+    }
 
     let response = `\nApplied tactic: ${tactic}`;
 
@@ -45,5 +53,12 @@ export class ProofManager {
     }
 
     return new go(response);
+  }
+
+  public getProofTreeData(): ProofTreeData | null {
+    if (!this.currentState) {
+      return null;
+    }
+    return this.currentState.getProofTreeData();
   }
 }

@@ -7,6 +7,9 @@ Implementation of Pie, following [The Little Typer](https://mitpress.mit.edu/978
 We have a [online playground](https://source-academy.github.io/pie-slang/) for you to play with Pie.
 It is still under construction, especially for the language server part, so it might be buggy.
 
+yarn build python -m http.server 8000
+# Then open http://localhost:8000/web/index.html
+
 ## Our Language Server
 
 We have published the Pie language server as a VSCode extension, named [pie-lsp](https://marketplace.visualstudio.com/items?itemName=DaoxinLi.pie-lsp&ssr=false#review-details)

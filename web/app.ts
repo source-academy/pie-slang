@@ -1,4 +1,8 @@
 import { PieLanguageClient, registerPieLanguage } from './lsp/lsp-client-simple';
+import { ProofTreeVisualizer } from './proof-tree/ProofTreeVisualizer';
+import { ContextPanel } from './proof-tree/ContextPanel';
+import { GoalPanel } from './proof-tree/GoalPanel';
+import type { ProofTreeData } from './proof-tree/types';
 import type * as Monaco from 'monaco-editor';
 
 // Extend Window interface to include Monaco globals
@@ -351,6 +355,9 @@ const previewOutput = document.getElementById('preview-output') as HTMLElement;
 let diagnosticsWorker: Worker | null = null;
 let lspClient: PieLanguageClient | null = null;
 let monacoApi: typeof Monaco | null = null;
+let proofTreeVisualizer: ProofTreeVisualizer | null = null;
+let contextPanel: ContextPanel | null = null;
+let goalPanel: GoalPanel | null = null;
 
 function setSummary(message: string, tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral') {
   if (previewSummary) {
@@ -373,8 +380,90 @@ function renderPreviewText(text: string | undefined, tone?: 'neutral' | 'success
   }
 }
 
+function updateProofTree(proofTree: ProofTreeData | undefined) {
+  const container = document.getElementById('proof-tree-container');
+  if (!container) return;
+
+  if (!proofTree) {
+    // Hide the proof tree panel
+    container.style.display = 'none';
+    if (proofTreeVisualizer) {
+      proofTreeVisualizer.clear();
+    }
+    if (contextPanel) {
+      contextPanel.clear();
+    }
+    if (goalPanel) {
+      goalPanel.clear();
+    }
+    return;
+  }
+
+  // Show the proof tree panel
+  container.style.display = 'flex';
+
+  // Render the tree
+  if (proofTreeVisualizer) {
+    proofTreeVisualizer.render(proofTree);
+  }
+
+  // Clear panels (user needs to click a goal)
+  if (contextPanel) {
+    contextPanel.clear();
+  }
+  if (goalPanel) {
+    goalPanel.clear();
+  }
+}
+
+function initializeProofTreeVisualizer() {
+  const canvasContainer = document.getElementById('proof-tree-canvas');
+  const contextContainer = document.getElementById('proof-context-panel');
+  const goalContainer = document.getElementById('proof-goal-panel');
+  const toggleBtn = document.getElementById('proof-tree-toggle');
+  const container = document.getElementById('proof-tree-container');
+
+  if (!canvasContainer || !contextContainer || !goalContainer) {
+    console.warn('Proof tree containers not found');
+    return;
+  }
+
+  proofTreeVisualizer = new ProofTreeVisualizer(canvasContainer);
+  contextPanel = new ContextPanel(contextContainer);
+  goalPanel = new GoalPanel(goalContainer);
+
+  // Connect goal selection to both panels
+  proofTreeVisualizer.setOnGoalSelect((goal) => {
+    if (contextPanel) {
+      contextPanel.display(goal);
+    }
+    if (goalPanel) {
+      goalPanel.display(goal);
+    }
+    if (proofTreeVisualizer) {
+      proofTreeVisualizer.highlightGoal(goal.id);
+    }
+  });
+
+  // Toggle button functionality
+  if (toggleBtn && container) {
+    toggleBtn.addEventListener('click', () => {
+      const content = container.querySelector('.proof-tree-content') as HTMLElement;
+      if (content) {
+        if (content.style.display === 'none') {
+          content.style.display = 'flex';
+          toggleBtn.textContent = 'Hide';
+        } else {
+          content.style.display = 'none';
+          toggleBtn.textContent = 'Show';
+        }
+      }
+    });
+  }
+}
+
 function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandaloneCodeEditor, payload: any) {
-  const { diagnostics, pretty } = payload;
+  const { diagnostics, pretty, proofTree } = payload;
   const model = editor.getModel();
 
   if (!model) return;
@@ -391,6 +480,9 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
   }));
 
   monaco.editor.setModelMarkers(model, 'pie-playground', markers);
+
+  // Update proof tree visualization
+  updateProofTree(proofTree);
 
   if (diagnostics.length === 0) {
     setSummary('SUCCESS', 'success');
@@ -511,6 +603,31 @@ function initializeEditor(monaco: typeof Monaco) {
   return editor;
 }
 
+function initializeCopyButton(editor: Monaco.editor.IStandaloneCodeEditor) {
+  const copyBtn = document.getElementById('copy-btn') as HTMLButtonElement;
+
+  if (!copyBtn) return;
+
+  copyBtn.addEventListener('click', async () => {
+    const code = editor.getValue();
+    try {
+      await navigator.clipboard.writeText(code);
+      copyBtn.textContent = 'Copied!';
+      copyBtn.dataset.copied = 'true';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+        delete copyBtn.dataset.copied;
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      copyBtn.textContent = 'Failed';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+      }, 1500);
+    }
+  });
+}
+
 function initializeExamplePicker(editor: Monaco.editor.IStandaloneCodeEditor) {
   const picker = document.getElementById('example-picker') as HTMLSelectElement;
 
@@ -553,6 +670,8 @@ async function boot() {
     const editor = initializeEditor(monacoApi);
     diagnosticsWorker = initializeDiagnostics(editor);
     initializeExamplePicker(editor);
+    initializeCopyButton(editor);
+    initializeProofTreeVisualizer();
 
     // Initialize LSP
     if (monacoApi) {

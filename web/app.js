@@ -522,6 +522,35 @@ function initializeExamplePicker(editor) {
   });
 }
 
+function initializeCopyButton(editor) {
+  // Use event delegation on document to handle click even if button is replaced
+  // Only attach once by checking a flag
+  if (window.__copyBtnInitialized) return;
+  window.__copyBtnInitialized = true;
+
+  document.addEventListener('click', async (e) => {
+    const copyBtn = e.target.closest('#copy-btn');
+    if (!copyBtn) return;
+
+    const code = editor.getValue();
+    try {
+      await navigator.clipboard.writeText(code);
+      copyBtn.textContent = 'Copied!';
+      copyBtn.dataset.copied = 'true';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+        delete copyBtn.dataset.copied;
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      copyBtn.textContent = 'Failed';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+      }, 1500);
+    }
+  });
+}
+
 async function initializeLSP(PieLanguageClientCtor, monacoInstance, editor) {
   if (!PieLanguageClientCtor) {
     return null;
@@ -569,6 +598,7 @@ async function boot() {
     const editor = initializeEditor(monacoApi, registerPieLanguage);
     diagnosticsWorker = initializeDiagnostics(editor);
     initializeExamplePicker(editor);
+    initializeCopyButton(editor);
 
     const lspClient = await initializeLSP(PieLanguageClientCtor, monacoApi, editor);
 
