@@ -508,6 +508,11 @@ function initializeEditor(monaco, registerLanguage) {
     setStatus("Idle");
   });
 
+  editor.addCommand(
+    monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
+    () => editor.getAction("editor.action.formatDocument").run(),
+  );
+
   return editor;
 }
 
