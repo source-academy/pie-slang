@@ -467,12 +467,29 @@ const pruneSpaces = (line: string): string =>
 
 export const format = (src: string): string => {
   const lines = src.split("\n");
+
+  // the purpose of this flag is to prune
+  // consecutive empty lines
+  let prevEmpty = false;
+  const cleanedLines: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === "") {
+      if (!prevEmpty) cleanedLines.push("");
+      prevEmpty = true;
+    } else {
+      cleanedLines.push(trimmed);
+      prevEmpty = false;
+    }
+  }
+
   // keep track of indent level
   let indentLevel = 0;
   const indentSize = 2;
 
-  return lines
-    .map((line) => pruneSpaces(line.trim()))
+  return cleanedLines
+    .map(pruneSpaces)
     .flatMap((line) => {
       // counting opena nd close parens
       const openParens = (line.match(/\(/g) || []).length;
