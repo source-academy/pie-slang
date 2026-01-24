@@ -465,6 +465,7 @@ function initializeEditor(monaco, registerLanguage) {
       verticalScrollbarSize: 6,
       verticalSliderSize: 4,
     },
+    tabSize: 2,
     padding: { top: 16 },
     fontSize: 14,
     fontFamily: "Menlo, 'Fira Code', 'JetBrains Mono', monospace",
