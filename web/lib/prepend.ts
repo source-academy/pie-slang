@@ -376,4 +376,12 @@ U ))
 (mot-drop-last E)
 (base-drop-last E)
 (step-drop-last E))))`,
+  `(claim incr
+(→ Nat
+Nat))
+(define incr
+(λ (n)
+(iter-Nat n
+1
+(+ 1))))`,
 ];
