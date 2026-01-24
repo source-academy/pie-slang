@@ -461,6 +461,10 @@ export class PieLanguageClient {
   }
 }
 
+// prunes extra spaces
+const pruneSpaces = (line: string): string =>
+  line.replace(/\s+/g, " ").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
+
 export const format = (src: string): string => {
   const lines = src.split("\n");
   // keep track of indent level
@@ -468,7 +472,7 @@ export const format = (src: string): string => {
   const indentSize = 2;
 
   return lines
-    .map((line) => line.trim())
+    .map((line) => pruneSpaces(line.trim()))
     .flatMap((line) => {
       // counting opena nd close parens
       const openParens = (line.match(/\(/g) || []).length;
