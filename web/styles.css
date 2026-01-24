@@ -8,7 +8,9 @@
   --text-primary: #e8f4ed;
   --text-secondary: #8fb89d;
   --border: rgba(143, 184, 157, 0.16);
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
 *,
@@ -29,7 +31,9 @@ body {
   display: flex;
   align-items: stretch;
   justify-content: center;
-  background: radial-gradient(circle at top, rgba(61, 139, 95, 0.15), transparent 60%), var(--bg-app);
+  background:
+    radial-gradient(circle at top, rgba(61, 139, 95, 0.15), transparent 60%),
+    var(--bg-app);
 }
 
 .app-shell {
@@ -138,7 +142,7 @@ body {
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: Menlo, 'Fira Code', 'JetBrains Mono', monospace;
+  font-family: Menlo, "Fira Code", "JetBrains Mono", monospace;
   font-size: 14px;
   line-height: 1.5;
   overflow: auto;
@@ -166,7 +170,10 @@ body {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   outline: none;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -190,6 +197,31 @@ body {
   padding: 8px;
 }
 
+#download-btn {
+  margin-left: auto;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#download-btn:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--accent);
+}
 
 @media (max-width: 1024px) {
   .app-shell {

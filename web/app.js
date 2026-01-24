@@ -712,3 +712,27 @@ function debounce(fn, delay) {
 }
 
 boot();
+
+document.addEventListener("DOMContentLoaded", function () {
+  const downloadBtn = document.getElementById("download-btn");
+  downloadBtn.addEventListener("click", function () {
+    const editor = window.__pieEditor;
+    if (!editor) {
+      // todo: when refactored with react; use proper modal
+      // ugly alert for now...
+      return alert("Editor not initialised yet.");
+    }
+
+    const sourceCode = editor.getValue();
+    const blob = new Blob([sourceCode], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "program.pie";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+});
