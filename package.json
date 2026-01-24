@@ -64,7 +64,8 @@
     "build": "rollup -c",
     "test": "jest",
     "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix"
+    "lint:fix": "eslint src/ --fix",
+    "build:app": "tsc web/app.ts --outDir web --module es2020 --target es2020 --lib es2022,dom --moduleResolution bundler --esModuleInterop --skipLibCheck"
   },
   "type": "module"
 }
