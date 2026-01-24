@@ -1,5 +1,8 @@
-import { PieLanguageClient, registerPieLanguage } from './lsp/lsp-client-simple';
-import type * as Monaco from 'monaco-editor';
+import {
+  PieLanguageClient,
+  registerPieLanguage,
+} from "./lsp/lsp-client-simple";
+import type * as Monaco from "monaco-editor";
 
 // Extend Window interface to include Monaco globals
 declare global {
@@ -13,13 +16,13 @@ declare global {
 }
 
 const examples = {
-  'Hello World': `(claim zero Nat)
+  "Hello World": `(claim zero Nat)
 (define zero zero)
 
 (claim add1zero Nat)
 (define add1zero (add1 zero))`,
 
-  'Natural Number Addition': `(claim +
+  "Natural Number Addition": `(claim +
   (→ Nat Nat Nat))
 
 (claim step-plus
@@ -38,7 +41,7 @@ const examples = {
 (claim result Nat)
 (define result (+ 2 3))`,
 
-  'List Length': `(claim length
+  "List Length": `(claim length
   (Π ((E U))
     (→ (List E) Nat)))
 
@@ -64,7 +67,7 @@ const examples = {
 (claim list-len Nat)
 (define list-len (length Nat my-list))`,
 
-  'Either Type': `(claim either-swap
+  "Either Type": `(claim either-swap
   (Pi ((A U) (B U))
     (-> (Either A B)
         (Either B A))))
@@ -83,7 +86,7 @@ const examples = {
 (claim swapped (Either Nat Nat))
 (define swapped (either-swap Nat Nat test-either))`,
 
-  'Vector Map': `(claim vec-map
+  "Vector Map": `(claim vec-map
   (Π ((A U) (B U) (n Nat))
      (-> (-> A B) (Vec A n)
          (Vec B n))))
@@ -104,7 +107,7 @@ const examples = {
 
 (claim incremented-vec (Vec Nat 3))
 (define incremented-vec (vec-map Nat Nat 3 add1-fn nat-vec))`,
-'Tactics: Even or Odd' : `
+  "Tactics: Even or Odd": `
 (claim +
   (→ Nat Nat
     Nat))
@@ -149,7 +152,7 @@ const examples = {
 (define Odd
   (λ (n)
     (Σ ((haf Nat))
-      (= Nat n (add1 (double haf )))))) 
+      (= Nat n (add1 (double haf ))))))
 
 (claim zero-is-even
   (Even 0))
@@ -184,7 +187,7 @@ const examples = {
 
 ;; This is the proof in The Little Typer
 ;; (claim mot-even-or-odd
-;;   (→ Nat U )) 
+;;   (→ Nat U ))
 
 ;; (define mot-even-or-odd
 ;;   (λ (k) (Either (Even k) (Odd k))))
@@ -233,7 +236,7 @@ const examples = {
     (left)
     ;; finish the proof with "(exact ((add1-odd->even n-1) x1))"
    ))`,
-   'Inductive Type: Less Than': `;; Define Less Than relation using our new inductive type definiton
+  "Inductive Type: Less Than": `;; Define Less Than relation using our new inductive type definiton
     (data Less-Than () ((j Nat) (k Nat))
       (zero-smallest ((n Nat)) (Less-Than () (zero (add1 n))))
       (add1-smaller ((j Nat) (k Nat) (j<k (Less-Than () (j k)))) (Less-Than () ((add1 j) (add1 k))))
@@ -258,7 +261,7 @@ const examples = {
     (claim result Nat)
     (define result (extract-smaller zero (add1 zero) proof-0<1))
     `,
-    'Inductive Type: Subtype':`
+  "Inductive Type: Subtype": `
 (data Subtype () ((T1 U) (T2 U))
   (refl ((T U))
     (Subtype () (T T)))
@@ -340,26 +343,34 @@ const examples = {
 
 (claim result2 Nat)
 (define result2 (double-even (add1 (add1 (add1 (add1 zero)))) even-four))
-        `
+        `,
 };
 
-const defaultSource = examples['Hello World'];
+const defaultSource = examples["Hello World"];
 
-const previewSummary = document.getElementById('preview-summary') as HTMLElement;
-const previewOutput = document.getElementById('preview-output') as HTMLElement;
+const previewSummary = document.getElementById(
+  "preview-summary",
+) as HTMLElement;
+const previewOutput = document.getElementById("preview-output") as HTMLElement;
 
 let diagnosticsWorker: Worker | null = null;
 let lspClient: PieLanguageClient | null = null;
 let monacoApi: typeof Monaco | null = null;
 
-function setSummary(message: string, tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral') {
+function setSummary(
+  message: string,
+  tone: "neutral" | "success" | "warning" | "error" = "neutral",
+) {
   if (previewSummary) {
     previewSummary.textContent = message;
     previewSummary.dataset.tone = tone;
   }
 }
 
-function renderPreviewText(text: string | undefined, tone?: 'neutral' | 'success' | 'warning' | 'error') {
+function renderPreviewText(
+  text: string | undefined,
+  tone?: "neutral" | "success" | "warning" | "error",
+) {
   if (tone) {
     previewOutput.dataset.tone = tone;
   } else {
@@ -367,13 +378,17 @@ function renderPreviewText(text: string | undefined, tone?: 'neutral' | 'success
   }
 
   if (text === undefined) {
-    previewOutput.textContent = 'Program is empty.';
+    previewOutput.textContent = "Program is empty.";
   } else {
     previewOutput.textContent = text;
   }
 }
 
-function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandaloneCodeEditor, payload: any) {
+function applyDiagnostics(
+  monaco: typeof Monaco,
+  editor: Monaco.editor.IStandaloneCodeEditor,
+  payload: any,
+) {
   const { diagnostics, pretty } = payload;
   const model = editor.getModel();
 
@@ -385,22 +400,23 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
     endLineNumber: d.endLineNumber,
     endColumn: d.endColumn,
     message: d.message,
-    severity: d.severity === 'warning'
-      ? monaco.MarkerSeverity.Warning
-      : monaco.MarkerSeverity.Error
+    severity:
+      d.severity === "warning"
+        ? monaco.MarkerSeverity.Warning
+        : monaco.MarkerSeverity.Error,
   }));
 
-  monaco.editor.setModelMarkers(model, 'pie-playground', markers);
+  monaco.editor.setModelMarkers(model, "pie-playground", markers);
 
   if (diagnostics.length === 0) {
-    setSummary('SUCCESS', 'success');
-    renderPreviewText(pretty?.trim() ?? undefined, 'success');
+    setSummary("SUCCESS", "success");
+    renderPreviewText(pretty?.trim() ?? undefined, "success");
     return;
   }
 
   const primary = diagnostics[0];
-  const tone = primary.severity === 'warning' ? 'warning' : 'error';
-  const label = tone === 'warning' ? 'WARNING' : 'ERROR';
+  const tone = primary.severity === "warning" ? "warning" : "error";
+  const label = tone === "warning" ? "WARNING" : "ERROR";
 
   setSummary(label, tone);
   const location = `Line ${primary.startLineNumber}, Col ${primary.startColumn}`;
@@ -408,38 +424,41 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
 }
 
 function initializeDiagnostics(editor: Monaco.editor.IStandaloneCodeEditor) {
-  if (!('Worker' in window)) {
-    setSummary('Diagnostics unavailable in this browser.', 'warning');
+  if (!("Worker" in window)) {
+    setSummary("Diagnostics unavailable in this browser.", "warning");
     return null;
   }
 
-  const worker = new Worker('diagnostics-worker.js', { type: 'module' });
-  worker.onmessage = event => {
+  const worker = new Worker("diagnostics-worker.js", { type: "module" });
+  worker.onmessage = (event) => {
     const { type, payload } = event.data;
-    if (type === 'diagnostics' && monacoApi) {
+    if (type === "diagnostics" && monacoApi) {
       applyDiagnostics(monacoApi, editor, payload);
     }
   };
 
   worker.onerror = (error) => {
-    console.error('Worker error event:', error);
-    console.error('Error details:', {
+    console.error("Worker error event:", error);
+    console.error("Error details:", {
       message: error.message,
       filename: error.filename,
       lineno: error.lineno,
-      colno: error.colno
+      colno: error.colno,
     });
-    setSummary('Diagnostics worker crashed.', 'error');
+    setSummary("Diagnostics worker crashed.", "error");
     renderPreviewText(
-      `Worker failed to load. Check browser console for details.\nError: ${error.message || 'Unknown error'}`,
-      'error'
+      `Worker failed to load. Check browser console for details.\nError: ${error.message || "Unknown error"}`,
+      "error",
     );
   };
 
   return worker;
 }
 
-async function initializeLSP(monacoLib: typeof Monaco, editor: Monaco.editor.IStandaloneCodeEditor) {
+async function initializeLSP(
+  monacoLib: typeof Monaco,
+  editor: Monaco.editor.IStandaloneCodeEditor,
+) {
   try {
     if (lspClient && lspClient.isRunning()) {
       await lspClient.stop();
@@ -447,10 +466,10 @@ async function initializeLSP(monacoLib: typeof Monaco, editor: Monaco.editor.ISt
 
     lspClient = new PieLanguageClient(monacoLib, editor);
     await lspClient.start();
-    console.log('LSP client initialized successfully');
+    console.log("LSP client initialized successfully");
   } catch (error) {
-    console.error('Failed to initialize LSP client:', error);
-    setSummary('LSP features unavailable', 'warning');
+    console.error("Failed to initialize LSP client:", error);
+    setSummary("LSP features unavailable", "warning");
   }
 }
 
@@ -458,46 +477,46 @@ function initializeEditor(monaco: typeof Monaco) {
   // Register Pie language
   registerPieLanguage(monaco);
 
-  const editor = monaco.editor.create(document.getElementById('editor')!, {
+  const editor = monaco.editor.create(document.getElementById("editor")!, {
     value: defaultSource,
-    language: 'pie',
-    theme: 'vs-dark',
+    language: "pie",
+    theme: "vs-dark",
     automaticLayout: true,
     minimap: {
-      enabled: false
+      enabled: false,
     },
     scrollbar: {
-      vertical: 'auto',
-      horizontal: 'auto',
+      vertical: "auto",
+      horizontal: "auto",
       useShadows: false,
       verticalScrollbarSize: 6,
-      verticalSliderSize: 4
+      verticalSliderSize: 4,
     },
     padding: { top: 16 },
     fontSize: 14,
     fontFamily: "Menlo, 'Fira Code', 'JetBrains Mono', monospace",
-    smoothScrolling: true
+    smoothScrolling: true,
   });
 
   renderPreviewText(defaultSource.trim());
-  setSummary('Ready for analysis.', 'neutral');
+  setSummary("Ready for analysis.", "neutral");
 
   const debounced = debounce((text: string) => {
     if (text.trim().length === 0) {
-      setSummary('Waiting for input…', 'neutral');
+      setSummary("Waiting for input…", "neutral");
       renderPreviewText(undefined);
     } else {
-      setSummary('Running checks…', 'warning');
-      renderPreviewText('Analyzing…');
+      setSummary("Running checks…", "warning");
+      renderPreviewText("Analyzing…");
     }
   }, 120);
 
   const queueDiagnostics = debounce((text: string) => {
-    setSummary('Running checks…', 'warning');
+    setSummary("Running checks…", "warning");
     if (diagnosticsWorker) {
       diagnosticsWorker.postMessage({
-        type: 'analyze',
-        payload: { source: text }
+        type: "analyze",
+        payload: { source: text },
       });
     }
   }, 220);
@@ -512,23 +531,23 @@ function initializeEditor(monaco: typeof Monaco) {
 }
 
 function initializeExamplePicker(editor: Monaco.editor.IStandaloneCodeEditor) {
-  const picker = document.getElementById('example-picker') as HTMLSelectElement;
+  const picker = document.getElementById("example-picker") as HTMLSelectElement;
 
   if (!picker) return;
 
   // Populate the dropdown
-  Object.keys(examples).forEach(name => {
-    const option = document.createElement('option');
+  Object.keys(examples).forEach((name) => {
+    const option = document.createElement("option");
     option.value = name;
     option.textContent = name;
     picker.appendChild(option);
   });
 
   // Set initial value
-  picker.value = 'Hello World';
+  picker.value = "Hello World";
 
   // Handle selection
-  picker.addEventListener('change', (e) => {
+  picker.addEventListener("change", (e) => {
     const exampleName = (e.target as HTMLSelectElement).value;
     if (exampleName && examples[exampleName as keyof typeof examples]) {
       editor.setValue(examples[exampleName as keyof typeof examples]);
@@ -538,17 +557,17 @@ function initializeExamplePicker(editor: Monaco.editor.IStandaloneCodeEditor) {
 
 async function boot() {
   if (!window.require) {
-    console.error('Monaco loader not available');
+    console.error("Monaco loader not available");
     return;
   }
 
   window.require.config({
     paths: {
-      vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs'
-    }
+      vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs",
+    },
   });
 
-  window.require(['vs/editor/editor.main'], async () => {
+  window.require(["vs/editor/editor.main"], async () => {
     monacoApi = window.monaco;
     const editor = initializeEditor(monacoApi);
     diagnosticsWorker = initializeDiagnostics(editor);
@@ -561,8 +580,8 @@ async function boot() {
 
     if (diagnosticsWorker) {
       diagnosticsWorker.postMessage({
-        type: 'analyze',
-        payload: { source: editor.getValue() }
+        type: "analyze",
+        payload: { source: editor.getValue() },
       });
     }
 
