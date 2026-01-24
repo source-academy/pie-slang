@@ -1,3 +1,4 @@
+import * as _monaco from "monaco-editor";
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -460,10 +461,33 @@ export class PieLanguageClient {
   }
 }
 
+export const format = (src: string): string => {
+  const lines = src.split("\n");
+  // keep track of indent level
+  let indentLevel = 0;
+  const indentSize = 2;
+
+  return lines
+    .map((line) => line.trim())
+    .flatMap((line) => {
+      // counting opena nd close parens
+      const openParens = (line.match(/\(/g) || []).length;
+      const closeParens = (line.match(/\)/g) || []).length;
+
+      const indentedLine = " ".repeat(indentLevel * indentSize) + line;
+
+      // update indent level for next line
+      indentLevel += openParens - closeParens;
+
+      return indentedLine;
+    })
+    .join("\n");
+};
+
 /**
  * Register the Pie language with Monaco Editor with syntax highlighting.
  */
-export function registerPieLanguage(monaco: any): void {
+export function registerPieLanguage(monaco: typeof _monaco): void {
   // Register a new language
   monaco.languages.register({ id: "pie" });
 
@@ -506,6 +530,29 @@ export function registerPieLanguage(monaco: any): void {
         },
       },
     ],
+  });
+
+  // register the formatting stuff, refer to the documentation
+  monaco.languages.registerDocumentFormattingEditProvider("pie", {
+    provideDocumentFormattingEdits(model) {
+      return [
+        {
+          range: model.getFullModelRange(),
+          text: format(model.getValue()),
+        },
+      ];
+    },
+  });
+
+  monaco.languages.registerDocumentRangeFormattingEditProvider("pie", {
+    provideDocumentRangeFormattingEdits(model, range) {
+      return [
+        {
+          range,
+          text: format(model.getValueInRange(range)),
+        },
+      ];
+    },
   });
 
   // Register a tokens provider for syntax highlighting
