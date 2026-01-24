@@ -179,29 +179,14 @@ export default [
   },
   // Main application bundle
   {
-    input: 'web/app.ts',
+    input: 'web/app.js',
     output: {
-      file: 'web/app.js',
+      file: 'web/app-bundle.js',
       format: 'esm',
       sourcemap: true
     },
     plugins: [
       stubNodeBuiltins(),
-      typescript({
-        tsconfig: false,
-        compilerOptions: {
-          module: 'ESNext',
-          target: 'ES2020',
-          lib: ['ES2022', 'DOM'],
-          sourceMap: true,
-          strict: false,
-          esModuleInterop: true,
-          allowSyntheticDefaultImports: true,
-          skipLibCheck: true,
-          declaration: false,
-          declarationMap: false
-        }
-      }),
       nodeResolve({
         browser: true,
         preferBuiltins: false

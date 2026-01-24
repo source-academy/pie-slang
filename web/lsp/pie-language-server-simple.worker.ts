@@ -1208,7 +1208,7 @@ self.onmessage = (event: MessageEvent) => {
 				type: 'hover-result',
 				hoverInfo: null
 			});
-		} catch (error) {
+		} catch {
 			self.postMessage({
 				type: 'hover-result',
 				hoverInfo: null

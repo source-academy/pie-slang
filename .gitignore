@@ -2,7 +2,6 @@
 !web/*.css
 web/*-bundle.js
 web/*-bundle.js.map
-web/app.js
 web/app.js.map
 web/lsp/*.js
 web/lsp/*.js.map
