@@ -13,6 +13,7 @@ import { ProofState } from '../../src/pie-interpreter/tactics/proofstate';
 import { Tactic, ThenTactic } from '../../src/pie-interpreter/tactics/tactics';
 import { PIE_HOVER_INFO } from './pie_hover_info';
 import { readBack } from '../../src/pie-interpreter/evaluator/utils';
+import { TODO } from '../../src/pie-interpreter/types/source';
 
 interface Diagnostic {
 	severity: 'error' | 'warning';
@@ -52,10 +53,34 @@ interface TacticalProofInfo {
 	tacticSnapshots: TacticStateSnapshot[]; // Snapshot after each tactic
 }
 
+// TODO position for hint system
+interface TodoPosition {
+	startLine: number;
+	startColumn: number;
+	endLine: number;
+	endColumn: number;
+	expectedType: string;
+	availableDefinitions: string[];
+}
+
+// Tactic hint position for hint system
+interface TacticHintPosition {
+	startLine: number;
+	startColumn: number;
+	endLine: number;
+	endColumn: number;
+	goalType: string;
+	hypotheses: string[];
+	availableDefinitions: string[];
+	isComplete: boolean;
+}
+
 interface ValidationResult {
 	diagnostics: Diagnostic[];
 	declarations: DeclarationInfo[];
 	tacticalProofs: TacticalProofInfo[];
+	todoPositions: TodoPosition[];
+	tacticHintPositions: TacticHintPosition[];
 }
 
 // Helper function to convert Pie location to diagnostic range
@@ -77,11 +102,85 @@ function locationToRange(location: any): { startLine: number, startColumn: numbe
 	};
 }
 
+// Extract available definitions from context for hints
+function extractAvailableDefinitions(context: Context): string[] {
+	const definitions: string[] = [];
+
+	for (const [name, binder] of context.entries()) {
+		if (name.startsWith('_')) continue; // Skip internal variables
+
+		try {
+			if (binder instanceof Define) {
+				const typeStr = binder.type.prettyPrint();
+				definitions.push(`${name} : ${typeStr}`);
+			} else if (binder instanceof ClaimBinder) {
+				const typeStr = binder.type.prettyPrint();
+				definitions.push(`${name} : ${typeStr}`);
+			} else if (binder instanceof Free) {
+				const typeStr = binder.type.now().prettyPrint();
+				definitions.push(`${name} : ${typeStr}`);
+			}
+		} catch (error) {
+			// Skip if we can't extract the type
+			continue;
+		}
+	}
+
+	return definitions;
+}
+
+// Extract hypotheses from goal info string
+function extractHypothesesFromGoalInfo(goalInfo: string): string[] {
+	const hypotheses: string[] = [];
+
+	// Goal info format is typically:
+	// "Context:\n  x : Type\n  y : Type\n────────────────\nGoal: ..."
+	// We want to extract the context lines
+
+	const lines = goalInfo.split('\n');
+	let inContext = false;
+
+	for (const line of lines) {
+		if (line.includes('Context:')) {
+			inContext = true;
+			continue;
+		}
+		if (line.includes('────') || line.includes('Goal:')) {
+			inContext = false;
+			continue;
+		}
+		if (inContext && line.trim()) {
+			hypotheses.push(line.trim());
+		}
+	}
+
+	return hypotheses;
+}
+
+// Check if an expression contains a TODO
+function containsTODO(expr: any): { hasTODO: boolean, location: any } | null {
+	if (!expr) return null;
+
+	// Check if this is a TODO expression directly using instanceof
+	if (expr instanceof TODO) {
+		return {
+			hasTODO: true,
+			location: expr.location
+		};
+	}
+
+	// For other expression types, we could recursively check
+	// but for now, we'll just detect direct TODOs
+	return null;
+}
+
 // Main function to type check a Pie document and return diagnostics
 function validatePieSource(source: string): ValidationResult {
 	const diagnostics: Diagnostic[] = [];
 	const declarations: DeclarationInfo[] = [];
 	const tacticalProofs: TacticalProofInfo[] = [];
+	const todoPositions: TodoPosition[] = [];
+	const tacticHintPositions: TacticHintPosition[] = [];
 	let context = initCtx;
 	let renaming: Renaming = new Map();
 
@@ -92,10 +191,31 @@ function validatePieSource(source: string): ValidationResult {
 		// Process each declaration
 		for (const ast of astList) {
 			const declaration = pieDeclarationParser.parseDeclaration(ast);
-			const result = processDeclaration(declaration, context, renaming, declarations, tacticalProofs);
+			const result = processDeclaration(declaration, context, renaming, declarations, tacticalProofs, todoPositions);
 			diagnostics.push(...result.diagnostics);
 			context = result.context;
 			renaming = result.renaming;
+		}
+
+		// Extract tactic hint positions from tactical proofs
+		for (const tacticalProof of tacticalProofs) {
+			const incompleteSnapshots = tacticalProof.tacticSnapshots.filter(s => !s.isComplete);
+			for (const snapshot of incompleteSnapshots) {
+				console.log('[Worker] Snapshot currentGoalInfo:', snapshot.currentGoalInfo);
+				const hypotheses = extractHypothesesFromGoalInfo(snapshot.currentGoalInfo);
+				console.log('[Worker] Extracted hypotheses:', hypotheses);
+
+				tacticHintPositions.push({
+					startLine: snapshot.startLine,
+					startColumn: snapshot.startColumn,
+					endLine: snapshot.endLine,
+					endColumn: snapshot.endColumn,
+					goalType: snapshot.currentGoalInfo,
+					hypotheses: hypotheses,
+					availableDefinitions: extractAvailableDefinitions(tacticalProof.initialContext),
+					isComplete: snapshot.isComplete
+				});
+			}
 		}
 
 	} catch (error) {
@@ -109,16 +229,17 @@ function validatePieSource(source: string): ValidationResult {
 		diagnostics.push(diagnostic);
 	}
 
-	return { diagnostics, declarations, tacticalProofs };
+	return { diagnostics, declarations, tacticalProofs, todoPositions, tacticHintPositions };
 }
 
 // Process a single declaration for type checking
 function processDeclaration(
-	decl: any, 
-	context: Context, 
+	decl: any,
+	context: Context,
 	renaming: Renaming,
 	declarations: DeclarationInfo[],
-	tacticalProofs: TacticalProofInfo[]
+	tacticalProofs: TacticalProofInfo[],
+	todoPositions: TodoPosition[]
 ): { diagnostics: Diagnostic[], context: Context, renaming: Renaming } {
 	const diagnostics: Diagnostic[] = [];
 	let newContext = context;
@@ -138,7 +259,7 @@ function processDeclaration(
 				context: new Map(newContext)
 			});
 		} else if (decl instanceof Definition) {
-			const result = processDefineDeclaration(decl, context, diagnostics);
+			const result = processDefineDeclaration(decl, context, diagnostics, todoPositions);
 			newContext = result;
 			// Track declaration
 			const range = locationToRange(decl.location);
@@ -258,8 +379,37 @@ function processClaimDeclaration(claim: Claim, context: Context, diagnostics: Di
 }
 
 // Process define declarations
-function processDefineDeclaration(define: Definition, context: Context, diagnostics: Diagnostic[]): Context {
+function processDefineDeclaration(define: Definition, context: Context, diagnostics: Diagnostic[], todoPositions: TodoPosition[]): Context {
 	try {
+		// Check if the expression contains a TODO
+		const todoCheck = containsTODO(define.expr);
+		console.log('[Worker] Checking TODO in define', define.name, ':', todoCheck);
+		if (todoCheck && todoCheck.hasTODO) {
+			const range = locationToRange(todoCheck.location);
+
+			// Get the expected type from the claim if it exists
+			let expectedType = 'Unknown';
+			const claimBinder = context.get(define.name);
+			if (claimBinder instanceof ClaimBinder) {
+				try {
+					expectedType = claimBinder.type.prettyPrint();
+				} catch (e) {
+					expectedType = 'Unknown type';
+				}
+			}
+
+			console.log('[Worker] TODO found! Adding position:', { range, expectedType });
+			// Add TODO position for hint system
+			todoPositions.push({
+				startLine: range.startLine,
+				startColumn: range.startColumn,
+				endLine: range.endLine,
+				endColumn: range.endColumn,
+				expectedType,
+				availableDefinitions: extractAvailableDefinitions(context)
+			});
+		}
+
 		const result = addDefineToContext(context, define.name, define.location, define.expr);
 		if (result instanceof go) {
 			return result.result;
@@ -1043,6 +1193,24 @@ self.onmessage = (event: MessageEvent) => {
 				type: 'validation-result',
 				diagnostics: result.diagnostics
 			});
+
+			// Send TODO positions for hint system
+			console.log('[Worker] TODO positions detected:', result.todoPositions);
+			if (result.todoPositions.length > 0) {
+				self.postMessage({
+					type: 'todo-positions-result',
+					todos: result.todoPositions
+				});
+			}
+
+			// Send tactic hint positions for hint system
+			console.log('[Worker] Tactic hint positions detected:', result.tacticHintPositions);
+			if (result.tacticHintPositions.length > 0) {
+				self.postMessage({
+					type: 'tactic-positions-result',
+					tactics: result.tacticHintPositions
+				});
+			}
 		} catch (error) {
 			self.postMessage({
 				type: 'validation-error',

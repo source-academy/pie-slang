@@ -577,6 +577,7 @@ async function initializeLSP(monacoLib, editor) {
       await lspClient.stop();
     }
 
+    // LSP client will initialize hint service internally
     lspClient = new PieLanguageClient(monacoLib, editor);
 
     // Set up the context info callback
