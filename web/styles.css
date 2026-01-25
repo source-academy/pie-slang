@@ -197,16 +197,10 @@ body {
   padding: 8px;
 }
 
-#download-btn {
-  margin-left: auto;
+.btn {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--border);
   border-radius: 10px;
-  color: var(--text-primary);
-  padding: 8px 12px;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
   cursor: pointer;
   transition:
     background-color 0.2s ease,
@@ -216,9 +210,27 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 8px 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#download-btn {
+  color: var(--text-primary);
 }
 
 #download-btn:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--accent);
+}
+
+#format-btn {
+  color: var(--text-primary);
+  margin-left: auto;
+}
+
+#format-btn:hover {
   background: rgba(15, 23, 42, 0.8);
   border-color: var(--accent);
 }
