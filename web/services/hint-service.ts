@@ -17,8 +17,8 @@ interface CacheEntry {
 export class HintService {
   private cache: Map<string, CacheEntry> = new Map();
   private lastRequestTime: number = 0;
-  private readonly CACHE_TTL_MS: number = 5 * 60 * 1000; // 5 minutes
-  private readonly RATE_LIMIT_MS: number = 5000; // 5 seconds between requests
+  private readonly CACHE_TTL_MS: number = 2 * 60 * 1000; // 2 minutes (reduced for more dynamic hints)
+  private readonly RATE_LIMIT_MS: number = 3000; // 3 seconds between requests (reduced)
 
   /**
    * Request a hint for a TODO expression
@@ -209,9 +209,10 @@ The student is stuck on this proof goal. Provide a HINT about what tactic might 
 Guidelines:
 - Suggest tactic categories (intro, elim, exact, exists) not exact syntax
 - If elimination is relevant, mention WHAT to eliminate, not the full tactic
-- Reference the goal structure to guide thinking
+- Reference the goal structure AND the specific hypotheses available to guide thinking
 - Use blurred language: "Consider your hypothesis about..." not "Use elim-Nat n"
 - Keep it to 1-2 sentences
+- BE SPECIFIC: Mention the actual hypothesis names and their types when relevant
 
 Example hints:
 - "Since your goal is a Pi type, you probably need to introduce a variable first."
@@ -221,6 +222,8 @@ Example hints:
 - "Consider eliminating one of your hypotheses to reveal more structure."
 
 Your hint (1-2 sentences):`;
+
+    console.log('[HintService] Tactic hint prompt:', prompt);
 
     const result = await genAI.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -236,6 +239,8 @@ Your hint (1-2 sentences):`;
 
   /**
    * Create a cache key from request parameters
+   * NOTE: For tactical proofs, we include the full context (hypotheses + definitions)
+   * so that hints update when the proof state changes
    */
   private makeCacheKey(
     type: string,
@@ -243,6 +248,8 @@ Your hint (1-2 sentences):`;
     secondary: string[],
     definitions: string[]
   ): string {
+    // For tactics, include ALL context to make cache more specific
+    // This ensures hints change when hypotheses or definitions change
     const parts = [type, primary, ...secondary, ...definitions];
     return parts.join('|');
   }

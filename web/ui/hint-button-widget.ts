@@ -50,12 +50,13 @@ export class HintButtonWidget {
 
   /**
    * Get the position where the widget should appear
+   * Position above the line to avoid interfering with text selection
    */
   getPosition(): any {
     return {
       position: this.position,
       preference: [
-        this.monaco.editor.ContentWidgetPositionPreference.EXACT
+        this.monaco.editor.ContentWidgetPositionPreference.ABOVE
       ]
     };
   }

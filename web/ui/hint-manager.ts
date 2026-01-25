@@ -106,11 +106,21 @@ export class HintManager {
 
   /**
    * Find tactic hint position at line (1-based line number)
+   * Returns the MOST SPECIFIC (last/deepest) tactic that contains this line
    */
   private findTacticAt(line: number): TacticHintPosition | null {
-    return this.tacticPositions.find(t =>
+    // Find all tactics that contain this line
+    const matchingTactics = this.tacticPositions.filter(t =>
       line >= t.startLine && line <= t.endLine
-    ) || null;
+    );
+
+    if (matchingTactics.length === 0) {
+      return null;
+    }
+
+    // Return the last one (most specific/deepest in the proof tree)
+    // Later tactics in the array are deeper in the proof structure
+    return matchingTactics[matchingTactics.length - 1];
   }
 
   /**

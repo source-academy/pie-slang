@@ -201,13 +201,17 @@ function validatePieSource(source: string): ValidationResult {
 		for (const tacticalProof of tacticalProofs) {
 			const incompleteSnapshots = tacticalProof.tacticSnapshots.filter(s => !s.isComplete);
 			for (const snapshot of incompleteSnapshots) {
+				console.log('[Worker] Snapshot currentGoalInfo:', snapshot.currentGoalInfo);
+				const hypotheses = extractHypothesesFromGoalInfo(snapshot.currentGoalInfo);
+				console.log('[Worker] Extracted hypotheses:', hypotheses);
+
 				tacticHintPositions.push({
 					startLine: snapshot.startLine,
 					startColumn: snapshot.startColumn,
 					endLine: snapshot.endLine,
 					endColumn: snapshot.endColumn,
 					goalType: snapshot.currentGoalInfo,
-					hypotheses: extractHypothesesFromGoalInfo(snapshot.currentGoalInfo),
+					hypotheses: hypotheses,
 					availableDefinitions: extractAvailableDefinitions(tacticalProof.initialContext),
 					isComplete: snapshot.isComplete
 				});

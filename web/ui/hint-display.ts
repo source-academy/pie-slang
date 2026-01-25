@@ -35,17 +35,19 @@ export class HintDisplay {
       domNode.style.cssText = `
         background-color: rgba(78, 201, 176, 0.08);
         color: #4ec9b0;
-        padding: 4px 8px 4px 60px;
+        padding: 6px 12px;
         font-size: 13px;
         font-style: italic;
         border-left: 3px solid #4ec9b0;
-        margin-left: 0;
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
       `;
       domNode.innerHTML = `💡 <strong>Hint:</strong> ${hint}`;
 
       const zoneId = changeAccessor.addZone({
         afterLineNumber: line,
-        heightInLines: 1.5,
+        heightInLines: 2,
         domNode: domNode
       });
 
@@ -77,10 +79,13 @@ export class HintDisplay {
       domNode.style.cssText = `
         background-color: rgba(206, 145, 120, 0.08);
         color: #ce9178;
-        padding: 4px 8px 4px 60px;
+        padding: 6px 12px;
         font-size: 13px;
         font-style: italic;
         border-left: 3px solid #ce9178;
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
       `;
       domNode.innerHTML = '⏳ Generating hint...';
 
@@ -116,10 +121,13 @@ export class HintDisplay {
       domNode.style.cssText = `
         background-color: rgba(244, 135, 113, 0.08);
         color: #f48771;
-        padding: 4px 8px 4px 60px;
+        padding: 6px 12px;
         font-size: 13px;
         font-style: italic;
         border-left: 3px solid #f48771;
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
       `;
       domNode.innerHTML = `❌ ${error}`;
 
