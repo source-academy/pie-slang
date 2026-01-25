@@ -1,4 +1,4 @@
-import { evaluatePie } from './pie_interpreter/main.js';
+import { evaluatePie } from './pie-interpreter/main.js';
 
 // Standalone entry point for the Pie interpreter
 console.log("Pie Interpreter - Standalone Mode");

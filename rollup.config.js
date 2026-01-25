@@ -37,7 +37,7 @@ function stubNodeBuiltins() {
 export default [
   // Main bundle for distribution
   {
-    input: 'src/pie_interpreter/index.ts',
+    input: 'src/pie-interpreter/index.ts',
     output: {
       file: 'dist/index.js',
       format: 'iife',
@@ -57,7 +57,7 @@ export default [
       (function workerTodoSolverStub() {
         const filename = fileURLToPath(import.meta.url);
         const dirname = path.dirname(filename);
-        const browserTodoSolverPath = path.resolve(dirname, 'src/pie_interpreter/solver/todo_solver.browser.ts');
+        const browserTodoSolverPath = path.resolve(dirname, 'src/pie-interpreter/solver/todo_solver.browser.ts');
         const browserTodoSolverSpecifiers = new Set([
           '../solver/todo_solver',
           '../../solver/todo_solver',
@@ -100,14 +100,14 @@ export default [
     input: 'web/lsp/pie-language-server-simple.worker.ts',
     output: {
       file: 'web/lsp/pie-lsp-worker-bundle.js',
-      format: 'esm',
+      format: 'iife',
       sourcemap: true
     },
     plugins: [
       (function workerTodoSolverStub() {
         const filename = fileURLToPath(import.meta.url);
         const dirname = path.dirname(filename);
-        const browserTodoSolverPath = path.resolve(dirname, 'src/pie_interpreter/solver/todo_solver.browser.ts');
+        const browserTodoSolverPath = path.resolve(dirname, 'src/pie-interpreter/solver/todo_solver.browser.ts');
         const browserTodoSolverSpecifiers = new Set([
           '../solver/todo_solver',
           '../../solver/todo_solver',
@@ -170,6 +170,23 @@ export default [
           declarationMap: false
         }
       }),
+      nodeResolve({
+        browser: true,
+        preferBuiltins: false
+      }),
+      terser()
+    ]
+  },
+  // Main application bundle
+  {
+    input: 'web/app.js',
+    output: {
+      file: 'web/app-bundle.js',
+      format: 'esm',
+      sourcemap: true
+    },
+    plugins: [
+      stubNodeBuiltins(),
       nodeResolve({
         browser: true,
         preferBuiltins: false
