@@ -2,9 +2,9 @@ import 'jest'
 import { evaluatePie } from '../main';
 
 describe("examples", () => {
-    it("even and odd", () => {
-        const str =
-        `
+  it("even and odd", () => {
+    const str =
+      `
 (claim +
   (→ Nat Nat
     Nat))
@@ -118,12 +118,12 @@ step-even-or-odd)))
 
 
         `
-        console.log(evaluatePie(str))
-    })
+    expect(() => evaluatePie(str)).not.toThrow();
+  })
 
-    it("even and odd tactics", () => {
-        const str =
-        `
+  it("even and odd tactics", () => {
+    const str =
+      `
 (claim +
   (→ Nat Nat
     Nat))
@@ -255,6 +255,64 @@ step-even-or-odd)))
         (go-Left)
         (exact (add1-odd->even n-1 xl))))))
         `
-        console.log(evaluatePie(str))
-    })
+    expect(() => evaluatePie(str)).not.toThrow();
+  })
 })
+
+describe("demo", () => {
+  it("Basic", () => {
+    const str =
+      `
+(claim +
+(→ Nat Nat
+Nat))
+
+(claim step-+
+(→ Nat
+Nat))
+(define step-+
+(λ ( +n-1)
+(add1 +n-1 ) ))
+
+(define +
+(λ (n j)
+(iter-Nat n
+j
+step-+ )))
+
+(claim +1=add1
+(Π ((n Nat))
+(= Nat (+ 1 n) (add1 n))))
+
+(define-tactically +1=add1
+; test
+ ((intro n)
+  (exact (same (add1 n)))))
+`
+    expect(() => evaluatePie(str)).not.toThrow();
+  });
+});
+
+describe("EliminateTactic Tests", () => {
+
+  it("Simple Nat elimination - prove n = n", () => {
+    const str =
+      `
+(claim n=n
+  (Π ((n Nat))
+    (= Nat n n)))
+
+(define-tactically n=n
+  ((intro n)
+   (elim-Nat n)
+   (then
+     (exact (same zero)))             ; Solve base case
+   (then
+     (intro n-1)                     ; Introduce variables for step case
+     (intro ih)
+     (exact (same (add1 n-1))))))     ; Solve step case
+`;
+    expect(() => evaluatePie(str)).not.toThrow();
+
+  });
+});

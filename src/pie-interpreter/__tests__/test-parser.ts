@@ -34,7 +34,7 @@ describe("Inductive Types Parser", () => {
     (claim result2 Nat)
     (define result2 (bool-to-nat my-false))
     `;
-    const result = testParser(input);
+    expect(() => testParser(input)).not.toThrow();
   });
 
   it("Parse MyNat (no params, no indices)", () => {
@@ -61,7 +61,7 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (count two-nat))
     `;
-    const result = testParser(input);
+    expect(() => testParser(input)).not.toThrow();
   });
 
   it("Parse MyList (parameterized, no indices)", () => {
@@ -91,7 +91,7 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (nat-list-length two-elem-list))
     `;
-    const result = testParser(input);
+    expect(() => testParser(input)).not.toThrow();
   });
 
   it("Parse MyVec (parameterized and indexed)", () => {
@@ -118,7 +118,7 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (vec-to-nat (add1 zero) one-vec))
     `;
-    const result = testParser(input);
+    expect(() => testParser(input)).not.toThrow();
   });
 
   it("Parse Less-Than (no params, indexed)", () => {
@@ -147,7 +147,7 @@ describe("Inductive Types Parser", () => {
     (claim result Nat)
     (define result (extract-smaller zero (add1 zero) proof-0<1))
     `;
-    const result = testParser(input);
+    expect(() => testParser(input)).not.toThrow();
   });
 
   it("Parse MyEither (parameterized, no indices)", () => {
@@ -177,6 +177,6 @@ describe("Inductive Types Parser", () => {
     (claim result2 Nat)
     (define result2 (either-to-nat right-val))
     `;
-    const result = testParser(input);
+    expect(() => testParser(input)).not.toThrow();
   });
 })

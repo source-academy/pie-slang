@@ -63,7 +63,7 @@ U )))
 vecnil
 (step-list->vec E))))
 `
-    console.log(evaluatePie(str));
+    expect(() => evaluatePie(str)).not.toThrow();
   })
 
   it("Tactic", () => {
@@ -127,7 +127,7 @@ U )))
    (then (exact (step-list->vec E))))
 )
 `
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow();
   })
 })
 
@@ -196,7 +196,7 @@ k es)
 end
 (step-vec-append E j)))))
     `
-    console.log(evaluatePie(str));
+    expect(() => evaluatePie(str)).not.toThrow();
   })
 
   it('Tactic', () => {
@@ -265,7 +265,7 @@ k es)
    (then (exact end))
    (then (exact (step-vec-append E j)))))
     `
-    console.log(evaluatePie(str));
+    expect(() => evaluatePie(str)).not.toThrow();
   })
 })
 

@@ -2,8 +2,8 @@ import 'jest'
 import { evaluatePie } from '../main';
 
 describe("elimEqual", () => {
-    it("Basic", () => {
-        const str = `
+  it("Basic", () => {
+    const str = `
     (claim +
   (→ Nat Nat
     Nat))
@@ -68,12 +68,11 @@ U ))
             (= Nat (add1 (incr n-1)) (add1 x))))
         (same (add1 (incr n-1)))))))
         `;
-        const output = evaluatePie(str);
-        console.log(output);
-    })
+    expect(() => evaluatePie(str)).not.toThrow();
+  })
 
-    it("Tactic", () => {
-        const str = `
+  it("Tactic", () => {
+    const str = `
     (claim +
   (→ Nat Nat
     Nat))
@@ -137,9 +136,8 @@ U ))
             (= Nat (add1 (incr n-1)) (add1 x)))))
      (exact (same (add1 (incr n-1))))))
         `;
-        const output = evaluatePie(str);
-        console.log(output);
-    })
+    expect(() => evaluatePie(str)).not.toThrow();
+  })
 
-    
+
 })

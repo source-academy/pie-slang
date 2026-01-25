@@ -29,7 +29,7 @@ describe("Parser Evaluate Integration Tests", () => {
     (claim result2 Nat)
     (define result2 (bool-to-nat my-false))
     `;
-    const result = evaluatePie(input);
+    expect(() => evaluatePie(input)).not.toThrow();
   });
 
   it("Evaluate MyNat (no params, no indices)", () => {
@@ -56,7 +56,7 @@ describe("Parser Evaluate Integration Tests", () => {
     (claim result Nat)
     (define result (count two-nat))
     `;
-    const result = evaluatePie(input);
+    expect(() => evaluatePie(input)).not.toThrow();
   });
 
   it("Evaluate MyList (parameterized, no indices)", () => {
@@ -86,7 +86,7 @@ describe("Parser Evaluate Integration Tests", () => {
     (claim result Nat)
     (define result (nat-list-length two-elem-list))
     `;
-    const result = evaluatePie(input);
+    expect(() => evaluatePie(input)).not.toThrow();
   });
 
   it("Evaluate MyVec (parameterized and indexed)", () => {
@@ -113,7 +113,7 @@ describe("Parser Evaluate Integration Tests", () => {
     (claim result Nat)
     (define result (vec-to-nat (add1 zero) one-vec))
     `;
-    const result = evaluatePie(input);
+    expect(() => evaluatePie(input)).not.toThrow();
   });
 
   it("Evaluate Less-Than (no params, indexed)", () => {
@@ -142,7 +142,7 @@ describe("Parser Evaluate Integration Tests", () => {
     (claim result Nat)
     (define result (extract-smaller zero (add1 zero) proof-0<1))
     `;
-    const result = evaluatePie(input);
+    expect(() => evaluatePie(input)).not.toThrow();
   });
 
   it("Evaluate MyEither (parameterized, no indices)", () => {
@@ -172,7 +172,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (claim result2 Nat)
     (define result2 (either-to-nat right-val))
     `;
-    const result = evaluatePie(input);
-    console.log(result);
+    expect(() => evaluatePie(input)).not.toThrow();
   });
 });

@@ -14,7 +14,7 @@ E)))
 (λ (E)
 (λ (es)
 (head es))))`
-    console.log(evaluatePie(src))
+    expect(() => evaluatePie(src)).not.toThrow();
   })
 
   it('first', () => {
@@ -29,7 +29,7 @@ E)))
 (λ (E l)
 (λ (es)
 (head es))))`
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   })
 
   it('rest', () => {
@@ -44,7 +44,7 @@ E)))
 (λ (E l)
 (λ (es)
 (tail es))))`
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   })
 
   it('peas', () => {
@@ -78,6 +78,7 @@ mot-peas
 vecnil
 step-peas)))
 `
+    expect(() => evaluatePie(src)).not.toThrow();
   })
 })
 
@@ -120,7 +121,32 @@ describe('ind-Vec test cases', () => {
     (mot-length E)
     zero
     (step-length E)))))`
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   })
-});
 
+  it("Evaluate MyVec (parameterized and indexed)", () => {
+    const input = `
+    (data MyList ((E U)) ()
+      (myNil () (MyList (E) ()))
+      (myCons ((head E) (tail (MyList (E) ()))) (MyList (E) ()))
+      ind-MyList)
+
+    (data Less-Than () ((j Nat) (k Nat))
+      (zero-smallest ((n Nat)) (Less-Than () (zero (add1 n))))
+      (add1-smaller ((j Nat) (k Nat) (j<k (Less-Than () (j k)))) (Less-Than () ((add1 j) (add1 k))))
+      ind-Less-Than)
+
+    (data Sorted () ((xs (MyList (Nat) ())))
+      (sorted-nil ()
+        (Sorted () ((myNil))))
+      (sorted-one ((x Nat))
+        (Sorted () ((myCons x (myNil)))))
+      (sorted-many ((x Nat) (y Nat) (rest (MyList (Nat) ()))
+                    (x<=y (Less-Than () (x y)))
+                    (sorted-rest (Sorted () ((myCons y rest)))))
+        (Sorted () ((myCons x (myCons y rest)))))
+  ind-Sorted)
+    `;
+    expect(() => evaluatePie(input)).not.toThrow();
+  });
+});

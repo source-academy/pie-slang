@@ -2,142 +2,64 @@ import 'jest';
 
 import { evaluatePie } from '../main'
 
-describe("demo", () => {
-  it("Pie demo", () => {
+describe("Demo", () => {
+  it("Pie Demo", () => {
     const src =
-      //     `(claim +
-      //   (→ Nat Nat
-      //     Nat))
+      `
+(claim +
+  (→ Nat Nat
+    Nat))
 
-      // (claim step-plus
-      //   (→ Nat
-      //     Nat))
+(claim step-plus
+  (→ Nat
+    Nat))
 
-      // (define step-plus
-      //   (λ (n-1)
-      //     (add1 n-1 ) ))
+(define step-plus
+  (λ (n-1)
+    (add1 n-1 ) ))
 
-      // (define +
-      //   (λ (n j)
-      //     (iter-Nat n
-      //       j
-      //       step-plus)))
+(define +
+  (λ (n j)
+    (iter-Nat n
+      j
+      step-plus )))
 
-      // (claim incr
-      //   (→ Nat
-      //     Nat))
+(claim double
+  (→ Nat
+    Nat))
 
-      // (define incr
-      //   (λ (n)
-      //     (iter-Nat n
-      //       1
-      //       (+ 1))))
+(define double
+  (λ (n)
+    (iter-Nat n
+      0
+      (+ 2))))
 
-      // (claim incr=add1
-      //   (Π ((n Nat))
-      //     (= Nat (incr n) (add1 n))))
+(claim Even
+(→ Nat
+U ))
+(define Even
+(λ (n)
+(Σ ((half Nat))
+(= Nat n (double half )))))
 
-      // (claim base-incr=add1
-      //   ( = Nat (incr zero) (add1 zero)))
+(claim zero-is-even
+(Even 0))
 
-      // (define base-incr=add1
-      //   (same (add1 zero)))
+(define-tactically zero-is-even
+((exists 0 x)
+ (exact (same 0))))
 
-      // (claim mot-incr=add1
-      //   (→ Nat
-      //     U))
+`
+    expect(() => evaluatePie(src)).not.toThrow();
+  })
+})
 
-      // (define mot-incr=add1
-      //   (λ (k)
-      //     ( = Nat (incr k) (add1 k))))
+import 'jest';
 
-      // (claim step-incr=add1
-      //   (Π ((n-1 Nat))
-      //       (→ (= Nat (incr n-1) (add1 n-1))
-      //          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))
-      //   #;(Π ((n-1 Nat))
-      //     (→ (mot-incr=add1 n-1)
-      //        (mot-incr=add1 (add1 n-1)))))
+describe("Demo2", () => {
+  it("Pie Demo2", () => {
+    const src =
 
-      // (claim claim-63
-      //   (= U
-      //     (Π ((n-1 Nat))
-      //       (→ (mot-incr=add1 n-1)
-      //         (mot-incr=add1 (add1 n-1))))
-      //     (Π ((n-1 Nat))
-      //       (→ (= Nat (incr n-1) (add1 n-1))
-      //          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))))
-
-      // (define claim-63
-      //   (same (Π ((n-1 Nat))
-      //       (→ (mot-incr=add1 n-1)
-      //         (mot-incr=add1 (add1 n-1))))))
-
-      // (claim claim-69
-      //   (= U
-      //     (Π ((n-1 Nat))
-      //       (→ (= Nat (incr n-1) (add1 n-1))
-      //          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))
-      //     (Π ((n-1 Nat))
-      //       (→ (= Nat (incr n-1) (add1 n-1))
-      //         (= Nat (add1 (incr n-1)) (add1 (add1 n-1)))))))
-
-      // (claim claim-68
-      //   (Pi ((n-1 Nat))
-      //     (= Nat (incr (add1 n-1))
-      //            (add1 (incr n-1)))))
-
-      // (define claim-68
-      //   (lambda (n-1)
-      //     (same (add1 (incr n-1)))))
-
-      // (define claim-69
-      //   (same
-      //     (Π ((n-1 Nat))
-      //       (→ (= Nat (incr n-1) (add1 n-1))
-      //          (= Nat (incr (add1 n-1)) (add1 (add1 n-1)))))))
-
-      // (define step-incr=add1
-      //   (λ (n-1)
-      //     (λ (incr=add1n-1)
-      //       (cong incr=add1n-1 (+ 1)))))
-
-      // (define incr=add1
-      //   (λ (n)
-      //     (ind-Nat n
-      //       mot-incr=add1
-      //       base-incr=add1
-      //       step-incr=add1
-      //      ))) `
-      // (claim peas
-      // (Π ((how-many-peas Nat))
-      // (Vec Atom how-many-peas)))
-
-      // (claim mot-peas
-      // (→ Nat
-      // U))
-
-      // (define mot-peas
-      // (λ (k)
-      // (Vec Atom k)))
-
-      // (claim step-peas
-      // (Π ((l-1 Nat))
-      // (→ (mot-peas l-1)
-      // (mot-peas (add1 l-1)))))
-
-      // (define step-peas
-      // (λ (l-1)
-      // (λ (peas-l-1)
-      // (vec:: 'pea peas-l-1))))
-
-      // (define peas
-      // (λ (how-many-peas)
-      // (ind-Nat how-many-peas
-      // mot-peas
-      // vecnil
-      // step-peas)))
-      // `
       `
 (claim +
   (→ Nat Nat
@@ -174,8 +96,6 @@ describe("demo", () => {
 (define twice
   (λ (n)
     (+ n n)))
-
-
 
 (claim add1+=+add1
   (Π ((n Nat)
@@ -259,50 +179,7 @@ describe("demo", () => {
     (same zero)
     step-twice=double)))
 `
-
-    // `
-    // (claim +
-    // (→ Nat Nat
-    // Nat))
-
-    // (claim step-plus
-    // (→ Nat
-    // Nat))
-    // (define step-plus
-    // (λ (n-1)
-    // (add1 n-1 ) ))
-
-
-    // (define +
-    // (λ (n j)
-    // (iter-Nat n
-    // j
-    // step-plus )))
-
-    // (claim incr
-    // (→ Nat
-    // Nat))
-    // (define incr
-    // (λ (n)
-    // (iter-Nat n
-    // 1
-    // (+ n))))
-
-    // (claim one1 Nat)
-    // (define one1
-    // (incr zero))
-
-    // (claim two2 Nat)
-    // (define two2
-    // (incr (add1 zero)))`
-
-    // (claim zero-is-even
-    // (Even 0))
-    // (define zero-is-even
-    // (cons 0
-    // (same 0)))
-
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   });
 });
 
@@ -364,7 +241,7 @@ describe("False_demo", () => {
   (λ (n)
     (use-Nat= zero (add1 n))))
          `
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   });
 });
 
@@ -382,7 +259,7 @@ describe("And_demo", () => {
     (cons (same n)  
       (same (add1 n)))))
          `
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   });
 });
 
@@ -445,7 +322,7 @@ describe("Or_demo", () => {
       base-zero+n=n
       step-zero+n=n)))
          `
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   });
 
   it("Addition over nats", () => {
@@ -459,7 +336,24 @@ describe("Or_demo", () => {
                         (lambda (n-1 ih) (add1 ih)))))
                   (addNat 3 4)
                   (addNat 3 0)`;
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
+  });
+
+  it("factorial", () => {
+    const src =
+      `
+(claim add (-> Nat Nat Nat))
+(define add (lambda (x y) (rec-Nat x y (lambda (n add-n-1) (add1 add-n-1)))))
+
+(claim mult (-> Nat Nat Nat))
+(define mult (lambda (x y) (rec-Nat x 0 (lambda (n mult-n-1) (add y mult-n-1)))))
+
+(claim fact (-> Nat Nat))
+(define fact
+(lambda (n) (ind-Nat n (lambda (n) Nat)  (add1 0) (lambda (n fact-n-1) (mult (add1 n) fact-n-1)))))
+
+(fact 5)`;
+    expect(() => evaluatePie(src)).not.toThrow();
   });
 
   it("construct vector", () => {
@@ -468,7 +362,7 @@ describe("Or_demo", () => {
                       (vec:: 'need-induction
                           (vec:: 'understood-induction
                               (vec:: 'built-function vecnil))))`;
-    console.log(evaluatePie(src));
+    expect(() => evaluatePie(src)).not.toThrow();
   });
   it("construct vector through replicate function", () => {
     const src =
@@ -492,8 +386,7 @@ describe("Or_demo", () => {
             (mot-replicate E)
             vecnil
             (step-replicate E e)))))
-    (replicate Atom 3 'caonima)`;
-    console.log(evaluatePie(src));
+    (replicate Atom 3 'thisisatom)`;
+    expect(() => evaluatePie(src)).not.toThrow();
   });
-
 });

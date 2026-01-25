@@ -16,6 +16,6 @@ describe("Parser Evaluate Integration Tests", () => {
     (define proof-1<2 (add1-smaller zero (add1 zero) proof-0<1))
     
     `;
-    const result = evaluatePie(input);
+    expect(() => evaluatePie(input)).not.toThrow();
   });
 })
