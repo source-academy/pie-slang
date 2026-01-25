@@ -272,3 +272,27 @@ body {
     row-gap: 18px;
   }
 }
+
+/* ANSI color classes for context display */
+.ansi-bright {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ansi-dim {
+  color: #8899a6;
+  opacity: 0.75;
+}
+
+.ansi-green {
+  color: #34d399;
+  font-weight: 500;
+}
+
+.ansi-yellow {
+  color: #facc15;
+}
+
+.ansi-cyan {
+  color: #22d3ee;
+}
