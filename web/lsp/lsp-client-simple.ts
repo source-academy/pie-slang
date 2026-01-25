@@ -1,4 +1,8 @@
 import * as _monaco from "monaco-editor";
+import { HintManager } from "../ui/hint-manager";
+import { HintService } from "../services/hint-service";
+import { TodoPosition, TacticHintPosition } from "../types/hint-types";
+import { initSettingsModal, showApiKeyPromptIfNeeded } from "../ui/settings-modal";
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -29,7 +33,17 @@ interface ContextInfoResult {
   error?: string;
 }
 
-type WorkerResponse = ValidationResultMessage | ValidationErrorMessage | ContextInfoResult;
+interface TodoPositionsMessage {
+  type: "todo-positions-result";
+  todos: TodoPosition[];
+}
+
+interface TacticPositionsMessage {
+  type: "tactic-positions-result";
+  tactics: TacticHintPosition[];
+}
+
+type WorkerResponse = ValidationResultMessage | ValidationErrorMessage | ContextInfoResult | TodoPositionsMessage | TacticPositionsMessage;
 
 type MonacoDisposable = { dispose(): void };
 
@@ -53,10 +67,14 @@ export class PieLanguageClient {
   private debouncedContextInfo: (() => void) | null = null;
   private diagnostics: WorkerDiagnostic[] = [];
   private contextInfoCallback: ContextInfoCallback | null = null;
+  private hintManager: HintManager | null = null;
+  private hintService: HintService;
+  private settingsInitialized: boolean = false;
 
   constructor(monacoInstance: any, editorInstance: any) {
     this.monaco = monacoInstance;
     this.editor = editorInstance;
+    this.hintService = new HintService();
   }
 
   /**
@@ -142,6 +160,16 @@ export class PieLanguageClient {
       });
     this.disposables.push(definitionDisposable);
 
+    // Initialize hint manager
+    this.hintManager = new HintManager(this.editor, this.monaco, this.hintService);
+
+    // Initialize settings modal (only once)
+    if (!this.settingsInitialized) {
+      initSettingsModal();
+      showApiKeyPromptIfNeeded();
+      this.settingsInitialized = true;
+    }
+
     if (this.debouncedValidate) {
       this.debouncedValidate();
     }
@@ -203,6 +231,16 @@ export class PieLanguageClient {
           message.inTacticalProof,
           message.proofInfo
         );
+      }
+    } else if (message.type === "todo-positions-result") {
+      // Handle TODO positions from worker
+      if (this.hintManager) {
+        this.hintManager.updateTodoPositions(message.todos);
+      }
+    } else if (message.type === "tactic-positions-result") {
+      // Handle tactic hint positions from worker
+      if (this.hintManager) {
+        this.hintManager.updateTacticPositions(message.tactics);
       }
     }
   }
