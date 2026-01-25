@@ -465,6 +465,7 @@ function initializeEditor(monaco, registerLanguage) {
       verticalScrollbarSize: 6,
       verticalSliderSize: 4,
     },
+    tabSize: 2,
     padding: { top: 16 },
     fontSize: 14,
     fontFamily: "Menlo, 'Fira Code', 'JetBrains Mono', monospace",
@@ -506,6 +507,11 @@ function initializeEditor(monaco, registerLanguage) {
   editor.onDidBlurEditorWidget(() => {
     setStatus("Idle");
   });
+
+  editor.addCommand(
+    monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
+    () => editor.getAction("editor.action.formatDocument").run(),
+  );
 
   return editor;
 }
@@ -612,6 +618,8 @@ boot();
 
 document.addEventListener("DOMContentLoaded", function () {
   const downloadBtn = document.getElementById("download-btn");
+  const formatBtn = document.getElementById("format-btn");
+
   downloadBtn.addEventListener("click", function () {
     const editor = window.__pieEditor;
     if (!editor) {
@@ -631,5 +639,14 @@ document.addEventListener("DOMContentLoaded", function () {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  });
+
+  formatBtn.addEventListener("click", function () {
+    const editor = window.__pieEditor;
+    if (!editor) {
+      return alert("Editor not initialised yet.");
+    }
+
+    editor.getAction("editor.action.formatDocument").run();
   });
 });
