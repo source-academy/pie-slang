@@ -5,11 +5,11 @@ console.log("Pie Interpreter - Standalone Mode");
 
 // Test with a simple Pie expression
 const testCode = `
-(claim zero Nat)
-(define zero zero)
+(claim myZero Nat)
+(define myZero zero)
 
 (claim one Nat) 
-(define one (add1 zero))
+(define one (add1 myZero))
 
 (claim two Nat)
 (define two (add1 one))
