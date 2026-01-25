@@ -9,7 +9,7 @@ describe("left and right", () => {
 
 (define test_either
   (left zero))`
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow()
   })
 
   it("left trivial tactic", () => {
@@ -22,7 +22,7 @@ describe("left and right", () => {
     ((go-Left)
      (exact zero)))
         `
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow()
   })
 
   it("right trivial", () => {
@@ -34,7 +34,7 @@ describe("left and right", () => {
     ((go-Right)
      (exact zero)))
         `
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow()
   })
 }
 )
@@ -53,7 +53,7 @@ describe("elim-Either", () => {
                 (lambda (_) (Either B A))
                 (lambda (x) (right x))
                 (lambda (x) (left x)))))`
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow()
   })
 
   it("trivial tactic ver0", () => {
@@ -70,7 +70,7 @@ describe("elim-Either", () => {
            (elim-Either e)
            (then (exact (lambda (x) (right x))))
            (then (exact (lambda (x) (left x))))))`
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow()
   })
 
   it("trivial tactic ver1", () => {
@@ -91,7 +91,7 @@ describe("elim-Either", () => {
            (then
              (intro x)
              (exact (left x)))))`
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow()
   })
 
   it("trivial tactic ver2", () => {
@@ -114,6 +114,70 @@ describe("elim-Either", () => {
              (intro x)
              (go-Left)
              (exact x))))`
-    console.log(evaluatePie(str))
+    expect(() => evaluatePie(str)).not.toThrow()
+  })
+})
+
+describe("Two-Fun tautology", () => {
+  it("tautology with iter-Nat", () => {
+    const str =
+      `(claim Two
+  U)
+(define Two
+  (Either Trivial Trivial))
+
+(claim Two-Fun
+  (→ Nat
+    U))
+(define Two-Fun
+  (λ (n)
+    (iter-Nat n
+      Two
+      (λ (type)
+        (→ Two
+          type)))))
+
+(claim both-left
+  (→ Two Two
+    Two))
+(define both-left
+  (λ (a b)
+    (ind-Either a
+      (λ (c)
+        Two)
+      (λ (left-sole)
+        b)
+      (λ (right-sole)
+        (right sole)))))
+
+(claim step-taut
+  (Π ((n-1 Nat))
+    (→ (→ (Two-Fun n-1)
+        Two)
+      (→ (Two-Fun (add1 n-1))
+        Two))))
+(define step-taut
+  (λ (n-1 tautn-1)
+    (λ (f)
+      (both-left
+        (tautn-1
+          (f (left sole)))
+        (tautn-1
+          (f (right sole)))))))
+
+(claim taut
+  (Π ((n Nat))
+    (→ (Two-Fun n)
+      Two)))
+(define taut
+  (λ (n)
+    (ind-Nat n
+      (λ (k)
+        (→ (Two-Fun k)
+          Two))
+      (λ (x)
+        x)
+      step-taut)))`
+    expect(() => evaluatePie(str)).not.toThrow()
   })
 })
