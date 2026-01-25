@@ -180,3 +180,56 @@ describe("Inductive Types Parser", () => {
     expect(() => testParser(input)).not.toThrow();
   });
 })
+
+describe("Keyword as variable name rejection", () => {
+  it("should reject 'zero' as a variable name in claim", () => {
+    const input = `(claim zero Nat)`;
+    expect(() => testParser(input)).toThrow("'zero' is a keyword and cannot be used as a variable name");
+  });
+
+  it("should reject 'zero' as a variable name in define", () => {
+    const input = `(define zero zero)`;
+    expect(() => testParser(input)).toThrow("'zero' is a keyword and cannot be used as a variable name");
+  });
+
+  it("should reject 'add1' as a variable name in claim", () => {
+    const input = `(claim add1 (-> Nat Nat))`;
+    expect(() => testParser(input)).toThrow("'add1' is a keyword and cannot be used as a variable name");
+  });
+
+  it("should reject 'Nat' as a variable name in claim", () => {
+    const input = `(claim Nat U)`;
+    expect(() => testParser(input)).toThrow("'Nat' is a keyword and cannot be used as a variable name");
+  });
+
+  it("should reject 'lambda' as a variable name in define", () => {
+    const input = `(define lambda (lambda (x) x))`;
+    // 'lambda' is caught by scheme parser as a syntax error
+    expect(() => testParser(input)).toThrow();
+  });
+
+  it("should reject 'nil' as a variable name in claim", () => {
+    const input = `(claim nil (List Nat))`;
+    expect(() => testParser(input)).toThrow("'nil' is a keyword and cannot be used as a variable name");
+  });
+
+  it("should reject 'cons' as a variable name in define", () => {
+    const input = `(define cons (cons zero nil))`;
+    expect(() => testParser(input)).toThrow("'cons' is a keyword and cannot be used as a variable name");
+  });
+
+  it("should reject 'the' as a variable name in claim", () => {
+    const input = `(claim the (-> U U U))`;
+    expect(() => testParser(input)).toThrow("'the' is a keyword and cannot be used as a variable name");
+  });
+
+  it("should allow valid variable names", () => {
+    const input = `(claim myZero Nat)`;
+    expect(() => testParser(input)).not.toThrow();
+  });
+
+  it("should allow valid variable names with numbers", () => {
+    const input = `(claim zero1 Nat)`;
+    expect(() => testParser(input)).not.toThrow();
+  });
+})

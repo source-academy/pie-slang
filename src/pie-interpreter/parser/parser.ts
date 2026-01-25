@@ -637,16 +637,24 @@ export class pieDeclarationParser {
     const parsee = getValue(ast);
     if (parsee === 'claim') {
       const elements = (ast as Extended.List).elements;
+      const name = getValue(elements[1] as Element);
+      if (!isVarName(name)) {
+        throw new Error(`'${name}' is a keyword and cannot be used as a variable name`);
+      }
       return new Claim(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
-        getValue(elements[1] as Element),
+        name,
         Parser.parseElements(elements[2] as Element)
       );
     } else if (parsee === 'define') {
       const elements = (ast as Extended.List).elements;
+      const name = getValue(elements[1] as Element);
+      if (!isVarName(name)) {
+        throw new Error(`'${name}' is a keyword and cannot be used as a variable name`);
+      }
       return new Definition(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
-        getValue(elements[1] as Element),
+        name,
         Parser.parseElements(elements[2] as Element)
       );
     } else if (parsee === 'check-same') {
@@ -659,9 +667,13 @@ export class pieDeclarationParser {
       );
     } else if (parsee === 'define-tactically') {
       const elements = (ast as Extended.List).elements;
+      const name = getValue(elements[1] as Element);
+      if (!isVarName(name)) {
+        throw new Error(`'${name}' is a keyword and cannot be used as a variable name`);
+      }
       return new DefineTactically(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
-        getValue(elements[1] as Element),
+        name,
         (elements[2] as Extended.List).elements.map((x: Expression) => Parser.parseToTactics(x as Element))
       );
     } else if (parsee === 'data') {
