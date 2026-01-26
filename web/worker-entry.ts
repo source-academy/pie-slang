@@ -253,3 +253,101 @@ function formatContext(ctx: Context): string {
   }
   return lines.join('\n');
 }
+
+// === Interactive Proof Mode Functions ===
+
+interface TacticBlockData {
+  type: string;
+  name?: string;
+  expression?: string;
+}
+
+interface InteractiveProofResult {
+  success: boolean;
+  proofTree?: ProofTreeData;
+  message?: string;
+  generatedCode?: string;
+}
+
+/**
+ * Start an interactive proof session for a claim.
+ * Returns the initial proof tree state.
+ */
+export function startInteractiveProofSession(
+  claimName: string,
+  sourceContext: string
+): { proofTree: ProofTreeData | undefined; claimType: string } {
+  // Analyze the source to get the proof tree
+  const result = analyzePieSource(sourceContext);
+  return {
+    proofTree: result.proofTree,
+    claimType: '' // Could be extracted from the claim if needed
+  };
+}
+
+/**
+ * Apply a tactic to a specific goal in the proof.
+ * This is a placeholder - full implementation requires deeper integration with the tactic system.
+ */
+export function applyTacticToProof(
+  goalId: string,
+  tactic: TacticBlockData,
+  sourceContext: string
+): InteractiveProofResult {
+  // For now, return that the tactic was not applied
+  // Full implementation would need to:
+  // 1. Parse the source context
+  // 2. Find the define-tactically block being edited
+  // 3. Apply the tactic to the specific goal
+  // 4. Return the updated proof tree
+  return {
+    success: false,
+    message: 'Interactive tactic application is not yet fully implemented. ' +
+             'Please use the text editor to write tactics directly.'
+  };
+}
+
+/**
+ * Validate a tactic for a specific goal.
+ */
+export function validateTacticForGoal(
+  goalId: string,
+  tacticType: string,
+  goalType: string
+): { valid: boolean; reason?: string } {
+  // Basic validation based on goal type patterns
+  const goalLower = goalType.toLowerCase();
+
+  switch (tacticType) {
+    case 'intro':
+      // intro works on Pi and Arrow types
+      if (goalType.includes('Π') || goalType.includes('Pi') || goalType.includes('->') || goalType.includes('→')) {
+        return { valid: true };
+      }
+      return { valid: false, reason: 'intro requires a function type (Π or →)' };
+
+    case 'left':
+    case 'right':
+      // left/right work on Either types
+      if (goalType.includes('Either')) {
+        return { valid: true };
+      }
+      return { valid: false, reason: `${tacticType} requires an Either type` };
+
+    case 'split':
+    case 'exists':
+      // split/exists work on Sigma and Pair types
+      if (goalType.includes('Σ') || goalType.includes('Sigma') || goalType.includes('Pair')) {
+        return { valid: true };
+      }
+      return { valid: false, reason: 'split/exists requires a pair or sigma type' };
+
+    case 'exact':
+      // exact can always be applied
+      return { valid: true };
+
+    default:
+      // Other tactics are generally valid
+      return { valid: true };
+  }
+}

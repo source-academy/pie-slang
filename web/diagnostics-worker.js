@@ -3,31 +3,24 @@ console.log('[Worker] Worker location:', self.location.href);
 console.log('[Worker] Starting diagnostics worker initialization...');
 
 let analyzePieSource = null;
+let applyTacticToProof = null;
+let validateTacticForGoal = null;
+let startInteractiveProofSession = null;
 let initializationError = null;
 const messageQueue = [];
 
 // Process a single message
 function processMessage(event) {
-  const { type, payload } = event.data ?? {};
-  if (type !== 'analyze') {
-    return;
-  }
+  const { type, payload, callbackId } = event.data ?? {};
 
   // Check if initialization failed
   if (initializationError) {
-    console.error('[Worker] Cannot analyze - initialization failed:', initializationError);
+    console.error('[Worker] Cannot process - initialization failed:', initializationError);
     self.postMessage({
-      type: 'diagnostics',
+      type: 'error',
+      callbackId,
       payload: {
-        diagnostics: [{
-          message: `Failed to load analyzer: ${initializationError.message}`,
-          startLineNumber: 1,
-          startColumn: 1,
-          endLineNumber: 1,
-          endColumn: 2,
-          severity: 'error'
-        }],
-        summary: 'Diagnostics initialization failed.'
+        message: `Failed to load analyzer: ${initializationError.message}`
       }
     });
     return;
@@ -40,27 +33,96 @@ function processMessage(event) {
   }
 
   try {
-    const result = analyzePieSource(payload?.source ?? '');
-    self.postMessage({
-      type: 'diagnostics',
-      payload: result
-    });
+    switch (type) {
+      case 'analyze': {
+        const result = analyzePieSource(payload?.source ?? '');
+        self.postMessage({
+          type: 'diagnostics',
+          callbackId,
+          payload: result
+        });
+        break;
+      }
+
+      case 'startInteractiveProof': {
+        if (startInteractiveProofSession) {
+          const result = startInteractiveProofSession(payload?.claimName, payload?.sourceContext);
+          self.postMessage({
+            type: 'proofStarted',
+            callbackId,
+            payload: result
+          });
+        } else {
+          // Fallback: use analyze to get proof tree
+          const result = analyzePieSource(payload?.sourceContext ?? '');
+          self.postMessage({
+            type: 'proofStarted',
+            callbackId,
+            payload: {
+              proofTree: result.proofTree,
+              claimType: ''
+            }
+          });
+        }
+        break;
+      }
+
+      case 'applyTactic': {
+        if (applyTacticToProof) {
+          const result = applyTacticToProof(payload?.goalId, payload?.tactic, payload?.sourceContext);
+          self.postMessage({
+            type: 'tacticResult',
+            callbackId,
+            payload: result
+          });
+        } else {
+          // Fallback: return error
+          self.postMessage({
+            type: 'tacticResult',
+            callbackId,
+            payload: {
+              success: false,
+              message: 'Interactive proof mode not fully implemented yet'
+            }
+          });
+        }
+        break;
+      }
+
+      case 'validateTactic': {
+        if (validateTacticForGoal) {
+          const result = validateTacticForGoal(payload?.goalId, payload?.tacticType, payload?.goalType);
+          self.postMessage({
+            type: 'validationResult',
+            callbackId,
+            payload: result
+          });
+        } else {
+          // Fallback: return valid
+          self.postMessage({
+            type: 'validationResult',
+            callbackId,
+            payload: {
+              valid: true
+            }
+          });
+        }
+        break;
+      }
+
+      default:
+        console.warn('[Worker] Unknown message type:', type);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const stack = error instanceof Error ? error.stack : '';
-    console.error('[Worker] Analysis error:', message, stack);
+    console.error('[Worker] Processing error:', message, stack);
     self.postMessage({
-      type: 'diagnostics',
+      type: 'error',
+      callbackId,
       payload: {
-        diagnostics: [{
-          message: `Analysis error: ${message}`,
-          startLineNumber: 1,
-          startColumn: 1,
-          endLineNumber: 1,
-          endColumn: 2,
-          severity: 'error'
-        }],
-        summary: 'Analysis failed.'
+        message: `Processing error: ${message}`,
+        details: stack
       }
     });
   }
@@ -77,9 +139,18 @@ function processMessage(event) {
 
     const module = await import(bundlePath);
     analyzePieSource = module.analyzePieSource;
+    // Import interactive proof functions if available
+    applyTacticToProof = module.applyTacticToProof || null;
+    validateTacticForGoal = module.validateTacticForGoal || null;
+    startInteractiveProofSession = module.startInteractiveProofSession || null;
 
     console.log('[Worker] Bundle loaded successfully');
     console.log('[Worker] analyzePieSource:', typeof analyzePieSource);
+    console.log('[Worker] Interactive proof functions:', {
+      applyTacticToProof: typeof applyTacticToProof,
+      validateTacticForGoal: typeof validateTacticForGoal,
+      startInteractiveProofSession: typeof startInteractiveProofSession
+    });
 
     // Process queued messages
     if (messageQueue.length > 0) {

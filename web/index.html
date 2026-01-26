@@ -29,6 +29,7 @@
         <div class="editor-mode-toggle">
           <button id="mode-text" class="mode-btn mode-btn--active" title="Text Editor">Text</button>
           <button id="mode-blocks" class="mode-btn" title="Block Editor">Blocks</button>
+          <button id="mode-interactive" class="mode-btn" title="Interactive Proof Mode">Interactive</button>
         </div>
         <select id="example-picker" class="example-picker">
           <option value="">Examples</option>
@@ -41,6 +42,14 @@
         <div class="blockly-code-preview">
           <div class="code-preview-header">Generated Code</div>
           <pre id="blockly-code-preview" class="code-preview-content">; (empty workspace)</pre>
+        </div>
+      </div>
+      <!-- Interactive Proof Mode Container -->
+      <div id="interactive-container" class="interactive-container" style="display: none;">
+        <div class="interactive-layout">
+          <div id="interactive-palette" class="interactive-palette"></div>
+          <div id="interactive-tree" class="interactive-tree"></div>
+          <div id="interactive-details" class="interactive-details"></div>
         </div>
       </div>
       <div id="preview-summary" class="panel-title preview-summary">

@@ -5,6 +5,7 @@ import { GoalPanel } from './proof-tree/GoalPanel';
 import type { ProofTreeData } from './proof-tree/types';
 import type * as Monaco from 'monaco-editor';
 import { BlocklyEditor } from './blockly';
+import { InteractiveProofController } from './interactive-proof';
 
 // Extend Window interface to include Monaco globals
 declare global {
@@ -23,6 +24,35 @@ const examples = {
 
 (claim add1zero Nat)
 (define add1zero (add1 zero))`,
+
+  'Tactics: Simple Identity': `;; A simple proof using tactics
+;; Goal: prove that for any Nat n, we can produce a Nat (identity function)
+
+(claim identity
+  (Π ((n Nat))
+    Nat))
+
+;; Complete this proof by dragging tactics:
+;; 1. Use "intro" to introduce the variable n
+;; 2. Use "exact n" to provide n as the result
+(define-tactically identity
+  ( (intro n)
+    ;; Add (exact n) here to complete the proof
+  ))`,
+
+  'Tactics: Simple Pair': `;; Prove we can construct a pair of Nats
+;; Goal type: (Pair Nat Nat)
+
+(claim my-pair (Pair Nat Nat))
+
+;; Complete this proof:
+;; 1. Use "split" to split the pair goal into two subgoals
+;; 2. Use "exact 1" for the first Nat
+;; 3. Use "exact 2" for the second Nat
+(define-tactically my-pair
+  ( (split)
+    ;; Add (exact 1) and (exact 2) here to complete
+  ))`,
 
   'Natural Number Addition': `(claim +
   (→ Nat Nat Nat))
@@ -360,7 +390,9 @@ let proofTreeVisualizer: ProofTreeVisualizer | null = null;
 let contextPanel: ContextPanel | null = null;
 let goalPanel: GoalPanel | null = null;
 let blocklyEditor: BlocklyEditor | null = null;
-let currentMode: 'text' | 'blocks' = 'text';
+let interactiveProofController: InteractiveProofController | null = null;
+let currentMode: 'text' | 'blocks' | 'interactive' = 'text';
+let currentProofTree: ProofTreeData | undefined = undefined;
 
 function setSummary(message: string, tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral') {
   if (previewSummary) {
@@ -469,6 +501,9 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
   const { diagnostics, pretty, proofTree } = payload;
   const model = editor.getModel();
 
+  // Store proof tree for use when switching to interactive mode
+  currentProofTree = proofTree;
+
   if (!model) return;
 
   const markers = diagnostics.map((d: any) => ({
@@ -484,12 +519,21 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
 
   monaco.editor.setModelMarkers(model, 'pie-playground', markers);
 
-  // Update proof tree visualization
-  updateProofTree(proofTree);
+  // Update proof tree visualization (for text/blocks modes)
+  if (currentMode !== 'interactive') {
+    updateProofTree(proofTree);
+  }
+
+  // Update interactive proof controller if active
+  if (currentMode === 'interactive' && interactiveProofController && proofTree) {
+    interactiveProofController.setProofTree(proofTree);
+  }
 
   if (diagnostics.length === 0) {
-    setSummary('SUCCESS', 'success');
-    renderPreviewText(pretty?.trim() ?? undefined, 'success');
+    if (currentMode !== 'interactive') {
+      setSummary('SUCCESS', 'success');
+      renderPreviewText(pretty?.trim() ?? undefined, 'success');
+    }
     return;
   }
 
@@ -497,9 +541,11 @@ function applyDiagnostics(monaco: typeof Monaco, editor: Monaco.editor.IStandalo
   const tone = primary.severity === 'warning' ? 'warning' : 'error';
   const label = tone === 'warning' ? 'WARNING' : 'ERROR';
 
-  setSummary(label, tone);
-  const location = `Line ${primary.startLineNumber}, Col ${primary.startColumn}`;
-  renderPreviewText(`${location}\n${primary.message}`, tone);
+  if (currentMode !== 'interactive') {
+    setSummary(label, tone);
+    const location = `Line ${primary.startLineNumber}, Col ${primary.startColumn}`;
+    renderPreviewText(`${location}\n${primary.message}`, tone);
+  }
 }
 
 function initializeDiagnostics(editor: Monaco.editor.IStandaloneCodeEditor) {
@@ -694,8 +740,10 @@ function initializeBlocklyEditor() {
 function initializeModeToggle(monacoEditor: Monaco.editor.IStandaloneCodeEditor) {
   const textBtn = document.getElementById('mode-text') as HTMLButtonElement;
   const blocksBtn = document.getElementById('mode-blocks') as HTMLButtonElement;
+  const interactiveBtn = document.getElementById('mode-interactive') as HTMLButtonElement;
   const monacoContainer = document.getElementById('editor') as HTMLElement;
   const blocklyContainer = document.getElementById('blockly-container') as HTMLElement;
+  const interactiveContainer = document.getElementById('interactive-container') as HTMLElement;
   const examplePicker = document.getElementById('example-picker') as HTMLSelectElement;
 
   if (!textBtn || !blocksBtn || !monacoContainer || !blocklyContainer) {
@@ -703,17 +751,27 @@ function initializeModeToggle(monacoEditor: Monaco.editor.IStandaloneCodeEditor)
     return;
   }
 
+  function updateModeButtons(activeMode: 'text' | 'blocks' | 'interactive') {
+    textBtn.classList.toggle('mode-btn--active', activeMode === 'text');
+    blocksBtn.classList.toggle('mode-btn--active', activeMode === 'blocks');
+    if (interactiveBtn) {
+      interactiveBtn.classList.toggle('mode-btn--active', activeMode === 'interactive');
+    }
+  }
+
   function switchToTextMode() {
     if (currentMode === 'text') return;
     currentMode = 'text';
 
     // Update button states
-    textBtn.classList.add('mode-btn--active');
-    blocksBtn.classList.remove('mode-btn--active');
+    updateModeButtons('text');
 
     // Show/hide editors
     monacoContainer.style.display = '';
     blocklyContainer.style.display = 'none';
+    if (interactiveContainer) {
+      interactiveContainer.style.display = 'none';
+    }
 
     // Show example picker in text mode
     if (examplePicker) {
@@ -741,12 +799,14 @@ function initializeModeToggle(monacoEditor: Monaco.editor.IStandaloneCodeEditor)
     currentMode = 'blocks';
 
     // Update button states
-    blocksBtn.classList.add('mode-btn--active');
-    textBtn.classList.remove('mode-btn--active');
+    updateModeButtons('blocks');
 
     // Show/hide editors
     monacoContainer.style.display = 'none';
     blocklyContainer.style.display = '';
+    if (interactiveContainer) {
+      interactiveContainer.style.display = 'none';
+    }
 
     // Hide example picker in blocks mode (not applicable)
     if (examplePicker) {
@@ -779,8 +839,99 @@ function initializeModeToggle(monacoEditor: Monaco.editor.IStandaloneCodeEditor)
     }
   }
 
+  function switchToInteractiveMode() {
+    if (currentMode === 'interactive') return;
+    currentMode = 'interactive';
+
+    // Update button states
+    updateModeButtons('interactive');
+
+    // Show/hide editors
+    monacoContainer.style.display = 'none';
+    blocklyContainer.style.display = 'none';
+    if (interactiveContainer) {
+      interactiveContainer.style.display = '';
+    }
+
+    // Hide example picker in interactive mode
+    if (examplePicker) {
+      examplePicker.style.display = 'none';
+    }
+
+    // Initialize interactive proof controller if not already done
+    if (!interactiveProofController && interactiveContainer) {
+      initializeInteractiveProof(monacoEditor);
+    }
+
+    // Pass current proof tree to interactive controller
+    if (interactiveProofController && currentProofTree) {
+      interactiveProofController.setProofTree(currentProofTree);
+    }
+
+    // Update summary
+    setSummary('Interactive Proof Mode', 'neutral');
+    renderPreviewText('Select a claim to prove interactively.\n\nDrag tactics from the palette onto goal nodes to build your proof.');
+  }
+
   textBtn.addEventListener('click', switchToTextMode);
   blocksBtn.addEventListener('click', switchToBlocksMode);
+  if (interactiveBtn) {
+    interactiveBtn.addEventListener('click', switchToInteractiveMode);
+  }
+}
+
+function initializeInteractiveProof(monacoEditor: Monaco.editor.IStandaloneCodeEditor) {
+  const treeContainer = document.getElementById('interactive-tree') as HTMLElement;
+  const paletteContainer = document.getElementById('interactive-palette') as HTMLElement;
+  const detailsContainer = document.getElementById('interactive-details') as HTMLElement;
+
+  if (!treeContainer || !paletteContainer || !detailsContainer) {
+    console.error('Interactive proof containers not found');
+    return;
+  }
+
+  interactiveProofController = new InteractiveProofController({
+    treeContainer,
+    paletteContainer,
+    detailsContainer,
+    onStateChange: (state) => {
+      // Update UI based on state changes
+      if (state.isComplete) {
+        setSummary('PROOF COMPLETE', 'success');
+      } else if (state.selectedGoalId) {
+        setSummary(`Goal: ${state.selectedGoalId}`, 'neutral');
+      }
+    },
+    onProofComplete: (code) => {
+      // Show generated code
+      renderPreviewText(code, 'success');
+    },
+    onError: (message) => {
+      // Show error
+      setSummary('ERROR', 'error');
+      renderPreviewText(message, 'error');
+    },
+    onModifySource: (modifiedSource) => {
+      // Update the editor with the modified source
+      monacoEditor.setValue(modifiedSource);
+      // The editor change will trigger re-analysis automatically
+    }
+  });
+
+  // Initialize with the diagnostics worker
+  if (diagnosticsWorker) {
+    interactiveProofController.initialize(diagnosticsWorker);
+  }
+
+  // Set up source context from Monaco editor
+  interactiveProofController.updateSourceContext(monacoEditor.getValue());
+
+  // Update source context when editor changes
+  monacoEditor.onDidChangeModelContent(() => {
+    if (interactiveProofController) {
+      interactiveProofController.updateSourceContext(monacoEditor.getValue());
+    }
+  });
 }
 
 async function boot() {
