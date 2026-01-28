@@ -38,21 +38,36 @@ export function getApplyTacticCallback(): ApplyTacticCallback | null {
  * Apply a tactic to a goal.
  * Returns true if the callback was available and called, false otherwise.
  *
+ * Uses setTimeout(0) to ensure the callback is invoked in a new event loop tick.
+ * This fixes "Should have a queue" errors in React 18 concurrent mode
+ * when callbacks are stored outside React's component tree.
+ *
  * @param goalId - ID of the goal to apply the tactic to
  * @param tacticType - Type of tactic to apply
  * @param params - Parameters for the tactic
  * @param tacticNodeId - Optional ID of the tactic node (for error handling)
  */
-export async function applyTactic(
+export function applyTactic(
   goalId: string,
   tacticType: TacticType,
   params: TacticParameters,
   tacticNodeId?: string
 ): Promise<boolean> {
   if (applyTacticCallback) {
-    await applyTacticCallback({ goalId, tacticType, params, tacticNodeId });
-    return true;
+    // Use setTimeout(0) to ensure React can properly track the state update
+    // This schedules the callback in a new event loop tick
+    return new Promise((resolve) => {
+      setTimeout(async () => {
+        try {
+          await applyTacticCallback!({ goalId, tacticType, params, tacticNodeId });
+          resolve(true);
+        } catch (e) {
+          console.error('[tactic-callback] Error in callback:', e);
+          resolve(false);
+        }
+      }, 0);
+    });
   }
   console.warn('[tactic-callback] No callback registered');
-  return false;
+  return Promise.resolve(false);
 }
