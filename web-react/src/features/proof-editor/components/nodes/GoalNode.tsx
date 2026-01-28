@@ -1,0 +1,292 @@
+import { memo, useCallback, useState } from 'react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { cn } from '@/shared/lib/utils';
+import type { GoalNode as GoalNodeType, ContextEntry, TacticType } from '../../store/types';
+import { useUIStore } from '../../store';
+import { TACTICS } from '../../data/tactics';
+
+/**
+ * GoalNode Component
+ *
+ * Displays a goal to be proved with its type and context variables.
+ * Context variables are shown as subblocks with handles that can connect to tactics.
+ *
+ * Color indicates status:
+ * - Orange: Pending (not yet worked on)
+ * - Amber: In-progress (currently being worked on)
+ * - Green: Completed (solved by a tactic)
+ */
+// Global callback for tactic application - set by parent component
+let globalApplyTacticCallback: ((goalId: string, tacticType: TacticType, params?: { variableName?: string; expression?: string }) => Promise<void>) | null = null;
+
+export function setApplyTacticCallback(
+  callback: ((goalId: string, tacticType: TacticType, params?: { variableName?: string; expression?: string }) => Promise<void>) | null
+) {
+  globalApplyTacticCallback = callback;
+}
+
+export const GoalNode = memo(function GoalNode({
+  id,
+  data,
+  selected,
+}: NodeProps<GoalNodeType>) {
+  const selectNode = useUIStore((s) => s.selectNode);
+  const selectedNodeId = useUIStore((s) => s.selectedNodeId);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [pendingTactic, setPendingTactic] = useState<{ type: TacticType; needsParam: 'variable' | 'expression' | null } | null>(null);
+  const [paramInput, setParamInput] = useState('');
+
+  // Handle drag over
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (data.status !== 'completed') {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragOver(true);
+    }
+  }, [data.status]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  // Handle drop
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    if (data.status === 'completed') return;
+
+    const tacticType = e.dataTransfer.getData('application/tactic-type') as TacticType;
+    if (!tacticType) return;
+
+    const tacticInfo = TACTICS.find((t) => t.type === tacticType);
+    if (!tacticInfo) return;
+
+    // Check if tactic needs parameters
+    const needsVariable = ['elimNat', 'elimList', 'elimEither', 'elimAbsurd', 'elimVec', 'elimEqual'].includes(tacticType);
+    const needsExpression = ['exact', 'exists'].includes(tacticType);
+
+    if (needsVariable) {
+      setPendingTactic({ type: tacticType, needsParam: 'variable' });
+      setParamInput('');
+    } else if (needsExpression) {
+      setPendingTactic({ type: tacticType, needsParam: 'expression' });
+      setParamInput('');
+    } else {
+      // Simple tactic - apply directly
+      if (globalApplyTacticCallback) {
+        await globalApplyTacticCallback(id, tacticType);
+      }
+    }
+  }, [id, data.status]);
+
+  // Handle parameter submission
+  const handleSubmitParam = useCallback(async () => {
+    if (!pendingTactic || !paramInput.trim()) return;
+
+    if (globalApplyTacticCallback) {
+      const params = pendingTactic.needsParam === 'variable'
+        ? { variableName: paramInput.trim() }
+        : { expression: paramInput.trim() };
+      await globalApplyTacticCallback(id, pendingTactic.type, params);
+    }
+
+    setPendingTactic(null);
+    setParamInput('');
+  }, [id, pendingTactic, paramInput]);
+
+  const handleCancelParam = useCallback(() => {
+    setPendingTactic(null);
+    setParamInput('');
+  }, []);
+
+  const statusColors = {
+    pending: 'border-goal-pending bg-orange-50',
+    'in-progress': 'border-goal-current bg-amber-50',
+    completed: 'border-goal-complete bg-green-50',
+  };
+
+  const statusBadgeColors = {
+    pending: 'bg-goal-pending text-white',
+    'in-progress': 'bg-goal-current text-black',
+    completed: 'bg-goal-complete text-white',
+  };
+
+  const handleGoalClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    selectNode(id);
+  };
+
+  return (
+    <div
+      className={cn(
+        'min-w-[200px] max-w-[320px] rounded-lg border-2 shadow-sm transition-all',
+        statusColors[data.status],
+        selected && 'ring-2 ring-primary ring-offset-2',
+        isDragOver && data.status !== 'completed' && 'ring-4 ring-blue-400 ring-offset-2'
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Parameter input modal */}
+      {pendingTactic && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-black/50">
+          <div className="mx-2 rounded-lg bg-white p-3 shadow-xl">
+            <div className="mb-2 text-sm font-medium">
+              {pendingTactic.needsParam === 'variable' ? 'Enter target variable:' : 'Enter expression:'}
+            </div>
+            <input
+              type="text"
+              className="mb-2 w-full rounded border px-2 py-1 font-mono text-sm"
+              placeholder={pendingTactic.needsParam === 'variable' ? 'e.g., n' : 'e.g., (same n)'}
+              value={paramInput}
+              onChange={(e) => setParamInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSubmitParam();
+                if (e.key === 'Escape') handleCancelParam();
+              }}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                className="flex-1 rounded bg-blue-500 px-2 py-1 text-xs text-white hover:bg-blue-600"
+                onClick={handleSubmitParam}
+              >
+                Apply
+              </button>
+              <button
+                className="flex-1 rounded bg-gray-200 px-2 py-1 text-xs hover:bg-gray-300"
+                onClick={handleCancelParam}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drop indicator */}
+      {isDragOver && data.status !== 'completed' && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-blue-500/20">
+          <span className="rounded bg-blue-500 px-2 py-1 text-sm font-medium text-white">
+            Drop tactic here
+          </span>
+        </div>
+      )}
+
+      {/* Input handle (from parent tactic) */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="goal-input"
+        className="!h-3 !w-3 !border-2 !border-gray-400 !bg-white"
+      />
+
+      {/* Goal header and type - clickable for details */}
+      <div
+        className="cursor-pointer p-3 hover:bg-white/30"
+        onClick={handleGoalClick}
+      >
+        {/* Header with status badge */}
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-gray-500">Goal</span>
+          <span
+            className={cn(
+              'rounded-full px-2 py-0.5 text-xs font-medium',
+              statusBadgeColors[data.status]
+            )}
+          >
+            {data.status === 'in-progress' ? 'current' : data.status}
+          </span>
+        </div>
+
+        {/* Goal type */}
+        <div className="rounded bg-white/50 p-2 font-mono text-sm break-all">
+          {data.goalType}
+        </div>
+      </div>
+
+      {/* Context variables as subblocks */}
+      {data.context.length > 0 && (
+        <div className="border-t border-gray-200 p-2">
+          <div className="mb-2 text-xs font-medium text-gray-500">Context</div>
+          <div className="space-y-1">
+            {data.context.map((entry) => (
+              <ContextVarBlock
+                key={entry.id}
+                entry={entry}
+                goalId={id}
+                isSelected={selectedNodeId === `${id}-ctx-${entry.id}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Output handle (to tactic) */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="goal-output"
+        className="!h-3 !w-3 !border-2 !border-gray-400 !bg-white"
+      />
+    </div>
+  );
+});
+
+/**
+ * Context Variable Subblock
+ *
+ * Displays a context variable inside a goal node.
+ * Has a handle on the right side that can connect to tactics that use this variable.
+ */
+function ContextVarBlock({
+  entry,
+  isSelected,
+}: {
+  entry: ContextEntry;
+  goalId: string;  // kept for future use
+  isSelected: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'relative flex items-center justify-between rounded border bg-white px-2 py-1',
+        entry.origin === 'introduced'
+          ? 'border-blue-300 bg-blue-50'
+          : 'border-gray-200',
+        isSelected && 'ring-1 ring-primary'
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-sm font-semibold text-blue-700">
+          {entry.name}
+        </span>
+        <span className="text-xs text-gray-500">:</span>
+        <span className="font-mono text-xs text-gray-600">{entry.type}</span>
+      </div>
+
+      {/* Origin badge */}
+      {entry.origin === 'introduced' && (
+        <span className="ml-2 rounded bg-blue-200 px-1 py-0.5 text-[10px] text-blue-700">
+          new
+        </span>
+      )}
+
+      {/* Handle for connecting this variable to tactics */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id={`ctx-${entry.id}`}
+        className="!right-[-6px] !h-2 !w-2 !border !border-blue-400 !bg-blue-100"
+      />
+    </div>
+  );
+}
+
+GoalNode.displayName = 'GoalNode';

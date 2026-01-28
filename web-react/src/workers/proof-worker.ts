@@ -1,0 +1,492 @@
+import * as Comlink from 'comlink';
+import { nanoid } from 'nanoid';
+
+console.log('[ProofWorker] Worker script starting...');
+
+// ============================================
+// Types - Must match what convert-proof-tree.ts expects
+// ============================================
+
+export type TacticType =
+  | 'intro'
+  | 'split'
+  | 'left'
+  | 'right'
+  | 'induction'
+  | 'exact'
+  | 'exists'
+  | 'elimVec'
+  | 'elimEqual';
+
+export interface TacticParameters {
+  variableName?: string;
+  expression?: string;
+}
+
+// These types match the Pie interpreter's proofstate.ts exports
+export interface SerializableContextEntry {
+  id?: string;
+  name: string;
+  type: string;
+  introducedBy?: string;
+}
+
+export interface SerializableGoal {
+  id: string;
+  type: string;
+  context: SerializableContextEntry[];
+  contextEntries?: SerializableContextEntry[]; // Alias for compatibility
+  isComplete: boolean;
+  isCurrent: boolean;
+  parentId?: string;
+}
+
+export interface SerializableGoalNode {
+  goal: SerializableGoal;
+  children: SerializableGoalNode[];
+  appliedTactic?: string;
+  completedBy?: string;
+}
+
+export interface ProofTreeData {
+  root: SerializableGoalNode;
+  isComplete: boolean;
+  currentGoalId: string | null;
+}
+
+export interface SerializableLemma {
+  name: string;
+  type: string;
+}
+
+export interface StartSessionResponse {
+  sessionId: string;
+  proofTree: ProofTreeData;
+  availableLemmas: SerializableLemma[];
+  claimType: string;
+}
+
+export interface TacticAppliedResponse {
+  success: boolean;
+  proofTree: ProofTreeData;
+  error?: string;
+}
+
+// ============================================
+// Session storage
+// ============================================
+
+interface ProofSession {
+  id: string;
+  proofManager: any;
+  ctx: any;
+  claimName: string;
+  claimType: string;
+}
+
+const sessions = new Map<string, ProofSession>();
+
+// ============================================
+// Worker API
+// ============================================
+
+export interface ProofWorkerAPI {
+  test: () => string;
+  testImports: () => Promise<{ success: boolean; results: string[]; error?: string }>;
+  startSession: (sourceCode: string, claimName: string) => Promise<StartSessionResponse>;
+  applyTactic: (
+    sessionId: string,
+    goalId: string,
+    tacticType: string,
+    params?: TacticParameters
+  ) => Promise<TacticAppliedResponse>;
+  closeSession: (sessionId: string) => void;
+  getProofTree: (sessionId: string) => ProofTreeData | null;
+}
+
+const proofWorkerAPI: ProofWorkerAPI = {
+  test() {
+    console.log('[ProofWorker] test() called');
+    return 'Proof worker is responding!';
+  },
+
+  async testImports() {
+    console.log('[ProofWorker] testImports() called');
+    const results: string[] = [];
+
+    try {
+      results.push('1. Testing parser imports...');
+      const parser = await import('../../../src/pie_interpreter/parser/parser');
+      results.push('   schemeParse: ' + (typeof parser.schemeParse === 'function' ? 'OK' : 'MISSING'));
+
+      results.push('2. Testing context imports...');
+      const ctx = await import('../../../src/pie_interpreter/utils/context');
+      results.push('   initCtx: ' + (ctx.initCtx ? 'OK' : 'MISSING'));
+
+      results.push('3. Testing ProofManager...');
+      const { ProofManager } = await import('../../../src/pie_interpreter/tactics/proofmanager');
+      results.push('   ProofManager: OK');
+
+      results.push('ALL IMPORTS SUCCESSFUL!');
+      return { success: true, results };
+    } catch (e) {
+      results.push('FAILED: ' + String(e));
+      return { success: false, results, error: String(e) };
+    }
+  },
+
+  async startSession(sourceCode: string, claimName: string): Promise<StartSessionResponse> {
+    console.log('[ProofWorker] startSession() called for:', claimName);
+
+    try {
+      // Dynamically import Pie modules
+      console.log('[ProofWorker] Importing modules...');
+      const { schemeParse, pieDeclarationParser, Claim, Definition, DefineTactically } =
+        await import('../../../src/pie_interpreter/parser/parser');
+      const { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext } =
+        await import('../../../src/pie_interpreter/utils/context');
+      const { go, stop } = await import('../../../src/pie_interpreter/types/utils');
+      const { ProofManager } = await import('../../../src/pie_interpreter/tactics/proofmanager');
+      const { Location } = await import('../../../src/pie_interpreter/utils/locations');
+      const { Syntax, Position } = await import('../../../src/scheme_parser/transpiler/types/location');
+
+      // Create a dummy location
+      const pos: Position = { line: 1, column: 0 };
+      const syntax: Syntax = { start: pos, end: pos, source: '' };
+      const dummyLoc = new Location(syntax, syntax);
+
+      // Parse source code
+      console.log('[ProofWorker] Parsing source code...');
+      const astList = schemeParse(sourceCode);
+      if (!astList || !Array.isArray(astList)) {
+        throw new Error('Failed to parse source code');
+      }
+      console.log('[ProofWorker] Parsed', astList.length, 'AST nodes');
+
+      // Build context
+      console.log('[ProofWorker] Building context...');
+      let ctx = initCtx;
+      for (let i = 0; i < astList.length; i++) {
+        const src = pieDeclarationParser.parseDeclaration(astList[i]);
+        if (src instanceof Claim) {
+          const result = addClaimToContext(ctx, src.name, src.location, src.type);
+          if (result instanceof go) {
+            ctx = result.result;
+          } else if (result instanceof stop) {
+            throw new Error(`Claim error: ${result.message}`);
+          }
+        } else if (src instanceof Definition) {
+          const result = addDefineToContext(ctx, src.name, src.location, src.expr);
+          if (result instanceof go) {
+            ctx = result.result;
+          } else if (result instanceof stop) {
+            throw new Error(`Definition error: ${result.message}`);
+          }
+        } else if (src instanceof DefineTactically) {
+          const result = addDefineTacticallyToContext(ctx, src.name, src.location, src.tactics);
+          if (result instanceof go) {
+            ctx = result.result.context;
+          } else if (result instanceof stop) {
+            throw new Error(`DefineTactically error: ${result.message}`);
+          }
+        }
+      }
+
+      // Start proof
+      console.log('[ProofWorker] Starting proof for:', claimName);
+      const pm = new ProofManager();
+      const startResult = pm.startProof(claimName, ctx, dummyLoc);
+
+      if (startResult instanceof stop) {
+        throw new Error(`Failed to start proof: ${startResult.message}`);
+      }
+      console.log('[ProofWorker] Proof started successfully');
+
+      // Get proof tree data from the ProofManager
+      const rawProofTreeData = pm.getProofTreeData();
+      if (!rawProofTreeData) {
+        throw new Error('ProofManager returned null proof tree data');
+      }
+      console.log('[ProofWorker] Got raw proof tree data');
+
+      // Transform the data to match our expected format
+      const transformGoalNode = (node: any): SerializableGoalNode => {
+        const goal: SerializableGoal = {
+          id: node.goal.id,
+          type: node.goal.type,
+          context: (node.goal.contextEntries || []).map((e: any) => ({
+            id: e.id || nanoid(8),
+            name: e.name,
+            type: e.type,
+          })),
+          isComplete: node.goal.isComplete,
+          isCurrent: node.goal.isCurrent,
+        };
+
+        return {
+          goal,
+          children: (node.children || []).map(transformGoalNode),
+          appliedTactic: node.appliedTactic,
+          completedBy: node.completedBy,
+        };
+      };
+
+      const proofTree: ProofTreeData = {
+        root: transformGoalNode(rawProofTreeData.root),
+        isComplete: rawProofTreeData.isComplete,
+        currentGoalId: rawProofTreeData.currentGoalId,
+      };
+
+      // Get claim type
+      const binding = ctx.get(claimName);
+      const claimType = binding ? binding.type.readBackType(ctx).prettyPrint() : 'unknown';
+
+      // Save session
+      const sessionId = nanoid();
+      sessions.set(sessionId, {
+        id: sessionId,
+        proofManager: pm,
+        ctx,
+        claimName,
+        claimType,
+      });
+
+      console.log('[ProofWorker] Session created:', sessionId);
+
+      return {
+        sessionId,
+        proofTree,
+        availableLemmas: [],
+        claimType,
+      };
+    } catch (error) {
+      console.error('[ProofWorker] Error:', error);
+      throw error;
+    }
+  },
+
+  async applyTactic(
+    sessionId: string,
+    goalId: string,
+    tacticType: string,
+    params: TacticParameters = {}
+  ): Promise<TacticAppliedResponse> {
+    console.log('[ProofWorker] applyTactic() called:', tacticType, 'on goal:', goalId, 'params:', params);
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return {
+        success: false,
+        proofTree: { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+        error: `Session not found: ${sessionId}`,
+      };
+    }
+
+    try {
+      // Import tactic classes
+      const tactics = await import('../../../src/pie_interpreter/tactics/tactics');
+      const { Location } = await import('../../../src/pie_interpreter/utils/locations');
+      const { Syntax, Position } = await import('../../../src/scheme_parser/transpiler/types/location');
+      const { go, stop } = await import('../../../src/pie_interpreter/types/utils');
+      const { Parser } = await import('../../../src/pie_interpreter/parser/parser');
+
+      // Set the current goal to the one the user dropped onto
+      const pm = session.proofManager;
+      if (pm.currentState) {
+        const goalSet = pm.currentState.setCurrentGoalById(goalId);
+        if (!goalSet) {
+          return {
+            success: false,
+            proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+            error: `Goal not found: ${goalId}`,
+          };
+        }
+        // Check if goal is already complete
+        if (pm.currentState.currentGoal.isComplete) {
+          return {
+            success: false,
+            proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+            error: 'Cannot apply tactic to a completed goal',
+          };
+        }
+      }
+
+      // Create dummy location
+      const pos: Position = { line: 1, column: 0 };
+      const syntax: Syntax = { start: pos, end: pos, source: '' };
+      const loc = new Location(syntax, syntax);
+
+      // Create tactic based on type
+      let tactic: InstanceType<typeof tactics.Tactic>;
+
+      switch (tacticType) {
+        case 'intro':
+          tactic = new tactics.IntroTactic(loc, params.variableName);
+          break;
+
+        case 'exact':
+          if (!params.expression) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'exact tactic requires an expression parameter',
+            };
+          }
+          const exactTerm = Parser.parsePie(params.expression);
+          tactic = new tactics.ExactTactic(loc, exactTerm);
+          break;
+
+        case 'exists':
+          if (!params.expression) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'exists tactic requires an expression parameter',
+            };
+          }
+          const existsValue = Parser.parsePie(params.expression);
+          tactic = new tactics.ExistsTactic(loc, existsValue, params.variableName);
+          break;
+
+        case 'split':
+          tactic = new tactics.SpiltTactic(loc); // Note: typo in original code
+          break;
+
+        case 'left':
+          tactic = new tactics.LeftTactic(loc);
+          break;
+
+        case 'right':
+          tactic = new tactics.RightTactic(loc);
+          break;
+
+        case 'elimNat':
+        case 'induction':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimNat tactic requires a target variable name',
+            };
+          }
+          tactic = new tactics.EliminateNatTactic(loc, params.variableName);
+          break;
+
+        case 'elimList':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimList tactic requires a target variable name',
+            };
+          }
+          tactic = new tactics.EliminateListTactic(loc, params.variableName);
+          break;
+
+        case 'elimEither':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimEither tactic requires a target variable name',
+            };
+          }
+          tactic = new tactics.EliminateEitherTactic(loc, params.variableName);
+          break;
+
+        case 'elimAbsurd':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimAbsurd tactic requires a target variable name',
+            };
+          }
+          tactic = new tactics.EliminateAbsurdTactic(loc, params.variableName);
+          break;
+
+        default:
+          return {
+            success: false,
+            proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+            error: `Unknown tactic type: ${tacticType}`,
+          };
+      }
+
+      // Apply the tactic
+      const result = session.proofManager.applyTactic(tactic);
+
+      if (result instanceof stop) {
+        return {
+          success: false,
+          proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+          error: result.message.toString(),
+        };
+      }
+
+      console.log('[ProofWorker] Tactic applied successfully');
+
+      // Get updated proof tree
+      const proofTree = this.getProofTree(sessionId);
+      if (!proofTree) {
+        return {
+          success: false,
+          proofTree: { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+          error: 'Failed to get proof tree after applying tactic',
+        };
+      }
+
+      return {
+        success: true,
+        proofTree,
+      };
+    } catch (error) {
+      console.error('[ProofWorker] Error applying tactic:', error);
+      return {
+        success: false,
+        proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+        error: String(error),
+      };
+    }
+  },
+
+  closeSession(sessionId: string): void {
+    console.log('[ProofWorker] closeSession():', sessionId);
+    sessions.delete(sessionId);
+  },
+
+  getProofTree(sessionId: string): ProofTreeData | null {
+    const session = sessions.get(sessionId);
+    if (!session) return null;
+
+    const rawData = session.proofManager.getProofTreeData();
+    if (!rawData) return null;
+
+    // Transform the data
+    const transformGoalNode = (node: any): SerializableGoalNode => ({
+      goal: {
+        id: node.goal.id,
+        type: node.goal.type,
+        context: (node.goal.contextEntries || []).map((e: any) => ({
+          id: e.id || nanoid(8),
+          name: e.name,
+          type: e.type,
+        })),
+        isComplete: node.goal.isComplete,
+        isCurrent: node.goal.isCurrent,
+      },
+      children: (node.children || []).map(transformGoalNode),
+      appliedTactic: node.appliedTactic,
+      completedBy: node.completedBy,
+    });
+
+    return {
+      root: transformGoalNode(rawData.root),
+      isComplete: rawData.isComplete,
+      currentGoalId: rawData.currentGoalId,
+    };
+  },
+};
+
+Comlink.expose(proofWorkerAPI);
+console.log('[ProofWorker] API exposed');

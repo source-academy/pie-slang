@@ -2,9 +2,10 @@
 
 ## CURRENT STATUS
 - Task: TASK-001
-- Status: DRAFT
+- Status: **APPROVED** ✅
 - Created: 2026-01-28 22:45
-- Updated: 2026-01-28 22:45
+- Updated: 2026-01-28 23:00
+- Approved by: Monitor Agent
 
 ---
 
@@ -111,6 +112,7 @@ Check: does tactic have all required parameters?
    - Display global definitions grouped by type
    - Display proved theorems
    - Make items clickable to copy name for expressions
+   - **Show full type signature on click/hover** (per acceptance criteria)
 
 8. **`web-react/src/app/App.tsx`**
    - Add DefinitionsPanel to right side or integrate into DetailPanel

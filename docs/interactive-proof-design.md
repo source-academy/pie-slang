@@ -103,28 +103,34 @@ Instead of representing all theorems as separate connectable blocks, we distingu
 
 #### Goal Block (with Embedded Context)
 ```
-┌─────────────────────────────────┐
-│  GOAL                    [?]    │  ◄── Status: unsolved
-│  ───────────────────────────    │
-│  Type: (= Nat (+ n m) (+ m n))  │
-│  ───────────────────────────    │
-│  Context (scoped):              │
-│    ◉ n : Nat                    │  ◄── Selectable items
-│    ○ m : Nat                    │      (◉ = selected)
-│    ○ ih : (P k)                 │
-│                                 │
-│            [●]                  │  ◄── output port
-└─────────────────────────────────┘
+┌─────────────────────────────────────┐
+│  GOAL                        [?]    │  ◄── Status: unsolved
+│  ─────────────────────────────────  │
+│  Type: (= Nat (+ n m) (+ m n))      │
+│  ─────────────────────────────────  │
+│  Context (scoped):                  │
+│  ┌─────────────────────────┬───┐   │
+│  │ n : Nat           [new] │ ●─┼───┤  ◄── Context entry with handle
+│  ├─────────────────────────┼───┤   │
+│  │ m : Nat           [new] │ ●─┼───┤  ◄── Each entry has output port
+│  ├─────────────────────────┼───┤   │
+│  │ ih : (P k)              │ ●─┼───┤
+│  └─────────────────────────┴───┘   │
+│                                     │
+│              [●]                    │  ◄── Goal output port (bottom)
+└─────────────────────────────────────┘
 ```
 
 - **Color**: Orange (unsolved), Green (solved)
 - **Content**:
   - Goal type to prove
-  - **Embedded context** - all variables/hypotheses in scope
-- **Ports**: One output port (bottom)
+  - **Embedded context** - all variables/hypotheses in scope as subblocks
+- **Ports**:
+  - One goal output port (bottom) - connects to tactic goal input
+  - **Context entry handles** (right side) - each context variable has its own output port
 - **Behavior**:
   - Cannot be dragged
-  - Context items are **selectable** for tactic inputs
+  - Context entries have **connectable handles** for linking to tactic inputs
   - Created by system (root) or by tactics (subgoals)
 - **Context Inheritance**:
   - Child goals inherit parent's context
@@ -155,27 +161,32 @@ Instead of representing all theorems as separate connectable blocks, we distingu
 
 #### Tactic Block
 ```
-┌─────────────────────────────────────────┐
-│       [●]                               │  ◄── Goal input port
-│  ───────────────────────────────────    │
-│  TACTIC: elimNat                        │
-│  ───────────────────────────────────    │
-│  Target: [n ▼] (select from context)    │  ◄── Dropdown selector
-│  ───────────────────────────────────    │
-│    [●]              [●]                 │  ◄── Output: 2 new goals
-│  (base case)    (step case)             │
-└─────────────────────────────────────────┘
+          [●]                         ◄── Goal input port (top)
+           │
+┌──────────┼──────────────────────────┐
+│  ●───────┤  TACTIC: elimNat         │  ◄── Context var input (left)
+│          │                          │
+│          │  Target: n               │  ◄── Shows connected context var
+│          └──────────────────────────┤
+│                                     │
+│      [●]              [●]           │  ◄── Output: 2 new goals
+│   (base case)    (step case)        │
+└─────────────────────────────────────┘
 ```
 
 - **Color**: Blue
-- **Content**: Tactic name, parameter selectors
+- **Content**: Tactic name, connected parameters
 - **Ports**:
-  - Input port (top): Accepts ONE goal
-  - Output ports (bottom): Produces new goals with extended context
+  - **Goal input port (top)**: Accepts the goal to transform
+  - **Context input port(s) (left)**: Accept context variable connections from goal
+  - **Output ports (bottom)**: Produces new goals with extended context
 - **Behavior**:
   - **Draggable** from palette
-  - Parameters selected from connected goal's context
-  - Validates that selected items have correct types
+  - Context variables connected via **edges from goal's context handles**
+  - Validates that connected context entries have correct types
+- **Edge Types**:
+  - `goal-to-tactic`: From goal output to tactic goal input
+  - `context-to-tactic`: From goal's context handle to tactic's context input
 - **Context Flow**:
   - Reads context from input goal
   - Extends context for output goals (adds new variables)
@@ -470,23 +481,25 @@ Example:
 
 ### Connection Rules
 
-1. **Goal → Tactic**: Goal output connects to tactic's goal input
-2. **Theorem → Tactic**: Theorem output connects to tactic's theorem input
-3. **Tactic → Goal**: Tactic produces new goals at output ports
-4. **Tactic → Theorem**: Tactic produces new theorems at output ports
+1. **Goal → Tactic**: Goal output connects to tactic's goal input (top)
+2. **Context → Tactic**: Context entry handle connects to tactic's context input (left)
+3. **Lemma → Tactic**: Lemma output connects to tactic's theorem input
+4. **Tactic → Goal**: Tactic produces new goals at output ports (bottom)
 
 ### Port Types
 
 ```
 Port Colors:
   ○ Orange = Goal port
-  ○ Green  = Theorem port
-  ○ Blue   = Any (accepts both)
+  ○ Green  = Theorem/Lemma port
+  ○ Purple = Context variable port
+  ○ Blue   = Tactic port
 
 Connection Validation:
   - Goal ports only accept goals
-  - Theorem ports only accept theorems
-  - Type checking validates compatibility
+  - Context ports only accept context variables (from same goal's scope)
+  - Theorem ports only accept theorems/lemmas
+  - Type checking validates compatibility (e.g., elimNat requires Nat-typed context var)
 ```
 
 ## User Interaction
@@ -630,16 +643,18 @@ interface TacticBlock {
   kind: 'tactic';
   id: string;
   tacticType: TacticType;
-  // Parameters reference context entries by ID
+  // Parameters populated via edge connections
   parameters: {
-    name?: string;                    // For intro: variable name
-    targetContextId?: string;         // For elim: which context entry
-    expression?: string;              // For exact: the term
-    lemmaId?: string;                 // For apply: which lemma
+    name?: string;                    // For intro: variable name (user input)
+    expression?: string;              // For exact: the term (user input)
   };
+  // Connected context entries (populated via edges)
+  connectedContextIds: string[];      // Context entries connected to this tactic
+  connectedLemmaId?: string;          // Lemma connected (for apply)
   position: Position;
-  inputPort: PortId;       // Single goal input
-  outputPorts: PortId[];   // Multiple goal outputs
+  goalInputPort: PortId;              // Goal input (top)
+  contextInputPorts: PortId[];        // Context variable inputs (left)
+  outputPorts: PortId[];              // Goal outputs (bottom)
 }
 
 type Block = GoalBlock | LemmaBlock | TacticBlock;
@@ -649,16 +664,18 @@ interface Port {
   id: PortId;
   blockId: string;
   kind: 'input' | 'output';
-  accepts: 'goal' | 'theorem' | 'any';
-  position: 'top' | 'bottom';
+  accepts: 'goal' | 'context' | 'theorem' | 'any';
+  position: 'top' | 'bottom' | 'left' | 'right';
   index: number;  // Position among ports of same kind
+  contextEntryId?: string;  // For context ports: which context entry this represents
 }
 
 // Edge connecting two ports
 interface Edge {
   id: string;
-  sourcePort: PortId;  // Output port (goal/theorem)
+  sourcePort: PortId;  // Output port (goal/context/theorem)
   targetPort: PortId;  // Input port (tactic)
+  kind: 'goal-to-tactic' | 'context-to-tactic' | 'lemma-to-tactic' | 'tactic-to-goal';
 }
 
 // Full proof graph

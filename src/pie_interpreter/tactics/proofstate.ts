@@ -255,6 +255,33 @@ export class ProofState {
       currentGoalId
     };
   }
+
+  /**
+   * Set the current goal by its ID.
+   * Used when the user wants to apply a tactic to a specific goal.
+   * Returns true if the goal was found and set, false otherwise.
+   */
+  setCurrentGoalById(goalId: string): boolean {
+    const found = this.findGoalById(this.goalTree, goalId);
+    if (found) {
+      this.currentGoal = found;
+      return true;
+    }
+    return false;
+  }
+
+  private findGoalById(node: GoalNode, goalId: string): GoalNode | null {
+    if (node.goal.id === goalId) {
+      return node;
+    }
+    for (const child of node.children) {
+      const found = this.findGoalById(child, goalId);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
 }
 
 export interface ProofSummary {

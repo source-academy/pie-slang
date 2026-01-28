@@ -411,8 +411,9 @@ export type ProofNode = GoalNode | TacticNode | LemmaNode;
 // ============================================
 
 export interface ProofEdgeData {
-  kind: 'goal-to-tactic' | 'tactic-to-goal' | 'lemma-to-tactic';
+  kind: 'goal-to-tactic' | 'tactic-to-goal' | 'lemma-to-tactic' | 'context-to-tactic';
   outputIndex?: number;       // Which output port of tactic
+  contextEntryId?: string;    // For context-to-tactic: which context entry
 }
 
 export type ProofEdge = Edge<ProofEdgeData>;
@@ -421,7 +422,13 @@ export type ProofEdge = Edge<ProofEdgeData>;
 // Handle (Port) Types
 // ============================================
 
-export type HandleType = 'goal-input' | 'goal-output' | 'theorem-input' | 'theorem-output';
+export type HandleType =
+  | 'goal-input'      // Tactic's goal input (top)
+  | 'goal-output'     // Goal's output port (bottom)
+  | 'context-output'  // Context entry's output handle (right side of goal)
+  | 'context-input'   // Tactic's context input (left side)
+  | 'theorem-input'   // Tactic's lemma input
+  | 'theorem-output'; // Lemma's output port
 ```
 
 ### Store Types

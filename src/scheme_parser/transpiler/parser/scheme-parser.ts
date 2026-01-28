@@ -3,7 +3,7 @@ import { TokenType } from "../types/tokens/token-type";
 import { Location } from "../types/location";
 import { Atomic, Expression, Extended } from "../types/nodes/scheme-node-types";
 import * as ParserError from "./parser-error";
-import { Datum } from "../types/tokens/datum";
+import type { Datum } from "../types/tokens/datum";
 import { Group } from "../types/tokens/group";
 import { Parser } from "./parser";
 import { isGroup, isToken } from "../types/tokens";
