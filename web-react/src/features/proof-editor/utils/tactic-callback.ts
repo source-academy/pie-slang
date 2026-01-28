@@ -8,11 +8,14 @@
 
 import type { TacticType, TacticParameters } from '../store/types';
 
-export type ApplyTacticCallback = (
-  goalId: string,
-  tacticType: TacticType,
-  params: TacticParameters
-) => Promise<void>;
+export interface ApplyTacticOptions {
+  goalId: string;
+  tacticType: TacticType;
+  params: TacticParameters;
+  tacticNodeId?: string; // Optional: ID of tactic node to update on error
+}
+
+export type ApplyTacticCallback = (options: ApplyTacticOptions) => Promise<void>;
 
 let applyTacticCallback: ApplyTacticCallback | null = null;
 
@@ -34,14 +37,20 @@ export function getApplyTacticCallback(): ApplyTacticCallback | null {
 /**
  * Apply a tactic to a goal.
  * Returns true if the callback was available and called, false otherwise.
+ *
+ * @param goalId - ID of the goal to apply the tactic to
+ * @param tacticType - Type of tactic to apply
+ * @param params - Parameters for the tactic
+ * @param tacticNodeId - Optional ID of the tactic node (for error handling)
  */
 export async function applyTactic(
   goalId: string,
   tacticType: TacticType,
-  params: TacticParameters
+  params: TacticParameters,
+  tacticNodeId?: string
 ): Promise<boolean> {
   if (applyTacticCallback) {
-    await applyTacticCallback(goalId, tacticType, params);
+    await applyTacticCallback({ goalId, tacticType, params, tacticNodeId });
     return true;
   }
   console.warn('[tactic-callback] No callback registered');

@@ -210,7 +210,7 @@ function IntroParamInput({
       // If already connected to a goal, trigger application
       if (connectedGoalId) {
         console.log('[TacticNode] Params set and connected, applying intro');
-        await triggerApplyTactic(connectedGoalId, 'intro', params);
+        await triggerApplyTactic(connectedGoalId, 'intro', params, nodeId);
       }
     }
   }, [nodeId, value, updateNode, connectedGoalId]);
@@ -270,7 +270,7 @@ function ExactParamInput({
       // If already connected to a goal, trigger application
       if (connectedGoalId) {
         console.log('[TacticNode] Params set and connected, applying exact');
-        await triggerApplyTactic(connectedGoalId, 'exact', params);
+        await triggerApplyTactic(connectedGoalId, 'exact', params, nodeId);
       }
     }
   }, [nodeId, value, updateNode, connectedGoalId]);

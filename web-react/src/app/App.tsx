@@ -5,33 +5,55 @@ import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPan
 import { TacticPalette } from '@/features/proof-editor/components/panels/TacticPalette';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
-import { setApplyTacticCallback } from '@/features/proof-editor/utils/tactic-callback';
-import type { TacticType, TacticParameters } from '@/features/proof-editor/store/types';
+import { useProofStore } from '@/features/proof-editor/store';
+import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 
 function AppContent() {
   const { applyTactic, error } = useProofSession();
+  const updateNode = useProofStore((s) => s.updateNode);
   const [tacticError, setTacticError] = useState<string | null>(null);
 
   // Set up the global callback for tactic application
-  const handleApplyTactic = useCallback(async (
-    goalId: string,
-    tacticType: TacticType,
-    params: TacticParameters
-  ) => {
-    console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params);
+  const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
+    const { goalId, tacticType, params, tacticNodeId } = options;
+    console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params, 'tacticNodeId:', tacticNodeId);
     setTacticError(null);
+
     try {
       const result = await applyTactic(goalId, tacticType, params);
-      if (!result.success && result.error) {
-        setTacticError(result.error);
-        console.error('[App] Tactic failed:', result.error);
+
+      if (result.success) {
+        // Success: syncFromWorker already called in useProofSession
+        // The proof tree will be updated with new goals
+        console.log('[App] Tactic succeeded');
+      } else {
+        // Failure: update tactic node with error status
+        const errorMsg = result.error || 'Tactic application failed';
+        setTacticError(errorMsg);
+        console.error('[App] Tactic failed:', errorMsg);
+
+        // If we have a tactic node ID, update its status to error
+        if (tacticNodeId) {
+          updateNode(tacticNodeId, {
+            status: 'error',
+            errorMessage: errorMsg,
+          });
+        }
       }
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       setTacticError(errorMsg);
       console.error('[App] Tactic error:', e);
+
+      // If we have a tactic node ID, update its status to error
+      if (tacticNodeId) {
+        updateNode(tacticNodeId, {
+          status: 'error',
+          errorMessage: errorMsg,
+        });
+      }
     }
-  }, [applyTactic]);
+  }, [applyTactic, updateNode]);
 
   // Register the callback when component mounts
   useEffect(() => {

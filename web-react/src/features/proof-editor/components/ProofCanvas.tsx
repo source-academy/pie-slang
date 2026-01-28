@@ -100,11 +100,16 @@ export function ProofCanvas() {
 
           // Now trigger application since the tactic is ready
           console.log('[ProofCanvas] Context edge connected, applying tactic:', tacticNode.data.tacticType);
-          await triggerApplyTactic(goalNode.id, tacticNode.data.tacticType, {
-            ...tacticNode.data.parameters,
-            targetContextId: contextVarId,
-            variableName: contextEntry.name,
-          });
+          await triggerApplyTactic(
+            goalNode.id,
+            tacticNode.data.tacticType,
+            {
+              ...tacticNode.data.parameters,
+              targetContextId: contextVarId,
+              variableName: contextEntry.name,
+            },
+            tacticNode.id // Pass tactic node ID for error handling
+          );
         }
         return;
       }
@@ -117,7 +122,12 @@ export function ProofCanvas() {
       // If tactic is already 'ready' (params complete), apply it
       if (tacticNode.data.status === 'ready') {
         console.log('[ProofCanvas] Edge connected to ready tactic, applying:', tacticNode.data.tacticType);
-        await triggerApplyTactic(goalNode.id, tacticNode.data.tacticType, tacticNode.data.parameters);
+        await triggerApplyTactic(
+          goalNode.id,
+          tacticNode.data.tacticType,
+          tacticNode.data.parameters,
+          tacticNode.id // Pass tactic node ID for error handling
+        );
       }
     },
     [nodes, storeOnConnect, updateNode]
