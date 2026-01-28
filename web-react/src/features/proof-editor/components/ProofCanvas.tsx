@@ -91,15 +91,14 @@ export function ProofCanvas() {
         y: event.clientY,
       });
 
-      // Create the tactic node
+      // Create the tactic node with 'incomplete' status (needs parameters or connection)
       const newNodeId = addTacticNode(
         {
           kind: 'tactic',
           tacticType,
           displayName: tacticInfo.displayName,
           parameters: {},
-          isConfigured: false,
-          isValid: false,
+          status: 'incomplete',
         },
         position
       );

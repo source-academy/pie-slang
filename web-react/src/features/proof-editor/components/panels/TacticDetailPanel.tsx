@@ -55,13 +55,21 @@ export function TacticDetailPanel() {
         <div className="flex items-center gap-2">
           <span className={cn(
             'rounded px-2 py-1 font-mono text-sm font-semibold',
-            data.isValid ? 'bg-tactic text-white' : 'bg-red-400 text-white'
+            data.status === 'error' ? 'bg-red-400 text-white' :
+            data.status === 'applied' ? 'bg-green-500 text-white' :
+            data.status === 'incomplete' ? 'bg-amber-400 text-white' :
+            'bg-tactic text-white'
           )}>
             {data.displayName}
           </span>
-          {!data.isConfigured && (
+          {data.status === 'incomplete' && (
             <span className="rounded bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
-              unconfigured
+              needs config
+            </span>
+          )}
+          {data.status === 'applied' && (
+            <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
+              applied
             </span>
           )}
         </div>
@@ -78,7 +86,7 @@ export function TacticDetailPanel() {
       />
 
       {/* Validation Status */}
-      {!data.isValid && data.errorMessage && (
+      {data.status === 'error' && data.errorMessage && (
         <div className="border-t p-4">
           <div className="mb-1 text-xs font-medium text-red-500">Error</div>
           <div className="rounded bg-red-50 p-2 text-sm text-red-600">
@@ -183,7 +191,7 @@ function IntroConfig({
       updateNode(node.id, {
         parameters: { ...node.data.parameters, variableName: variableName.trim() },
         displayName: `intro ${variableName.trim()}`,
-        isConfigured: true,
+        status: 'ready',
       });
     }
   };
@@ -233,7 +241,7 @@ function ExactConfig({
       updateNode(node.id, {
         parameters: { ...node.data.parameters, expression: expression.trim() },
         displayName: `exact`,
-        isConfigured: true,
+        status: 'ready',
       });
     }
   };
@@ -311,7 +319,7 @@ function ApplyConfig({
       updateNode(node.id, {
         parameters: { ...node.data.parameters, lemmaId },
         displayName: `apply ${lemma.data.name}`,
-        isConfigured: true,
+        status: 'ready',
       });
     }
   };

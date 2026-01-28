@@ -200,8 +200,8 @@ function traverseTree(
         tacticType: parseTacticType(node.appliedTactic),
         displayName: node.appliedTactic,
         parameters: {}, // Parameters would need to be serialized from worker
-        isConfigured: true,
-        isValid: true,
+        status: 'applied',
+        connectedGoalId: node.goal.id,
       },
     };
     nodes.push(tacticNode);
@@ -242,8 +242,8 @@ function traverseTree(
         tacticType: parseTacticType(node.completedBy),
         displayName: node.completedBy,
         parameters: {},
-        isConfigured: true,
-        isValid: true,
+        status: 'applied',
+        connectedGoalId: node.goal.id,
       },
     };
     nodes.push(tacticNode);

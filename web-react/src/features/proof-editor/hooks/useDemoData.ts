@@ -29,15 +29,15 @@ export function useDemoData() {
       { x: 400, y: 50 }
     );
 
-    // Create intro tactic
+    // Create intro tactic (already applied)
     const introTacticId = addTacticNode(
       {
         kind: 'tactic',
         tacticType: 'intro',
         displayName: 'intro n',
         parameters: { variableName: 'n' },
-        isConfigured: true,
-        isValid: true,
+        status: 'applied',
+        connectedGoalId: rootGoalId,
       },
       { x: 400, y: 180 }
     );
@@ -62,15 +62,15 @@ export function useDemoData() {
     // Connect intro tactic to subgoal
     connectNodes(introTacticId, subGoalId, { kind: 'tactic-to-goal', outputIndex: 0 });
 
-    // Add elimNat tactic - this needs both goal AND context variable 'n'
+    // Add elimNat tactic - this needs both goal AND context variable 'n' (already applied)
     const elimTacticId = addTacticNode(
       {
         kind: 'tactic',
         tacticType: 'elimNat',
         displayName: 'elimNat',
         parameters: { targetContextId: 'ctx-n', variableName: 'n' },
-        isConfigured: true,
-        isValid: true,
+        status: 'applied',
+        connectedGoalId: subGoalId,
       },
       { x: 400, y: 480 }
     );

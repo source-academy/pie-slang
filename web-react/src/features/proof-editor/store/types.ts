@@ -53,14 +53,23 @@ export interface GoalNodeData {
   [key: string]: unknown;     // Index signature for React Flow compatibility
 }
 
+/**
+ * Tactic node status:
+ * - 'incomplete': Tactic is on canvas but missing required parameters
+ * - 'ready': All parameters provided, ready to apply (but not yet connected/applied)
+ * - 'applied': Successfully applied to a goal, child goals created
+ * - 'error': Tactic application failed (type error, invalid goal, etc.)
+ */
+export type TacticNodeStatus = 'incomplete' | 'ready' | 'applied' | 'error';
+
 export interface TacticNodeData {
   kind: 'tactic';
   tacticType: TacticType;
   displayName: string;
   parameters: TacticParameters;
-  isConfigured: boolean;      // All required params filled
-  isValid: boolean;           // Type-checks against input goal
-  errorMessage?: string;
+  status: TacticNodeStatus;
+  connectedGoalId?: string;   // Which goal this tactic is connected to
+  errorMessage?: string;      // Error message when status is 'error'
   [key: string]: unknown;     // Index signature for React Flow compatibility
 }
 

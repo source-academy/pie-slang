@@ -3,6 +3,7 @@ export type {
   ContextEntry,
   TacticType,
   TacticParameters,
+  TacticNodeStatus,
   GoalNodeData,
   TacticNodeData,
   LemmaNodeData,
