@@ -59,10 +59,28 @@ export interface SerializableLemma {
   type: string;
 }
 
+/**
+ * Global context entry - definitions and theorems from the source code
+ */
+export interface GlobalContextEntry {
+  name: string;
+  type: string;
+  kind: 'definition' | 'claim' | 'theorem';  // theorem = proved claim
+}
+
+/**
+ * Global context - definitions and theorems available in the proof
+ */
+export interface GlobalContext {
+  definitions: GlobalContextEntry[];
+  theorems: GlobalContextEntry[];
+}
+
 export interface StartSessionResponse {
   sessionId: string;
   proofTree: ProofTreeData;
   availableLemmas: SerializableLemma[];
+  globalContext: GlobalContext;  // NEW: separated global context
   claimType: string;
 }
 
@@ -163,15 +181,24 @@ const proofWorkerAPI: ProofWorkerAPI = {
       }
       console.log('[ProofWorker] Parsed', astList.length, 'AST nodes');
 
-      // Build context
+      // Build context and track definitions/claims for globalContext
       console.log('[ProofWorker] Building context...');
       let ctx = initCtx;
+      const globalDefinitions: GlobalContextEntry[] = [];
+      const globalTheorems: GlobalContextEntry[] = [];
+      const pendingClaims: Array<{ name: string; type: string }> = [];
+
       for (let i = 0; i < astList.length; i++) {
         const src = pieDeclarationParser.parseDeclaration(astList[i]);
         if (src instanceof Claim) {
           const result = addClaimToContext(ctx, src.name, src.location, src.type);
           if (result instanceof go) {
             ctx = result.result;
+            // Track claim for later - will become theorem if proved
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const srcType = src.type as any;
+            const typeStr = srcType.readBackType ? srcType.readBackType(ctx).prettyPrint() : String(src.type);
+            pendingClaims.push({ name: src.name, type: typeStr });
           } else if (result instanceof stop) {
             throw new Error(`Claim error: ${result.message}`);
           }
@@ -179,6 +206,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
           const result = addDefineToContext(ctx, src.name, src.location, src.expr);
           if (result instanceof go) {
             ctx = result.result;
+            // Track definition
+            const binding = ctx.get(src.name);
+            const typeStr = binding ? binding.type.readBackType(ctx).prettyPrint() : 'unknown';
+            globalDefinitions.push({ name: src.name, type: typeStr, kind: 'definition' });
           } else if (result instanceof stop) {
             throw new Error(`Definition error: ${result.message}`);
           }
@@ -186,10 +217,22 @@ const proofWorkerAPI: ProofWorkerAPI = {
           const result = addDefineTacticallyToContext(ctx, src.name, src.location, src.tactics);
           if (result instanceof go) {
             ctx = result.result.context;
+            // This is a proved theorem
+            const binding = ctx.get(src.name);
+            const typeStr = binding ? binding.type.readBackType(ctx).prettyPrint() : 'unknown';
+            globalTheorems.push({ name: src.name, type: typeStr, kind: 'theorem' });
+            // Remove from pending claims if it was there
+            const claimIdx = pendingClaims.findIndex(c => c.name === src.name);
+            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
           } else if (result instanceof stop) {
             throw new Error(`DefineTactically error: ${result.message}`);
           }
         }
+      }
+
+      // Add remaining unproved claims to theorems list (as claims)
+      for (const claim of pendingClaims) {
+        globalTheorems.push({ name: claim.name, type: claim.type, kind: 'claim' });
       }
 
       // Start proof
@@ -218,6 +261,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
             id: e.id || nanoid(8),
             name: e.name,
             type: e.type,
+            // Include introducedBy to distinguish local (introduced by tactic) from global
+            introducedBy: e.introducedBy || e.origin || undefined,
           })),
           isComplete: node.goal.isComplete,
           isCurrent: node.goal.isCurrent,
@@ -252,11 +297,16 @@ const proofWorkerAPI: ProofWorkerAPI = {
       });
 
       console.log('[ProofWorker] Session created:', sessionId);
+      console.log('[ProofWorker] Global context:', { definitions: globalDefinitions.length, theorems: globalTheorems.length });
 
       return {
         sessionId,
         proofTree,
         availableLemmas: [],
+        globalContext: {
+          definitions: globalDefinitions,
+          theorems: globalTheorems,
+        },
         claimType,
       };
     } catch (error) {
