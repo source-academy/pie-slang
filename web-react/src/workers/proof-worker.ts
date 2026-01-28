@@ -521,6 +521,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
           id: e.id || nanoid(8),
           name: e.name,
           type: e.type,
+          // Include introducedBy to distinguish local (introduced by tactic) from global
+          introducedBy: e.introducedBy || undefined,
         })),
         isComplete: node.goal.isComplete,
         isCurrent: node.goal.isCurrent,
