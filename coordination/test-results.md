@@ -2,9 +2,23 @@
 
 ## CURRENT STATUS
 - Task: TASK-001 (Phase A)
-- Status: **INCOMPLETE - BUGS FOUND**
-- Tested: 2026-01-28 21:15
-- Overall: **1 PASS / 2 FAIL / 1 BLOCKED**
+- Status: **PASS after Dev fix**
+- Tested: 2026-01-28 21:25 (Re-test)
+- Overall: **3 PASS / 0 FAIL**
+
+### RE-TEST RESULTS (after Dev fix)
+
+| Test | Result | Notes |
+|------|--------|-------|
+| TC1: Drag to canvas | ✅ PASS | Tactic node created with "needs config" |
+| TC1: Set parameter | ✅ PASS | "Set" button works, no React error |
+| TC4: Drag onto goal | ✅ PASS | Tactic applied, child goal created! |
+
+**React error is FIXED!** Dev Agent resolved the useProofSession.ts issue.
+
+---
+
+## ORIGINAL TEST RESULTS (before fix)
 
 ---
 

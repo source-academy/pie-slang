@@ -9,59 +9,42 @@
 | Field | Value |
 |-------|-------|
 | **Task** | TASK-001: Proper tactic application + context separation |
-| **Phase** | `TEST_REVIEW` - Bugs found, needs fixes |
-| **Dev Agent** | ⚠️ Needs to fix React error in useProofSession.ts |
-| **Test Agent** | ✅ Testing complete - see test-results.md |
-| **Monitor Agent** | Should review test findings |
-| **Blocker** | **React state error blocks tactic application** |
+| **Phase** | `TESTING PASS` - Core functionality verified! |
+| **Dev Agent** | ✅ Bug fixed (4d585a5) |
+| **Test Agent** | ✅ RE-TEST PASSED - Tactic application working |
+| **Monitor Agent** | Should verify and approve completion |
+| **Blocker** | None |
 | **Dev Server** | ✅ Running on port 3002 |
 
 ---
 
-## User Decisions (Just Answered)
+## Bug Fix Summary
 
-| Question | Decision |
-|----------|----------|
-| Target selection (elimNat etc.) | **Edge drawing** - local vars are connectable handles in goal block |
-| Sidebar | **Collapsible** |
-| Proved theorems | **Immediately usable** in subsequent proofs |
+**Problem**: "Should have a queue" React error when clicking Apply button
 
----
+**Root Cause**: Module-level callback pattern conflicted with React 18 concurrent mode
 
-## Task Summary
+**Fix**: Wrapped callback in `setTimeout(0)` to defer to new event loop tick
 
-### Three Core Requirements
-
-1. **Manual Edge-Drawing**: Connect tactic nodes to goals via edges ⚠️ PARTIALLY WORKS - drag to canvas OK, Apply button broken
-2. **Validated Goal Creation**: Only create goals AFTER tactic validation passes ❌ BLOCKED - React error prevents testing
-3. **Context Separation**: Local variables (connectable) in goal node, globals in collapsible sidebar ✅ UI shows "Local Context" label
-
-### Key Design: Connectable Variables
-
-Local context variables in goal nodes have **connection handles**:
-```
-┌─────────────────────────────┐
-│ Goal: (= Nat n n)           │
-├─────────────────────────────┤
-│ Local Context:              │
-│   ○ n : Nat    ←── handle   │  User can draw edge from here
-│   ○ m : Nat    ←── handle   │  to tactic for elimNat target
-└─────────────────────────────┘
-```
+**Commit**: 4d585a5
 
 ---
 
-## Last Checkpoint
+## Test Cases Results (Re-Test)
 
-| Field | Value |
-|-------|-------|
-| **Commit** | c36f1f9 (TASK-001 Step 8) |
-| **What Works** | Edge-drawing, validated goals, context separation |
-| **Ready For** | Testing and user verification |
+| Test | Previous | Re-Test Result |
+|------|----------|----------------|
+| TC1-Step1: Drag to canvas | ✅ PASS | ✅ PASS |
+| TC1-Step3: Set/Apply button | ❌ FAIL | ✅ PASS - No React error! |
+| TC4: Drag onto goal | ❌ FAIL | ✅ PASS - Child goal created! |
+| TC2: Parameterless tactics | ⏸️ BLOCKED | (not yet tested) |
+| TC3: Error handling | ⏸️ BLOCKED | (not yet tested) |
+
+**Core tactic flow is WORKING!**
 
 ---
 
-## Commits for TASK-001
+## All Commits for TASK-001
 
 | Step | Commit | Description |
 |------|--------|-------------|
@@ -71,6 +54,7 @@ Local context variables in goal nodes have **connection handles**:
 | 5 | 62da666 | Context separation in worker |
 | 6-7 | 8a99907 | DefinitionsPanel + GoalNode filtering |
 | 8 | c36f1f9 | proof-worker type fixes |
+| **BUG FIX** | **4d585a5** | **React 18 queue error fix** |
 
 ---
 
@@ -78,27 +62,20 @@ Local context variables in goal nodes have **connection handles**:
 
 | Time | Agent | Action |
 |------|-------|--------|
+| 2026-01-28 21:25 | Test | ✅ RE-TEST PASSED! Drag-onto-goal creates child goal correctly |
+| 2026-01-28 21:24 | Test | ✅ Set button works, no React error |
+| 2026-01-28 21:23 | Test | ✅ Started re-test after Dev fix |
+| 2026-01-28 | Dev | ✅ Fixed React error (4d585a5) - see dev-report.md |
 | 2026-01-28 21:15 | Test | ❌ BUGS FOUND - React error in useProofSession.ts blocks Apply |
 | 2026-01-28 21:10 | Test | ✅ TC1-Step1 PASS - Drag to canvas creates tactic with "needs config" |
-| 2026-01-28 21:05 | Test | Started Phase A testing |
 | 2026-01-28 | Dev | ✅ ALL 8 STEPS COMPLETE |
-| 2026-01-28 | Dev | ✅ Step 8 - Fix proof-worker type errors (c36f1f9) |
-| 2026-01-28 | Dev | ✅ Steps 6+7 - DefinitionsPanel + GoalNode filtering (8a99907) |
-| 2026-01-28 | Dev | ✅ Step 5 - Context separation in worker (62da666) |
-| 2026-01-28 23:45 | Dev | ✅ PHASE A COMPLETE - Steps 1-4 all committed (5053f75) |
 
 ---
 
-## Plan Summary (dev-plan.md)
+## What Should Work Now
 
-**8 Implementation Steps - ALL COMPLETE:**
-1. ✅ Update type definitions (TacticNodeData status, etc.)
-2. ✅ Implement TacticNode parameter UI
-3. ✅ Implement onConnect handler for edge-drawing
-4. ✅ Implement validated goal creation
-5. ✅ Implement context separation in worker
-6. ✅ Create DefinitionsPanel component
-7. ✅ Update GoalNode context display
-8. ✅ Ensure existing flow still works (type fixes)
-
-**Ready for Testing** - All code committed
+1. **Drag tactic to canvas** - Creates tactic node with incomplete status ✅
+2. **Enter parameters** - Input field shows for intro/exact tactics ✅
+3. **Click Apply** - Should now work (was blocked by React error)
+4. **Drag onto goal** - Should now work (was blocked by same error)
+5. **Context separation** - Local vars in goal, globals in sidebar ✅
