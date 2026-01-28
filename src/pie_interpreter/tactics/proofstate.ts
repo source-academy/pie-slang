@@ -65,6 +65,33 @@ export class Goal {
       isCurrent
     };
   }
+
+  /**
+   * Serialize the goal with introducedBy tracking.
+   * Context entries not in parentContextNames are marked as introduced by the given tactic.
+   */
+  toSerializableWithIntroducedBy(
+    isComplete: boolean,
+    isCurrent: boolean,
+    parentContextNames: Set<string>,
+    introducingTactic?: string
+  ): SerializableGoal {
+    const contextEntries: SerializableContextEntry[] = Array.from(this.context.entries())
+      .map(([name, binder]) => ({
+        name,
+        type: binder.type.readBackType(this.context).prettyPrint(),
+        // Mark as introduced if not in parent's context
+        introducedBy: parentContextNames.has(name) ? undefined : introducingTactic
+      }));
+
+    return {
+      id: this.id,
+      type: this.type.readBackType(this.context).prettyPrint(),
+      contextEntries,
+      isComplete,
+      isCurrent
+    };
+  }
 }
 
 export class GoalNode {
@@ -102,8 +129,16 @@ export class GoalNode {
   toSerializable(currentGoalId: string | null): SerializableGoalNode {
     const isCurrent = this.goal.id === currentGoalId;
 
+    // Get parent's context entry names to determine which entries are introduced
+    const parentContextNames = this.parent
+      ? new Set(Array.from(this.parent.goal.context.entries()).map(([name]) => name))
+      : new Set<string>();
+
+    // Get the tactic that created this goal (from parent's appliedTactic)
+    const introducingTactic = this.parent?.appliedTactic;
+
     return {
-      goal: this.goal.toSerializable(this.isComplete, isCurrent),
+      goal: this.goal.toSerializableWithIntroducedBy(this.isComplete, isCurrent, parentContextNames, introducingTactic),
       children: this.children.map(child => child.toSerializable(currentGoalId)),
       appliedTactic: this.appliedTactic,
       completedBy: this.completedBy
@@ -293,6 +328,7 @@ export interface ProofSummary {
 export interface SerializableContextEntry {
   name: string;
   type: string;
+  introducedBy?: string;  // Tactic that introduced this variable (if any)
 }
 
 export interface SerializableGoal {
