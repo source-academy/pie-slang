@@ -10,9 +10,9 @@
 |-------|-------|
 | **Task** | TASK-001: Proper tactic application + context separation |
 | **Phase** | `IMPLEMENTATION` - Step 3 |
-| **Dev Agent** | ✅ Steps 1+2 COMPLETE - Starting Step 3 (onConnect handler) |
-| **Test Agent** | Idle (waiting for implementation) |
-| **Monitor Agent** | Verified Steps 1+2 complete in commit 2d15ee0 |
+| **Dev Agent** | ✅ Steps 1+2 COMPLETE - Implement Step 3 (onConnect handler) |
+| **Test Agent** | Idle (waiting for Phase A completion) |
+| **Monitor Agent** | Waiting for Step 3 commit |
 | **Blocker** | None |
 | **Dev Server** | ⚠️ NOT RUNNING - start with `npm run dev` |
 

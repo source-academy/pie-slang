@@ -4,6 +4,10 @@ import { cn } from '@/shared/lib/utils';
 import type { GoalNode as GoalNodeType, ContextEntry, TacticType } from '../../store/types';
 import { useUIStore } from '../../store';
 import { TACTICS } from '../../data/tactics';
+import { applyTactic as triggerApplyTactic } from '../../utils/tactic-callback';
+
+// Re-export for backward compatibility
+export { setApplyTacticCallback } from '../../utils/tactic-callback';
 
 /**
  * GoalNode Component
@@ -16,14 +20,6 @@ import { TACTICS } from '../../data/tactics';
  * - Amber: In-progress (currently being worked on)
  * - Green: Completed (solved by a tactic)
  */
-// Global callback for tactic application - set by parent component
-let globalApplyTacticCallback: ((goalId: string, tacticType: TacticType, params?: { variableName?: string; expression?: string }) => Promise<void>) | null = null;
-
-export function setApplyTacticCallback(
-  callback: ((goalId: string, tacticType: TacticType, params?: { variableName?: string; expression?: string }) => Promise<void>) | null
-) {
-  globalApplyTacticCallback = callback;
-}
 
 export const GoalNode = memo(function GoalNode({
   id,
@@ -78,9 +74,7 @@ export const GoalNode = memo(function GoalNode({
       setParamInput('');
     } else {
       // Simple tactic - apply directly
-      if (globalApplyTacticCallback) {
-        await globalApplyTacticCallback(id, tacticType);
-      }
+      await triggerApplyTactic(id, tacticType, {});
     }
   }, [id, data.status]);
 
@@ -88,12 +82,10 @@ export const GoalNode = memo(function GoalNode({
   const handleSubmitParam = useCallback(async () => {
     if (!pendingTactic || !paramInput.trim()) return;
 
-    if (globalApplyTacticCallback) {
-      const params = pendingTactic.needsParam === 'variable'
-        ? { variableName: paramInput.trim() }
-        : { expression: paramInput.trim() };
-      await globalApplyTacticCallback(id, pendingTactic.type, params);
-    }
+    const params = pendingTactic.needsParam === 'variable'
+      ? { variableName: paramInput.trim() }
+      : { expression: paramInput.trim() };
+    await triggerApplyTactic(id, pendingTactic.type, params);
 
     setPendingTactic(null);
     setParamInput('');

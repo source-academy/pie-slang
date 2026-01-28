@@ -5,8 +5,8 @@ import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPan
 import { TacticPalette } from '@/features/proof-editor/components/panels/TacticPalette';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
-import { setApplyTacticCallback } from '@/features/proof-editor/components/nodes/GoalNode';
-import type { TacticType } from '@/features/proof-editor/store/types';
+import { setApplyTacticCallback } from '@/features/proof-editor/utils/tactic-callback';
+import type { TacticType, TacticParameters } from '@/features/proof-editor/store/types';
 
 function AppContent() {
   const { applyTactic, error } = useProofSession();
@@ -16,12 +16,12 @@ function AppContent() {
   const handleApplyTactic = useCallback(async (
     goalId: string,
     tacticType: TacticType,
-    params?: { variableName?: string; expression?: string }
+    params: TacticParameters
   ) => {
     console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params);
     setTacticError(null);
     try {
-      const result = await applyTactic(goalId, tacticType, params || {});
+      const result = await applyTactic(goalId, tacticType, params);
       if (!result.success && result.error) {
         setTacticError(result.error);
         console.error('[App] Tactic failed:', result.error);

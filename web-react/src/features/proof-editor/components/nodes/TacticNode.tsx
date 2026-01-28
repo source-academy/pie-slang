@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
 import { useProofStore } from '../../store';
 import type { TacticNode as TacticNodeType, TacticType, TacticNodeStatus } from '../../store/types';
+import { applyTactic as triggerApplyTactic } from '../../utils/tactic-callback';
 
 // Tactics that require a context variable input
 const CONTEXT_INPUT_TACTICS: TacticType[] = [
@@ -114,12 +115,20 @@ export const TacticNode = memo(function TacticNode({
 
       {/* Inline parameter input for intro tactic */}
       {showInlineInput && data.tacticType === 'intro' && (
-        <IntroParamInput nodeId={id} currentName={data.parameters.variableName} />
+        <IntroParamInput
+          nodeId={id}
+          currentName={data.parameters.variableName}
+          connectedGoalId={data.connectedGoalId}
+        />
       )}
 
       {/* Inline parameter input for exact tactic */}
       {showInlineInput && data.tacticType === 'exact' && (
-        <ExactParamInput nodeId={id} currentExpr={data.parameters.expression} />
+        <ExactParamInput
+          nodeId={id}
+          currentExpr={data.parameters.expression}
+          connectedGoalId={data.connectedGoalId}
+        />
       )}
 
       {/* Context input indicator for elim tactics (incomplete state) */}
@@ -175,19 +184,36 @@ TacticNode.displayName = 'TacticNode';
 /**
  * Inline parameter input for intro tactic
  */
-function IntroParamInput({ nodeId, currentName }: { nodeId: string; currentName?: string }) {
+function IntroParamInput({
+  nodeId,
+  currentName,
+  connectedGoalId,
+}: {
+  nodeId: string;
+  currentName?: string;
+  connectedGoalId?: string;
+}) {
   const [value, setValue] = useState(currentName || '');
   const updateNode = useProofStore((s) => s.updateNode);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (value.trim()) {
+      const params = { variableName: value.trim() };
+
+      // Update node state
       updateNode(nodeId, {
-        parameters: { variableName: value.trim() },
+        parameters: params,
         displayName: `intro ${value.trim()}`,
         status: 'ready',
       });
+
+      // If already connected to a goal, trigger application
+      if (connectedGoalId) {
+        console.log('[TacticNode] Params set and connected, applying intro');
+        await triggerApplyTactic(connectedGoalId, 'intro', params);
+      }
     }
-  }, [nodeId, value, updateNode]);
+  }, [nodeId, value, updateNode, connectedGoalId]);
 
   return (
     <div className="mt-1 nodrag">
@@ -210,7 +236,7 @@ function IntroParamInput({ nodeId, currentName }: { nodeId: string; currentName?
         disabled={!value.trim()}
         className="mt-1 w-full rounded bg-tactic px-2 py-0.5 text-[10px] text-white hover:bg-blue-600 disabled:bg-gray-300"
       >
-        Set
+        {connectedGoalId ? 'Apply' : 'Set'}
       </button>
     </div>
   );
@@ -219,18 +245,35 @@ function IntroParamInput({ nodeId, currentName }: { nodeId: string; currentName?
 /**
  * Inline parameter input for exact tactic
  */
-function ExactParamInput({ nodeId, currentExpr }: { nodeId: string; currentExpr?: string }) {
+function ExactParamInput({
+  nodeId,
+  currentExpr,
+  connectedGoalId,
+}: {
+  nodeId: string;
+  currentExpr?: string;
+  connectedGoalId?: string;
+}) {
   const [value, setValue] = useState(currentExpr || '');
   const updateNode = useProofStore((s) => s.updateNode);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (value.trim()) {
+      const params = { expression: value.trim() };
+
+      // Update node state
       updateNode(nodeId, {
-        parameters: { expression: value.trim() },
+        parameters: params,
         status: 'ready',
       });
+
+      // If already connected to a goal, trigger application
+      if (connectedGoalId) {
+        console.log('[TacticNode] Params set and connected, applying exact');
+        await triggerApplyTactic(connectedGoalId, 'exact', params);
+      }
     }
-  }, [nodeId, value, updateNode]);
+  }, [nodeId, value, updateNode, connectedGoalId]);
 
   return (
     <div className="mt-1 nodrag">
@@ -253,7 +296,7 @@ function ExactParamInput({ nodeId, currentExpr }: { nodeId: string; currentExpr?
         disabled={!value.trim()}
         className="mt-1 w-full rounded bg-tactic px-2 py-0.5 text-[10px] text-white hover:bg-blue-600 disabled:bg-gray-300"
       >
-        Set
+        {connectedGoalId ? 'Apply' : 'Set'}
       </button>
     </div>
   );

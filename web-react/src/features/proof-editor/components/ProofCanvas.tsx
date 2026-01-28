@@ -13,9 +13,10 @@ import '@xyflow/react/dist/style.css';
 import { useProofStore, useUIStore, isValidConnection } from '../store';
 import { nodeTypes } from './nodes';
 import { edgeTypes, getEdgeStyle } from './edges';
-import type { ProofNode, TacticType } from '../store/types';
+import type { ProofNode, TacticType, GoalNode, TacticNode } from '../store/types';
 import { useDemoData } from '../hooks/useDemoData';
 import { TACTICS } from '../data/tactics';
+import { applyTactic as triggerApplyTactic } from '../utils/tactic-callback';
 
 /**
  * ProofCanvas Component
@@ -35,12 +36,92 @@ export function ProofCanvas() {
   const edges = useProofStore((s) => s.edges);
   const onNodesChange = useProofStore((s) => s.onNodesChange);
   const onEdgesChange = useProofStore((s) => s.onEdgesChange);
-  const onConnect = useProofStore((s) => s.onConnect);
+  const storeOnConnect = useProofStore((s) => s.onConnect);
   const addTacticNode = useProofStore((s) => s.addTacticNode);
+  const updateNode = useProofStore((s) => s.updateNode);
 
   const selectNode = useUIStore((s) => s.selectNode);
   const setHoveredNode = useUIStore((s) => s.setHoveredNode);
   const clearDragState = useUIStore((s) => s.clearDragState);
+
+  /**
+   * Enhanced onConnect handler that:
+   * 1. Creates the visual edge (via store)
+   * 2. Detects goal↔tactic connections
+   * 3. Updates tactic's connectedGoalId
+   * 4. Triggers tactic application if tactic is ready
+   */
+  const handleConnect = useCallback(
+    async (connection: Connection) => {
+      // First, let the store create the edge
+      storeOnConnect(connection);
+
+      // Find source and target nodes
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+
+      if (!sourceNode || !targetNode) return;
+
+      // Identify goal and tactic in the connection
+      let goalNode: GoalNode | undefined;
+      let tacticNode: TacticNode | undefined;
+      let isContextEdge = false;
+
+      // Goal → Tactic (including context → tactic)
+      if (sourceNode.type === 'goal' && targetNode.type === 'tactic') {
+        goalNode = sourceNode as GoalNode;
+        tacticNode = targetNode as TacticNode;
+        isContextEdge = connection.sourceHandle?.startsWith('ctx-') ?? false;
+      }
+      // Tactic → Goal (reverse direction)
+      else if (sourceNode.type === 'tactic' && targetNode.type === 'goal') {
+        // Note: This is typically tactic-output → goal-input (for subgoals)
+        // We don't trigger application for this direction
+        return;
+      }
+
+      if (!goalNode || !tacticNode) return;
+
+      // Handle context-to-tactic edge: update tactic's target parameter
+      if (isContextEdge && connection.sourceHandle) {
+        const contextVarId = connection.sourceHandle.replace('ctx-', '');
+        const contextEntry = goalNode.data.context.find((c) => c.id === contextVarId);
+        if (contextEntry) {
+          updateNode(tacticNode.id, {
+            parameters: {
+              ...tacticNode.data.parameters,
+              targetContextId: contextVarId,
+              variableName: contextEntry.name,
+            },
+            connectedGoalId: goalNode.id,
+            // Update status to 'ready' if this was the missing parameter
+            status: 'ready',
+          });
+
+          // Now trigger application since the tactic is ready
+          console.log('[ProofCanvas] Context edge connected, applying tactic:', tacticNode.data.tacticType);
+          await triggerApplyTactic(goalNode.id, tacticNode.data.tacticType, {
+            ...tacticNode.data.parameters,
+            targetContextId: contextVarId,
+            variableName: contextEntry.name,
+          });
+        }
+        return;
+      }
+
+      // Handle goal-to-tactic edge: update connectedGoalId and maybe apply
+      updateNode(tacticNode.id, {
+        connectedGoalId: goalNode.id,
+      });
+
+      // If tactic is already 'ready' (params complete), apply it
+      if (tacticNode.data.status === 'ready') {
+        console.log('[ProofCanvas] Edge connected to ready tactic, applying:', tacticNode.data.tacticType);
+        await triggerApplyTactic(goalNode.id, tacticNode.data.tacticType, tacticNode.data.parameters);
+      }
+    },
+    [nodes, storeOnConnect, updateNode]
+  );
 
   // Handle node click for selection
   const onNodeClick: NodeMouseHandler<ProofNode> = useCallback(
@@ -148,7 +229,7 @@ export function ProofCanvas() {
         edges={styledEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={handleConnect}
         isValidConnection={handleIsValidConnection}
         onNodeClick={onNodeClick}
         onNodeMouseEnter={onNodeMouseEnter}
