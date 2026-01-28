@@ -7,7 +7,7 @@ import { Environment } from './environment';
 import { readBack } from '../evaluator/utils';
 import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
-import { ProofManager } from '../tactics/proofmanager';
+import { ProofManager } from '../tactics/proof-manager';
 import { Tactic } from '../tactics/tactics';
 import { ProofTreeData } from '../tactics/proofstate';
 
