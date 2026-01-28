@@ -73,6 +73,9 @@ export function ProofCanvas() {
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
+  // Parameterless tactics are immediately ready (no params needed)
+  const PARAMETERLESS_TACTICS = ['split', 'left', 'right'];
+
   // Handle drop to create a new tactic node
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -91,14 +94,18 @@ export function ProofCanvas() {
         y: event.clientY,
       });
 
-      // Create the tactic node with 'incomplete' status (needs parameters or connection)
+      // Parameterless tactics start as 'ready', others start as 'incomplete'
+      const isParameterless = PARAMETERLESS_TACTICS.includes(tacticType);
+      const initialStatus = isParameterless ? 'ready' : 'incomplete';
+
+      // Create the tactic node
       const newNodeId = addTacticNode(
         {
           kind: 'tactic',
           tacticType,
           displayName: tacticInfo.displayName,
           parameters: {},
-          status: 'incomplete',
+          status: initialStatus,
         },
         position
       );

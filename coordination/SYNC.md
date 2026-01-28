@@ -8,19 +8,25 @@ Agents write brief status updates here every 10-15 minutes.
 
 ## Latest Sync
 
-## 2026-01-28 23:10 Sync
+## 2026-01-28 23:20 Sync
 
-**Phase**: IMPLEMENTATION - Step 1 IN PROGRESS
+**Phase**: IMPLEMENTATION - Step 3
 
-- **Dev**: Step 1 types added, but downstream files need updating
+- **Dev**: ✅ Steps 1+2 COMPLETE (commit 2d15ee0) - Starting Step 3
 - **Test**: Idle, waiting for implementation
-- **Monitor**: Detected TypeScript errors - files need `status` field
-- **Blockers**: TS errors in useDemoData.ts, convert-proof-tree.ts
+- **Monitor**: Verified Steps 1+2 complete, TacticNode UI ready
+- **Blockers**: None
 
-**Action Required for Dev**:
-Files need updating to use new `status: TacticNodeStatus` instead of `isConfigured`/`isValid`:
-1. `src/features/proof-editor/hooks/useDemoData.ts` (lines 34, 67)
-2. `src/features/proof-editor/utils/convert-proof-tree.ts` (lines 198, 240)
+**Steps 1+2 Summary** (combined in commit 2d15ee0):
+- TacticNodeStatus type: `'incomplete' | 'ready' | 'applied' | 'error'`
+- TacticNodeData with `status`, `connectedGoalId`
+- TacticNode.tsx with parameter inputs, status indicators, error display
+- IntroParamInput, ExactParamInput components working
+
+**Step 3 Focus** (onConnect handler):
+- Detect goal↔tactic connections in ProofCanvas
+- Check parameter completeness
+- Trigger tactic application or prompt for params
 
 ---
 

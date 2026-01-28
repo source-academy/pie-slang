@@ -1,6 +1,7 @@
-import { memo } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
+import { useProofStore } from '../../store';
 import type { TacticNode as TacticNodeType, TacticType, TacticNodeStatus } from '../../store/types';
 
 // Tactics that require a context variable input
@@ -13,6 +14,9 @@ const CONTEXT_INPUT_TACTICS: TacticType[] = [
   'elimAbsurd',
   'apply',
 ];
+
+// Tactics that don't need any parameters (immediately ready)
+const PARAMETERLESS_TACTICS: TacticType[] = ['split', 'left', 'right'];
 
 // Status-based styling
 const STATUS_STYLES: Record<TacticNodeStatus, { border: string; bg: string; badge: string }> = {
@@ -51,13 +55,20 @@ const STATUS_STYLES: Record<TacticNodeStatus, { border: string; bg: string; badg
  * Has two input handles:
  * - Top: goal input (all tactics)
  * - Left: context variable input (elimination/apply tactics only)
+ *
+ * Shows inline parameter inputs when in 'incomplete' status.
  */
 export const TacticNode = memo(function TacticNode({
+  id,
   data,
   selected,
 }: NodeProps<TacticNodeType>) {
   const needsContextInput = CONTEXT_INPUT_TACTICS.includes(data.tacticType);
+  const isParameterless = PARAMETERLESS_TACTICS.includes(data.tacticType);
   const styles = STATUS_STYLES[data.status];
+
+  // Show inline input when incomplete and not a context-requiring or parameterless tactic
+  const showInlineInput = data.status === 'incomplete' && !needsContextInput && !isParameterless;
 
   return (
     <div
@@ -101,7 +112,24 @@ export const TacticNode = memo(function TacticNode({
         </span>
       </div>
 
-      {/* Context variable indicator (if using one) */}
+      {/* Inline parameter input for intro tactic */}
+      {showInlineInput && data.tacticType === 'intro' && (
+        <IntroParamInput nodeId={id} currentName={data.parameters.variableName} />
+      )}
+
+      {/* Inline parameter input for exact tactic */}
+      {showInlineInput && data.tacticType === 'exact' && (
+        <ExactParamInput nodeId={id} currentExpr={data.parameters.expression} />
+      )}
+
+      {/* Context input indicator for elim tactics (incomplete state) */}
+      {data.status === 'incomplete' && needsContextInput && !data.parameters.targetContextId && (
+        <div className="mt-1 rounded bg-purple-50 p-1.5 text-[10px] text-purple-600">
+          Connect a variable from goal context to the left handle
+        </div>
+      )}
+
+      {/* Context variable indicator (when configured) */}
       {needsContextInput && data.parameters.targetContextId && (
         <div className="mt-1 flex items-center gap-1 text-xs text-blue-600">
           <span className="rounded bg-blue-100 px-1 py-0.5">
@@ -110,15 +138,15 @@ export const TacticNode = memo(function TacticNode({
         </div>
       )}
 
-      {/* Variable name parameter (for intro) */}
-      {data.parameters.variableName && !needsContextInput && (
+      {/* Variable name parameter display (for intro, when not editing) */}
+      {data.status !== 'incomplete' && data.parameters.variableName && !needsContextInput && (
         <div className="mt-1 text-xs text-gray-600">
           <span className="font-mono">{data.parameters.variableName}</span>
         </div>
       )}
 
-      {/* Expression parameter (for exact/exists) */}
-      {data.parameters.expression && (
+      {/* Expression parameter display (for exact, when not editing) */}
+      {data.status !== 'incomplete' && data.parameters.expression && (
         <div className="mt-1 text-xs text-gray-600 font-mono truncate" title={data.parameters.expression}>
           {data.parameters.expression}
         </div>
@@ -143,3 +171,90 @@ export const TacticNode = memo(function TacticNode({
 });
 
 TacticNode.displayName = 'TacticNode';
+
+/**
+ * Inline parameter input for intro tactic
+ */
+function IntroParamInput({ nodeId, currentName }: { nodeId: string; currentName?: string }) {
+  const [value, setValue] = useState(currentName || '');
+  const updateNode = useProofStore((s) => s.updateNode);
+
+  const handleSubmit = useCallback(() => {
+    if (value.trim()) {
+      updateNode(nodeId, {
+        parameters: { variableName: value.trim() },
+        displayName: `intro ${value.trim()}`,
+        status: 'ready',
+      });
+    }
+  }, [nodeId, value, updateNode]);
+
+  return (
+    <div className="mt-1 nodrag">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
+        placeholder="variable name"
+        className="w-full rounded border border-gray-300 px-1.5 py-0.5 text-xs font-mono focus:border-blue-400 focus:outline-none"
+        autoFocus
+      />
+      <button
+        onClick={handleSubmit}
+        disabled={!value.trim()}
+        className="mt-1 w-full rounded bg-tactic px-2 py-0.5 text-[10px] text-white hover:bg-blue-600 disabled:bg-gray-300"
+      >
+        Set
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Inline parameter input for exact tactic
+ */
+function ExactParamInput({ nodeId, currentExpr }: { nodeId: string; currentExpr?: string }) {
+  const [value, setValue] = useState(currentExpr || '');
+  const updateNode = useProofStore((s) => s.updateNode);
+
+  const handleSubmit = useCallback(() => {
+    if (value.trim()) {
+      updateNode(nodeId, {
+        parameters: { expression: value.trim() },
+        status: 'ready',
+      });
+    }
+  }, [nodeId, value, updateNode]);
+
+  return (
+    <div className="mt-1 nodrag">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
+        placeholder="expression"
+        className="w-full rounded border border-gray-300 px-1.5 py-0.5 text-xs font-mono focus:border-blue-400 focus:outline-none"
+        autoFocus
+      />
+      <button
+        onClick={handleSubmit}
+        disabled={!value.trim()}
+        className="mt-1 w-full rounded bg-tactic px-2 py-0.5 text-[10px] text-white hover:bg-blue-600 disabled:bg-gray-300"
+      >
+        Set
+      </button>
+    </div>
+  );
+}

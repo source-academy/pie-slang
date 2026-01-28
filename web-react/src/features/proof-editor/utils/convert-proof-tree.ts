@@ -267,7 +267,7 @@ function traverseTree(
  */
 function convertContextEntry(entry: SerializableContextEntry): ContextEntry {
   return {
-    id: entry.id,
+    id: entry.id || `ctx-${entry.name}`,
     name: entry.name,
     type: entry.type,
     origin: entry.introducedBy ? 'introduced' : 'inherited',
