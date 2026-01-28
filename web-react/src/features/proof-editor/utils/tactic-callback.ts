@@ -38,9 +38,11 @@ export function getApplyTacticCallback(): ApplyTacticCallback | null {
  * Apply a tactic to a goal.
  * Returns true if the callback was available and called, false otherwise.
  *
- * Uses setTimeout(0) to ensure the callback is invoked in a new event loop tick.
- * This fixes "Should have a queue" errors in React 18 concurrent mode
- * when callbacks are stored outside React's component tree.
+ * IMPORTANT: setTimeout(0) defers callback to next event loop tick.
+ * This is required because React 18 concurrent mode requires state
+ * updates to be properly batched. Without this, we get "Should have
+ * a queue" errors when the callback triggers state updates from
+ * components that stored the callback outside React's component tree.
  *
  * @param goalId - ID of the goal to apply the tactic to
  * @param tacticType - Type of tactic to apply
