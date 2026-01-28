@@ -19,15 +19,15 @@
     },
     "include": [
         "src/standalone.ts",
-        "src/pie_interpreter/**/*",
-        "src/scheme_parser/**/*"
+        "src/pie-interpreter/**/*",
+        "src/scheme-parser/**/*"
     ],
     "exclude": [
         "node_modules",
         "dist",
         "**/*.test.ts",
         "**/__tests__/**/*",
-        "src/pie_interpreter/index.ts",
-        "src/pie_interpreter/PieEvaluator.ts"
+        "src/pie-interpreter/index.ts",
+        "src/pie-interpreter/pie-evaluator.ts"
     ]
 }
