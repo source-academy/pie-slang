@@ -4,14 +4,16 @@ import { ProofCanvas } from '@/features/proof-editor/components/ProofCanvas';
 import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPanel';
 import { TacticPalette } from '@/features/proof-editor/components/panels/TacticPalette';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
+import { DefinitionsPanel } from '@/features/proof-editor/components/panels/DefinitionsPanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
 import { useProofStore } from '@/features/proof-editor/store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 
 function AppContent() {
-  const { applyTactic, error } = useProofSession();
+  const { applyTactic, error, globalContext } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
   const [tacticError, setTacticError] = useState<string | null>(null);
+  const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
 
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
@@ -89,7 +91,14 @@ function AppContent() {
         <div className="flex-1">
           <ProofCanvas />
         </div>
-        {/* Detail panel (right) */}
+        {/* Definitions panel (right sidebar) */}
+        <DefinitionsPanel
+          definitions={globalContext.definitions}
+          theorems={globalContext.theorems}
+          collapsed={definitionsPanelCollapsed}
+          onToggleCollapse={() => setDefinitionsPanelCollapsed(!definitionsPanelCollapsed)}
+        />
+        {/* Detail panel (rightmost) */}
         <DetailPanel />
       </main>
     </div>

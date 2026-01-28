@@ -6,6 +6,7 @@ import type {
   StartSessionResponse,
   TacticAppliedResponse,
   SerializableLemma,
+  GlobalContext,
 } from '@/workers/proof-worker';
 
 /**
@@ -22,6 +23,7 @@ export function useProofSession() {
   const [error, setError] = useState<string | null>(null);
   const [availableLemmas, setAvailableLemmas] = useState<SerializableLemma[]>([]);
   const [claimType, setClaimType] = useState<string | null>(null);
+  const [globalContext, setGlobalContext] = useState<GlobalContext>({ definitions: [], theorems: [] });
 
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
@@ -49,6 +51,7 @@ export function useProofSession() {
         // Store metadata
         setAvailableLemmas(result.availableLemmas);
         setClaimType(result.claimType);
+        setGlobalContext(result.globalContext);
 
         return result;
       } catch (e) {
@@ -118,6 +121,7 @@ export function useProofSession() {
       await proofWorker.closeSession(sessionId);
       setAvailableLemmas([]);
       setClaimType(null);
+      setGlobalContext({ definitions: [], theorems: [] });
       setError(null);
     } catch (e) {
       console.error('Failed to close session:', e);
@@ -138,6 +142,7 @@ export function useProofSession() {
     sessionId,
     availableLemmas,
     claimType,
+    globalContext,
 
     // Actions
     startSession,
@@ -151,4 +156,4 @@ export function useProofSession() {
 }
 
 // Re-export types for convenience
-export type { TacticParameters, StartSessionResponse, TacticAppliedResponse, SerializableLemma };
+export type { TacticParameters, StartSessionResponse, TacticAppliedResponse, SerializableLemma, GlobalContext };

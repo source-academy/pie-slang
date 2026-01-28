@@ -203,22 +203,25 @@ export const GoalNode = memo(function GoalNode({
         </div>
       </div>
 
-      {/* Context variables as subblocks */}
-      {data.context.length > 0 && (
-        <div className="border-t border-gray-200 p-2">
-          <div className="mb-2 text-xs font-medium text-gray-500">Context</div>
-          <div className="space-y-1">
-            {data.context.map((entry) => (
-              <ContextVarBlock
-                key={entry.id}
-                entry={entry}
-                goalId={id}
-                isSelected={selectedNodeId === `${id}-ctx-${entry.id}`}
-              />
-            ))}
+      {/* Context variables as subblocks - only show local (introduced) variables */}
+      {(() => {
+        const localContext = data.context.filter((entry) => entry.origin === 'introduced');
+        return localContext.length > 0 ? (
+          <div className="border-t border-gray-200 p-2">
+            <div className="mb-2 text-xs font-medium text-gray-500">Local Context</div>
+            <div className="space-y-1">
+              {localContext.map((entry) => (
+                <ContextVarBlock
+                  key={entry.id}
+                  entry={entry}
+                  goalId={id}
+                  isSelected={selectedNodeId === `${id}-ctx-${entry.id}`}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null;
+      })()}
 
       {/* Output handle (to tactic) */}
       <Handle
@@ -234,8 +237,9 @@ export const GoalNode = memo(function GoalNode({
 /**
  * Context Variable Subblock
  *
- * Displays a context variable inside a goal node.
- * Has a handle on the right side that can connect to tactics that use this variable.
+ * Displays a local context variable inside a goal node.
+ * Has a handle on the right side that can connect to tactics that need this variable
+ * (e.g., elimNat, elimList, apply).
  */
 function ContextVarBlock({
   entry,
@@ -248,10 +252,7 @@ function ContextVarBlock({
   return (
     <div
       className={cn(
-        'relative flex items-center justify-between rounded border bg-white px-2 py-1',
-        entry.origin === 'introduced'
-          ? 'border-blue-300 bg-blue-50'
-          : 'border-gray-200',
+        'relative flex items-center justify-between rounded border border-blue-300 bg-blue-50 px-2 py-1',
         isSelected && 'ring-1 ring-primary'
       )}
     >
@@ -260,22 +261,17 @@ function ContextVarBlock({
           {entry.name}
         </span>
         <span className="text-xs text-gray-500">:</span>
-        <span className="font-mono text-xs text-gray-600">{entry.type}</span>
-      </div>
-
-      {/* Origin badge */}
-      {entry.origin === 'introduced' && (
-        <span className="ml-2 rounded bg-blue-200 px-1 py-0.5 text-[10px] text-blue-700">
-          new
+        <span className="font-mono text-xs text-gray-600 truncate max-w-[140px]" title={entry.type}>
+          {entry.type}
         </span>
-      )}
+      </div>
 
       {/* Handle for connecting this variable to tactics */}
       <Handle
         type="source"
         position={Position.Right}
         id={`ctx-${entry.id}`}
-        className="!right-[-6px] !h-2 !w-2 !border !border-blue-400 !bg-blue-100"
+        className="!right-[-6px] !h-2.5 !w-2.5 !border-2 !border-blue-400 !bg-blue-100"
       />
     </div>
   );
