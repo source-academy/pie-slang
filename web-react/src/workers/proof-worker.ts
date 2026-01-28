@@ -142,8 +142,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
       results.push('   initCtx: ' + (ctx.initCtx ? 'OK' : 'MISSING'));
 
       results.push('3. Testing ProofManager...');
-      const { ProofManager } = await import('../../../src/pie_interpreter/tactics/proofmanager');
-      results.push('   ProofManager: OK');
+      const pmModule = await import('../../../src/pie_interpreter/tactics/proofmanager');
+      results.push('   ProofManager: ' + (pmModule.ProofManager ? 'OK' : 'MISSING'));
 
       results.push('ALL IMPORTS SUCCESSFUL!');
       return { success: true, results };
@@ -165,13 +165,13 @@ const proofWorkerAPI: ProofWorkerAPI = {
         await import('../../../src/pie_interpreter/utils/context');
       const { go, stop } = await import('../../../src/pie_interpreter/types/utils');
       const { ProofManager } = await import('../../../src/pie_interpreter/tactics/proofmanager');
-      const { Location } = await import('../../../src/pie_interpreter/utils/locations');
-      const { Syntax, Position } = await import('../../../src/scheme_parser/transpiler/types/location');
+      const { Location, Syntax } = await import('../../../src/pie_interpreter/utils/locations');
+      const { Position } = await import('../../../src/scheme_parser/transpiler/types/location');
 
       // Create a dummy location
-      const pos: Position = { line: 1, column: 0 };
-      const syntax: Syntax = { start: pos, end: pos, source: '' };
-      const dummyLoc = new Location(syntax, syntax);
+      const pos = new Position(1, 0);
+      const syntax = new Syntax(pos, pos, '');
+      const dummyLoc = new Location(syntax, false);
 
       // Parse source code
       console.log('[ProofWorker] Parsing source code...');
@@ -335,10 +335,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
     try {
       // Import tactic classes
       const tactics = await import('../../../src/pie_interpreter/tactics/tactics');
-      const { Location } = await import('../../../src/pie_interpreter/utils/locations');
-      const { Syntax, Position } = await import('../../../src/scheme_parser/transpiler/types/location');
-      const { go, stop } = await import('../../../src/pie_interpreter/types/utils');
+      const { Location, Syntax } = await import('../../../src/pie_interpreter/utils/locations');
+      const { Position } = await import('../../../src/scheme_parser/transpiler/types/location');
       const { Parser } = await import('../../../src/pie_interpreter/parser/parser');
+      const { stop } = await import('../../../src/pie_interpreter/types/utils');
 
       // Set the current goal to the one the user dropped onto
       const pm = session.proofManager;
@@ -362,9 +362,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
       }
 
       // Create dummy location
-      const pos: Position = { line: 1, column: 0 };
-      const syntax: Syntax = { start: pos, end: pos, source: '' };
-      const loc = new Location(syntax, syntax);
+      const pos = new Position(1, 0);
+      const syntax = new Syntax(pos, pos, '');
+      const loc = new Location(syntax, false);
 
       // Create tactic based on type
       let tactic: InstanceType<typeof tactics.Tactic>;
