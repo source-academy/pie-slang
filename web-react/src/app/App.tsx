@@ -12,7 +12,36 @@ import { EXAMPLES, getExampleById } from '@/features/proof-editor/data/examples'
 function AppContent() {
   const { applyTactic, error, globalContext } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
+  const undo = useProofStore((s) => s.undo);
+  const redo = useProofStore((s) => s.redo);
   const [tacticError, setTacticError] = useState<string | null>(null);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Ctrl+Z or Cmd+Z (undo)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        console.log('[App] Undo triggered');
+        undo();
+      }
+      // Check for Ctrl+Shift+Z or Cmd+Shift+Z (redo)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        console.log('[App] Redo triggered');
+        redo();
+      }
+      // Also support Ctrl+Y for redo (Windows convention)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        console.log('[App] Redo triggered (Ctrl+Y)');
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   // Example selection state
   const [selectedExample, setSelectedExample] = useState<string>('');

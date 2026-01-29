@@ -116,8 +116,12 @@ export const useProofStore = create<ProofStore>()(
       /**
        * Delete a tactic node and cascade delete all downstream nodes.
        * Also reverts the parent goal to 'pending' status.
+       * Saves a snapshot before deletion for undo support.
        */
       deleteTacticCascade: (tacticId) => {
+        // Save snapshot BEFORE deletion for undo
+        get().saveSnapshot();
+
         set((state) => {
           // Helper to get all child node IDs recursively
           function getDescendantIds(nodeId: string): string[] {
