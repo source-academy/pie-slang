@@ -30,6 +30,7 @@ const initialState: ProofState = {
   isProofComplete: false,
   sessionId: null,
   lastSyncedState: null,
+  globalContext: { definitions: [], theorems: [] },
   history: [],
   historyIndex: -1,
 };
@@ -234,6 +235,12 @@ export const useProofStore = create<ProofStore>()(
         set(() => initialState);
       },
 
+      setGlobalContext: (context) => {
+        set((state) => {
+          state.globalContext = context;
+        });
+      },
+
       // ================================================
       // React Flow Handlers
       // ================================================
@@ -344,3 +351,4 @@ export const useProofNodes = () => useProofStore((s) => s.nodes);
 export const useProofEdges = () => useProofStore((s) => s.edges);
 export const useIsProofComplete = () => useProofStore((s) => s.isProofComplete);
 export const useSessionId = () => useProofStore((s) => s.sessionId);
+export const useGlobalContext = () => useProofStore((s) => s.globalContext);

@@ -23,7 +23,10 @@ export function useProofSession() {
   const [error, setError] = useState<string | null>(null);
   const [availableLemmas, setAvailableLemmas] = useState<SerializableLemma[]>([]);
   const [claimType, setClaimType] = useState<string | null>(null);
-  const [globalContext, setGlobalContext] = useState<GlobalContext>({ definitions: [], theorems: [] });
+
+  // Use shared store for globalContext so all hook instances see the same state
+  const globalContext = useProofStore((s) => s.globalContext);
+  const setGlobalContext = useProofStore((s) => s.setGlobalContext);
 
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
@@ -62,7 +65,7 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [syncFromWorker, saveSnapshot]
+    [syncFromWorker, saveSnapshot, setGlobalContext]
   );
 
   /**
@@ -126,7 +129,7 @@ export function useProofSession() {
     } catch (e) {
       console.error('Failed to close session:', e);
     }
-  }, [sessionId]);
+  }, [sessionId, setGlobalContext]);
 
   /**
    * Clear any error state.

@@ -137,6 +137,12 @@ export interface ProofState {
   sessionId: string | null;
   lastSyncedState: { nodes: ProofNode[]; edges: ProofEdge[] } | null;
 
+  // Global context (definitions/theorems from source code)
+  globalContext: {
+    definitions: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
+    theorems: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
+  };
+
   // History for undo/redo
   history: ProofSnapshot[];
   historyIndex: number;
@@ -165,6 +171,7 @@ export interface ProofActions {
   // Proof state
   checkProofComplete: () => void;
   reset: () => void;
+  setGlobalContext: (context: ProofState['globalContext']) => void;
 
   // React Flow handlers
   onNodesChange: (changes: NodeChange<ProofNode>[]) => void;

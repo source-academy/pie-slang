@@ -134,15 +134,15 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
     try {
       results.push('1. Testing parser imports...');
-      const parser = await import('../../../src/pie_interpreter/parser/parser');
+      const parser = await import('../../../src/pie-interpreter/parser/parser');
       results.push('   schemeParse: ' + (typeof parser.schemeParse === 'function' ? 'OK' : 'MISSING'));
 
       results.push('2. Testing context imports...');
-      const ctx = await import('../../../src/pie_interpreter/utils/context');
+      const ctx = await import('../../../src/pie-interpreter/utils/context');
       results.push('   initCtx: ' + (ctx.initCtx ? 'OK' : 'MISSING'));
 
       results.push('3. Testing ProofManager...');
-      const pmModule = await import('../../../src/pie_interpreter/tactics/proofmanager');
+      const pmModule = await import('../../../src/pie-interpreter/tactics/proof-manager');
       results.push('   ProofManager: ' + (pmModule.ProofManager ? 'OK' : 'MISSING'));
 
       results.push('ALL IMPORTS SUCCESSFUL!');
@@ -160,13 +160,13 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Dynamically import Pie modules
       console.log('[ProofWorker] Importing modules...');
       const { schemeParse, pieDeclarationParser, Claim, Definition, DefineTactically } =
-        await import('../../../src/pie_interpreter/parser/parser');
+        await import('../../../src/pie-interpreter/parser/parser');
       const { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext } =
-        await import('../../../src/pie_interpreter/utils/context');
-      const { go, stop } = await import('../../../src/pie_interpreter/types/utils');
-      const { ProofManager } = await import('../../../src/pie_interpreter/tactics/proofmanager');
-      const { Location, Syntax } = await import('../../../src/pie_interpreter/utils/locations');
-      const { Position } = await import('../../../src/scheme_parser/transpiler/types/location');
+        await import('../../../src/pie-interpreter/utils/context');
+      const { go, stop } = await import('../../../src/pie-interpreter/types/utils');
+      const { ProofManager } = await import('../../../src/pie-interpreter/tactics/proof-manager');
+      const { Location, Syntax } = await import('../../../src/pie-interpreter/utils/locations');
+      const { Position } = await import('../../../src/scheme-parser/transpiler/types/location');
 
       // Create a dummy location
       const pos = new Position(1, 0);
@@ -334,11 +334,11 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
     try {
       // Import tactic classes
-      const tactics = await import('../../../src/pie_interpreter/tactics/tactics');
-      const { Location, Syntax } = await import('../../../src/pie_interpreter/utils/locations');
-      const { Position } = await import('../../../src/scheme_parser/transpiler/types/location');
-      const { Parser } = await import('../../../src/pie_interpreter/parser/parser');
-      const { stop } = await import('../../../src/pie_interpreter/types/utils');
+      const tactics = await import('../../../src/pie-interpreter/tactics/tactics');
+      const { Location, Syntax } = await import('../../../src/pie-interpreter/utils/locations');
+      const { Position } = await import('../../../src/scheme-parser/transpiler/types/location');
+      const { Parser } = await import('../../../src/pie-interpreter/parser/parser');
+      const { stop } = await import('../../../src/pie-interpreter/types/utils');
 
       // Set the current goal to the one the user dropped onto
       const pm = session.proofManager;

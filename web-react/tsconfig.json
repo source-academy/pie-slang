@@ -25,9 +25,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@pie/*": ["../src/pie_interpreter/*"],
+      "@pie/*": ["../src/pie-interpreter/*"],
       "@scheme/*": ["../src/scheme_parser/*"]
     }
   },
-  "include": ["src", "../src/pie_interpreter", "../src/scheme_parser"]
+  "include": ["src", "../src/pie-interpreter", "../src/scheme_parser"]
 }

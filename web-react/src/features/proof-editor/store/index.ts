@@ -30,6 +30,7 @@ export {
   useProofEdges,
   useIsProofComplete,
   useSessionId,
+  useGlobalContext,
   isValidConnection,
 } from './proof-store';
 
