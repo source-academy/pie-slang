@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
   push:
     branches:
-      - main  # Optional: also trigger on push to main branch
+      - new_examples  # Optional: also trigger on push to main branch
 
 jobs:
   build-and-deploy:

@@ -9,6 +9,7 @@ import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
 import { ProofManager } from '../tactics/proof-manager';
 import { Tactic } from '../tactics/tactics';
+import { ProofTreeData } from '../tactics/proofstate';
 
 /*
     ## Contexts ##

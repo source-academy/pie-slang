@@ -1,23 +1,48 @@
 // src/ai/todo_solver.ts
-import { GoogleGenAI } from "@google/genai";
-import * as fs from "fs/promises";
-import * as path from "path";
+// NOTE: This module uses Node.js-specific features (fs, dotenv, process.env).
+// It won't work in browser/worker context. Functions will throw errors if called in browser.
+
 import { Parser } from "../parser/parser";
 import { stop } from "../types/utils";
 import { Location } from "../utils/locations";
 import { Context, readBackContext } from "../utils/context";
 import { Value } from "../types/value";
 import { Renaming } from "../typechecker/utils";
-import 'dotenv/config';
+
+// Check if we're in Node.js environment (not browser/worker)
+const isNodeEnv = typeof process !== 'undefined' &&
+  typeof process.versions !== 'undefined' &&
+  typeof process.versions.node !== 'undefined';
+
+// Only require Node.js modules in Node environment
+// Use require() inside functions to avoid breaking browser bundling
+function getNodeModules() {
+  if (!isNodeEnv) {
+    throw new Error('AI-based TODO solving is only available in Node.js environment.');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const GoogleGenAI = require('@google/genai').GoogleGenAI;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require('fs/promises');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const path = require('path');
+  // Load dotenv
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('dotenv/config');
+  return { GoogleGenAI, fs, path };
+}
 
 const MISSING_API_KEY_ERROR = new Error(
   'GOOGLE_API_KEY environment variable is not set. ' +
   'Please create a .env file in the project root with: GOOGLE_API_KEY=your_key_here'
 );
 
-let genAI: GoogleGenAI | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let genAI: any = null;
 
-function ensureClient(): GoogleGenAI {
+function ensureClient() {
+  const { GoogleGenAI } = getNodeModules();
+
   if (genAI) {
     return genAI;
   }
@@ -41,6 +66,7 @@ export interface TodoInfo {
   renaming: Renaming;
 }
 
+// The todoQueue is safe in any context - it's just an array
 export const todoQueue: TodoInfo[] = [];
 
 export function addTodo(todo: TodoInfo) {
@@ -57,13 +83,14 @@ export function clearCache() {
 
 // Collect all .ts files from src/pie-interpreter
 async function getProjectFiles(): Promise<Map<string, string>> {
+  const { fs, path } = getNodeModules();
   const files = new Map<string, string>();
   const dir = "src/pie-interpreter";
 
-  async function walk(dir: string) {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
+  async function walk(currentDir: string) {
+    const entries = await fs.readdir(currentDir, { withFileTypes: true });
     for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
+      const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory() && !entry.name.startsWith(".")) {
         await walk(fullPath);
       } else if (entry.name.endsWith(".ts") && !entry.name.includes("test")) {
@@ -78,6 +105,8 @@ async function getProjectFiles(): Promise<Map<string, string>> {
 
 // Build and cache project context string
 async function getOrBuildProjectContext(): Promise<string> {
+  const { path: pathModule } = getNodeModules();
+
   if (cachedProjectContext) {
     return cachedProjectContext;
   }
@@ -89,16 +118,16 @@ async function getOrBuildProjectContext(): Promise<string> {
 
   // Add file paths list for overview
   projectContext += "## File listing:\n";
-  for (const path of projectFiles.keys()) {
-    projectContext += `- ${path}\n`;
+  for (const filePath of projectFiles.keys()) {
+    projectContext += `- ${filePath}\n`;
   }
 
   // Add actual file contents (with size limit per file)
   projectContext += "\n## File contents:\n\n";
-  for (const [path, content] of projectFiles) {
+  for (const [filePath, content] of projectFiles) {
     const lines = content.split('\n');
-    const truncatedContent = lines.slice(0, 10000).join('\n'); // Limit to first 100 lines per file
-    projectContext += `### ${path}\n\`\`\`typescript\n${truncatedContent}\n\`\`\`\n\n`;
+    const truncatedContent = lines.slice(0, 10000).join('\n'); // Limit to first 10000 lines per file
+    projectContext += `### ${filePath}\n\`\`\`typescript\n${truncatedContent}\n\`\`\`\n\n`;
   }
 
   // Cache the built context
@@ -123,7 +152,7 @@ export async function solveTodo(todo: TodoInfo): Promise<string> {
   const ctx = todo.context;
   const renaming = todo.renaming;
 
-  const basePrompt = `You are helping to fill in TODO expressions in Pie language 
+  const basePrompt = `You are helping to fill in TODO expressions in Pie language
           code (a dependently-typed language from "The Little Typer").
 
 ${projectContext}
@@ -177,6 +206,7 @@ Do not include code fences, markdown, or explanations. Just the Pie expression.
       let parsed;
       try {
         parsed = Parser.parsePie(pieCode);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (parseError: any) {
         errorHistory += `\n\nAttempt ${attempts} failed - Parse error: ${parseError.message}\nYou generated: ${pieCode}\nPlease fix the syntax and try again.`;
         continue;
@@ -195,10 +225,12 @@ Do not include code fences, markdown, or explanations. Just the Pie expression.
 
         // Success! Return the expression
         return pieCode;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (typecheckError: any) {
         errorHistory += `\n\nAttempt ${attempts} failed - Typecheck error: ${typecheckError.message}\nYou generated: ${pieCode}\nPlease fix and try again.`;
         continue;
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       errorHistory += `\n\nAttempt ${attempts} failed - API error: ${error.message}`;
       // Wait a bit before retrying API errors
