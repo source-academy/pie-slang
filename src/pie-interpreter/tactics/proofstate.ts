@@ -51,6 +51,49 @@ export class Goal {
       `Context:\n  ${contextStr}\n────────────────\nGoal: ${goalStr}` :
       `Goal: ${goalStr}`;
   }
+
+  toSerializable(isComplete: boolean, isCurrent: boolean): SerializableGoal {
+    const contextEntries: SerializableContextEntry[] = Array.from(this.context.entries())
+      .map(([name, binder]) => ({
+        name,
+        type: binder.type.readBackType(this.context).prettyPrint()
+      }));
+
+    return {
+      id: this.id,
+      type: this.type.readBackType(this.context).prettyPrint(),
+      contextEntries,
+      isComplete,
+      isCurrent
+    };
+  }
+
+  /**
+   * Serialize the goal with introducedBy tracking.
+   * Context entries not in parentContextNames are marked as introduced by the given tactic.
+   */
+  toSerializableWithIntroducedBy(
+    isComplete: boolean,
+    isCurrent: boolean,
+    parentContextNames: Set<string>,
+    introducingTactic?: string
+  ): SerializableGoal {
+    const contextEntries: SerializableContextEntry[] = Array.from(this.context.entries())
+      .map(([name, binder]) => ({
+        name,
+        type: binder.type.readBackType(this.context).prettyPrint(),
+        // Mark as introduced if not in parent's context
+        introducedBy: parentContextNames.has(name) ? undefined : introducingTactic
+      }));
+
+    return {
+      id: this.id,
+      type: this.type.readBackType(this.context).prettyPrint(),
+      contextEntries,
+      isComplete,
+      isCurrent
+    };
+  }
 }
 
 export class GoalNode {
@@ -58,6 +101,8 @@ export class GoalNode {
   public parent: GoalNode | null = null;
   public isComplete: boolean = false;
   public childFocusIndex: number = -1;
+  public appliedTactic?: string;  // Tactic that was applied to create children
+  public completedBy?: string;    // Tactic that directly solved this goal (for leaf nodes)
   // Term builder: takes child terms and produces the term for this node
   public termBuilder?: TermBuilder;
 
@@ -122,6 +167,25 @@ export class GoalNode {
     }
 
     return null;
+  }
+
+  toSerializable(currentGoalId: string | null): SerializableGoalNode {
+    const isCurrent = this.goal.id === currentGoalId;
+
+    // Get parent's context entry names to determine which entries are introduced
+    const parentContextNames = this.parent
+      ? new Set(Array.from(this.parent.goal.context.entries()).map(([name]) => name))
+      : new Set<string>();
+
+    // Get the tactic that created this goal (from parent's appliedTactic)
+    const introducingTactic = this.parent?.appliedTactic;
+
+    return {
+      goal: this.goal.toSerializableWithIntroducedBy(this.isComplete, isCurrent, parentContextNames, introducingTactic),
+      children: this.children.map(child => child.toSerializable(currentGoalId)),
+      appliedTactic: this.appliedTactic,
+      completedBy: this.completedBy
+    };
   }
 }
 
@@ -215,7 +279,14 @@ export class ProofState {
 
   private nextGoalAux(curParent: GoalNode): GoalNode | null {
     if (curParent.childFocusIndex === -1 || curParent.childFocusIndex >= curParent.children.length - 1) {
-      curParent.isComplete = true;
+      // Only mark parent complete if ALL children are actually complete
+      const allChildrenComplete = curParent.children.length === 0 ||
+        curParent.children.every(child => child.isComplete);
+
+      if (allChildrenComplete) {
+        curParent.isComplete = true;
+      }
+
       if (curParent.parent === null) {
         return null;
       } else {
@@ -258,9 +329,73 @@ export class ProofState {
     }
     return null; // Add explicit return for the else branch
   }
+
+  getProofTreeData(): ProofTreeData {
+    const currentGoalId = this.currentGoal ? this.currentGoal.goal.id : null;
+    return {
+      root: this.goalTree.toSerializable(currentGoalId),
+      isComplete: this.isComplete(),
+      currentGoalId
+    };
+  }
+
+  /**
+   * Set the current goal by its ID.
+   * Used when the user wants to apply a tactic to a specific goal.
+   * Returns true if the goal was found and set, false otherwise.
+   */
+  setCurrentGoalById(goalId: string): boolean {
+    const found = this.findGoalById(this.goalTree, goalId);
+    if (found) {
+      this.currentGoal = found;
+      return true;
+    }
+    return false;
+  }
+
+  private findGoalById(node: GoalNode, goalId: string): GoalNode | null {
+    if (node.goal.id === goalId) {
+      return node;
+    }
+    for (const child of node.children) {
+      const found = this.findGoalById(child, goalId);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
 }
 
 export interface ProofSummary {
   totalGoals: number;
   completedGoals: number;
+}
+
+// Serializable types for proof tree visualization
+export interface SerializableContextEntry {
+  name: string;
+  type: string;
+  introducedBy?: string;  // Tactic that introduced this variable (if any)
+}
+
+export interface SerializableGoal {
+  id: string;
+  type: string;
+  contextEntries: SerializableContextEntry[];
+  isComplete: boolean;
+  isCurrent: boolean;
+}
+
+export interface SerializableGoalNode {
+  goal: SerializableGoal;
+  children: SerializableGoalNode[];
+  appliedTactic?: string;
+  completedBy?: string;  // Tactic that directly solved this leaf goal
+}
+
+export interface ProofTreeData {
+  root: SerializableGoalNode;
+  isComplete: boolean;
+  currentGoalId: string | null;
 }

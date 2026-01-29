@@ -127,6 +127,7 @@ export class ExactTactic extends Tactic {
     state.currentGoal.goal.term = (result as go<Core>).result;
 
     state.currentGoal.isComplete = true;
+    state.currentGoal.completedBy = this.toString();
 
     state.nextGoal()
 
@@ -986,6 +987,7 @@ export class EliminateAbsurdTactic extends Tactic {
     );
     
     state.currentGoal.isComplete = true;
+    state.currentGoal.completedBy = this.toString();
     state.nextGoal()
 
     return new go(state);
