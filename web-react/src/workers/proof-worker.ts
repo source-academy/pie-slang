@@ -21,6 +21,7 @@ export type TacticType =
 export interface TacticParameters {
   variableName?: string;
   expression?: string;
+  lengthExpression?: string;  // For elimVec
 }
 
 // These types match the Pie interpreter's proofstate.ts exports
@@ -453,6 +454,65 @@ const proofWorkerAPI: ProofWorkerAPI = {
             };
           }
           tactic = new tactics.EliminateAbsurdTactic(loc, params.variableName);
+          break;
+
+        case 'elimVec':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimVec tactic requires a target variable name',
+            };
+          }
+          // EliminateVecTactic requires motive and length expressions
+          // For now, we require these via expression (motive) and a new lengthExpression param
+          if (!params.expression) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimVec tactic requires a motive expression',
+            };
+          }
+          const vecMotive = Parser.parsePie(params.expression);
+          // Default length to the target variable if not provided
+          const vecLength = params.lengthExpression
+            ? Parser.parsePie(params.lengthExpression)
+            : Parser.parsePie(params.variableName);
+          tactic = new tactics.EliminateVecTactic(loc, params.variableName, vecMotive, vecLength);
+          break;
+
+        case 'elimEqual':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimEqual tactic requires a target variable name',
+            };
+          }
+          // EliminateEqualTactic needs a motive function parameter
+          // For simplicity, we parse it from the expression parameter if provided
+          if (params.expression) {
+            const motiveExpr = Parser.parsePie(params.expression);
+            tactic = new tactics.EliminateEqualTactic(loc, params.variableName, motiveExpr);
+          } else {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimEqual tactic requires a motive expression',
+            };
+          }
+          break;
+
+        case 'apply':
+          if (!params.expression) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'apply tactic requires a function/lemma name',
+            };
+          }
+          const funcExpr = Parser.parsePie(params.expression);
+          tactic = new tactics.ApplyTactic(loc, funcExpr);
           break;
 
         default:

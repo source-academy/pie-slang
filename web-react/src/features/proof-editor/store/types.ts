@@ -19,6 +19,7 @@ export interface ContextEntry {
 export type TacticType =
   | 'intro'
   | 'exact'
+  | 'exists'
   | 'split'
   | 'left'
   | 'right'
@@ -33,8 +34,9 @@ export type TacticType =
 export interface TacticParameters {
   variableName?: string;      // For intro
   targetContextId?: string;   // For elim tactics
-  expression?: string;        // For exact
+  expression?: string;        // For exact, exists, apply, elimEqual motive
   lemmaId?: string;           // For apply
+  lengthExpression?: string;  // For elimVec (optional length expression)
   [key: string]: unknown;     // Index signature for React Flow compatibility
 }
 
