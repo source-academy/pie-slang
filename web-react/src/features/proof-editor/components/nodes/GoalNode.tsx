@@ -48,7 +48,7 @@ export const GoalNode = memo(function GoalNode({
     setIsDragOver(false);
   }, []);
 
-  // Handle drop
+  // Handle drop (both tactics and theorems)
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -56,6 +56,17 @@ export const GoalNode = memo(function GoalNode({
 
     if (data.status === 'completed') return;
 
+    // Check if this is a theorem/claim drop (for lemma application)
+    const theoremName = e.dataTransfer.getData('application/theorem-name');
+    if (theoremName) {
+      // Apply theorem as a lemma using the 'exact' tactic
+      // The theorem name is used as the expression for exact
+      console.log('[GoalNode] Applying theorem as lemma:', theoremName);
+      await triggerApplyTactic(id, 'exact', { expression: theoremName });
+      return;
+    }
+
+    // Otherwise, handle as a tactic drop
     const tacticType = e.dataTransfer.getData('application/tactic-type') as TacticType;
     if (!tacticType) return;
 
