@@ -5,6 +5,7 @@ import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPan
 import { TacticPalette } from '@/features/proof-editor/components/panels/TacticPalette';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
 import { DefinitionsPanel } from '@/features/proof-editor/components/panels/DefinitionsPanel';
+import { AISettingsPanel } from '@/features/proof-editor/components/panels/AISettingsPanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
 import { useProofStore } from '@/features/proof-editor/store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
@@ -84,6 +85,8 @@ function AppContent() {
       </header>
       {/* Source code input panel (collapsible) */}
       <SourceCodePanel />
+      {/* AI Settings panel (collapsible) */}
+      <AISettingsPanel />
       <main className="flex flex-1 overflow-hidden">
         {/* Tactic palette (left) */}
         <TacticPalette />

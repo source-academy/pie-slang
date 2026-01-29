@@ -42,3 +42,16 @@ export {
   useValidDropTargets,
   useIsValidDropTarget,
 } from './ui-store';
+
+// Hint store
+export {
+  useHintStore,
+  useGoalHintState,
+  useActiveGhostNode,
+  useHintApiKey,
+  type GhostNode,
+  type GoalHintState,
+  type HintState,
+  type HintActions,
+  type HintStore,
+} from './hint-store';

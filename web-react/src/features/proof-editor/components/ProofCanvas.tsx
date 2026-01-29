@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -7,14 +7,18 @@ import {
   useReactFlow,
   type NodeMouseHandler,
   type Connection,
+  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { useProofStore, useUIStore, isValidConnection } from '../store';
 import { nodeTypes } from './nodes';
+import { setRequestHintCallback } from './nodes/GoalNode';
 import { edgeTypes, getEdgeStyle } from './edges';
 import type { ProofNode, TacticType, GoalNode, TacticNode } from '../store/types';
+import type { GhostTacticNodeData } from './nodes/GhostTacticNode';
 import { useDemoData } from '../hooks/useDemoData';
+import { useHintSystem } from '../hooks/useHintSystem';
 import { TACTICS } from '../data/tactics';
 import { applyTactic as triggerApplyTactic } from '../utils/tactic-callback';
 
@@ -43,6 +47,19 @@ export function ProofCanvas() {
   const selectNode = useUIStore((s) => s.selectNode);
   const setHoveredNode = useUIStore((s) => s.setHoveredNode);
   const clearDragState = useUIStore((s) => s.clearDragState);
+
+  // Hint system
+  const { requestHint, getMoreDetail, acceptGhostNode, dismissGhostNode, goalHints } = useHintSystem();
+
+  // Register hint callback for GoalNode
+  useEffect(() => {
+    console.log('[ProofCanvas] Registering hint callback');
+    setRequestHintCallback(requestHint);
+    return () => {
+      console.log('[ProofCanvas] Unregistering hint callback');
+      setRequestHintCallback(null);
+    };
+  }, [requestHint]);
 
   /**
    * Enhanced onConnect handler that:
@@ -232,11 +249,66 @@ export function ProofCanvas() {
     }));
   }, [edges]);
 
+  // Create ghost nodes from hint state
+  const ghostNodes = useMemo(() => {
+    const ghosts: Node<GhostTacticNodeData>[] = [];
+
+    for (const [goalId, hintState] of goalHints.entries()) {
+      if (hintState.ghostNode && hintState.hints.length > 0) {
+        const latestHint = hintState.hints[hintState.hints.length - 1];
+        ghosts.push({
+          id: hintState.ghostNode.id,
+          type: 'ghost',
+          position: hintState.ghostNode.position,
+          data: {
+            kind: 'ghost',
+            goalId,
+            hint: latestHint,
+            isLoading: hintState.isLoading,
+            onAccept: () => acceptGhostNode(goalId),
+            onDismiss: () => dismissGhostNode(goalId),
+            onMoreDetail: () => getMoreDetail(goalId),
+          },
+        });
+      }
+    }
+
+    return ghosts;
+  }, [goalHints, acceptGhostNode, dismissGhostNode, getMoreDetail]);
+
+  // Combine regular nodes with ghost nodes
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allNodes = useMemo(() => {
+    return [...nodes, ...ghostNodes] as any[];
+  }, [nodes, ghostNodes]);
+
+  // Create ghost edges connecting goals to ghost nodes
+  const ghostEdges = useMemo(() => {
+    return ghostNodes.map((ghost) => ({
+      id: `edge-ghost-${ghost.id}`,
+      source: ghost.data.goalId,
+      target: ghost.id,
+      sourceHandle: 'goal-output',
+      targetHandle: 'ghost-input',
+      style: {
+        stroke: '#a855f7',
+        strokeWidth: 2,
+        strokeDasharray: '5,5',
+      },
+      animated: true,
+    }));
+  }, [ghostNodes]);
+
+  // Combine regular edges with ghost edges
+  const allEdges = useMemo(() => {
+    return [...styledEdges, ...ghostEdges];
+  }, [styledEdges, ghostEdges]);
+
   return (
     <div className="h-full w-full" ref={reactFlowWrapper}>
       <ReactFlow
-        nodes={nodes}
-        edges={styledEdges}
+        nodes={allNodes}
+        edges={allEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
@@ -247,7 +319,8 @@ export function ProofCanvas() {
         onPaneClick={onPaneClick}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        nodeTypes={nodeTypes}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        nodeTypes={nodeTypes as any}
         edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{
@@ -270,24 +343,26 @@ export function ProofCanvas() {
         <MiniMap
           nodeStrokeColor={(node) => {
             if (node.type === 'goal') {
-              const data = node.data;
+              const data = node.data as { status?: string };
               if (data.status === 'completed') return '#22c55e';
               if (data.status === 'in-progress') return '#fbbf24';
               return '#f97316';
             }
             if (node.type === 'tactic') return '#3b82f6';
             if (node.type === 'lemma') return '#22c55e';
+            if (node.type === 'ghost') return '#a855f7'; // Purple for ghost nodes
             return '#6b7280';
           }}
           nodeColor={(node) => {
             if (node.type === 'goal') {
-              const data = node.data;
+              const data = node.data as { status?: string };
               if (data.status === 'completed') return '#dcfce7';
               if (data.status === 'in-progress') return '#fef3c7';
               return '#ffedd5';
             }
             if (node.type === 'tactic') return '#dbeafe';
             if (node.type === 'lemma') return '#dcfce7';
+            if (node.type === 'ghost') return '#f3e8ff'; // Light purple for ghost nodes
             return '#f3f4f6';
           }}
           maskColor="rgba(0, 0, 0, 0.1)"

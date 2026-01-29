@@ -1,13 +1,33 @@
 import { memo, useCallback, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
+import { Lightbulb, Loader2, Sparkles } from 'lucide-react';
 import type { GoalNode as GoalNodeType, ContextEntry, TacticType } from '../../store/types';
-import { useUIStore } from '../../store';
+import { useUIStore, useGoalHintState, useHintStore } from '../../store';
 import { TACTICS } from '../../data/tactics';
 import { applyTactic as triggerApplyTactic } from '../../utils/tactic-callback';
 
 // Re-export for backward compatibility
 export { setApplyTacticCallback } from '../../utils/tactic-callback';
+
+// Callback type for hint requests
+type RequestHintCallback = (goalId: string) => void;
+
+// Global callback for requesting hints (set by ProofCanvas)
+let requestHintCallback: RequestHintCallback | null = null;
+
+export function setRequestHintCallback(callback: RequestHintCallback | null) {
+  requestHintCallback = callback;
+}
+
+function triggerRequestHint(goalId: string) {
+  console.log('[GoalNode] triggerRequestHint called for goalId:', goalId, 'callback registered:', !!requestHintCallback);
+  if (requestHintCallback) {
+    requestHintCallback(goalId);
+  } else {
+    console.warn('[GoalNode] No hint callback registered');
+  }
+}
 
 /**
  * GoalNode Component
@@ -28,9 +48,18 @@ export const GoalNode = memo(function GoalNode({
 }: NodeProps<GoalNodeType>) {
   const selectNode = useUIStore((s) => s.selectNode);
   const selectedNodeId = useUIStore((s) => s.selectedNodeId);
+  const hintState = useGoalHintState(id);
+  const hasApiKey = useHintStore((s) => !!s.apiKey);
   const [isDragOver, setIsDragOver] = useState(false);
   const [pendingTactic, setPendingTactic] = useState<{ type: TacticType; needsParam: 'variable' | 'expression' | null } | null>(null);
   const [paramInput, setParamInput] = useState('');
+
+  // Handle hint button click
+  const handleHintClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('[GoalNode] handleHintClick - goalId:', id);
+    triggerRequestHint(id);
+  }, [id]);
 
   // Handle drag over
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -184,9 +213,34 @@ export const GoalNode = memo(function GoalNode({
         className="cursor-pointer p-3 hover:bg-white/30"
         onClick={handleGoalClick}
       >
-        {/* Header with status badge */}
+        {/* Header with status badge and hint button */}
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-500">Goal</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Goal</span>
+            {/* Hint button - only show for non-completed goals */}
+            {data.status !== 'completed' && (
+              <button
+                onClick={handleHintClick}
+                className={cn(
+                  'flex items-center justify-center gap-0.5 rounded-full px-1.5 py-1',
+                  hasApiKey
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                    : 'bg-purple-100 text-purple-600 hover:bg-purple-200',
+                  'transition-all duration-150',
+                  hintState?.isLoading && 'animate-pulse'
+                )}
+                title={hasApiKey ? 'Get AI hint' : 'Get hint (configure API key for AI hints)'}
+              >
+                {hintState?.isLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : hasApiKey ? (
+                  <Sparkles className="h-3.5 w-3.5" />
+                ) : (
+                  <Lightbulb className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
+          </div>
           <span
             className={cn(
               'rounded-full px-2 py-0.5 text-xs font-medium',
