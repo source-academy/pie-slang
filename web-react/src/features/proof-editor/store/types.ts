@@ -157,6 +157,7 @@ export interface ProofActions {
   addLemmaNode: (lemma: LemmaNodeData, position: { x: number; y: number }) => string;
   updateNode: <T extends ProofNode>(id: string, data: Partial<T['data']>) => void;
   removeNode: (id: string) => void;
+  deleteTacticCascade: (tacticId: string) => void;
 
   // Edge operations
   connectNodes: (sourceId: string, targetId: string, data: ProofEdgeData) => void;

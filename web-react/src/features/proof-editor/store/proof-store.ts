@@ -113,6 +113,58 @@ export const useProofStore = create<ProofStore>()(
         });
       },
 
+      /**
+       * Delete a tactic node and cascade delete all downstream nodes.
+       * Also reverts the parent goal to 'pending' status.
+       */
+      deleteTacticCascade: (tacticId) => {
+        set((state) => {
+          // Helper to get all child node IDs recursively
+          function getDescendantIds(nodeId: string): string[] {
+            const descendants: string[] = [];
+            // Find all edges where this node is the source
+            const childEdges = state.edges.filter((e) => e.source === nodeId);
+            for (const edge of childEdges) {
+              descendants.push(edge.target);
+              descendants.push(...getDescendantIds(edge.target));
+            }
+            return descendants;
+          }
+
+          // Find the parent goal (the goal this tactic was applied to)
+          const parentEdge = state.edges.find(
+            (e) => e.target === tacticId && e.data?.kind === 'goal-to-tactic'
+          );
+          const parentGoalId = parentEdge?.source;
+
+          // Get all descendant nodes to delete
+          const nodesToDelete = new Set([tacticId, ...getDescendantIds(tacticId)]);
+
+          // Remove all descendant nodes
+          state.nodes = state.nodes.filter((n) => !nodesToDelete.has(n.id));
+
+          // Remove all edges connected to deleted nodes
+          state.edges = state.edges.filter(
+            (e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target)
+          );
+
+          // Revert parent goal to 'pending' status
+          if (parentGoalId) {
+            const parentGoal = state.nodes.find((n) => n.id === parentGoalId);
+            if (parentGoal && parentGoal.type === 'goal') {
+              (parentGoal as GoalNode).data.status = 'pending';
+              (parentGoal as GoalNode).data.completedBy = undefined;
+            }
+          }
+
+          // Update proof completion status
+          const pendingGoals = state.nodes.filter(
+            (n): n is GoalNode => n.type === 'goal' && n.data.status === 'pending'
+          );
+          state.isProofComplete = pendingGoals.length === 0;
+        });
+      },
+
       // ================================================
       // Edge Operations
       // ================================================

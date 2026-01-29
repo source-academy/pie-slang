@@ -67,9 +67,15 @@ export const TacticNode = memo(function TacticNode({
   const needsContextInput = CONTEXT_INPUT_TACTICS.includes(data.tacticType);
   const isParameterless = PARAMETERLESS_TACTICS.includes(data.tacticType);
   const styles = STATUS_STYLES[data.status];
+  const deleteTacticCascade = useProofStore((s) => s.deleteTacticCascade);
 
   // Show inline input when incomplete and not a context-requiring or parameterless tactic
   const showInlineInput = data.status === 'incomplete' && !needsContextInput && !isParameterless;
+
+  // Handle delete button click
+  const handleDelete = useCallback(() => {
+    deleteTacticCascade(id);
+  }, [id, deleteTacticCascade]);
 
   return (
     <div
@@ -104,13 +110,23 @@ export const TacticNode = memo(function TacticNode({
         <span className={cn('rounded px-2 py-0.5 text-sm font-semibold', styles.badge)}>
           {data.displayName}
         </span>
-        {/* Status indicator */}
-        <span className="text-[10px] text-gray-500">
-          {data.status === 'incomplete' && '⏳'}
-          {data.status === 'ready' && '✓'}
-          {data.status === 'applied' && '✔'}
-          {data.status === 'error' && '✗'}
-        </span>
+        <div className="flex items-center gap-1">
+          {/* Status indicator */}
+          <span className="text-[10px] text-gray-500">
+            {data.status === 'incomplete' && '⏳'}
+            {data.status === 'ready' && '✓'}
+            {data.status === 'applied' && '✔'}
+            {data.status === 'error' && '✗'}
+          </span>
+          {/* Delete button */}
+          <button
+            onClick={handleDelete}
+            className="nodrag text-[10px] text-gray-400 hover:text-red-500 transition-colors px-1"
+            title="Delete tactic and all child goals"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* Inline parameter input for intro tactic */}
