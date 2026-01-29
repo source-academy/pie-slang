@@ -7,11 +7,31 @@ import { SourceCodePanel } from '@/features/proof-editor/components/panels/Sourc
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
 import { useProofStore } from '@/features/proof-editor/store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
+import { EXAMPLES, getExampleById } from '@/features/proof-editor/data/examples';
 
 function AppContent() {
   const { applyTactic, error, globalContext } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
   const [tacticError, setTacticError] = useState<string | null>(null);
+
+  // Example selection state
+  const [selectedExample, setSelectedExample] = useState<string>('');
+  const [exampleSource, setExampleSource] = useState<string | undefined>(undefined);
+  const [exampleClaim, setExampleClaim] = useState<string | undefined>(undefined);
+
+  // Handle example selection from dropdown
+  const handleExampleSelect = useCallback((exampleId: string) => {
+    if (!exampleId) {
+      setSelectedExample('');
+      return;
+    }
+    const example = getExampleById(exampleId);
+    if (example) {
+      setSelectedExample(exampleId);
+      setExampleSource(example.sourceCode);
+      setExampleClaim(example.defaultClaim);
+    }
+  }, []);
 
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
@@ -71,17 +91,38 @@ function AppContent() {
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <header className="flex h-12 items-center border-b px-4">
+      <header className="flex h-12 items-center border-b px-4 gap-4">
         <h1 className="text-lg font-semibold">Pie Proof Editor</h1>
+
+        {/* Example dropdown */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="example-select" className="text-sm text-muted-foreground">
+            Load Example:
+          </label>
+          <select
+            id="example-select"
+            value={selectedExample}
+            onChange={(e) => handleExampleSelect(e.target.value)}
+            className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">-- Select --</option>
+            {EXAMPLES.map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Show tactic error in header */}
         {(tacticError || error) && (
-          <div className="ml-4 rounded bg-red-100 px-2 py-1 text-sm text-red-700">
+          <div className="ml-auto rounded bg-red-100 px-2 py-1 text-sm text-red-700">
             {tacticError || error}
           </div>
         )}
       </header>
       {/* Source code input panel (collapsible) */}
-      <SourceCodePanel />
+      <SourceCodePanel exampleSource={exampleSource} exampleClaim={exampleClaim} />
       <main className="flex flex-1 overflow-hidden">
         {/* Left sidebar: Tactics + Definitions + Theorems */}
         <LeftSidebar

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useProofSession } from '../../hooks/useProofSession';
 
 /**
@@ -19,6 +19,13 @@ const SAMPLE_SOURCE = `; Define addition function
     (= Nat n n)))
 `;
 
+interface SourceCodePanelProps {
+  /** External source code to load (from example dropdown) */
+  exampleSource?: string;
+  /** External claim name to load (from example dropdown) */
+  exampleClaim?: string;
+}
+
 /**
  * SourceCodePanel - Collapsible panel for entering Pie source code and starting proofs.
  *
@@ -29,10 +36,24 @@ const SAMPLE_SOURCE = `; Define addition function
  * - Auto-collapses after starting proof
  * - Shows loading and error states
  */
-export function SourceCodePanel() {
+export function SourceCodePanel({ exampleSource, exampleClaim }: SourceCodePanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [sourceCode, setSourceCode] = useState(SAMPLE_SOURCE);
   const [claimName, setClaimName] = useState('reflexivity');
+
+  // Update source/claim when example is selected
+  useEffect(() => {
+    if (exampleSource !== undefined) {
+      setSourceCode(exampleSource);
+      setIsExpanded(true); // Expand to show the loaded example
+    }
+  }, [exampleSource]);
+
+  useEffect(() => {
+    if (exampleClaim !== undefined) {
+      setClaimName(exampleClaim);
+    }
+  }, [exampleClaim]);
 
   const {
     startSession,
