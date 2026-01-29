@@ -2,9 +2,8 @@ import { useEffect, useCallback, useState } from 'react';
 import { Providers } from './providers';
 import { ProofCanvas } from '@/features/proof-editor/components/ProofCanvas';
 import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPanel';
-import { TacticPalette } from '@/features/proof-editor/components/panels/TacticPalette';
+import { LeftSidebar } from '@/features/proof-editor/components/panels/LeftSidebar';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
-import { DefinitionsPanel } from '@/features/proof-editor/components/panels/DefinitionsPanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
 import { useProofStore } from '@/features/proof-editor/store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
@@ -13,7 +12,6 @@ function AppContent() {
   const { applyTactic, error, globalContext } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
   const [tacticError, setTacticError] = useState<string | null>(null);
-  const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
 
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
@@ -85,20 +83,16 @@ function AppContent() {
       {/* Source code input panel (collapsible) */}
       <SourceCodePanel />
       <main className="flex flex-1 overflow-hidden">
-        {/* Tactic palette (left) */}
-        <TacticPalette />
+        {/* Left sidebar: Tactics + Definitions + Theorems */}
+        <LeftSidebar
+          definitions={globalContext.definitions}
+          theorems={globalContext.theorems}
+        />
         {/* Main canvas area */}
         <div className="flex-1">
           <ProofCanvas />
         </div>
-        {/* Definitions panel (right sidebar) */}
-        <DefinitionsPanel
-          definitions={globalContext.definitions}
-          theorems={globalContext.theorems}
-          collapsed={definitionsPanelCollapsed}
-          onToggleCollapse={() => setDefinitionsPanelCollapsed(!definitionsPanelCollapsed)}
-        />
-        {/* Detail panel (rightmost) */}
+        {/* Detail panel (right) */}
         <DetailPanel />
       </main>
     </div>
