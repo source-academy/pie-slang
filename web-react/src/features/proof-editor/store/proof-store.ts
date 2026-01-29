@@ -253,11 +253,13 @@ export const useProofStore = create<ProofStore>()(
 
       undo: () => {
         set((state) => {
-          if (state.historyIndex > 0) {
-            state.historyIndex -= 1;
+          // Can undo if there's a snapshot at current historyIndex
+          if (state.historyIndex >= 0 && state.historyIndex < state.history.length) {
             const snapshot = state.history[state.historyIndex];
-            state.nodes = snapshot.nodes;
-            state.edges = snapshot.edges;
+            // Deep copy to ensure immer properly tracks changes
+            state.nodes = JSON.parse(JSON.stringify(snapshot.nodes)) as ProofNode[];
+            state.edges = JSON.parse(JSON.stringify(snapshot.edges)) as ProofEdge[];
+            state.historyIndex -= 1;
           }
         });
       },
@@ -267,8 +269,9 @@ export const useProofStore = create<ProofStore>()(
           if (state.historyIndex < state.history.length - 1) {
             state.historyIndex += 1;
             const snapshot = state.history[state.historyIndex];
-            state.nodes = snapshot.nodes;
-            state.edges = snapshot.edges;
+            // Deep copy to ensure immer properly tracks changes
+            state.nodes = JSON.parse(JSON.stringify(snapshot.nodes)) as ProofNode[];
+            state.edges = JSON.parse(JSON.stringify(snapshot.edges)) as ProofEdge[];
           }
         });
       },
