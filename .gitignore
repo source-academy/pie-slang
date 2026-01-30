@@ -1,9 +1,5 @@
-!web/*.css
-web/*-bundle.js
-web/*-bundle.js.map
-web/app.js.map
-web/lsp/*.js
-web/lsp/*.js.map
+*.css
+!web-react/*.css
 .DS_Store
 *.cjs
 *~
