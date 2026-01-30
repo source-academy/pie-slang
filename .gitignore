@@ -1,4 +1,3 @@
-*.css
 !web/*.css
 web/*-bundle.js
 web/*-bundle.js.map
