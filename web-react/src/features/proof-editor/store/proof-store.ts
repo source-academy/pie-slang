@@ -18,6 +18,8 @@ import type {
   TacticNode,
   LemmaNode,
   ProofEdgeData,
+  GoalNodeData,
+  TacticNodeData,
 } from './types';
 import { convertProofTreeToReactFlow } from '../utils/convert-proof-tree';
 import { generateProofScript } from '../utils/generate-proof-script';
@@ -108,10 +110,37 @@ export const useProofStore = create<ProofStore>()(
 
       removeNode: (id) => {
         set((state) => {
+          // Check if we're removing an applied tactic node
+          const nodeToRemove = state.nodes.find((n) => n.id === id);
+          const isAppliedTactic = nodeToRemove?.type === 'tactic' &&
+            (nodeToRemove.data as TacticNodeData).status === 'applied';
+
+          // Remove the node and its edges
           state.nodes = state.nodes.filter((n) => n.id !== id);
           state.edges = state.edges.filter(
             (e) => e.source !== id && e.target !== id
           );
+
+          // If we removed an applied tactic, the proof is no longer valid
+          // Mark proof as incomplete and clear proof tree data
+          if (isAppliedTactic) {
+            state.isProofComplete = false;
+            state.proofTreeData = null;
+
+            // Also update any goal nodes that were marked complete by this tactic
+            // to be pending again
+            for (const node of state.nodes) {
+              if (node.type === 'goal') {
+                const goalData = node.data as GoalNodeData;
+                // If this goal was completed, mark it as pending
+                // (A more sophisticated approach would track which tactic completed which goal)
+                if (goalData.status === 'completed') {
+                  goalData.status = 'pending';
+                  goalData.completedBy = undefined;
+                }
+              }
+            }
+          }
         });
       },
 

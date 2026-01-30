@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo, useEffect } from 'react';
+import { useCallback, useRef, useMemo, useEffect, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -6,6 +6,7 @@ import {
   MiniMap,
   useReactFlow,
   type NodeMouseHandler,
+  type NodeChange,
   type Connection,
   type Node,
 } from '@xyflow/react';
@@ -15,7 +16,7 @@ import { useProofStore, useUIStore, isValidConnection } from '../store';
 import { nodeTypes } from './nodes';
 import { setRequestHintCallback } from './nodes/GoalNode';
 import { edgeTypes, getEdgeStyle } from './edges';
-import type { ProofNode, TacticType, GoalNode, TacticNode } from '../store/types';
+import type { ProofNode, TacticType, GoalNode, TacticNode, TacticNodeData } from '../store/types';
 import type { GhostTacticNodeData } from './nodes/GhostTacticNode';
 import { useDemoData } from '../hooks/useDemoData';
 import { useHintSystem } from '../hooks/useHintSystem';
@@ -34,6 +35,13 @@ export function ProofCanvas() {
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
+
+  // State for delete confirmation dialog
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    nodeId: string;
+    nodeName: string;
+  } | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<NodeChange<ProofNode>[] | null>(null);
 
   // Get state from stores
   const nodes = useProofStore((s) => s.nodes);
@@ -60,6 +68,73 @@ export function ProofCanvas() {
       setRequestHintCallback(null);
     };
   }, [requestHint]);
+
+  /**
+   * Intercept node changes to warn before deleting applied tactics
+   */
+  const handleNodesChange = useCallback(
+    (changes: NodeChange<ProofNode>[]) => {
+      // Check if any of the changes are removing an applied tactic
+      const removeChanges = changes.filter((c) => c.type === 'remove');
+
+      for (const change of removeChanges) {
+        if (change.type !== 'remove') continue;
+
+        const nodeToRemove = nodes.find((n) => n.id === change.id);
+        if (!nodeToRemove) continue;
+
+        // Check if it's an applied tactic
+        if (nodeToRemove.type === 'tactic') {
+          const tacticData = nodeToRemove.data as TacticNodeData;
+          if (tacticData.status === 'applied') {
+            // Show confirmation dialog
+            setDeleteConfirmation({
+              nodeId: change.id,
+              nodeName: tacticData.displayName,
+            });
+            setPendingChanges(changes);
+            return; // Don't apply changes yet
+          }
+        }
+
+        // Check if it's a completed goal (also shouldn't be deleted easily)
+        if (nodeToRemove.type === 'goal') {
+          const goalData = nodeToRemove.data;
+          if (goalData.status === 'completed') {
+            setDeleteConfirmation({
+              nodeId: change.id,
+              nodeName: `Goal: ${goalData.goalType.substring(0, 30)}...`,
+            });
+            setPendingChanges(changes);
+            return; // Don't apply changes yet
+          }
+        }
+      }
+
+      // No applied tactics being removed, proceed normally
+      onNodesChange(changes);
+    },
+    [nodes, onNodesChange]
+  );
+
+  /**
+   * Confirm deletion of applied tactic
+   */
+  const handleConfirmDelete = useCallback(() => {
+    if (pendingChanges) {
+      onNodesChange(pendingChanges);
+    }
+    setDeleteConfirmation(null);
+    setPendingChanges(null);
+  }, [pendingChanges, onNodesChange]);
+
+  /**
+   * Cancel deletion
+   */
+  const handleCancelDelete = useCallback(() => {
+    setDeleteConfirmation(null);
+    setPendingChanges(null);
+  }, []);
 
   /**
    * Enhanced onConnect handler that:
@@ -309,7 +384,7 @@ export function ProofCanvas() {
       <ReactFlow
         nodes={allNodes}
         edges={allEdges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
         isValidConnection={handleIsValidConnection}
@@ -369,6 +444,36 @@ export function ProofCanvas() {
           className="!bottom-24 !right-4"
         />
       </ReactFlow>
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirmation && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">
+              Delete Applied Tactic?
+            </h3>
+            <p className="mb-4 text-sm text-gray-600">
+              You are about to delete <strong>{deleteConfirmation.nodeName}</strong>.
+              This will invalidate the current proof and you will need to restart
+              or re-apply tactics.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                onClick={handleCancelDelete}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                onClick={handleConfirmDelete}
+              >
+                Delete Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -30,6 +30,19 @@ export function generateProofScript(
 }
 
 /**
+ * Wrap a tactic string in parentheses if not already wrapped.
+ * Tactic strings from backend like "intro n" become "(intro n)"
+ */
+function wrapTactic(tactic: string): string {
+  const trimmed = tactic.trim();
+  // Already wrapped in parentheses
+  if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+    return trimmed;
+  }
+  return `(${trimmed})`;
+}
+
+/**
  * Generate tactics for a single node and its children.
  * Returns the tactic script for this subtree.
  */
@@ -42,7 +55,7 @@ function generateTacticsFromNode(
 
   // If this goal was completed directly (leaf node with completedBy)
   if (node.completedBy && node.children.length === 0) {
-    lines.push(`${indent}${node.completedBy}`);
+    lines.push(`${indent}${wrapTactic(node.completedBy)}`);
     return lines.join('\n');
   }
 
@@ -50,14 +63,14 @@ function generateTacticsFromNode(
   if (node.appliedTactic && node.children.length > 0) {
     // Single child - just the tactic followed by child tactics
     if (node.children.length === 1) {
-      lines.push(`${indent}${node.appliedTactic}`);
+      lines.push(`${indent}${wrapTactic(node.appliedTactic)}`);
       const childTactics = generateTacticsFromNode(node.children[0], indentLevel);
       if (childTactics.trim()) {
         lines.push(childTactics);
       }
     } else {
       // Multiple children - need a 'then' block
-      lines.push(`${indent}${node.appliedTactic}`);
+      lines.push(`${indent}${wrapTactic(node.appliedTactic)}`);
       lines.push(`${indent}(then`);
 
       for (const child of node.children) {
