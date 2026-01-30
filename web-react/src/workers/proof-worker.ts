@@ -388,6 +388,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
             error: 'Cannot apply tactic to a completed goal',
           };
         }
+        // In the visual editor, users explicitly select which goal to work on,
+        // so we reset pendingBranches. The "then block" requirement is for
+        // the textual DSL where tactics are applied in sequence.
+        pm.currentState.pendingBranches = 0;
       }
 
       // Create dummy location

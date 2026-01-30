@@ -44,8 +44,8 @@ export function useProofSession() {
       try {
         const result = await proofWorker.startSession(sourceCode, claimName);
 
-        // Sync the proof tree to the store
-        syncFromWorker(result.proofTree, result.sessionId);
+        // Sync the proof tree to the store (include claimName for script generation)
+        syncFromWorker(result.proofTree, result.sessionId, claimName);
         saveSnapshot();
 
         // Store metadata

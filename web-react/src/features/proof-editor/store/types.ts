@@ -137,6 +137,10 @@ export interface ProofState {
   sessionId: string | null;
   lastSyncedState: { nodes: ProofNode[]; edges: ProofEdge[] } | null;
 
+  // Proof tree data for script generation
+  proofTreeData: import('@/workers/proof-worker').ProofTreeData | null;
+  claimName: string | null;
+
   // History for undo/redo
   history: ProofSnapshot[];
   historyIndex: number;
@@ -155,7 +159,10 @@ export interface ProofActions {
   removeEdge: (id: string) => void;
 
   // Sync from worker
-  syncFromWorker: (proofTree: import('@/workers/proof-worker').ProofTreeData, sessionId: string) => void;
+  syncFromWorker: (proofTree: import('@/workers/proof-worker').ProofTreeData, sessionId: string, claimName?: string) => void;
+
+  // Set claim name (used when starting a session)
+  setClaimName: (name: string) => void;
 
   // History
   saveSnapshot: () => void;

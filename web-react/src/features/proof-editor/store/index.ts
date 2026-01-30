@@ -30,6 +30,9 @@ export {
   useProofEdges,
   useIsProofComplete,
   useSessionId,
+  useProofTreeData,
+  useClaimName,
+  useGeneratedProofScript,
   isValidConnection,
 } from './proof-store';
 

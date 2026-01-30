@@ -18,8 +18,11 @@ import type {
   TacticNode,
   LemmaNode,
   ProofEdgeData,
+  GoalNodeData,
+  TacticNodeData,
 } from './types';
 import { convertProofTreeToReactFlow } from '../utils/convert-proof-tree';
+import { generateProofScript } from '../utils/generate-proof-script';
 import type { ProofTreeData } from '@/workers/proof-worker';
 
 // Initial state
@@ -30,6 +33,8 @@ const initialState: ProofState = {
   isProofComplete: false,
   sessionId: null,
   lastSyncedState: null,
+  proofTreeData: null,
+  claimName: null,
   history: [],
   historyIndex: -1,
 };
@@ -105,10 +110,37 @@ export const useProofStore = create<ProofStore>()(
 
       removeNode: (id) => {
         set((state) => {
+          // Check if we're removing an applied tactic node
+          const nodeToRemove = state.nodes.find((n) => n.id === id);
+          const isAppliedTactic = nodeToRemove?.type === 'tactic' &&
+            (nodeToRemove.data as TacticNodeData).status === 'applied';
+
+          // Remove the node and its edges
           state.nodes = state.nodes.filter((n) => n.id !== id);
           state.edges = state.edges.filter(
             (e) => e.source !== id && e.target !== id
           );
+
+          // If we removed an applied tactic, the proof is no longer valid
+          // Mark proof as incomplete and clear proof tree data
+          if (isAppliedTactic) {
+            state.isProofComplete = false;
+            state.proofTreeData = null;
+
+            // Also update any goal nodes that were marked complete by this tactic
+            // to be pending again
+            for (const node of state.nodes) {
+              if (node.type === 'goal') {
+                const goalData = node.data as GoalNodeData;
+                // If this goal was completed, mark it as pending
+                // (A more sophisticated approach would track which tactic completed which goal)
+                if (goalData.status === 'completed') {
+                  goalData.status = 'pending';
+                  goalData.completedBy = undefined;
+                }
+              }
+            }
+          }
         });
       },
 
@@ -164,7 +196,7 @@ export const useProofStore = create<ProofStore>()(
       // Sync from Worker
       // ================================================
 
-      syncFromWorker: (proofTree: ProofTreeData, sessionId: string) => {
+      syncFromWorker: (proofTree: ProofTreeData, sessionId: string, claimName?: string) => {
         set((state) => {
           const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
           state.nodes = nodes;
@@ -173,6 +205,17 @@ export const useProofStore = create<ProofStore>()(
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
           state.lastSyncedState = { nodes, edges };
+          // Store proof tree data for script generation
+          state.proofTreeData = proofTree;
+          if (claimName) {
+            state.claimName = claimName;
+          }
+        });
+      },
+
+      setClaimName: (name: string) => {
+        set((state) => {
+          state.claimName = name;
         });
       },
 
@@ -344,3 +387,11 @@ export const useProofNodes = () => useProofStore((s) => s.nodes);
 export const useProofEdges = () => useProofStore((s) => s.edges);
 export const useIsProofComplete = () => useProofStore((s) => s.isProofComplete);
 export const useSessionId = () => useProofStore((s) => s.sessionId);
+export const useProofTreeData = () => useProofStore((s) => s.proofTreeData);
+export const useClaimName = () => useProofStore((s) => s.claimName);
+
+// Selector for generated proof script
+export const useGeneratedProofScript = () => useProofStore((s) => {
+  if (!s.proofTreeData || !s.claimName) return null;
+  return generateProofScript(s.proofTreeData, s.claimName);
+});

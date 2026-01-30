@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useProofSession } from '../../hooks/useProofSession';
+import { useGeneratedProofScript } from '../../store';
 
 /**
  * Sample Pie source code for demonstration.
@@ -42,6 +43,9 @@ export function SourceCodePanel() {
     hasActiveSession,
     claimType,
   } = useProofSession();
+
+  // Get the generated proof script from the store
+  const generatedScript = useGeneratedProofScript();
 
   const handleStartProof = useCallback(async () => {
     if (!sourceCode.trim() || !claimName.trim()) {
@@ -169,6 +173,30 @@ export function SourceCodePanel() {
               )}
             </div>
           </div>
+
+          {/* Generated proof script - shown when proof is active */}
+          {hasActiveSession && generatedScript && (
+            <div className="mt-4 border-t pt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Generated Proof Script
+                </label>
+                <button
+                  className="rounded bg-secondary px-2 py-1 text-xs hover:bg-secondary/80"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(generatedScript);
+                  }}
+                  title="Copy to clipboard"
+                >
+                  Copy
+                </button>
+              </div>
+              <pre className="max-h-48 overflow-auto rounded-md border bg-muted/50 p-3 font-mono text-sm">
+                {generatedScript}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>
