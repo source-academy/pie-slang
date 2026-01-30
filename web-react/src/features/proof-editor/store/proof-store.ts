@@ -20,6 +20,7 @@ import type {
   ProofEdgeData,
 } from './types';
 import { convertProofTreeToReactFlow } from '../utils/convert-proof-tree';
+import { generateProofScript } from '../utils/generate-proof-script';
 import type { ProofTreeData } from '@/workers/proof-worker';
 
 // Initial state
@@ -30,6 +31,8 @@ const initialState: ProofState = {
   isProofComplete: false,
   sessionId: null,
   lastSyncedState: null,
+  proofTreeData: null,
+  claimName: null,
   history: [],
   historyIndex: -1,
 };
@@ -164,7 +167,7 @@ export const useProofStore = create<ProofStore>()(
       // Sync from Worker
       // ================================================
 
-      syncFromWorker: (proofTree: ProofTreeData, sessionId: string) => {
+      syncFromWorker: (proofTree: ProofTreeData, sessionId: string, claimName?: string) => {
         set((state) => {
           const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
           state.nodes = nodes;
@@ -173,6 +176,17 @@ export const useProofStore = create<ProofStore>()(
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
           state.lastSyncedState = { nodes, edges };
+          // Store proof tree data for script generation
+          state.proofTreeData = proofTree;
+          if (claimName) {
+            state.claimName = claimName;
+          }
+        });
+      },
+
+      setClaimName: (name: string) => {
+        set((state) => {
+          state.claimName = name;
         });
       },
 
@@ -344,3 +358,11 @@ export const useProofNodes = () => useProofStore((s) => s.nodes);
 export const useProofEdges = () => useProofStore((s) => s.edges);
 export const useIsProofComplete = () => useProofStore((s) => s.isProofComplete);
 export const useSessionId = () => useProofStore((s) => s.sessionId);
+export const useProofTreeData = () => useProofStore((s) => s.proofTreeData);
+export const useClaimName = () => useProofStore((s) => s.claimName);
+
+// Selector for generated proof script
+export const useGeneratedProofScript = () => useProofStore((s) => {
+  if (!s.proofTreeData || !s.claimName) return null;
+  return generateProofScript(s.proofTreeData, s.claimName);
+});
