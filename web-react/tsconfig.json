@@ -26,8 +26,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@pie/*": ["../src/pie-interpreter/*"],
-      "@scheme/*": ["../src/scheme_parser/*"]
+      "@scheme/*": ["../src/scheme-parser/*"]
     }
   },
-  "include": ["src", "../src/pie-interpreter", "../src/scheme_parser"]
+  "include": ["src", "../src/pie-interpreter", "../src/scheme-parser"]
 }

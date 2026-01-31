@@ -21,7 +21,6 @@ export type TacticType =
 export interface TacticParameters {
   variableName?: string;
   expression?: string;
-  lengthExpression?: string;  // For elimVec
 }
 
 // These types match the Pie interpreter's proofstate.ts exports
@@ -109,6 +108,34 @@ const sessions = new Map<string, ProofSession>();
 // Worker API
 // ============================================
 
+/**
+ * Hint level for progressive hints
+ */
+export type HintLevel = 'category' | 'tactic' | 'full';
+
+/**
+ * Progressive hint response
+ */
+export interface ProgressiveHintResponse {
+  level: HintLevel;
+  category?: 'introduction' | 'elimination' | 'constructor' | 'application';
+  tacticType?: string;
+  parameters?: Record<string, string>;
+  explanation: string;
+  confidence: number;
+}
+
+/**
+ * Request for getting a hint
+ */
+export interface GetHintRequest {
+  sessionId: string;
+  goalId: string;
+  currentLevel: HintLevel;
+  previousHint?: ProgressiveHintResponse;
+  apiKey?: string; // Optional: for AI-powered hints
+}
+
 export interface ProofWorkerAPI {
   test: () => string;
   testImports: () => Promise<{ success: boolean; results: string[]; error?: string }>;
@@ -121,6 +148,7 @@ export interface ProofWorkerAPI {
   ) => Promise<TacticAppliedResponse>;
   closeSession: (sessionId: string) => void;
   getProofTree: (sessionId: string) => ProofTreeData | null;
+  getHint: (request: GetHintRequest) => Promise<ProgressiveHintResponse>;
 }
 
 const proofWorkerAPI: ProofWorkerAPI = {
@@ -135,15 +163,15 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
     try {
       results.push('1. Testing parser imports...');
-      const parser = await import('../../../src/pie-interpreter/parser/parser');
+      const parser = await import('@pie/parser/parser');
       results.push('   schemeParse: ' + (typeof parser.schemeParse === 'function' ? 'OK' : 'MISSING'));
 
       results.push('2. Testing context imports...');
-      const ctx = await import('../../../src/pie-interpreter/utils/context');
+      const ctx = await import('@pie/utils/context');
       results.push('   initCtx: ' + (ctx.initCtx ? 'OK' : 'MISSING'));
 
       results.push('3. Testing ProofManager...');
-      const pmModule = await import('../../../src/pie-interpreter/tactics/proof-manager');
+      const pmModule = await import('@pie/tactics/proof-manager');
       results.push('   ProofManager: ' + (pmModule.ProofManager ? 'OK' : 'MISSING'));
 
       results.push('ALL IMPORTS SUCCESSFUL!');
@@ -161,13 +189,13 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Dynamically import Pie modules
       console.log('[ProofWorker] Importing modules...');
       const { schemeParse, pieDeclarationParser, Claim, Definition, DefineTactically } =
-        await import('../../../src/pie-interpreter/parser/parser');
+        await import('@pie/parser/parser');
       const { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext } =
-        await import('../../../src/pie-interpreter/utils/context');
-      const { go, stop } = await import('../../../src/pie-interpreter/types/utils');
-      const { ProofManager } = await import('../../../src/pie-interpreter/tactics/proof-manager');
-      const { Location, Syntax } = await import('../../../src/pie-interpreter/utils/locations');
-      const { Position } = await import('../../../src/scheme-parser/transpiler/types/location');
+        await import('@pie/utils/context');
+      const { go, stop } = await import('@pie/types/utils');
+      const { ProofManager } = await import('@pie/tactics/proof-manager');
+      const { Location, Syntax } = await import('@pie/utils/locations');
+      const { Position } = await import('@scheme/transpiler/types/location');
 
       // Create a dummy location
       const pos = new Position(1, 0);
@@ -335,11 +363,11 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
     try {
       // Import tactic classes
-      const tactics = await import('../../../src/pie-interpreter/tactics/tactics');
-      const { Location, Syntax } = await import('../../../src/pie-interpreter/utils/locations');
-      const { Position } = await import('../../../src/scheme-parser/transpiler/types/location');
-      const { Parser } = await import('../../../src/pie-interpreter/parser/parser');
-      const { stop } = await import('../../../src/pie-interpreter/types/utils');
+      const tactics = await import('@pie/tactics/tactics');
+      const { Location, Syntax } = await import('@pie/utils/locations');
+      const { Position } = await import('@scheme/transpiler/types/location');
+      const { Parser } = await import('@pie/parser/parser');
+      const { stop } = await import('@pie/types/utils');
 
       // Set the current goal to the one the user dropped onto
       const pm = session.proofManager;
@@ -360,6 +388,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
             error: 'Cannot apply tactic to a completed goal',
           };
         }
+        // In the visual editor, users explicitly select which goal to work on,
+        // so we reset pendingBranches. The "then block" requirement is for
+        // the textual DSL where tactics are applied in sequence.
+        pm.currentState.pendingBranches = 0;
       }
 
       // Create dummy location
@@ -456,65 +488,6 @@ const proofWorkerAPI: ProofWorkerAPI = {
           tactic = new tactics.EliminateAbsurdTactic(loc, params.variableName);
           break;
 
-        case 'elimVec':
-          if (!params.variableName) {
-            return {
-              success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimVec tactic requires a target variable name',
-            };
-          }
-          // EliminateVecTactic requires motive and length expressions
-          // For now, we require these via expression (motive) and a new lengthExpression param
-          if (!params.expression) {
-            return {
-              success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimVec tactic requires a motive expression',
-            };
-          }
-          const vecMotive = Parser.parsePie(params.expression);
-          // Default length to the target variable if not provided
-          const vecLength = params.lengthExpression
-            ? Parser.parsePie(params.lengthExpression)
-            : Parser.parsePie(params.variableName);
-          tactic = new tactics.EliminateVecTactic(loc, params.variableName, vecMotive, vecLength);
-          break;
-
-        case 'elimEqual':
-          if (!params.variableName) {
-            return {
-              success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimEqual tactic requires a target variable name',
-            };
-          }
-          // EliminateEqualTactic needs a motive function parameter
-          // For simplicity, we parse it from the expression parameter if provided
-          if (params.expression) {
-            const motiveExpr = Parser.parsePie(params.expression);
-            tactic = new tactics.EliminateEqualTactic(loc, params.variableName, motiveExpr);
-          } else {
-            return {
-              success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimEqual tactic requires a motive expression',
-            };
-          }
-          break;
-
-        case 'apply':
-          if (!params.expression) {
-            return {
-              success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'apply tactic requires a function/lemma name',
-            };
-          }
-          const funcExpr = Parser.parsePie(params.expression);
-          tactic = new tactics.ApplyTactic(loc, funcExpr);
-          break;
-
         default:
           return {
             success: false,
@@ -598,7 +571,97 @@ const proofWorkerAPI: ProofWorkerAPI = {
       currentGoalId: rawData.currentGoalId,
     };
   },
+
+  async getHint(request: GetHintRequest): Promise<ProgressiveHintResponse> {
+    console.log('[ProofWorker] getHint() called for goal:', request.goalId, 'level:', request.currentLevel);
+
+    const session = sessions.get(request.sessionId);
+    if (!session) {
+      return {
+        level: request.currentLevel,
+        explanation: 'Session not found. Please start a new proof.',
+        confidence: 0,
+      };
+    }
+
+    try {
+      // Find the goal in the proof tree
+      const proofTree = this.getProofTree(request.sessionId);
+      if (!proofTree) {
+        return {
+          level: request.currentLevel,
+          explanation: 'Could not get proof tree.',
+          confidence: 0,
+        };
+      }
+
+      // Find the specific goal
+      const goal = findGoalById(proofTree.root, request.goalId);
+      if (!goal) {
+        return {
+          level: request.currentLevel,
+          explanation: 'Goal not found.',
+          confidence: 0,
+        };
+      }
+
+      // Build hint request
+      const hintRequest = {
+        goalType: goal.goal.type,
+        context: goal.goal.context.map(c => ({ name: c.name, type: c.type })),
+        availableTactics: [
+          'intro', 'exact', 'split', 'left', 'right',
+          'elimNat', 'elimList', 'elimVec', 'elimEither', 'elimEqual', 'elimAbsurd',
+          'apply'
+        ],
+        currentLevel: request.currentLevel,
+        previousHint: request.previousHint,
+      };
+
+      // Import hint generator
+      const { generateProgressiveHint, generateRuleBasedHint } =
+        await import('@pie/solver/hint-generator');
+
+      // Try AI-powered hint if API key is provided
+      if (request.apiKey) {
+        try {
+          const hint = await generateProgressiveHint(request.apiKey, hintRequest);
+          console.log('[ProofWorker] AI hint generated:', hint);
+          return hint;
+        } catch (aiError) {
+          console.warn('[ProofWorker] AI hint failed, falling back to rule-based:', aiError);
+        }
+      }
+
+      // Fallback to rule-based hints
+      const hint = generateRuleBasedHint(hintRequest);
+      console.log('[ProofWorker] Rule-based hint generated:', hint);
+      return hint;
+
+    } catch (error) {
+      console.error('[ProofWorker] Error generating hint:', error);
+      return {
+        level: request.currentLevel,
+        explanation: `Error generating hint: ${String(error)}`,
+        confidence: 0,
+      };
+    }
+  },
 };
+
+/**
+ * Helper to find a goal by ID in the proof tree
+ */
+function findGoalById(node: SerializableGoalNode, goalId: string): SerializableGoalNode | null {
+  if (node.goal.id === goalId) {
+    return node;
+  }
+  for (const child of node.children) {
+    const found = findGoalById(child, goalId);
+    if (found) return found;
+  }
+  return null;
+}
 
 Comlink.expose(proofWorkerAPI);
 console.log('[ProofWorker] API exposed');

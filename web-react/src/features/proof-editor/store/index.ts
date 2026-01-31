@@ -32,6 +32,9 @@ export {
   useIsProofComplete,
   useSessionId,
   useGlobalContext,
+  useProofTreeData,
+  useClaimNameFromProof,
+  useGeneratedProofScript,
   isValidConnection,
 } from './proof-store';
 
@@ -88,3 +91,16 @@ export type {
   ExampleActions,
   ExampleStore,
 } from './example-store';
+
+// Hint store (from upstream)
+export {
+  useHintStore,
+  useGoalHintState,
+  useActiveGhostNode,
+  useHintApiKey,
+  type GhostNode,
+  type GoalHintState,
+  type HintState,
+  type HintActions,
+  type HintStore,
+} from './hint-store';

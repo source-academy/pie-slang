@@ -20,12 +20,13 @@ import type {
   ProofEdgeData,
 } from './types';
 import { convertProofTreeToReactFlow } from '../utils/convert-proof-tree';
+import { generateProofScript } from '../utils/generate-proof-script';
 import type { ProofTreeData } from '@/workers/proof-worker';
 import { useHistoryStore } from './history-store';
 import { useMetadataStore } from './metadata-store';
 
-// Initial state (history is now in history-store)
-const initialState: Omit<ProofState, 'history' | 'historyIndex'> & { history: never[]; historyIndex: -1 } = {
+// Initial state
+const initialState: ProofState = {
   nodes: [],
   edges: [],
   rootGoalId: null,
@@ -33,7 +34,8 @@ const initialState: Omit<ProofState, 'history' | 'historyIndex'> & { history: ne
   sessionId: null,
   lastSyncedState: null,
   globalContext: { definitions: [], theorems: [] },
-  // Keep for backwards compatibility during transition, but delegate to history-store
+  proofTreeData: null,
+  claimName: null,
   history: [],
   historyIndex: -1,
 };
@@ -169,6 +171,9 @@ export const useProofStore = create<ProofStore>()(
             (n): n is GoalNode => n.type === 'goal' && n.data.status === 'pending'
           );
           state.isProofComplete = pendingGoals.length === 0;
+
+          // Clear proof tree data since it's no longer valid
+          state.proofTreeData = null;
         });
       },
 
@@ -224,7 +229,7 @@ export const useProofStore = create<ProofStore>()(
       // Sync from Worker
       // ================================================
 
-      syncFromWorker: (proofTree: ProofTreeData, sessionId: string) => {
+      syncFromWorker: (proofTree: ProofTreeData, sessionId: string, claimName?: string) => {
         set((state) => {
           const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
           state.nodes = nodes;
@@ -233,6 +238,17 @@ export const useProofStore = create<ProofStore>()(
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
           state.lastSyncedState = { nodes, edges };
+          // Store proof tree data for script generation
+          state.proofTreeData = proofTree;
+          if (claimName) {
+            state.claimName = claimName;
+          }
+        });
+      },
+
+      setClaimName: (name: string) => {
+        set((state) => {
+          state.claimName = name;
         });
       },
 
@@ -405,3 +421,11 @@ export const useProofEdges = () => useProofStore((s) => s.edges);
 export const useIsProofComplete = () => useProofStore((s) => s.isProofComplete);
 export const useSessionId = () => useProofStore((s) => s.sessionId);
 export const useGlobalContext = () => useProofStore((s) => s.globalContext);
+export const useProofTreeData = () => useProofStore((s) => s.proofTreeData);
+export const useClaimNameFromProof = () => useProofStore((s) => s.claimName);
+
+// Selector for generated proof script
+export const useGeneratedProofScript = () => useProofStore((s) => {
+  if (!s.proofTreeData || !s.claimName) return null;
+  return generateProofScript(s.proofTreeData, s.claimName);
+});

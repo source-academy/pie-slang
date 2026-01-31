@@ -2,8 +2,10 @@ import { useEffect, useCallback, useState } from 'react';
 import { Providers } from './providers';
 import { ProofCanvas } from '@/features/proof-editor/components/ProofCanvas';
 import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPanel';
-import { LeftSidebar } from '@/features/proof-editor/components/panels/LeftSidebar';
+import { TacticPalette } from '@/features/proof-editor/components/panels/TacticPalette';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
+import { DefinitionsPanel } from '@/features/proof-editor/components/panels/DefinitionsPanel';
+import { AISettingsPanel } from '@/features/proof-editor/components/panels/AISettingsPanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
 import { useKeyboardShortcuts } from '@/features/proof-editor/hooks/useKeyboardShortcuts';
 import { useProofStore } from '@/features/proof-editor/store';
@@ -16,14 +18,13 @@ function AppContent() {
   const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
   const [tacticError, setTacticError] = useState<string | null>(null);
+  const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
 
   // Use keyboard shortcuts hook
   useKeyboardShortcuts();
 
   // Use example store
   const selectedExample = useExampleStore((s) => s.selectedExample);
-  const exampleSource = useExampleStore((s) => s.exampleSource);
-  const exampleClaim = useExampleStore((s) => s.exampleClaim);
   const selectExample = useExampleStore((s) => s.selectExample);
 
   // Use metadata store for global context
@@ -118,18 +119,24 @@ function AppContent() {
         )}
       </header>
       {/* Source code input panel (collapsible) */}
-      <SourceCodePanel exampleSource={exampleSource} exampleClaim={exampleClaim} />
+      <SourceCodePanel />
+      {/* AI Settings panel (collapsible) */}
+      <AISettingsPanel />
       <main className="flex flex-1 overflow-hidden">
-        {/* Left sidebar: Tactics + Definitions + Theorems */}
-        <LeftSidebar
-          definitions={globalContext.definitions}
-          theorems={globalContext.theorems}
-        />
+        {/* Tactic palette (left) */}
+        <TacticPalette />
         {/* Main canvas area */}
         <div className="flex-1">
           <ProofCanvas />
         </div>
-        {/* Detail panel (right) */}
+        {/* Definitions panel (right sidebar) */}
+        <DefinitionsPanel
+          definitions={globalContext.definitions}
+          theorems={globalContext.theorems}
+          collapsed={definitionsPanelCollapsed}
+          onToggleCollapse={() => setDefinitionsPanelCollapsed(!definitionsPanelCollapsed)}
+        />
+        {/* Detail panel (rightmost) */}
         <DetailPanel />
       </main>
     </div>
