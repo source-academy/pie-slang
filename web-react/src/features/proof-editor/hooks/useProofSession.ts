@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { proofWorker } from '@/shared/lib/worker-client';
 import { useProofStore } from '../store';
+import { useMetadataStore } from '../store/metadata-store';
 import type {
   TacticParameters,
   StartSessionResponse,
@@ -23,7 +24,14 @@ export function useProofSession() {
   const [error, setError] = useState<string | null>(null);
   const [availableLemmas, setAvailableLemmas] = useState<SerializableLemma[]>([]);
   const [claimType, setClaimType] = useState<string | null>(null);
-  const [globalContext, setGlobalContext] = useState<GlobalContext>({ definitions: [], theorems: [] });
+
+  // Use metadata store for globalContext and claimName so all hook instances see the same state
+  const globalContext = useMetadataStore((s) => s.globalContext);
+  const setGlobalContext = useMetadataStore((s) => s.setGlobalContext);
+  const setMetadataClaimName = useMetadataStore((s) => s.setClaimName);
+
+  // Also keep proof-store in sync for backwards compatibility
+  const setProofStoreGlobalContext = useProofStore((s) => s.setGlobalContext);
 
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
@@ -44,14 +52,16 @@ export function useProofSession() {
       try {
         const result = await proofWorker.startSession(sourceCode, claimName);
 
-        // Sync the proof tree to the store
-        syncFromWorker(result.proofTree, result.sessionId);
+        // Sync the proof tree to the store (include claimName for script generation)
+        syncFromWorker(result.proofTree, result.sessionId, claimName);
         saveSnapshot();
 
         // Store metadata
         setAvailableLemmas(result.availableLemmas);
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
+        setProofStoreGlobalContext(result.globalContext); // Keep proof-store in sync
+        setMetadataClaimName(claimName); // Store claim name in metadata store
 
         return result;
       } catch (e) {
@@ -62,7 +72,7 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [syncFromWorker, saveSnapshot]
+    [syncFromWorker, saveSnapshot, setGlobalContext, setProofStoreGlobalContext, setMetadataClaimName]
   );
 
   /**
@@ -122,11 +132,13 @@ export function useProofSession() {
       setAvailableLemmas([]);
       setClaimType(null);
       setGlobalContext({ definitions: [], theorems: [] });
+      setProofStoreGlobalContext({ definitions: [], theorems: [] });
+      setMetadataClaimName(null);
       setError(null);
     } catch (e) {
       console.error('Failed to close session:', e);
     }
-  }, [sessionId]);
+  }, [sessionId, setGlobalContext, setProofStoreGlobalContext, setMetadataClaimName]);
 
   /**
    * Clear any error state.

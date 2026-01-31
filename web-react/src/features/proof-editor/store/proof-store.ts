@@ -20,7 +20,10 @@ import type {
   ProofEdgeData,
 } from './types';
 import { convertProofTreeToReactFlow } from '../utils/convert-proof-tree';
+import { generateProofScript } from '../utils/generate-proof-script';
 import type { ProofTreeData } from '@/workers/proof-worker';
+import { useHistoryStore } from './history-store';
+import { useMetadataStore } from './metadata-store';
 
 // Initial state
 const initialState: ProofState = {
@@ -30,6 +33,9 @@ const initialState: ProofState = {
   isProofComplete: false,
   sessionId: null,
   lastSyncedState: null,
+  globalContext: { definitions: [], theorems: [] },
+  proofTreeData: null,
+  claimName: null,
   history: [],
   historyIndex: -1,
 };
@@ -112,6 +118,65 @@ export const useProofStore = create<ProofStore>()(
         });
       },
 
+      /**
+       * Delete a tactic node and cascade delete all downstream nodes.
+       * Also reverts the parent goal to 'pending' status.
+       * Saves a snapshot before deletion for undo support.
+       */
+      deleteTacticCascade: (tacticId) => {
+        // Save snapshot BEFORE deletion for undo
+        get().saveSnapshot();
+
+        set((state) => {
+          // Helper to get all child node IDs recursively
+          function getDescendantIds(nodeId: string): string[] {
+            const descendants: string[] = [];
+            // Find all edges where this node is the source
+            const childEdges = state.edges.filter((e) => e.source === nodeId);
+            for (const edge of childEdges) {
+              descendants.push(edge.target);
+              descendants.push(...getDescendantIds(edge.target));
+            }
+            return descendants;
+          }
+
+          // Find the parent goal (the goal this tactic was applied to)
+          const parentEdge = state.edges.find(
+            (e) => e.target === tacticId && e.data?.kind === 'goal-to-tactic'
+          );
+          const parentGoalId = parentEdge?.source;
+
+          // Get all descendant nodes to delete
+          const nodesToDelete = new Set([tacticId, ...getDescendantIds(tacticId)]);
+
+          // Remove all descendant nodes
+          state.nodes = state.nodes.filter((n) => !nodesToDelete.has(n.id));
+
+          // Remove all edges connected to deleted nodes
+          state.edges = state.edges.filter(
+            (e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target)
+          );
+
+          // Revert parent goal to 'pending' status
+          if (parentGoalId) {
+            const parentGoal = state.nodes.find((n) => n.id === parentGoalId);
+            if (parentGoal && parentGoal.type === 'goal') {
+              (parentGoal as GoalNode).data.status = 'pending';
+              (parentGoal as GoalNode).data.completedBy = undefined;
+            }
+          }
+
+          // Update proof completion status
+          const pendingGoals = state.nodes.filter(
+            (n): n is GoalNode => n.type === 'goal' && n.data.status === 'pending'
+          );
+          state.isProofComplete = pendingGoals.length === 0;
+
+          // Clear proof tree data since it's no longer valid
+          state.proofTreeData = null;
+        });
+      },
+
       // ================================================
       // Edge Operations
       // ================================================
@@ -164,7 +229,7 @@ export const useProofStore = create<ProofStore>()(
       // Sync from Worker
       // ================================================
 
-      syncFromWorker: (proofTree: ProofTreeData, sessionId: string) => {
+      syncFromWorker: (proofTree: ProofTreeData, sessionId: string, claimName?: string) => {
         set((state) => {
           const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
           state.nodes = nodes;
@@ -173,47 +238,47 @@ export const useProofStore = create<ProofStore>()(
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
           state.lastSyncedState = { nodes, edges };
+          // Store proof tree data for script generation
+          state.proofTreeData = proofTree;
+          if (claimName) {
+            state.claimName = claimName;
+          }
+        });
+      },
+
+      setClaimName: (name: string) => {
+        set((state) => {
+          state.claimName = name;
         });
       },
 
       // ================================================
-      // History (Undo/Redo)
+      // History (Undo/Redo) - Delegates to history-store
       // ================================================
 
       saveSnapshot: () => {
-        set((state) => {
-          const snapshot = {
-            nodes: JSON.parse(JSON.stringify(state.nodes)) as ProofNode[],
-            edges: JSON.parse(JSON.stringify(state.edges)) as ProofEdge[],
-            timestamp: Date.now(),
-          };
-          // Truncate any redo history
-          state.history = state.history.slice(0, state.historyIndex + 1);
-          state.history.push(snapshot);
-          state.historyIndex = state.history.length - 1;
-        });
+        const state = get();
+        useHistoryStore.getState().saveSnapshot(state.nodes, state.edges);
       },
 
       undo: () => {
-        set((state) => {
-          if (state.historyIndex > 0) {
-            state.historyIndex -= 1;
-            const snapshot = state.history[state.historyIndex];
+        const snapshot = useHistoryStore.getState().undo();
+        if (snapshot) {
+          set((state) => {
             state.nodes = snapshot.nodes;
             state.edges = snapshot.edges;
-          }
-        });
+          });
+        }
       },
 
       redo: () => {
-        set((state) => {
-          if (state.historyIndex < state.history.length - 1) {
-            state.historyIndex += 1;
-            const snapshot = state.history[state.historyIndex];
+        const snapshot = useHistoryStore.getState().redo();
+        if (snapshot) {
+          set((state) => {
             state.nodes = snapshot.nodes;
             state.edges = snapshot.edges;
-          }
-        });
+          });
+        }
       },
 
       // ================================================
@@ -232,6 +297,17 @@ export const useProofStore = create<ProofStore>()(
 
       reset: () => {
         set(() => initialState);
+        useHistoryStore.getState().reset();
+        useMetadataStore.getState().reset();
+      },
+
+      // Delegates to metadata-store for backwards compatibility
+      setGlobalContext: (context) => {
+        useMetadataStore.getState().setGlobalContext(context);
+        // Also keep in local state for backwards compatibility during transition
+        set((state) => {
+          state.globalContext = context;
+        });
       },
 
       // ================================================
@@ -344,3 +420,12 @@ export const useProofNodes = () => useProofStore((s) => s.nodes);
 export const useProofEdges = () => useProofStore((s) => s.edges);
 export const useIsProofComplete = () => useProofStore((s) => s.isProofComplete);
 export const useSessionId = () => useProofStore((s) => s.sessionId);
+export const useGlobalContext = () => useProofStore((s) => s.globalContext);
+export const useProofTreeData = () => useProofStore((s) => s.proofTreeData);
+export const useClaimNameFromProof = () => useProofStore((s) => s.claimName);
+
+// Selector for generated proof script
+export const useGeneratedProofScript = () => useProofStore((s) => {
+  if (!s.proofTreeData || !s.claimName) return null;
+  return generateProofScript(s.proofTreeData, s.claimName);
+});

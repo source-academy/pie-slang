@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useEffect, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -6,15 +6,20 @@ import {
   MiniMap,
   useReactFlow,
   type NodeMouseHandler,
+  type NodeChange,
   type Connection,
+  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { useProofStore, useUIStore, isValidConnection } from '../store';
 import { nodeTypes } from './nodes';
+import { setRequestHintCallback } from './nodes/GoalNode';
 import { edgeTypes, getEdgeStyle } from './edges';
-import type { ProofNode, TacticType, GoalNode, TacticNode } from '../store/types';
+import type { ProofNode, TacticType, GoalNode, TacticNode, TacticNodeData } from '../store/types';
+import type { GhostTacticNodeData } from './nodes/GhostTacticNode';
 import { useDemoData } from '../hooks/useDemoData';
+import { useHintSystem } from '../hooks/useHintSystem';
 import { TACTICS } from '../data/tactics';
 import { applyTactic as triggerApplyTactic } from '../utils/tactic-callback';
 
@@ -31,6 +36,13 @@ export function ProofCanvas() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
+  // State for delete confirmation dialog
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    nodeId: string;
+    nodeName: string;
+  } | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<NodeChange<ProofNode>[] | null>(null);
+
   // Get state from stores
   const nodes = useProofStore((s) => s.nodes);
   const edges = useProofStore((s) => s.edges);
@@ -43,6 +55,86 @@ export function ProofCanvas() {
   const selectNode = useUIStore((s) => s.selectNode);
   const setHoveredNode = useUIStore((s) => s.setHoveredNode);
   const clearDragState = useUIStore((s) => s.clearDragState);
+
+  // Hint system
+  const { requestHint, getMoreDetail, acceptGhostNode, dismissGhostNode, goalHints } = useHintSystem();
+
+  // Register hint callback for GoalNode
+  useEffect(() => {
+    console.log('[ProofCanvas] Registering hint callback');
+    setRequestHintCallback(requestHint);
+    return () => {
+      console.log('[ProofCanvas] Unregistering hint callback');
+      setRequestHintCallback(null);
+    };
+  }, [requestHint]);
+
+  /**
+   * Intercept node changes to warn before deleting applied tactics
+   */
+  const handleNodesChange = useCallback(
+    (changes: NodeChange<ProofNode>[]) => {
+      // Check if any of the changes are removing an applied tactic
+      const removeChanges = changes.filter((c) => c.type === 'remove');
+
+      for (const change of removeChanges) {
+        if (change.type !== 'remove') continue;
+
+        const nodeToRemove = nodes.find((n) => n.id === change.id);
+        if (!nodeToRemove) continue;
+
+        // Check if it's an applied tactic
+        if (nodeToRemove.type === 'tactic') {
+          const tacticData = nodeToRemove.data as TacticNodeData;
+          if (tacticData.status === 'applied') {
+            // Show confirmation dialog
+            setDeleteConfirmation({
+              nodeId: change.id,
+              nodeName: tacticData.displayName,
+            });
+            setPendingChanges(changes);
+            return; // Don't apply changes yet
+          }
+        }
+
+        // Check if it's a completed goal (also shouldn't be deleted easily)
+        if (nodeToRemove.type === 'goal') {
+          const goalData = nodeToRemove.data;
+          if (goalData.status === 'completed') {
+            setDeleteConfirmation({
+              nodeId: change.id,
+              nodeName: `Goal: ${goalData.goalType.substring(0, 30)}...`,
+            });
+            setPendingChanges(changes);
+            return; // Don't apply changes yet
+          }
+        }
+      }
+
+      // No applied tactics being removed, proceed normally
+      onNodesChange(changes);
+    },
+    [nodes, onNodesChange]
+  );
+
+  /**
+   * Confirm deletion of applied tactic
+   */
+  const handleConfirmDelete = useCallback(() => {
+    if (pendingChanges) {
+      onNodesChange(pendingChanges);
+    }
+    setDeleteConfirmation(null);
+    setPendingChanges(null);
+  }, [pendingChanges, onNodesChange]);
+
+  /**
+   * Cancel deletion
+   */
+  const handleCancelDelete = useCallback(() => {
+    setDeleteConfirmation(null);
+    setPendingChanges(null);
+  }, []);
 
   /**
    * Enhanced onConnect handler that:
@@ -232,12 +324,67 @@ export function ProofCanvas() {
     }));
   }, [edges]);
 
+  // Create ghost nodes from hint state
+  const ghostNodes = useMemo(() => {
+    const ghosts: Node<GhostTacticNodeData>[] = [];
+
+    for (const [goalId, hintState] of goalHints.entries()) {
+      if (hintState.ghostNode && hintState.hints.length > 0) {
+        const latestHint = hintState.hints[hintState.hints.length - 1];
+        ghosts.push({
+          id: hintState.ghostNode.id,
+          type: 'ghost',
+          position: hintState.ghostNode.position,
+          data: {
+            kind: 'ghost',
+            goalId,
+            hint: latestHint,
+            isLoading: hintState.isLoading,
+            onAccept: () => acceptGhostNode(goalId),
+            onDismiss: () => dismissGhostNode(goalId),
+            onMoreDetail: () => getMoreDetail(goalId),
+          },
+        });
+      }
+    }
+
+    return ghosts;
+  }, [goalHints, acceptGhostNode, dismissGhostNode, getMoreDetail]);
+
+  // Combine regular nodes with ghost nodes
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allNodes = useMemo(() => {
+    return [...nodes, ...ghostNodes] as any[];
+  }, [nodes, ghostNodes]);
+
+  // Create ghost edges connecting goals to ghost nodes
+  const ghostEdges = useMemo(() => {
+    return ghostNodes.map((ghost) => ({
+      id: `edge-ghost-${ghost.id}`,
+      source: ghost.data.goalId,
+      target: ghost.id,
+      sourceHandle: 'goal-output',
+      targetHandle: 'ghost-input',
+      style: {
+        stroke: '#a855f7',
+        strokeWidth: 2,
+        strokeDasharray: '5,5',
+      },
+      animated: true,
+    }));
+  }, [ghostNodes]);
+
+  // Combine regular edges with ghost edges
+  const allEdges = useMemo(() => {
+    return [...styledEdges, ...ghostEdges];
+  }, [styledEdges, ghostEdges]);
+
   return (
     <div className="h-full w-full" ref={reactFlowWrapper}>
       <ReactFlow
-        nodes={nodes}
-        edges={styledEdges}
-        onNodesChange={onNodesChange}
+        nodes={allNodes}
+        edges={allEdges}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
         isValidConnection={handleIsValidConnection}
@@ -247,7 +394,8 @@ export function ProofCanvas() {
         onPaneClick={onPaneClick}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        nodeTypes={nodeTypes}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        nodeTypes={nodeTypes as any}
         edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{
@@ -270,30 +418,62 @@ export function ProofCanvas() {
         <MiniMap
           nodeStrokeColor={(node) => {
             if (node.type === 'goal') {
-              const data = node.data;
+              const data = node.data as { status?: string };
               if (data.status === 'completed') return '#22c55e';
               if (data.status === 'in-progress') return '#fbbf24';
               return '#f97316';
             }
             if (node.type === 'tactic') return '#3b82f6';
             if (node.type === 'lemma') return '#22c55e';
+            if (node.type === 'ghost') return '#a855f7'; // Purple for ghost nodes
             return '#6b7280';
           }}
           nodeColor={(node) => {
             if (node.type === 'goal') {
-              const data = node.data;
+              const data = node.data as { status?: string };
               if (data.status === 'completed') return '#dcfce7';
               if (data.status === 'in-progress') return '#fef3c7';
               return '#ffedd5';
             }
             if (node.type === 'tactic') return '#dbeafe';
             if (node.type === 'lemma') return '#dcfce7';
+            if (node.type === 'ghost') return '#f3e8ff'; // Light purple for ghost nodes
             return '#f3f4f6';
           }}
           maskColor="rgba(0, 0, 0, 0.1)"
           className="!bottom-24 !right-4"
         />
       </ReactFlow>
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirmation && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">
+              Delete Applied Tactic?
+            </h3>
+            <p className="mb-4 text-sm text-gray-600">
+              You are about to delete <strong>{deleteConfirmation.nodeName}</strong>.
+              This will invalidate the current proof and you will need to restart
+              or re-apply tactics.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                onClick={handleCancelDelete}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                onClick={handleConfirmDelete}
+              >
+                Delete Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

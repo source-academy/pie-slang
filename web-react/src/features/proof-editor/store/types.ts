@@ -19,6 +19,7 @@ export interface ContextEntry {
 export type TacticType =
   | 'intro'
   | 'exact'
+  | 'exists'
   | 'split'
   | 'left'
   | 'right'
@@ -33,8 +34,9 @@ export type TacticType =
 export interface TacticParameters {
   variableName?: string;      // For intro
   targetContextId?: string;   // For elim tactics
-  expression?: string;        // For exact
+  expression?: string;        // For exact, exists, apply, elimEqual motive
   lemmaId?: string;           // For apply
+  lengthExpression?: string;  // For elimVec (optional length expression)
   [key: string]: unknown;     // Index signature for React Flow compatibility
 }
 
@@ -137,6 +139,16 @@ export interface ProofState {
   sessionId: string | null;
   lastSyncedState: { nodes: ProofNode[]; edges: ProofEdge[] } | null;
 
+  // Global context (definitions/theorems from source code)
+  globalContext: {
+    definitions: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
+    theorems: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
+  };
+
+  // Proof tree data for script generation (from upstream)
+  proofTreeData: import('@/workers/proof-worker').ProofTreeData | null;
+  claimName: string | null;
+
   // History for undo/redo
   history: ProofSnapshot[];
   historyIndex: number;
@@ -149,13 +161,17 @@ export interface ProofActions {
   addLemmaNode: (lemma: LemmaNodeData, position: { x: number; y: number }) => string;
   updateNode: <T extends ProofNode>(id: string, data: Partial<T['data']>) => void;
   removeNode: (id: string) => void;
+  deleteTacticCascade: (tacticId: string) => void;
 
   // Edge operations
   connectNodes: (sourceId: string, targetId: string, data: ProofEdgeData) => void;
   removeEdge: (id: string) => void;
 
   // Sync from worker
-  syncFromWorker: (proofTree: import('@/workers/proof-worker').ProofTreeData, sessionId: string) => void;
+  syncFromWorker: (proofTree: import('@/workers/proof-worker').ProofTreeData, sessionId: string, claimName?: string) => void;
+
+  // Set claim name (used when starting a session)
+  setClaimName: (name: string) => void;
 
   // History
   saveSnapshot: () => void;
@@ -165,6 +181,7 @@ export interface ProofActions {
   // Proof state
   checkProofComplete: () => void;
   reset: () => void;
+  setGlobalContext: (context: ProofState['globalContext']) => void;
 
   // React Flow handlers
   onNodesChange: (changes: NodeChange<ProofNode>[]) => void;
@@ -178,11 +195,17 @@ export type ProofStore = ProofState & ProofActions;
 // UI Store Types
 // ============================================
 
+export interface DeleteConfirmation {
+  nodeId: string;
+  pendingChanges: NodeChange<ProofNode>[];
+}
+
 export interface UIState {
   selectedNodeId: string | null;
   draggingTactic: TacticType | null;
   hoveredNodeId: string | null;
   validDropTargets: string[];
+  deleteConfirmation: DeleteConfirmation | null;
 }
 
 export interface UIActions {
@@ -191,6 +214,9 @@ export interface UIActions {
   setHoveredNode: (id: string | null) => void;
   setValidDropTargets: (goalIds: string[]) => void;
   clearDragState: () => void;
+  requestDelete: (nodeId: string, pendingChanges: NodeChange<ProofNode>[]) => void;
+  confirmDelete: () => void;
+  cancelDelete: () => void;
 }
 
 export type UIStore = UIState & UIActions;

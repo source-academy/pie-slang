@@ -5,15 +5,30 @@ import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPan
 import { TacticPalette } from '@/features/proof-editor/components/panels/TacticPalette';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
 import { DefinitionsPanel } from '@/features/proof-editor/components/panels/DefinitionsPanel';
+import { AISettingsPanel } from '@/features/proof-editor/components/panels/AISettingsPanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
+import { useKeyboardShortcuts } from '@/features/proof-editor/hooks/useKeyboardShortcuts';
 import { useProofStore } from '@/features/proof-editor/store';
+import { useExampleStore } from '@/features/proof-editor/store/example-store';
+import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
+import { EXAMPLES } from '@/features/proof-editor/data/examples';
 
 function AppContent() {
-  const { applyTactic, error, globalContext } = useProofSession();
+  const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
+
+  // Use keyboard shortcuts hook
+  useKeyboardShortcuts();
+
+  // Use example store
+  const selectedExample = useExampleStore((s) => s.selectedExample);
+  const selectExample = useExampleStore((s) => s.selectExample);
+
+  // Use metadata store for global context
+  const globalContext = useMetadataStore((s) => s.globalContext);
 
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
@@ -73,17 +88,40 @@ function AppContent() {
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <header className="flex h-12 items-center border-b px-4">
+      <header className="flex h-12 items-center border-b px-4 gap-4">
         <h1 className="text-lg font-semibold">Pie Proof Editor</h1>
+
+        {/* Example dropdown */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="example-select" className="text-sm text-muted-foreground">
+            Load Example:
+          </label>
+          <select
+            id="example-select"
+            value={selectedExample}
+            onChange={(e) => selectExample(e.target.value)}
+            className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">-- Select --</option>
+            {EXAMPLES.map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Show tactic error in header */}
         {(tacticError || error) && (
-          <div className="ml-4 rounded bg-red-100 px-2 py-1 text-sm text-red-700">
+          <div className="ml-auto rounded bg-red-100 px-2 py-1 text-sm text-red-700">
             {tacticError || error}
           </div>
         )}
       </header>
       {/* Source code input panel (collapsible) */}
       <SourceCodePanel />
+      {/* AI Settings panel (collapsible) */}
+      <AISettingsPanel />
       <main className="flex flex-1 overflow-hidden">
         {/* Tactic palette (left) */}
         <TacticPalette />
