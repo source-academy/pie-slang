@@ -21,9 +21,11 @@ import type {
 } from './types';
 import { convertProofTreeToReactFlow } from '../utils/convert-proof-tree';
 import type { ProofTreeData } from '@/workers/proof-worker';
+import { useHistoryStore } from './history-store';
+import { useMetadataStore } from './metadata-store';
 
-// Initial state
-const initialState: ProofState = {
+// Initial state (history is now in history-store)
+const initialState: Omit<ProofState, 'history' | 'historyIndex'> & { history: never[]; historyIndex: -1 } = {
   nodes: [],
   edges: [],
   rootGoalId: null,
@@ -31,6 +33,7 @@ const initialState: ProofState = {
   sessionId: null,
   lastSyncedState: null,
   globalContext: { definitions: [], theorems: [] },
+  // Keep for backwards compatibility during transition, but delegate to history-store
   history: [],
   historyIndex: -1,
 };
@@ -234,46 +237,32 @@ export const useProofStore = create<ProofStore>()(
       },
 
       // ================================================
-      // History (Undo/Redo)
+      // History (Undo/Redo) - Delegates to history-store
       // ================================================
 
       saveSnapshot: () => {
-        set((state) => {
-          const snapshot = {
-            nodes: JSON.parse(JSON.stringify(state.nodes)) as ProofNode[],
-            edges: JSON.parse(JSON.stringify(state.edges)) as ProofEdge[],
-            timestamp: Date.now(),
-          };
-          // Truncate any redo history
-          state.history = state.history.slice(0, state.historyIndex + 1);
-          state.history.push(snapshot);
-          state.historyIndex = state.history.length - 1;
-        });
+        const state = get();
+        useHistoryStore.getState().saveSnapshot(state.nodes, state.edges);
       },
 
       undo: () => {
-        set((state) => {
-          // Can undo if there's a snapshot at current historyIndex
-          if (state.historyIndex >= 0 && state.historyIndex < state.history.length) {
-            const snapshot = state.history[state.historyIndex];
-            // Deep copy to ensure immer properly tracks changes
-            state.nodes = JSON.parse(JSON.stringify(snapshot.nodes)) as ProofNode[];
-            state.edges = JSON.parse(JSON.stringify(snapshot.edges)) as ProofEdge[];
-            state.historyIndex -= 1;
-          }
-        });
+        const snapshot = useHistoryStore.getState().undo();
+        if (snapshot) {
+          set((state) => {
+            state.nodes = snapshot.nodes;
+            state.edges = snapshot.edges;
+          });
+        }
       },
 
       redo: () => {
-        set((state) => {
-          if (state.historyIndex < state.history.length - 1) {
-            state.historyIndex += 1;
-            const snapshot = state.history[state.historyIndex];
-            // Deep copy to ensure immer properly tracks changes
-            state.nodes = JSON.parse(JSON.stringify(snapshot.nodes)) as ProofNode[];
-            state.edges = JSON.parse(JSON.stringify(snapshot.edges)) as ProofEdge[];
-          }
-        });
+        const snapshot = useHistoryStore.getState().redo();
+        if (snapshot) {
+          set((state) => {
+            state.nodes = snapshot.nodes;
+            state.edges = snapshot.edges;
+          });
+        }
       },
 
       // ================================================
@@ -292,9 +281,14 @@ export const useProofStore = create<ProofStore>()(
 
       reset: () => {
         set(() => initialState);
+        useHistoryStore.getState().reset();
+        useMetadataStore.getState().reset();
       },
 
+      // Delegates to metadata-store for backwards compatibility
       setGlobalContext: (context) => {
+        useMetadataStore.getState().setGlobalContext(context);
+        // Also keep in local state for backwards compatibility during transition
         set((state) => {
           state.globalContext = context;
         });

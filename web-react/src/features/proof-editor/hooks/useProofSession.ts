@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { proofWorker } from '@/shared/lib/worker-client';
 import { useProofStore } from '../store';
+import { useMetadataStore } from '../store/metadata-store';
 import type {
   TacticParameters,
   StartSessionResponse,
@@ -24,9 +25,12 @@ export function useProofSession() {
   const [availableLemmas, setAvailableLemmas] = useState<SerializableLemma[]>([]);
   const [claimType, setClaimType] = useState<string | null>(null);
 
-  // Use shared store for globalContext so all hook instances see the same state
-  const globalContext = useProofStore((s) => s.globalContext);
-  const setGlobalContext = useProofStore((s) => s.setGlobalContext);
+  // Use metadata store for globalContext so all hook instances see the same state
+  const globalContext = useMetadataStore((s) => s.globalContext);
+  const setGlobalContext = useMetadataStore((s) => s.setGlobalContext);
+
+  // Also keep proof-store in sync for backwards compatibility
+  const setProofStoreGlobalContext = useProofStore((s) => s.setGlobalContext);
 
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
@@ -55,6 +59,7 @@ export function useProofSession() {
         setAvailableLemmas(result.availableLemmas);
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
+        setProofStoreGlobalContext(result.globalContext); // Keep proof-store in sync
 
         return result;
       } catch (e) {
@@ -65,7 +70,7 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [syncFromWorker, saveSnapshot, setGlobalContext]
+    [syncFromWorker, saveSnapshot, setGlobalContext, setProofStoreGlobalContext]
   );
 
   /**
@@ -125,11 +130,12 @@ export function useProofSession() {
       setAvailableLemmas([]);
       setClaimType(null);
       setGlobalContext({ definitions: [], theorems: [] });
+      setProofStoreGlobalContext({ definitions: [], theorems: [] });
       setError(null);
     } catch (e) {
       console.error('Failed to close session:', e);
     }
-  }, [sessionId, setGlobalContext]);
+  }, [sessionId, setGlobalContext, setProofStoreGlobalContext]);
 
   /**
    * Clear any error state.

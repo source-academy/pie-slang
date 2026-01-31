@@ -5,62 +5,29 @@ import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPan
 import { LeftSidebar } from '@/features/proof-editor/components/panels/LeftSidebar';
 import { SourceCodePanel } from '@/features/proof-editor/components/panels/SourceCodePanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
+import { useKeyboardShortcuts } from '@/features/proof-editor/hooks/useKeyboardShortcuts';
 import { useProofStore } from '@/features/proof-editor/store';
+import { useExampleStore } from '@/features/proof-editor/store/example-store';
+import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
-import { EXAMPLES, getExampleById } from '@/features/proof-editor/data/examples';
+import { EXAMPLES } from '@/features/proof-editor/data/examples';
 
 function AppContent() {
-  const { applyTactic, error, globalContext } = useProofSession();
+  const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
-  const undo = useProofStore((s) => s.undo);
-  const redo = useProofStore((s) => s.redo);
   const [tacticError, setTacticError] = useState<string | null>(null);
 
-  // Keyboard shortcuts for undo/redo
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Ctrl+Z or Cmd+Z (undo)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        console.log('[App] Undo triggered');
-        undo();
-      }
-      // Check for Ctrl+Shift+Z or Cmd+Shift+Z (redo)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
-        e.preventDefault();
-        console.log('[App] Redo triggered');
-        redo();
-      }
-      // Also support Ctrl+Y for redo (Windows convention)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        console.log('[App] Redo triggered (Ctrl+Y)');
-        redo();
-      }
-    };
+  // Use keyboard shortcuts hook
+  useKeyboardShortcuts();
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  // Use example store
+  const selectedExample = useExampleStore((s) => s.selectedExample);
+  const exampleSource = useExampleStore((s) => s.exampleSource);
+  const exampleClaim = useExampleStore((s) => s.exampleClaim);
+  const selectExample = useExampleStore((s) => s.selectExample);
 
-  // Example selection state
-  const [selectedExample, setSelectedExample] = useState<string>('');
-  const [exampleSource, setExampleSource] = useState<string | undefined>(undefined);
-  const [exampleClaim, setExampleClaim] = useState<string | undefined>(undefined);
-
-  // Handle example selection from dropdown
-  const handleExampleSelect = useCallback((exampleId: string) => {
-    if (!exampleId) {
-      setSelectedExample('');
-      return;
-    }
-    const example = getExampleById(exampleId);
-    if (example) {
-      setSelectedExample(exampleId);
-      setExampleSource(example.sourceCode);
-      setExampleClaim(example.defaultClaim);
-    }
-  }, []);
+  // Use metadata store for global context
+  const globalContext = useMetadataStore((s) => s.globalContext);
 
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
@@ -131,7 +98,7 @@ function AppContent() {
           <select
             id="example-select"
             value={selectedExample}
-            onChange={(e) => handleExampleSelect(e.target.value)}
+            onChange={(e) => selectExample(e.target.value)}
             className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">-- Select --</option>

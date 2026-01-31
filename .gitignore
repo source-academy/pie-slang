@@ -1,5 +1,6 @@
 *.css
 !web-react/*.css
+!web-react/src/**/*.css
 web/*-bundle.js
 web/*-bundle.js.map
 web/app.js.map

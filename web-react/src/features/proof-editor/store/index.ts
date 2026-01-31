@@ -21,6 +21,7 @@ export type {
   UIState,
   UIActions,
   UIStore,
+  DeleteConfirmation,
 } from './types';
 
 // Proof store
@@ -42,4 +43,48 @@ export {
   useHoveredNodeId,
   useValidDropTargets,
   useIsValidDropTarget,
+  useDeleteConfirmation,
 } from './ui-store';
+
+// History store
+export {
+  useHistoryStore,
+  useHistoryIndex,
+  useHistoryLength,
+} from './history-store';
+
+export type {
+  HistoryState,
+  HistoryActions,
+  HistoryStore,
+} from './history-store';
+
+// Metadata store
+export {
+  useMetadataStore,
+  useGlobalContextFromMetadata,
+  useClaimName,
+  useDefinitions,
+  useTheorems,
+} from './metadata-store';
+
+export type {
+  GlobalContext,
+  MetadataState,
+  MetadataActions,
+  MetadataStore,
+} from './metadata-store';
+
+// Example store
+export {
+  useExampleStore,
+  useSelectedExample,
+  useExampleSource,
+  useExampleClaim,
+} from './example-store';
+
+export type {
+  ExampleState,
+  ExampleActions,
+  ExampleStore,
+} from './example-store';

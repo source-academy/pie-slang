@@ -188,11 +188,17 @@ export type ProofStore = ProofState & ProofActions;
 // UI Store Types
 // ============================================
 
+export interface DeleteConfirmation {
+  nodeId: string;
+  pendingChanges: NodeChange<ProofNode>[];
+}
+
 export interface UIState {
   selectedNodeId: string | null;
   draggingTactic: TacticType | null;
   hoveredNodeId: string | null;
   validDropTargets: string[];
+  deleteConfirmation: DeleteConfirmation | null;
 }
 
 export interface UIActions {
@@ -201,6 +207,9 @@ export interface UIActions {
   setHoveredNode: (id: string | null) => void;
   setValidDropTargets: (goalIds: string[]) => void;
   clearDragState: () => void;
+  requestDelete: (nodeId: string, pendingChanges: NodeChange<ProofNode>[]) => void;
+  confirmDelete: () => void;
+  cancelDelete: () => void;
 }
 
 export type UIStore = UIState & UIActions;
