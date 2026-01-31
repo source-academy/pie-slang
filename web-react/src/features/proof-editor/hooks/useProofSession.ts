@@ -25,9 +25,10 @@ export function useProofSession() {
   const [availableLemmas, setAvailableLemmas] = useState<SerializableLemma[]>([]);
   const [claimType, setClaimType] = useState<string | null>(null);
 
-  // Use metadata store for globalContext so all hook instances see the same state
+  // Use metadata store for globalContext and claimName so all hook instances see the same state
   const globalContext = useMetadataStore((s) => s.globalContext);
   const setGlobalContext = useMetadataStore((s) => s.setGlobalContext);
+  const setMetadataClaimName = useMetadataStore((s) => s.setClaimName);
 
   // Also keep proof-store in sync for backwards compatibility
   const setProofStoreGlobalContext = useProofStore((s) => s.setGlobalContext);
@@ -60,6 +61,7 @@ export function useProofSession() {
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
         setProofStoreGlobalContext(result.globalContext); // Keep proof-store in sync
+        setMetadataClaimName(claimName); // Store claim name in metadata store
 
         return result;
       } catch (e) {
@@ -70,7 +72,7 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [syncFromWorker, saveSnapshot, setGlobalContext, setProofStoreGlobalContext]
+    [syncFromWorker, saveSnapshot, setGlobalContext, setProofStoreGlobalContext, setMetadataClaimName]
   );
 
   /**
@@ -131,11 +133,12 @@ export function useProofSession() {
       setClaimType(null);
       setGlobalContext({ definitions: [], theorems: [] });
       setProofStoreGlobalContext({ definitions: [], theorems: [] });
+      setMetadataClaimName(null);
       setError(null);
     } catch (e) {
       console.error('Failed to close session:', e);
     }
-  }, [sessionId, setGlobalContext, setProofStoreGlobalContext]);
+  }, [sessionId, setGlobalContext, setProofStoreGlobalContext, setMetadataClaimName]);
 
   /**
    * Clear any error state.
