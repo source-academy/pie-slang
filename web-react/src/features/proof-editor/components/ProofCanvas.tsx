@@ -51,6 +51,7 @@ export function ProofCanvas() {
   const storeOnConnect = useProofStore((s) => s.onConnect);
   const addTacticNode = useProofStore((s) => s.addTacticNode);
   const updateNode = useProofStore((s) => s.updateNode);
+  const deleteTacticCascade = useProofStore((s) => s.deleteTacticCascade);
 
   const selectNode = useUIStore((s) => s.selectNode);
   const setHoveredNode = useUIStore((s) => s.setHoveredNode);
@@ -119,14 +120,16 @@ export function ProofCanvas() {
 
   /**
    * Confirm deletion of applied tactic
+   * Uses deleteTacticCascade to properly remove all child goals and revert parent goal status.
+   * Also saves snapshot for undo support.
    */
   const handleConfirmDelete = useCallback(() => {
-    if (pendingChanges) {
-      onNodesChange(pendingChanges);
+    if (deleteConfirmation) {
+      deleteTacticCascade(deleteConfirmation.nodeId);
     }
     setDeleteConfirmation(null);
     setPendingChanges(null);
-  }, [pendingChanges, onNodesChange]);
+  }, [deleteConfirmation, deleteTacticCascade]);
 
   /**
    * Cancel deletion
@@ -352,7 +355,7 @@ export function ProofCanvas() {
   }, [goalHints, acceptGhostNode, dismissGhostNode, getMoreDetail]);
 
   // Combine regular nodes with ghost nodes
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const allNodes = useMemo(() => {
     return [...nodes, ...ghostNodes] as any[];
   }, [nodes, ghostNodes]);
