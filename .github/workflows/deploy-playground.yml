@@ -28,7 +28,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: pie-react/package-lock.json
 
-      - name: Install Dependencies
+      - name: Install Root Dependencies
+        run: npm install
+        working-directory: .
+
+      - name: Install React Dependencies
         run: npm install
         working-directory: ./pie-react
 
