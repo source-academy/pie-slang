@@ -61,5 +61,6 @@ export default defineConfig({
         protocolImports: true,
       })
     ]
-  }
+  },
+  base: './', // Ensure relative paths for GitHub Pages deployment
 })
