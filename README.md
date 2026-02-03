@@ -11,6 +11,16 @@ It is still under construction, especially for the language server part, so it m
 
 We have published the Pie language server as a VSCode extension, named [pie-lsp](https://marketplace.visualstudio.com/items?itemName=DaoxinLi.pie-lsp&ssr=false#review-details)
 
+## Our Language Server
+
+We have published the Pie language server as a VSCode extension, named [pie-lsp](https://marketplace.visualstudio.com/items?itemName=DaoxinLi.pie-lsp&ssr=false#review-details)
+
+## React Playground (New)
+
+We are developing a modern React-based playground to replace the legacy web interface.
+**Try it live here:** [https://source-academy.github.io/pie-slang/](https://source-academy.github.io/pie-slang/) (pending deployment on your fork)
+*Source code located in `pie-react/` directory.*
+
 ## Getting Started
 
 To get started with the Pie interpreter:
