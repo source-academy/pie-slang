@@ -4,6 +4,7 @@ import { Value } from '../types/value';
 import { Location } from '../utils/locations';
 import { fresh, go, Perhaps } from '../types/utils';
 import { Renaming } from '../typechecker/utils';
+import { sugarType } from '../unparser/sugar';
 
 type GoalId = string;
 
@@ -59,9 +60,14 @@ export class Goal {
         type: binder.type.readBackType(this.context).prettyPrint()
       }));
 
+    const typeCore = this.type.readBackType(this.context);
+    const expandedType = typeCore.prettyPrint();
+    const sugaredType = sugarType(typeCore, this.context);
+
     return {
       id: this.id,
-      type: this.type.readBackType(this.context).prettyPrint(),
+      type: sugaredType,
+      expandedType: expandedType !== sugaredType ? expandedType : undefined,
       contextEntries,
       isComplete,
       isCurrent
@@ -86,9 +92,14 @@ export class Goal {
         introducedBy: parentContextNames.has(name) ? undefined : introducingTactic
       }));
 
+    const typeCore = this.type.readBackType(this.context);
+    const expandedType = typeCore.prettyPrint();
+    const sugaredType = sugarType(typeCore, this.context);
+
     return {
       id: this.id,
-      type: this.type.readBackType(this.context).prettyPrint(),
+      type: sugaredType,
+      expandedType: expandedType !== sugaredType ? expandedType : undefined,
       contextEntries,
       isComplete,
       isCurrent
@@ -381,7 +392,8 @@ export interface SerializableContextEntry {
 
 export interface SerializableGoal {
   id: string;
-  type: string;
+  type: string;              // Display type (may be sugared if abbreviations available)
+  expandedType?: string;     // Full expanded type (always the raw pretty-print)
   contextEntries: SerializableContextEntry[];
   isComplete: boolean;
   isCurrent: boolean;

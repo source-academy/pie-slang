@@ -33,7 +33,8 @@ export interface SerializableContextEntry {
 
 export interface SerializableGoal {
   id: string;
-  type: string;
+  type: string;              // Display type (may be sugared if abbreviations available)
+  expandedType?: string;     // Full expanded type (only set if different from type)
   context: SerializableContextEntry[];
   contextEntries?: SerializableContextEntry[]; // Alias for compatibility
   isComplete: boolean;

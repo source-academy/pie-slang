@@ -47,7 +47,8 @@ export interface TacticParameters {
 
 export interface GoalNodeData {
   kind: 'goal';
-  goalType: string;           // The type to prove
+  goalType: string;           // The type to prove (may be sugared)
+  expandedGoalType?: string;  // Full expanded type (only set if different from goalType)
   context: ContextEntry[];    // Scoped context for this goal
   status: 'pending' | 'in-progress' | 'completed';
   parentGoalId?: string;      // For scope inheritance
