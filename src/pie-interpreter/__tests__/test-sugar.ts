@@ -140,4 +140,56 @@ describe("Type Sugaring Tests", () => {
     const sugared = sugarer.sugar(sigmaWithZero, ctx);
     expect(sugared).toBe('(Even 0)');
   });
+
+  it("should sugar readBackType output correctly (the real use case)", () => {
+    // This is the actual bug fix test: types from readBackType have
+    // expanded forms like iter-Nat, not source forms like (double half)
+    const str = `
+(claim +
+  (→ Nat Nat Nat))
+
+(claim step-plus (→ Nat Nat))
+(define step-plus (λ (n-1) (add1 n-1)))
+(define + (λ (n j) (iter-Nat n j step-plus)))
+
+(claim double (→ Nat Nat))
+(define double (λ (n) (iter-Nat n 0 (+ 2))))
+
+(claim Even (→ Nat U))
+(define Even (λ (n) (Σ ((half Nat)) (= Nat n (double half)))))
+`;
+    const result = evaluatePieAndGetContext(str);
+    const ctx = result.context;
+
+    // Get the Even definition and apply it to get the actual type Value
+    const evenDef = ctx.get('Even') as Define;
+    const evenLambda = evenDef.value as Lambda;
+
+    // Create the parameter type value (Nat)
+    const natValue = new (require('../types/value').Nat)();
+
+    // Create a neutral variable to apply Even to
+    const { Neutral } = require('../types/value');
+    const { Variable } = require('../types/neutral');
+    const { bindFree } = require('../utils/context');
+    const neutralN = new Neutral(natValue, new Variable('n'));
+
+    // Apply Even to the neutral to get (Even n) as a Value
+    const evenOfN = evenLambda.body.valOfClosure(neutralN);
+
+    // Now call readBackType - this is what the actual proof system does
+    const readBackCtx = bindFree(ctx, 'n', natValue);
+    const readBackCore = evenOfN.readBackType(readBackCtx);
+
+    // The readBackCore should contain iter-Nat (the expanded form)
+    // not (double half) (the source form)
+    const prettyPrinted = readBackCore.prettyPrint();
+    expect(prettyPrinted).toContain('iter-Nat');
+    expect(prettyPrinted).not.toContain('double');
+
+    // Now test that the sugarer correctly recognizes this as (Even n)
+    const sugarer = new TypeSugarer(ctx);
+    const sugared = sugarer.sugar(readBackCore, readBackCtx);
+    expect(sugared).toBe('(Even n)');
+  });
 });

@@ -1,7 +1,8 @@
 import * as C from '../types/core';
-import { Context, Define } from '../utils/context';
-import { Value, Universe, Delay, Lambda, Pi } from '../types/value';
-import { FirstOrderClosure } from '../types/utils';
+import { Context, Define, bindFree } from '../utils/context';
+import { Value, Universe, Delay, Lambda, Pi, Neutral } from '../types/value';
+import { FirstOrderClosure, fresh } from '../types/utils';
+import { Variable } from '../types/neutral';
 
 /**
  * TypeDefinition represents a user-defined type alias.
@@ -39,12 +40,30 @@ export class TypeSugarer {
           if (value instanceof Lambda) {
             const body = value.body;
             if (body instanceof FirstOrderClosure) {
-              this.typeDefinitions.push({
-                name,
-                type: binder.type,
-                paramName: body.varName,
-                bodyTemplate: body.expr,
-              });
+              // Get the argument type from the Pi type
+              const typeVal = this.forceValue(binder.type);
+              if (typeVal instanceof Pi) {
+                const argType = typeVal.argType;
+                const paramName = body.varName;
+
+                // Create a neutral variable for the parameter
+                const neutralVar = new Neutral(argType, new Variable(paramName));
+
+                // Apply the closure to the neutral to get the result Value
+                const resultValue = body.valOfClosure(neutralVar);
+
+                // Normalize the result to Core using readBackType
+                // This expands definitions like 'double' to 'iter-Nat'
+                const normalizedCtx = bindFree(ctx, paramName, argType);
+                const normalizedTemplate = resultValue.readBackType(normalizedCtx);
+
+                this.typeDefinitions.push({
+                  name,
+                  type: binder.type,
+                  paramName,
+                  bodyTemplate: normalizedTemplate,
+                });
+              }
             }
           }
         }
