@@ -62,7 +62,17 @@ export class Goal {
 
     const typeCore = this.type.readBackType(this.context);
     const expandedType = typeCore.prettyPrint();
+
+    // Debug: Check what's in the context
+    const { Define } = require('../utils/context');
+    const contextDefines = Array.from(this.context.entries())
+      .filter(([_, binder]) => binder instanceof Define)
+      .map(([name]) => name);
+    console.log('[Goal.toSerializable] Context defines:', contextDefines);
+    console.log('[Goal.toSerializable] Type to sugar:', expandedType.substring(0, 100));
+
     const sugaredType = sugarType(typeCore, this.context);
+    console.log('[Goal.toSerializable] Sugared result:', sugaredType);
 
     return {
       id: this.id,
