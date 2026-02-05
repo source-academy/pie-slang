@@ -67,21 +67,33 @@ describe("Type Sugaring Tests", () => {
   it("should sugar (Sigma ((half Nat)) (= Nat n ...)) as (Even n)", () => {
     const ctx = setupEvenContext();
 
-    // Get the Even definition and apply it to a variable 'n' to get the body
+    // Get the Even definition and apply it to a neutral variable 'n'
     const evenDef = ctx.get('Even') as Define;
     const lambda = evenDef.value as Lambda;
-    const body = lambda.body as FirstOrderClosure;
 
-    // The body.expr should be a Sigma type template
-    const template = body.expr;
-    expect(template).toBeInstanceOf(C.Sigma);
+    // Create the parameter type value (Nat) and a neutral variable
+    const { Nat: NatValue, Neutral } = require('../types/value');
+    const { Variable } = require('../types/neutral');
+    const { bindFree } = require('../utils/context');
 
-    // Create a sugarer and test sugaring on the template itself
+    const natValue = new NatValue();
+    const neutralN = new Neutral(natValue, new Variable('n'));
+
+    // Apply Even to the neutral to get (Even n) as a Value
+    const evenOfN = lambda.body.valOfClosure(neutralN);
+
+    // Call readBackType to get the Core form (this expands 'double' to 'iter-Nat')
+    const readBackCtx = bindFree(ctx, 'n', natValue);
+    const readBackCore = evenOfN.readBackType(readBackCtx);
+
+    // Verify it contains iter-Nat (normalized form)
+    expect(readBackCore.prettyPrint()).toContain('iter-Nat');
+
+    // Create a sugarer and test sugaring
     const sugarer = new TypeSugarer(ctx);
-    const sugared = sugarer.sugar(template, ctx);
+    const sugared = sugarer.sugar(readBackCore, readBackCtx);
 
-    // The template IS the body, so when matching against Even's body with pattern var 'n',
-    // 'n' matches to VarName('n'), so we should get "(Even n)"
+    // Should sugar to (Even n)
     expect(sugared).toBe('(Even n)');
   });
 
@@ -98,46 +110,51 @@ describe("Type Sugaring Tests", () => {
   it("sugarType function should work with context", () => {
     const ctx = setupEvenContext();
 
-    // Get Even's body directly
+    // Get Even and apply it to a neutral variable 'n'
     const evenDef = ctx.get('Even') as Define;
     const lambda = evenDef.value as Lambda;
-    const body = lambda.body as FirstOrderClosure;
-    const template = body.expr;
+
+    const { Nat: NatValue, Neutral } = require('../types/value');
+    const { Variable } = require('../types/neutral');
+    const { bindFree } = require('../utils/context');
+
+    const natValue = new NatValue();
+    const neutralN = new Neutral(natValue, new Variable('n'));
+    const evenOfN = lambda.body.valOfClosure(neutralN);
+    const readBackCtx = bindFree(ctx, 'n', natValue);
+    const readBackCore = evenOfN.readBackType(readBackCtx);
 
     // Use the convenience function
-    const sugared = sugarType(template, ctx);
+    const sugared = sugarType(readBackCore, readBackCtx);
     expect(sugared).toBe('(Even n)');
   });
 
   it("should match specific argument values", () => {
     const ctx = setupEvenContext();
-    const sugarer = new TypeSugarer(ctx);
 
-    // Get Even's lambda body
+    // Get Even and apply it to the value zero
     const evenDef = ctx.get('Even') as Define;
     const lambda = evenDef.value as Lambda;
-    const body = lambda.body as FirstOrderClosure;
 
-    // The body.expr is (Σ ((half Nat)) (= Nat n (double half)))
-    // If we substitute n with Zero, we get (Σ ((half Nat)) (= Nat 0 (double half)))
-    // which should sugar to (Even 0)
+    const { Zero: ZeroValue } = require('../types/value');
 
-    // For this test, we'd need to actually substitute and evaluate,
-    // which is more complex. For now, just verify the pattern matching works
-    // with the original template.
+    // Apply Even to zero to get (Even 0) as a Value
+    const zeroValue = new ZeroValue();
+    const evenOfZero = lambda.body.valOfClosure(zeroValue);
 
-    // Create a Sigma with 0 instead of n
-    const sigmaWithZero = new C.Sigma(
-      'half',
-      new C.Nat(),
-      new C.Equal(
-        new C.Nat(),
-        new C.Zero(),  // n replaced with 0
-        new C.Application(new C.VarName('double'), new C.VarName('half'))
-      )
-    );
+    // Call readBackType to get the normalized Core
+    const readBackCore = evenOfZero.readBackType(ctx);
 
-    const sugared = sugarer.sugar(sigmaWithZero, ctx);
+    // The Core should contain 0 and iter-Nat
+    const prettyPrinted = readBackCore.prettyPrint();
+    expect(prettyPrinted).toContain('iter-Nat');
+    expect(prettyPrinted).toContain('0');
+
+    // Create a sugarer and test sugaring
+    const sugarer = new TypeSugarer(ctx);
+    const sugared = sugarer.sugar(readBackCore, ctx);
+
+    // Should sugar to (Even 0)
     expect(sugared).toBe('(Even 0)');
   });
 

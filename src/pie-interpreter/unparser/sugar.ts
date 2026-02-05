@@ -16,6 +16,22 @@ interface TypeDefinition {
 }
 
 /**
+ * Match result type that distinguishes between:
+ * - 'capture': Success, captured the pattern variable
+ * - 'match': Success, no capture needed (structural match)
+ * - 'fail': Match failed (structural mismatch)
+ */
+type MatchResult =
+  | { status: 'capture'; value: C.Core }
+  | { status: 'match' }
+  | { status: 'fail' };
+
+// Helper constants and function
+const MATCH: MatchResult = { status: 'match' };
+const FAIL: MatchResult = { status: 'fail' };
+const capture = (value: C.Core): MatchResult => ({ status: 'capture', value });
+
+/**
  * TypeSugarer attempts to display types using user-defined names
  * instead of their expanded forms.
  *
@@ -62,6 +78,13 @@ export class TypeSugarer {
                   type: binder.type,
                   paramName,
                   bodyTemplate: normalizedTemplate,
+                });
+
+                // Debug logging
+                console.log('[TypeSugarer] Added type definition:', {
+                  name,
+                  paramName,
+                  template: normalizedTemplate.prettyPrint()
                 });
               }
             }
@@ -117,9 +140,21 @@ export class TypeSugarer {
    * Returns the sugared string, or falls back to prettyPrint if no match.
    */
   sugar(core: C.Core, _ctx: Context): string {
+    // Debug logging
+    console.log('[TypeSugarer.sugar] Trying to sugar:', core.prettyPrint());
+
     // Try to match against each type definition
     for (const def of this.typeDefinitions) {
+      console.log(`[TypeSugarer.sugar] Matching against ${def.name}:`, {
+        template: def.bodyTemplate.prettyPrint(),
+        target: core.prettyPrint()
+      });
+
       const extractedArg = this.matchTemplate(def.bodyTemplate, core, def.paramName);
+
+      console.log(`[TypeSugarer.sugar] Match result for ${def.name}:`,
+        extractedArg?.prettyPrint() ?? 'null (no match)');
+
       if (extractedArg !== null) {
         // Found a match! Return the sugared form
         return `(${def.name} ${extractedArg.prettyPrint()})`;
@@ -127,6 +162,7 @@ export class TypeSugarer {
     }
 
     // No match found, return the original
+    console.log('[TypeSugarer.sugar] No match found, returning prettyPrint');
     return core.prettyPrint();
   }
 
@@ -140,7 +176,17 @@ export class TypeSugarer {
    * @returns The Core that patternVar should be bound to, or null if no match
    */
   private matchTemplate(template: C.Core, target: C.Core, patternVar: string): C.Core | null {
-    return this.matchTemplateInternal(template, target, patternVar, new Map());
+    const result = this.matchTemplateInternal(template, target, patternVar, new Map());
+    if (result.status === 'capture') {
+      return result.value;
+    } else if (result.status === 'match') {
+      // Matched but didn't find patternVar - this shouldn't happen for valid templates
+      // Return null to indicate no match found
+      return null;
+    } else {
+      // Failed to match
+      return null;
+    }
   }
 
   /**
@@ -149,33 +195,34 @@ export class TypeSugarer {
    * @param target Target Core expression
    * @param patternVar The pattern variable to extract
    * @param boundVars Map from template bound vars to target bound vars
+   * @returns MatchResult indicating success with capture, success without capture, or failure
    */
   private matchTemplateInternal(
     template: C.Core,
     target: C.Core,
     patternVar: string,
     boundVars: Map<string, string>
-  ): C.Core | null {
+  ): MatchResult {
     // Pattern variable match
     if (template instanceof C.VarName) {
       if (template.name === patternVar) {
-        // Found the pattern variable - return the target as the extracted value
-        return target;
+        // Found the pattern variable - capture the target
+        return capture(target);
       }
       // Check if this is a bound variable that should match
       const expectedTarget = boundVars.get(template.name);
       if (expectedTarget !== undefined) {
         // This is a bound variable - target should also be a VarName with the corresponding name
         if (target instanceof C.VarName && target.name === expectedTarget) {
-          return null; // Match succeeds but doesn't capture anything
+          return MATCH; // Match succeeds but doesn't capture anything
         }
-        return null; // No match - bound variable mismatch
+        return FAIL; // No match - bound variable mismatch
       }
       // Free variable - should match exactly
       if (target instanceof C.VarName && target.name === template.name) {
-        return null; // Match succeeds
+        return MATCH; // Match succeeds
       }
-      return null; // No match
+      return FAIL; // No match - free variable mismatch
     }
 
     // Sigma type matching
@@ -187,6 +234,7 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (carTypeMatch.status === 'fail') return FAIL;
 
       // Create new bound var mapping for the body
       const newBoundVars = new Map(boundVars);
@@ -199,6 +247,7 @@ export class TypeSugarer {
         patternVar,
         newBoundVars
       );
+      if (bodyMatch.status === 'fail') return FAIL;
 
       // Combine results - at most one should capture the pattern var
       return this.combineMatches(carTypeMatch, bodyMatch);
@@ -212,6 +261,7 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (argTypeMatch.status === 'fail') return FAIL;
 
       const newBoundVars = new Map(boundVars);
       newBoundVars.set(template.name, target.name);
@@ -222,6 +272,7 @@ export class TypeSugarer {
         patternVar,
         newBoundVars
       );
+      if (bodyMatch.status === 'fail') return FAIL;
 
       return this.combineMatches(argTypeMatch, bodyMatch);
     }
@@ -247,18 +298,23 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (typeMatch.status === 'fail') return FAIL;
+
       const leftMatch = this.matchTemplateInternal(
         template.left,
         target.left,
         patternVar,
         boundVars
       );
+      if (leftMatch.status === 'fail') return FAIL;
+
       const rightMatch = this.matchTemplateInternal(
         template.right,
         target.right,
         patternVar,
         boundVars
       );
+      if (rightMatch.status === 'fail') return FAIL;
 
       return this.combineMatches(typeMatch, this.combineMatches(leftMatch, rightMatch));
     }
@@ -271,12 +327,15 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (funMatch.status === 'fail') return FAIL;
+
       const argMatch = this.matchTemplateInternal(
         template.arg,
         target.arg,
         patternVar,
         boundVars
       );
+      if (argMatch.status === 'fail') return FAIL;
 
       return this.combineMatches(funMatch, argMatch);
     }
@@ -289,12 +348,15 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (typeMatch.status === 'fail') return FAIL;
+
       const exprMatch = this.matchTemplateInternal(
         template.expr,
         target.expr,
         patternVar,
         boundVars
       );
+      if (exprMatch.status === 'fail') return FAIL;
 
       return this.combineMatches(typeMatch, exprMatch);
     }
@@ -307,18 +369,23 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (targetMatch.status === 'fail') return FAIL;
+
       const baseMatch = this.matchTemplateInternal(
         template.base,
         target.base,
         patternVar,
         boundVars
       );
+      if (baseMatch.status === 'fail') return FAIL;
+
       const stepMatch = this.matchTemplateInternal(
         template.step,
         target.step,
         patternVar,
         boundVars
       );
+      if (stepMatch.status === 'fail') return FAIL;
 
       return this.combineMatches(targetMatch, this.combineMatches(baseMatch, stepMatch));
     }
@@ -336,12 +403,15 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (firstMatch.status === 'fail') return FAIL;
+
       const secondMatch = this.matchTemplateInternal(
         template.second,
         target.second,
         patternVar,
         boundVars
       );
+      if (secondMatch.status === 'fail') return FAIL;
 
       return this.combineMatches(firstMatch, secondMatch);
     }
@@ -353,38 +423,39 @@ export class TypeSugarer {
 
     // Base type matching (no children to recurse into)
     if (template instanceof C.Nat && target instanceof C.Nat) {
-      return null; // Match succeeds
+      return MATCH; // Match succeeds
     }
     if (template instanceof C.Zero && target instanceof C.Zero) {
-      return null;
+      return MATCH;
     }
     if (template instanceof C.Universe && target instanceof C.Universe) {
-      return null;
+      return MATCH;
     }
     if (template instanceof C.Atom && target instanceof C.Atom) {
-      return null;
+      return MATCH;
     }
     if (template instanceof C.Trivial && target instanceof C.Trivial) {
-      return null;
+      return MATCH;
     }
     if (template instanceof C.Sole && target instanceof C.Sole) {
-      return null;
+      return MATCH;
     }
     if (template instanceof C.Absurd && target instanceof C.Absurd) {
-      return null;
+      return MATCH;
     }
     if (template instanceof C.Nil && target instanceof C.Nil) {
-      return null;
+      return MATCH;
     }
     if (template instanceof C.VecNil && target instanceof C.VecNil) {
-      return null;
+      return MATCH;
     }
 
     // Quote matching
     if (template instanceof C.Quote && target instanceof C.Quote) {
       if (template.sym === target.sym) {
-        return null; // Match succeeds
+        return MATCH; // Match succeeds
       }
+      return FAIL; // Different symbols
     }
 
     // List type matching
@@ -400,12 +471,16 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (typeMatch.status === 'fail') return FAIL;
+
       const lengthMatch = this.matchTemplateInternal(
         template.length,
         target.length,
         patternVar,
         boundVars
       );
+      if (lengthMatch.status === 'fail') return FAIL;
+
       return this.combineMatches(typeMatch, lengthMatch);
     }
 
@@ -417,34 +492,48 @@ export class TypeSugarer {
         patternVar,
         boundVars
       );
+      if (leftMatch.status === 'fail') return FAIL;
+
       const rightMatch = this.matchTemplateInternal(
         template.right,
         target.right,
         patternVar,
         boundVars
       );
+      if (rightMatch.status === 'fail') return FAIL;
+
       return this.combineMatches(leftMatch, rightMatch);
     }
 
     // No match - types are different
-    return null;
+    return FAIL;
   }
 
   /**
-   * Combine two match results. If both have a capture, they must be equal.
-   * Returns the captured value, or null if no capture.
+   * Combine two match results.
+   * If either failed, return fail.
+   * If both captured, they must match (same prettyPrint).
+   * Otherwise return the capture or match.
    */
-  private combineMatches(a: C.Core | null, b: C.Core | null): C.Core | null {
-    if (a !== null && b !== null) {
-      // Both captured something - check if they're consistent
-      // For simplicity, we require exact match (same prettyPrint)
-      if (a.prettyPrint() === b.prettyPrint()) {
+  private combineMatches(a: MatchResult, b: MatchResult): MatchResult {
+    // If either failed, the whole match fails
+    if (a.status === 'fail' || b.status === 'fail') {
+      return FAIL;
+    }
+
+    // If both captured, they must be consistent
+    if (a.status === 'capture' && b.status === 'capture') {
+      if (a.value.prettyPrint() === b.value.prettyPrint()) {
         return a;
       }
-      // Inconsistent captures - no match
-      return null;
+      // Inconsistent captures - fail
+      return FAIL;
     }
-    return a ?? b;
+
+    // Return whichever has a capture, or match if neither
+    if (a.status === 'capture') return a;
+    if (b.status === 'capture') return b;
+    return MATCH;
   }
 }
 
