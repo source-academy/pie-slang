@@ -152,6 +152,9 @@ export interface ProofState {
   // History for undo/redo
   history: ProofSnapshot[];
   historyIndex: number;
+
+  // Manual node positions (preserves user-dragged positions across syncs)
+  manualPositions: Map<string, { x: number; y: number }>;
 }
 
 export interface ProofActions {
@@ -187,6 +190,10 @@ export interface ProofActions {
   onNodesChange: (changes: NodeChange<ProofNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<ProofEdge>[]) => void;
   onConnect: (connection: Connection) => void;
+
+  // Manual position management
+  setManualPosition: (nodeId: string, position: { x: number; y: number }) => void;
+  clearManualPositions: () => void;
 }
 
 export type ProofStore = ProofState & ProofActions;

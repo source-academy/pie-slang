@@ -36,6 +36,8 @@ export {
   useClaimNameFromProof,
   useGeneratedProofScript,
   isValidConnection,
+  useClearManualPositions,
+  useHasManualPositions,
 } from './proof-store';
 
 // UI store

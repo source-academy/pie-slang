@@ -38,7 +38,13 @@ const initialState: ProofState = {
   claimName: null,
   history: [],
   historyIndex: -1,
+  manualPositions: new Map(),
 };
+
+// Track high water mark for edge count per session to prevent stale sync race conditions
+// This guards against React StrictMode double-renders and multiple hook instances
+// causing older sync results to overwrite newer ones
+const sessionEdgeHighWaterMark = new Map<string, number>();
 
 /**
  * Proof Store
@@ -128,26 +134,103 @@ export const useProofStore = create<ProofStore>()(
         get().saveSnapshot();
 
         set((state) => {
+          console.log('[deleteTacticCascade] Called with tacticId:', tacticId);
+          console.log('[deleteTacticCascade] All nodes:', state.nodes.map(n => ({
+            id: n.id,
+            type: n.type
+          })));
+          console.log('[deleteTacticCascade] All edges:', state.edges.map(e => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            kind: e.data?.kind
+          })));
+
+          // Find the tactic node to get its connected goal
+          const tacticNode = state.nodes.find(n => n.id === tacticId && n.type === 'tactic');
+
+          // Derive parent goal from tactic ID pattern or tactic data
+          // Tactic IDs follow pattern: "tactic-for-{goalId}" or "tactic-completing-{goalId}"
+          let parentGoalId: string | undefined;
+          if (tacticId.startsWith('tactic-for-')) {
+            parentGoalId = tacticId.replace('tactic-for-', '');
+          } else if (tacticId.startsWith('tactic-completing-')) {
+            parentGoalId = tacticId.replace('tactic-completing-', '');
+          } else if (tacticNode?.type === 'tactic') {
+            // Fall back to connectedGoalId from tactic data
+            parentGoalId = (tacticNode.data as { connectedGoalId?: string }).connectedGoalId;
+          }
+          // Also try to find from edges if available
+          if (!parentGoalId && state.edges.length > 0) {
+            const parentEdge = state.edges.find(
+              (e) => e.target === tacticId && e.data?.kind === 'goal-to-tactic'
+            );
+            parentGoalId = parentEdge?.source;
+          }
+          console.log('[deleteTacticCascade] Parent goal ID:', parentGoalId);
+
           // Helper to get all child node IDs recursively
+          // Uses both edge data AND node parentGoalId for robustness
           function getDescendantIds(nodeId: string): string[] {
             const descendants: string[] = [];
-            // Find all edges where this node is the source
-            const childEdges = state.edges.filter((e) => e.source === nodeId);
-            for (const edge of childEdges) {
-              descendants.push(edge.target);
-              descendants.push(...getDescendantIds(edge.target));
-            }
-            return descendants;
-          }
 
-          // Find the parent goal (the goal this tactic was applied to)
-          const parentEdge = state.edges.find(
-            (e) => e.target === tacticId && e.data?.kind === 'goal-to-tactic'
-          );
-          const parentGoalId = parentEdge?.source;
+            // Method 1: Use edges if available
+            if (state.edges.length > 0) {
+              const childEdges = state.edges.filter((e) => e.source === nodeId);
+              for (const edge of childEdges) {
+                descendants.push(edge.target);
+                descendants.push(...getDescendantIds(edge.target));
+              }
+            }
+
+            // Method 2: Use node data relationships (more robust when edges are empty)
+            // For tactics: find goals whose parentGoalId matches the tactic's parent goal
+            if (nodeId.startsWith('tactic-for-') || nodeId.startsWith('tactic-completing-')) {
+              const tacticParentGoal = nodeId.replace('tactic-for-', '').replace('tactic-completing-', '');
+              console.log(`[getDescendantIds] Looking for child goals of tactic. tacticParentGoal=${tacticParentGoal}`);
+              // Find child goals that were created by this tactic
+              // These are goals whose parentGoalId equals the tactic's parent goal
+              // (because the tactic transforms the parent goal into child goals)
+              for (const node of state.nodes) {
+                if (node.type === 'goal') {
+                  const goalData = node.data as { parentGoalId?: string };
+                  console.log(`[getDescendantIds] Checking goal ${node.id}: parentGoalId=${goalData.parentGoalId}`);
+                  if (node.id !== tacticParentGoal && goalData.parentGoalId === tacticParentGoal && !descendants.includes(node.id)) {
+                    console.log(`[getDescendantIds] Found child goal: ${node.id}`);
+                    descendants.push(node.id);
+                    descendants.push(...getDescendantIds(node.id));
+                  }
+                }
+              }
+            }
+
+            // For goals: find tactics that are connected to this goal
+            if (nodeId.startsWith('goal')) {
+              for (const node of state.nodes) {
+                if (node.type === 'tactic') {
+                  const tacticData = node.data as { connectedGoalId?: string };
+                  if (tacticData.connectedGoalId === nodeId && !descendants.includes(node.id)) {
+                    descendants.push(node.id);
+                    descendants.push(...getDescendantIds(node.id));
+                  }
+                  // Also check ID pattern
+                  if (node.id === `tactic-for-${nodeId}` || node.id === `tactic-completing-${nodeId}`) {
+                    if (!descendants.includes(node.id)) {
+                      descendants.push(node.id);
+                      descendants.push(...getDescendantIds(node.id));
+                    }
+                  }
+                }
+              }
+            }
+
+            console.log(`[getDescendantIds] Node ${nodeId} descendants:`, descendants);
+            return [...new Set(descendants)]; // Remove duplicates
+          }
 
           // Get all descendant nodes to delete
           const nodesToDelete = new Set([tacticId, ...getDescendantIds(tacticId)]);
+          console.log('[deleteTacticCascade] Nodes to delete:', Array.from(nodesToDelete));
 
           // Remove all descendant nodes
           state.nodes = state.nodes.filter((n) => !nodesToDelete.has(n.id));
@@ -230,14 +313,47 @@ export const useProofStore = create<ProofStore>()(
       // ================================================
 
       syncFromWorker: (proofTree: ProofTreeData, sessionId: string, claimName?: string) => {
+        const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
+        const { manualPositions } = get();
+
+        // Get the high water mark for this session
+        const currentHighWaterMark = sessionEdgeHighWaterMark.get(sessionId) ?? 0;
+
+        // Update high water mark if this sync has more edges
+        if (edges.length > currentHighWaterMark) {
+          sessionEdgeHighWaterMark.set(sessionId, edges.length);
+        }
+
+        // Guard against stale syncs: if we've seen more edges for this session before,
+        // skip this sync (it's a stale result from StrictMode or async race conditions)
+        const newHighWaterMark = sessionEdgeHighWaterMark.get(sessionId) ?? 0;
+        console.log(`[syncFromWorker] sessionId=${sessionId}, edges=${edges.length}, highWaterMark=${newHighWaterMark}`);
+        if (edges.length < newHighWaterMark) {
+          console.log(`[syncFromWorker] Skipping stale sync (edges=${edges.length} < highWaterMark=${newHighWaterMark})`);
+          return;
+        }
+
+        // Preserve manual positions for existing nodes
+        const mergedNodes = nodes.map(node => {
+          const manualPos = manualPositions.get(node.id);
+          if (manualPos) {
+            console.log(`[syncFromWorker] Preserving manual position for ${node.id}:`, manualPos);
+            return { ...node, position: manualPos };
+          }
+          return node;
+        });
+
         set((state) => {
-          const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
-          state.nodes = nodes;
+          console.log(`[syncFromWorker] nodeCount=${mergedNodes.length}, edgeCount=${edges.length}`);
+          if (edges.length > 0) {
+            console.log('[syncFromWorker] edges:', JSON.stringify(edges.map(e => ({ id: e.id, source: e.source, target: e.target, kind: e.data?.kind }))));
+          }
+          state.nodes = mergedNodes;
           state.edges = edges;
           state.sessionId = sessionId;
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
-          state.lastSyncedState = { nodes, edges };
+          state.lastSyncedState = { nodes: mergedNodes, edges };
           // Store proof tree data for script generation
           state.proofTreeData = proofTree;
           if (claimName) {
@@ -296,9 +412,11 @@ export const useProofStore = create<ProofStore>()(
       },
 
       reset: () => {
-        set(() => initialState);
+        set(() => ({ ...initialState, manualPositions: new Map() }));
         useHistoryStore.getState().reset();
         useMetadataStore.getState().reset();
+        // Clear high water marks for all sessions
+        sessionEdgeHighWaterMark.clear();
       },
 
       // Delegates to metadata-store for backwards compatibility
@@ -311,18 +429,57 @@ export const useProofStore = create<ProofStore>()(
       },
 
       // ================================================
+      // Manual Position Management
+      // ================================================
+
+      setManualPosition: (nodeId: string, position: { x: number; y: number }) => {
+        set((state) => {
+          state.manualPositions.set(nodeId, position);
+        });
+      },
+
+      clearManualPositions: () => {
+        set((state) => {
+          state.manualPositions.clear();
+          // Re-layout nodes by recalculating from proof tree data
+          if (state.proofTreeData) {
+            const { nodes } = convertProofTreeToReactFlow(state.proofTreeData);
+            state.nodes = nodes.map(newNode => {
+              // Preserve node data from current state, only update position
+              const existingNode = state.nodes.find(n => n.id === newNode.id);
+              if (existingNode) {
+                return { ...existingNode, position: newNode.position };
+              }
+              return newNode;
+            });
+          }
+        });
+      },
+
+      // ================================================
       // React Flow Handlers
       // ================================================
 
       onNodesChange: (changes: NodeChange<ProofNode>[]) => {
         set((state) => {
+          // Track manual positions when user finishes dragging
+          for (const change of changes) {
+            if (change.type === 'position' && change.position && change.dragging === false) {
+              // User finished dragging - save manual position
+              console.log(`[onNodesChange] Saving manual position for ${change.id}:`, change.position);
+              state.manualPositions.set(change.id, { ...change.position });
+            }
+          }
           state.nodes = applyNodeChanges(changes, state.nodes) as ProofNode[];
         });
       },
 
       onEdgesChange: (changes: EdgeChange<ProofEdge>[]) => {
+        console.log('[onEdgesChange] Received changes:', changes);
         set((state) => {
+          const beforeCount = state.edges.length;
           state.edges = applyEdgeChanges(changes, state.edges) as ProofEdge[];
+          console.log('[onEdgesChange] Edge count:', beforeCount, '->', state.edges.length);
         });
       },
 
@@ -423,6 +580,8 @@ export const useSessionId = () => useProofStore((s) => s.sessionId);
 export const useGlobalContext = () => useProofStore((s) => s.globalContext);
 export const useProofTreeData = () => useProofStore((s) => s.proofTreeData);
 export const useClaimNameFromProof = () => useProofStore((s) => s.claimName);
+export const useClearManualPositions = () => useProofStore((s) => s.clearManualPositions);
+export const useHasManualPositions = () => useProofStore((s) => s.manualPositions.size > 0);
 
 // Selector for generated proof script
 export const useGeneratedProofScript = () => useProofStore((s) => {

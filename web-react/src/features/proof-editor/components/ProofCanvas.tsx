@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { useProofStore, useUIStore, isValidConnection } from '../store';
+import { useProofStore, useUIStore, isValidConnection, useClearManualPositions, useHasManualPositions } from '../store';
 import { nodeTypes } from './nodes';
 import { setRequestHintCallback } from './nodes/GoalNode';
 import { edgeTypes, getEdgeStyle } from './edges';
@@ -59,6 +59,10 @@ export function ProofCanvas() {
 
   // Hint system
   const { requestHint, getMoreDetail, acceptGhostNode, dismissGhostNode, goalHints } = useHintSystem();
+
+  // Manual position management
+  const clearManualPositions = useClearManualPositions();
+  const hasManualPositions = useHasManualPositions();
 
   // Register hint callback for GoalNode
   useEffect(() => {
@@ -418,6 +422,30 @@ export function ProofCanvas() {
       >
         <Background color="#e5e7eb" gap={16} />
         <Controls />
+        {/* Reset Layout button - only show when manual positions exist */}
+        {hasManualPositions && (
+          <div className="absolute bottom-4 left-4 z-10">
+            <button
+              onClick={clearManualPositions}
+              className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 hover:bg-gray-50"
+              title="Reset nodes to auto-layout positions"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-3.5 w-3.5"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Reset Layout
+            </button>
+          </div>
+        )}
         <MiniMap
           nodeStrokeColor={(node) => {
             if (node.type === 'goal') {
