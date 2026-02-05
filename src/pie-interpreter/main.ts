@@ -78,3 +78,68 @@ export function evaluatePie(str: string): string {
 export function evaluatePieVerbose(str: string): string {
   return evaluatePieInternal(str, true);
 }
+
+/**
+ * Evaluate Pie code and return both output and the final context.
+ * Useful for testing and analysis.
+ */
+export function evaluatePieAndGetContext(str: string): { output: string; context: import('./utils/context').Context } {
+  const astList = schemeParse(str);
+  let ctx = initCtx;
+  let renaming = new Map<string, string>();
+  let output = "";
+  for (const ast of astList) {
+    const src = pieDeclarationParser.parseDeclaration(ast);
+    if (src instanceof Claim) {
+      const result = addClaimToContext(ctx, src.name, src.location, src.type);
+      if (result instanceof go) {
+        ctx = result.result;
+      } else if (result instanceof stop) {
+        throw new Error("" + result.where + result.message);
+      }
+    } else if (src instanceof Definition) {
+      const result = addDefineToContext(ctx, src.name, src.location, src.expr);
+      if (result instanceof go) {
+        ctx = result.result;
+      } else if (result instanceof stop) {
+        throw new Error("" + result.where + result.message);
+      }
+    } else if (src instanceof SamenessCheck) {
+      const result = checkSame(ctx, src.location, src.type, src.left, src.right);
+      if (result instanceof go) {
+        // check-same verifies equality but does not modify the context
+      } else if (result instanceof stop) {
+        throw new Error("" + result.where + result.message);
+      }
+    } else if (src instanceof TypeDefinition) {
+      const [newCtx, newRenaming] = src.normalizeConstructor(ctx, renaming);
+      ctx = newCtx;
+      renaming = newRenaming;
+    } else if (src instanceof DefineTactically) {
+      const result = addDefineTacticallyToContext(ctx, src.name, src.location, src.tactics, false);
+      if (result instanceof go) {
+        ctx = result.result.context;
+        output += result.result.message;
+      } else if (result instanceof stop) {
+        throw new Error("" + result.where + result.message);
+      }
+    } else {
+      const result = represent(ctx, src);
+      if (result instanceof go) {
+        const core = result.result as The;
+        output += `${prettyPrintCore(core.expr)}: ${prettyPrintCore(core.type)}\n`;
+      } else if (result instanceof stop) {
+        throw new Error(`${result.message} at ${result.where}`);
+      }
+    }
+  }
+  for (const [name, binder] of ctx) {
+    if (binder instanceof Define) {
+      output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
+      output += name + " = " + prettyPrintCore(readBack(ctx, binder.type, binder.value)) + "\n";
+    } else {
+      output += name + " : " + prettyPrintCore(binder.type.readBackType(ctx)) + "\n";
+    }
+  }
+  return { output, context: ctx };
+}
