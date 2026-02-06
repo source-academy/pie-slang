@@ -316,6 +316,11 @@ export const useProofStore = create<ProofStore>()(
         const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
         const { manualPositions } = get();
 
+        // DEBUG: Log manual positions state
+        console.log(`[syncFromWorker] manualPositions size: ${manualPositions.size}`);
+        console.log(`[syncFromWorker] manualPositions entries:`, Array.from(manualPositions.entries()));
+        console.log(`[syncFromWorker] new node IDs:`, nodes.map(n => n.id));
+
         // Get the high water mark for this session
         const currentHighWaterMark = sessionEdgeHighWaterMark.get(sessionId) ?? 0;
 
@@ -337,8 +342,10 @@ export const useProofStore = create<ProofStore>()(
         const mergedNodes = nodes.map(node => {
           const manualPos = manualPositions.get(node.id);
           if (manualPos) {
-            console.log(`[syncFromWorker] Preserving manual position for ${node.id}:`, manualPos);
+            console.log(`[syncFromWorker] ✅ Preserving manual position for ${node.id}:`, manualPos);
             return { ...node, position: manualPos };
+          } else {
+            console.log(`[syncFromWorker] ❌ No manual position for ${node.id}, using auto:`, node.position);
           }
           return node;
         });
@@ -464,10 +471,21 @@ export const useProofStore = create<ProofStore>()(
         set((state) => {
           // Track manual positions when user finishes dragging
           for (const change of changes) {
-            if (change.type === 'position' && change.position && change.dragging === false) {
-              // User finished dragging - save manual position
-              console.log(`[onNodesChange] Saving manual position for ${change.id}:`, change.position);
-              state.manualPositions.set(change.id, { ...change.position });
+            if (change.type === 'position') {
+              // Log all position changes to debug
+              console.log(`[onNodesChange] Position change for ${change.id}:`, {
+                position: change.position,
+                dragging: change.dragging,
+                positionAbsolute: (change as any).positionAbsolute
+              });
+
+              if (change.position && change.dragging === false) {
+                // User finished dragging - save manual position
+                console.log(`[onNodesChange] ✅ Saving manual position for ${change.id}:`, change.position);
+                state.manualPositions.set(change.id, { ...change.position });
+                console.log(`[onNodesChange] manualPositions now has ${state.manualPositions.size} entries:`,
+                  Array.from(state.manualPositions.entries()));
+              }
             }
           }
           state.nodes = applyNodeChanges(changes, state.nodes) as ProofNode[];
