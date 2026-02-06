@@ -79,13 +79,6 @@ export class TypeSugarer {
                   paramName,
                   bodyTemplate: normalizedTemplate,
                 });
-
-                // Debug logging
-                console.log('[TypeSugarer] Added type definition:', {
-                  name,
-                  paramName,
-                  template: normalizedTemplate.prettyPrint()
-                });
               }
             }
           }
@@ -138,31 +131,128 @@ export class TypeSugarer {
   /**
    * Attempt to sugar a Core expression using known type definitions.
    * Returns the sugared string, or falls back to prettyPrint if no match.
+   *
+   * This method is recursive: it first tries to match the whole expression
+   * against type definitions, and if no match is found, it recursively
+   * sugars sub-expressions within compound types.
    */
-  sugar(core: C.Core, _ctx: Context): string {
-    // Debug logging
-    console.log('[TypeSugarer.sugar] Trying to sugar:', core.prettyPrint());
-
-    // Try to match against each type definition
+  sugar(core: C.Core, ctx: Context): string {
+    // First, try to match against each type definition
     for (const def of this.typeDefinitions) {
-      console.log(`[TypeSugarer.sugar] Matching against ${def.name}:`, {
-        template: def.bodyTemplate.prettyPrint(),
-        target: core.prettyPrint()
-      });
-
       const extractedArg = this.matchTemplate(def.bodyTemplate, core, def.paramName);
 
-      console.log(`[TypeSugarer.sugar] Match result for ${def.name}:`,
-        extractedArg?.prettyPrint() ?? 'null (no match)');
-
       if (extractedArg !== null) {
-        // Found a match! Return the sugared form
-        return `(${def.name} ${extractedArg.prettyPrint()})`;
+        // Found a match! Recursively sugar the extracted argument
+        return `(${def.name} ${this.sugar(extractedArg, ctx)})`;
       }
     }
 
-    // No match found, return the original
-    console.log('[TypeSugarer.sugar] No match found, returning prettyPrint');
+    // No direct match - recursively sugar sub-expressions for compound types
+
+    // Pi type (dependent function type)
+    if (core instanceof C.Pi) {
+      const argType = this.sugar(core.type, ctx);
+      const bodyType = this.sugar(core.body, ctx);
+      return `(Π ((${core.name} ${argType})) ${bodyType})`;
+    }
+
+    // Arrow type (non-dependent function type) - represented as Pi in Core
+    // Already handled above
+
+    // Sigma type (dependent pair type)
+    if (core instanceof C.Sigma) {
+      const carType = this.sugar(core.type, ctx);
+      const bodyType = this.sugar(core.body, ctx);
+      return `(Σ ((${core.name} ${carType})) ${bodyType})`;
+    }
+
+    // Either type
+    if (core instanceof C.Either) {
+      const left = this.sugar(core.left, ctx);
+      const right = this.sugar(core.right, ctx);
+      return `(Either ${left} ${right})`;
+    }
+
+    // Equal type
+    if (core instanceof C.Equal) {
+      const type = this.sugar(core.type, ctx);
+      const left = this.sugar(core.left, ctx);
+      const right = this.sugar(core.right, ctx);
+      return `(= ${type} ${left} ${right})`;
+    }
+
+    // List type
+    if (core instanceof C.List) {
+      const elemType = this.sugar(core.elemType, ctx);
+      return `(List ${elemType})`;
+    }
+
+    // Vec type
+    if (core instanceof C.Vec) {
+      const type = this.sugar(core.type, ctx);
+      const length = this.sugar(core.length, ctx);
+      return `(Vec ${type} ${length})`;
+    }
+
+    // Lambda
+    if (core instanceof C.Lambda) {
+      const body = this.sugar(core.body, ctx);
+      return `(λ (${core.param}) ${body})`;
+    }
+
+    // Application
+    if (core instanceof C.Application) {
+      const fun = this.sugar(core.fun, ctx);
+      const arg = this.sugar(core.arg, ctx);
+      return `(${fun} ${arg})`;
+    }
+
+    // The (type annotation)
+    if (core instanceof C.The) {
+      const type = this.sugar(core.type, ctx);
+      const expr = this.sugar(core.expr, ctx);
+      return `(the ${type} ${expr})`;
+    }
+
+    // Cons
+    if (core instanceof C.Cons) {
+      const first = this.sugar(core.first, ctx);
+      const second = this.sugar(core.second, ctx);
+      return `(cons ${first} ${second})`;
+    }
+
+    // Add1
+    if (core instanceof C.Add1) {
+      const n = this.sugar(core.n, ctx);
+      return `(add1 ${n})`;
+    }
+
+    // IterNat
+    if (core instanceof C.IterNat) {
+      const target = this.sugar(core.target, ctx);
+      const base = this.sugar(core.base, ctx);
+      const step = this.sugar(core.step, ctx);
+      return `(iter-Nat ${target} ${base} ${step})`;
+    }
+
+    // Left/Right for Either
+    if (core instanceof C.Left) {
+      const value = this.sugar(core.value, ctx);
+      return `(left ${value})`;
+    }
+
+    if (core instanceof C.Right) {
+      const value = this.sugar(core.value, ctx);
+      return `(right ${value})`;
+    }
+
+    // Same (reflexivity proof)
+    if (core instanceof C.Same) {
+      const type = this.sugar(core.type, ctx);
+      return `(same ${type})`;
+    }
+
+    // For simple types with no sub-expressions, use prettyPrint
     return core.prettyPrint();
   }
 
