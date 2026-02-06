@@ -17,6 +17,8 @@ import { EXAMPLES } from '@/features/proof-editor/data/examples';
 function AppContent() {
   const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
+  const nodes = useProofStore((s) => s.nodes);
+  const setManualPosition = useProofStore((s) => s.setManualPosition);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
 
@@ -35,6 +37,17 @@ function AppContent() {
     const { goalId, tacticType, params, tacticNodeId } = options;
     console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params, 'tacticNodeId:', tacticNodeId);
     setTacticError(null);
+
+    // Transfer tactic node position to the new tactic ID before sync
+    // The new tactic will be created with ID "tactic-for-{goalId}"
+    if (tacticNodeId) {
+      const tacticNode = nodes.find(n => n.id === tacticNodeId);
+      if (tacticNode) {
+        const newTacticId = `tactic-for-${goalId}`;
+        console.log(`[App] Transferring position from ${tacticNodeId} to ${newTacticId}:`, tacticNode.position);
+        setManualPosition(newTacticId, { ...tacticNode.position });
+      }
+    }
 
     try {
       const result = await applyTactic(goalId, tacticType, params);
@@ -70,7 +83,7 @@ function AppContent() {
         });
       }
     }
-  }, [applyTactic, updateNode]);
+  }, [applyTactic, updateNode, nodes, setManualPosition]);
 
   // Register the callback when component mounts
   useEffect(() => {

@@ -347,15 +347,73 @@ export const useProofStore = create<ProofStore>()(
           return;
         }
 
-        // Preserve manual positions for existing nodes
+        // Build a map of node IDs to their auto-calculated positions
+        const autoPositions = new Map<string, { x: number; y: number }>();
+        nodes.forEach(node => {
+          autoPositions.set(node.id, { ...node.position });
+        });
+
+        // Build parent-child relationships from edges
+        // tactic-to-goal edges connect tactics to their child goals
+        const parentMap = new Map<string, string>(); // childId -> parentTacticId
+        edges.forEach(edge => {
+          if (edge.data?.kind === 'tactic-to-goal') {
+            parentMap.set(edge.target, edge.source); // child goal -> parent tactic
+          }
+        });
+
+        // First pass: calculate position deltas for nodes with manual positions
+        const positionDeltas = new Map<string, { dx: number; dy: number }>();
+        nodes.forEach(node => {
+          const manualPos = manualPositions.get(node.id);
+          if (manualPos) {
+            const autoPos = autoPositions.get(node.id)!;
+            positionDeltas.set(node.id, {
+              dx: manualPos.x - autoPos.x,
+              dy: manualPos.y - autoPos.y
+            });
+          }
+        });
+
+        // Second pass: apply manual positions and offset children
         const mergedNodes = nodes.map(node => {
           const manualPos = manualPositions.get(node.id);
           if (manualPos) {
             console.log(`[syncFromWorker] ✅ Preserving manual position for ${node.id}:`, manualPos);
             return { ...node, position: manualPos };
-          } else {
-            console.log(`[syncFromWorker] ❌ No manual position for ${node.id}, using auto:`, node.position);
           }
+
+          // Check if this node's parent (tactic) has been manually positioned
+          const parentTacticId = parentMap.get(node.id);
+          if (parentTacticId) {
+            const parentDelta = positionDeltas.get(parentTacticId);
+            if (parentDelta) {
+              // Offset this child by the parent's position delta
+              const offsetPosition = {
+                x: node.position.x + parentDelta.dx,
+                y: node.position.y + parentDelta.dy
+              };
+              console.log(`[syncFromWorker] 📍 Offsetting child ${node.id} by parent delta:`, parentDelta, '-> new position:', offsetPosition);
+              return { ...node, position: offsetPosition };
+            }
+          }
+
+          // Also check if this is a tactic and its parent goal has been moved
+          if (node.id.startsWith('tactic-for-') || node.id.startsWith('tactic-completing-')) {
+            // Extract the goal ID from tactic ID
+            const goalId = node.id.replace('tactic-for-', '').replace('tactic-completing-', '');
+            const parentDelta = positionDeltas.get(goalId);
+            if (parentDelta) {
+              const offsetPosition = {
+                x: node.position.x + parentDelta.dx,
+                y: node.position.y + parentDelta.dy
+              };
+              console.log(`[syncFromWorker] 📍 Offsetting tactic ${node.id} by goal delta:`, parentDelta, '-> new position:', offsetPosition);
+              return { ...node, position: offsetPosition };
+            }
+          }
+
+          console.log(`[syncFromWorker] ❌ No manual position for ${node.id}, using auto:`, node.position);
           return node;
         });
 
