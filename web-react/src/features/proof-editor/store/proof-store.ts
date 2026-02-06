@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { enableMapSet } from 'immer';
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -9,6 +10,10 @@ import {
   type Connection,
 } from '@xyflow/react';
 import { nanoid } from 'nanoid';
+
+// Enable Map and Set support in immer
+// Required for manualPositions Map to work correctly
+enableMapSet();
 import type {
   ProofStore,
   ProofState,
@@ -45,6 +50,10 @@ const initialState: ProofState = {
 // This guards against React StrictMode double-renders and multiple hook instances
 // causing older sync results to overwrite newer ones
 const sessionEdgeHighWaterMark = new Map<string, number>();
+
+// Track positions during dragging to capture the final position when drag ends
+// This is needed because React Flow's dragging: false event may have position: undefined
+const draggingPositions = new Map<string, { x: number; y: number }>();
 
 /**
  * Proof Store
@@ -479,12 +488,25 @@ export const useProofStore = create<ProofStore>()(
                 positionAbsolute: (change as any).positionAbsolute
               });
 
-              if (change.position && change.dragging === false) {
-                // User finished dragging - save manual position
-                console.log(`[onNodesChange] ✅ Saving manual position for ${change.id}:`, change.position);
-                state.manualPositions.set(change.id, { ...change.position });
-                console.log(`[onNodesChange] manualPositions now has ${state.manualPositions.size} entries:`,
-                  Array.from(state.manualPositions.entries()));
+              // Track position during dragging (position is available while dragging)
+              if (change.position && change.dragging === true) {
+                draggingPositions.set(change.id, { ...change.position });
+              }
+
+              // When drag ends, save the last known position to manualPositions
+              if (change.dragging === false) {
+                // Try to use position from this change, or fall back to tracked position
+                const finalPosition = change.position || draggingPositions.get(change.id);
+                if (finalPosition) {
+                  console.log(`[onNodesChange] ✅ Saving manual position for ${change.id}:`, finalPosition);
+                  state.manualPositions.set(change.id, { ...finalPosition });
+                  console.log(`[onNodesChange] manualPositions now has ${state.manualPositions.size} entries:`,
+                    Array.from(state.manualPositions.entries()));
+                } else {
+                  console.log(`[onNodesChange] ⚠️ No position available for ${change.id} on drag end`);
+                }
+                // Clean up tracking
+                draggingPositions.delete(change.id);
               }
             }
           }
