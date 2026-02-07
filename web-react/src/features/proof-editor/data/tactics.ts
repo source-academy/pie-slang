@@ -38,10 +38,10 @@ export const TACTICS: TacticInfo[] = [
     requiresContextVar: false,
   },
   {
-    type: 'exists',
-    displayName: 'exists',
-    description: 'Provide a witness for a Sigma (existential) type',
-    category: 'introduction',
+    type: "exists",
+    displayName: "exists",
+    description: "Provide a witness for a Sigma (existential) type",
+    category: "introduction",
     requiresContextVar: false,
   },
 

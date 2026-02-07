@@ -317,7 +317,9 @@ export const useProofStore = create<ProofStore>()(
 
         set((state) => {
           // Find the tactic node
-          const tacticNode = state.nodes.find((n) => n.id === tacticId && n.type === "tactic");
+          const tacticNode = state.nodes.find(
+            (n) => n.id === tacticId && n.type === "tactic",
+          );
 
           // Derive parent goal from tactic ID pattern
           let parentGoalId: string | undefined;
@@ -341,7 +343,10 @@ export const useProofStore = create<ProofStore>()(
           };
 
           // Get all descendant nodes to delete
-          const nodesToDelete = new Set([tacticId, ...getDescendantIds(tacticId)]);
+          const nodesToDelete = new Set([
+            tacticId,
+            ...getDescendantIds(tacticId),
+          ]);
 
           // Remove all descendant nodes
           state.nodes = state.nodes.filter((n) => !nodesToDelete.has(n.id));
@@ -428,8 +433,13 @@ export const useProofStore = create<ProofStore>()(
           }
 
           // Check if this is a tactic and its parent goal has been moved
-          if (node.id.startsWith("tactic-for-") || node.id.startsWith("tactic-completing-")) {
-            const goalId = node.id.replace("tactic-for-", "").replace("tactic-completing-", "");
+          if (
+            node.id.startsWith("tactic-for-") ||
+            node.id.startsWith("tactic-completing-")
+          ) {
+            const goalId = node.id
+              .replace("tactic-for-", "")
+              .replace("tactic-completing-", "");
             const parentDelta = positionDeltas.get(goalId);
             if (parentDelta) {
               return {
@@ -605,7 +615,10 @@ export const useProofStore = create<ProofStore>()(
       // Position Management
       // ================================================
 
-      setManualPosition: (nodeId: string, position: { x: number; y: number }) => {
+      setManualPosition: (
+        nodeId: string,
+        position: { x: number; y: number },
+      ) => {
         set((state) => {
           state.manualPositions.set(nodeId, position);
         });
@@ -817,7 +830,8 @@ export const useProofStore = create<ProofStore>()(
               }
               // On drag end, save to manualPositions
               if (change.dragging === false) {
-                const finalPosition = change.position || draggingPositions.get(change.id);
+                const finalPosition =
+                  change.position || draggingPositions.get(change.id);
                 if (finalPosition) {
                   state.manualPositions.set(change.id, { ...finalPosition });
                 }

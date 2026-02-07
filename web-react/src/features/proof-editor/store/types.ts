@@ -221,7 +221,10 @@ export interface ProofActions {
   onConnect: (connection: Connection) => void;
 
   // Position management
-  setManualPosition: (nodeId: string, position: { x: number; y: number }) => void;
+  setManualPosition: (
+    nodeId: string,
+    position: { x: number; y: number },
+  ) => void;
   clearManualPositions: () => void;
 }
 
@@ -250,7 +253,10 @@ export interface UIActions {
   setHoveredNode: (id: string | null) => void;
   setValidDropTargets: (goalIds: string[]) => void;
   clearDragState: () => void;
-  requestDelete: (nodeId: string, pendingChanges: NodeChange<ProofNode>[]) => void;
+  requestDelete: (
+    nodeId: string,
+    pendingChanges: NodeChange<ProofNode>[],
+  ) => void;
   confirmDelete: () => void;
   cancelDelete: () => void;
 }

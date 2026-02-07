@@ -34,8 +34,8 @@ export interface SerializableContextEntry {
 
 export interface SerializableGoal {
   id: string;
-  type: string;              // Display type (may be sugared if abbreviations available)
-  expandedType?: string;     // Full expanded type (only set if different from type)
+  type: string; // Display type (may be sugared if abbreviations available)
+  expandedType?: string; // Full expanded type (only set if different from type)
   context: SerializableContextEntry[];
   contextEntries?: SerializableContextEntry[]; // Alias for compatibility
   isComplete: boolean;
@@ -294,7 +294,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       const parser = await import("@pie/parser/parser");
       results.push(
         "   schemeParse: " +
-        (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
+          (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
       );
 
       results.push("2. Testing context imports...");
@@ -371,7 +371,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Add the target claim to valid names so it's included (it won't have a definition yet)
       validNames.add(claimName);
 
-      console.log("[ProofWorker] Found valid definitions:", Array.from(validNames));
+      console.log(
+        "[ProofWorker] Found valid definitions:",
+        Array.from(validNames),
+      );
 
       // Build context and track definitions/claims for globalContext
       console.log("[ProofWorker] Building context...");
@@ -384,7 +387,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         const src = pieDeclarationParser.parseDeclaration(astList[i]);
 
         // Skip SamenessCheck or other non-declaration types if they don't have a name
-        if (!('name' in src)) continue;
+        if (!("name" in src)) continue;
 
         // STOP CONDITION: If we've reached the target claim, we're done building context
         // The target claim itself should be added, but nothing after it
@@ -403,7 +406,6 @@ const proofWorkerAPI: ProofWorkerAPI = {
             src.location,
             src.type,
           );
-
           if (result instanceof go) {
             ctx = result.result;
             // Track claim for later - will become theorem if proved
@@ -479,7 +481,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
         // If we just processed the target claim, STOP building context.
         // We don't want anything declared *after* the claim to be available.
         if (isTargetClaim) {
-          console.log(`[ProofWorker] Reached target claim '${claimName}', stopping context build.`);
+          console.log(
+            `[ProofWorker] Reached target claim '${claimName}', stopping context build.`,
+          );
           break;
         }
       }
@@ -517,7 +521,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
           const isComplete = n.goal?.isComplete || n.completedBy;
           if (!isComplete) return false;
           if (!n.children || n.children.length === 0) return true;
-          return n.children.every((child: any) => computeIsSubtreeComplete(child));
+          return n.children.every((child: any) =>
+            computeIsSubtreeComplete(child),
+          );
         };
 
         const goal: SerializableGoal = {
@@ -975,7 +981,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
         const isComplete = n.goal?.isComplete || n.completedBy;
         if (!isComplete) return false;
         if (!n.children || n.children.length === 0) return true;
-        return n.children.every((child: any) => computeIsSubtreeComplete(child));
+        return n.children.every((child: any) =>
+          computeIsSubtreeComplete(child),
+        );
       };
 
       return {
