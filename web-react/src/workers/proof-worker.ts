@@ -1,22 +1,23 @@
-import * as Comlink from 'comlink';
-import { nanoid } from 'nanoid';
+import * as Comlink from "comlink";
+import { nanoid } from "nanoid";
 
-console.log('[ProofWorker] Worker script starting...');
+console.log("[ProofWorker] Worker script starting...");
 
 // ============================================
 // Types - Must match what convert-proof-tree.ts expects
 // ============================================
 
 export type TacticType =
-  | 'intro'
-  | 'split'
-  | 'left'
-  | 'right'
-  | 'induction'
-  | 'exact'
-  | 'exists'
-  | 'elimVec'
-  | 'elimEqual';
+  | "intro"
+  | "split"
+  | "left"
+  | "right"
+  | "induction"
+  | "exact"
+  | "exists"
+  | "elimVec"
+  | "elimEqual"
+  | "todo";
 
 export interface TacticParameters {
   variableName?: string;
@@ -65,7 +66,7 @@ export interface SerializableLemma {
 export interface GlobalContextEntry {
   name: string;
   type: string;
-  kind: 'definition' | 'claim' | 'theorem';  // theorem = proved claim
+  kind: "definition" | "claim" | "theorem"; // theorem = proved claim
 }
 
 /**
@@ -80,7 +81,7 @@ export interface StartSessionResponse {
   sessionId: string;
   proofTree: ProofTreeData;
   availableLemmas: SerializableLemma[];
-  globalContext: GlobalContext;  // NEW: separated global context
+  globalContext: GlobalContext; // NEW: separated global context
   claimType: string;
 }
 
@@ -111,14 +112,14 @@ const sessions = new Map<string, ProofSession>();
 /**
  * Hint level for progressive hints
  */
-export type HintLevel = 'category' | 'tactic' | 'full';
+export type HintLevel = "category" | "tactic" | "full";
 
 /**
  * Progressive hint response
  */
 export interface ProgressiveHintResponse {
   level: HintLevel;
-  category?: 'introduction' | 'elimination' | 'constructor' | 'application';
+  category?: "introduction" | "elimination" | "constructor" | "application";
   tacticType?: string;
   parameters?: Record<string, string>;
   explanation: string;
@@ -138,13 +139,20 @@ export interface GetHintRequest {
 
 export interface ProofWorkerAPI {
   test: () => string;
-  testImports: () => Promise<{ success: boolean; results: string[]; error?: string }>;
-  startSession: (sourceCode: string, claimName: string) => Promise<StartSessionResponse>;
+  testImports: () => Promise<{
+    success: boolean;
+    results: string[];
+    error?: string;
+  }>;
+  startSession: (
+    sourceCode: string,
+    claimName: string,
+  ) => Promise<StartSessionResponse>;
   applyTactic: (
     sessionId: string,
     goalId: string,
     tacticType: string,
-    params?: TacticParameters
+    params?: TacticParameters,
   ) => Promise<TacticAppliedResponse>;
   closeSession: (sessionId: string) => void;
   getProofTree: (sessionId: string) => ProofTreeData | null;
@@ -153,65 +161,82 @@ export interface ProofWorkerAPI {
 
 const proofWorkerAPI: ProofWorkerAPI = {
   test() {
-    console.log('[ProofWorker] test() called');
-    return 'Proof worker is responding!';
+    console.log("[ProofWorker] test() called");
+    return "Proof worker is responding!";
   },
 
   async testImports() {
-    console.log('[ProofWorker] testImports() called');
+    console.log("[ProofWorker] testImports() called");
     const results: string[] = [];
 
     try {
-      results.push('1. Testing parser imports...');
-      const parser = await import('@pie/parser/parser');
-      results.push('   schemeParse: ' + (typeof parser.schemeParse === 'function' ? 'OK' : 'MISSING'));
+      results.push("1. Testing parser imports...");
+      const parser = await import("@pie/parser/parser");
+      results.push(
+        "   schemeParse: " +
+          (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
+      );
 
-      results.push('2. Testing context imports...');
-      const ctx = await import('@pie/utils/context');
-      results.push('   initCtx: ' + (ctx.initCtx ? 'OK' : 'MISSING'));
+      results.push("2. Testing context imports...");
+      const ctx = await import("@pie/utils/context");
+      results.push("   initCtx: " + (ctx.initCtx ? "OK" : "MISSING"));
 
-      results.push('3. Testing ProofManager...');
-      const pmModule = await import('@pie/tactics/proof-manager');
-      results.push('   ProofManager: ' + (pmModule.ProofManager ? 'OK' : 'MISSING'));
+      results.push("3. Testing ProofManager...");
+      const pmModule = await import("@pie/tactics/proof-manager");
+      results.push(
+        "   ProofManager: " + (pmModule.ProofManager ? "OK" : "MISSING"),
+      );
 
-      results.push('ALL IMPORTS SUCCESSFUL!');
+      results.push("ALL IMPORTS SUCCESSFUL!");
       return { success: true, results };
     } catch (e) {
-      results.push('FAILED: ' + String(e));
+      results.push("FAILED: " + String(e));
       return { success: false, results, error: String(e) };
     }
   },
 
-  async startSession(sourceCode: string, claimName: string): Promise<StartSessionResponse> {
-    console.log('[ProofWorker] startSession() called for:', claimName);
+  async startSession(
+    sourceCode: string,
+    claimName: string,
+  ): Promise<StartSessionResponse> {
+    console.log("[ProofWorker] startSession() called for:", claimName);
 
     try {
       // Dynamically import Pie modules
-      console.log('[ProofWorker] Importing modules...');
-      const { schemeParse, pieDeclarationParser, Claim, Definition, DefineTactically } =
-        await import('@pie/parser/parser');
-      const { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext } =
-        await import('@pie/utils/context');
-      const { go, stop } = await import('@pie/types/utils');
-      const { ProofManager } = await import('@pie/tactics/proof-manager');
-      const { Location, Syntax } = await import('@pie/utils/locations');
-      const { Position } = await import('@scheme/transpiler/types/location');
+      console.log("[ProofWorker] Importing modules...");
+      const {
+        schemeParse,
+        pieDeclarationParser,
+        Claim,
+        Definition,
+        DefineTactically,
+      } = await import("@pie/parser/parser");
+      const {
+        initCtx,
+        addClaimToContext,
+        addDefineToContext,
+        addDefineTacticallyToContext,
+      } = await import("@pie/utils/context");
+      const { go, stop } = await import("@pie/types/utils");
+      const { ProofManager } = await import("@pie/tactics/proof-manager");
+      const { Location, Syntax } = await import("@pie/utils/locations");
+      const { Position } = await import("@scheme/transpiler/types/location");
 
       // Create a dummy location
       const pos = new Position(1, 0);
-      const syntax = new Syntax(pos, pos, '');
+      const syntax = new Syntax(pos, pos, "");
       const dummyLoc = new Location(syntax, false);
 
       // Parse source code
-      console.log('[ProofWorker] Parsing source code...');
+      console.log("[ProofWorker] Parsing source code...");
       const astList = schemeParse(sourceCode);
       if (!astList || !Array.isArray(astList)) {
-        throw new Error('Failed to parse source code');
+        throw new Error("Failed to parse source code");
       }
-      console.log('[ProofWorker] Parsed', astList.length, 'AST nodes');
+      console.log("[ProofWorker] Parsed", astList.length, "AST nodes");
 
       // Build context and track definitions/claims for globalContext
-      console.log('[ProofWorker] Building context...');
+      console.log("[ProofWorker] Building context...");
       let ctx = initCtx;
       const globalDefinitions: GlobalContextEntry[] = [];
       const globalTheorems: GlobalContextEntry[] = [];
@@ -220,38 +245,69 @@ const proofWorkerAPI: ProofWorkerAPI = {
       for (let i = 0; i < astList.length; i++) {
         const src = pieDeclarationParser.parseDeclaration(astList[i]);
         if (src instanceof Claim) {
-          const result = addClaimToContext(ctx, src.name, src.location, src.type);
+          const result = addClaimToContext(
+            ctx,
+            src.name,
+            src.location,
+            src.type,
+          );
           if (result instanceof go) {
             ctx = result.result;
             // Track claim for later - will become theorem if proved
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const srcType = src.type as any;
-            const typeStr = srcType.readBackType ? srcType.readBackType(ctx).prettyPrint() : String(src.type);
+            const typeStr = srcType.readBackType
+              ? srcType.readBackType(ctx).prettyPrint()
+              : String(src.type);
             pendingClaims.push({ name: src.name, type: typeStr });
           } else if (result instanceof stop) {
             throw new Error(`Claim error: ${result.message}`);
           }
         } else if (src instanceof Definition) {
-          const result = addDefineToContext(ctx, src.name, src.location, src.expr);
+          const result = addDefineToContext(
+            ctx,
+            src.name,
+            src.location,
+            src.expr,
+          );
           if (result instanceof go) {
             ctx = result.result;
             // Track definition
             const binding = ctx.get(src.name);
-            const typeStr = binding ? binding.type.readBackType(ctx).prettyPrint() : 'unknown';
-            globalDefinitions.push({ name: src.name, type: typeStr, kind: 'definition' });
+            const typeStr = binding
+              ? binding.type.readBackType(ctx).prettyPrint()
+              : "unknown";
+            globalDefinitions.push({
+              name: src.name,
+              type: typeStr,
+              kind: "definition",
+            });
           } else if (result instanceof stop) {
             throw new Error(`Definition error: ${result.message}`);
           }
         } else if (src instanceof DefineTactically) {
-          const result = addDefineTacticallyToContext(ctx, src.name, src.location, src.tactics);
+          const result = addDefineTacticallyToContext(
+            ctx,
+            src.name,
+            src.location,
+            src.tactics,
+          );
           if (result instanceof go) {
             ctx = result.result.context;
             // This is a proved theorem
             const binding = ctx.get(src.name);
-            const typeStr = binding ? binding.type.readBackType(ctx).prettyPrint() : 'unknown';
-            globalTheorems.push({ name: src.name, type: typeStr, kind: 'theorem' });
+            const typeStr = binding
+              ? binding.type.readBackType(ctx).prettyPrint()
+              : "unknown";
+            globalTheorems.push({
+              name: src.name,
+              type: typeStr,
+              kind: "theorem",
+            });
             // Remove from pending claims if it was there
-            const claimIdx = pendingClaims.findIndex(c => c.name === src.name);
+            const claimIdx = pendingClaims.findIndex(
+              (c) => c.name === src.name,
+            );
             if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
           } else if (result instanceof stop) {
             throw new Error(`DefineTactically error: ${result.message}`);
@@ -261,25 +317,29 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
       // Add remaining unproved claims to theorems list (as claims)
       for (const claim of pendingClaims) {
-        globalTheorems.push({ name: claim.name, type: claim.type, kind: 'claim' });
+        globalTheorems.push({
+          name: claim.name,
+          type: claim.type,
+          kind: "claim",
+        });
       }
 
       // Start proof
-      console.log('[ProofWorker] Starting proof for:', claimName);
+      console.log("[ProofWorker] Starting proof for:", claimName);
       const pm = new ProofManager();
       const startResult = pm.startProof(claimName, ctx, dummyLoc);
 
       if (startResult instanceof stop) {
         throw new Error(`Failed to start proof: ${startResult.message}`);
       }
-      console.log('[ProofWorker] Proof started successfully');
+      console.log("[ProofWorker] Proof started successfully");
 
       // Get proof tree data from the ProofManager
       const rawProofTreeData = pm.getProofTreeData();
       if (!rawProofTreeData) {
-        throw new Error('ProofManager returned null proof tree data');
+        throw new Error("ProofManager returned null proof tree data");
       }
-      console.log('[ProofWorker] Got raw proof tree data');
+      console.log("[ProofWorker] Got raw proof tree data");
 
       // Transform the data to match our expected format
       const transformGoalNode = (node: any): SerializableGoalNode => {
@@ -313,7 +373,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
       // Get claim type
       const binding = ctx.get(claimName);
-      const claimType = binding ? binding.type.readBackType(ctx).prettyPrint() : 'unknown';
+      const claimType = binding
+        ? binding.type.readBackType(ctx).prettyPrint()
+        : "unknown";
 
       // Save session
       const sessionId = nanoid();
@@ -325,8 +387,11 @@ const proofWorkerAPI: ProofWorkerAPI = {
         claimType,
       });
 
-      console.log('[ProofWorker] Session created:', sessionId);
-      console.log('[ProofWorker] Global context:', { definitions: globalDefinitions.length, theorems: globalTheorems.length });
+      console.log("[ProofWorker] Session created:", sessionId);
+      console.log("[ProofWorker] Global context:", {
+        definitions: globalDefinitions.length,
+        theorems: globalTheorems.length,
+      });
 
       return {
         sessionId,
@@ -339,7 +404,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         claimType,
       };
     } catch (error) {
-      console.error('[ProofWorker] Error:', error);
+      console.error("[ProofWorker] Error:", error);
       throw error;
     }
   },
@@ -348,26 +413,46 @@ const proofWorkerAPI: ProofWorkerAPI = {
     sessionId: string,
     goalId: string,
     tacticType: string,
-    params: TacticParameters = {}
+    params: TacticParameters = {},
   ): Promise<TacticAppliedResponse> {
-    console.log('[ProofWorker] applyTactic() called:', tacticType, 'on goal:', goalId, 'params:', params);
+    console.log(
+      "[ProofWorker] applyTactic() called:",
+      tacticType,
+      "on goal:",
+      goalId,
+      "params:",
+      params,
+    );
 
     const session = sessions.get(sessionId);
     if (!session) {
       return {
         success: false,
-        proofTree: { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+        proofTree: {
+          root: {
+            goal: {
+              id: "",
+              type: "",
+              context: [],
+              isComplete: false,
+              isCurrent: false,
+            },
+            children: [],
+          },
+          isComplete: false,
+          currentGoalId: null,
+        },
         error: `Session not found: ${sessionId}`,
       };
     }
 
     try {
       // Import tactic classes
-      const tactics = await import('@pie/tactics/tactics');
-      const { Location, Syntax } = await import('@pie/utils/locations');
-      const { Position } = await import('@scheme/transpiler/types/location');
-      const { Parser } = await import('@pie/parser/parser');
-      const { stop } = await import('@pie/types/utils');
+      const tactics = await import("@pie/tactics/tactics");
+      const { Location, Syntax } = await import("@pie/utils/locations");
+      const { Position } = await import("@scheme/transpiler/types/location");
+      const { Parser } = await import("@pie/parser/parser");
+      const { stop } = await import("@pie/types/utils");
 
       // Set the current goal to the one the user dropped onto
       const pm = session.proofManager;
@@ -376,7 +461,20 @@ const proofWorkerAPI: ProofWorkerAPI = {
         if (!goalSet) {
           return {
             success: false,
-            proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+            proofTree: this.getProofTree(sessionId) || {
+              root: {
+                goal: {
+                  id: "",
+                  type: "",
+                  context: [],
+                  isComplete: false,
+                  isCurrent: false,
+                },
+                children: [],
+              },
+              isComplete: false,
+              currentGoalId: null,
+            },
             error: `Goal not found: ${goalId}`,
           };
         }
@@ -384,8 +482,21 @@ const proofWorkerAPI: ProofWorkerAPI = {
         if (pm.currentState.currentGoal.isComplete) {
           return {
             success: false,
-            proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-            error: 'Cannot apply tactic to a completed goal',
+            proofTree: this.getProofTree(sessionId) || {
+              root: {
+                goal: {
+                  id: "",
+                  type: "",
+                  context: [],
+                  isComplete: false,
+                  isCurrent: false,
+                },
+                children: [],
+              },
+              isComplete: false,
+              currentGoalId: null,
+            },
+            error: "Cannot apply tactic to a completed goal",
           };
         }
         // In the visual editor, users explicitly select which goal to work on,
@@ -396,93 +507,175 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
       // Create dummy location
       const pos = new Position(1, 0);
-      const syntax = new Syntax(pos, pos, '');
+      const syntax = new Syntax(pos, pos, "");
       const loc = new Location(syntax, false);
 
       // Create tactic based on type
       let tactic: InstanceType<typeof tactics.Tactic>;
 
       switch (tacticType) {
-        case 'intro':
+        case "intro":
           tactic = new tactics.IntroTactic(loc, params.variableName);
           break;
 
-        case 'exact':
+        case "exact":
           if (!params.expression) {
             return {
               success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'exact tactic requires an expression parameter',
+              proofTree: this.getProofTree(sessionId) || {
+                root: {
+                  goal: {
+                    id: "",
+                    type: "",
+                    context: [],
+                    isComplete: false,
+                    isCurrent: false,
+                  },
+                  children: [],
+                },
+                isComplete: false,
+                currentGoalId: null,
+              },
+              error: "exact tactic requires an expression parameter",
             };
           }
           const exactTerm = Parser.parsePie(params.expression);
           tactic = new tactics.ExactTactic(loc, exactTerm);
           break;
 
-        case 'exists':
+        case "exists":
           if (!params.expression) {
             return {
               success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'exists tactic requires an expression parameter',
+              proofTree: this.getProofTree(sessionId) || {
+                root: {
+                  goal: {
+                    id: "",
+                    type: "",
+                    context: [],
+                    isComplete: false,
+                    isCurrent: false,
+                  },
+                  children: [],
+                },
+                isComplete: false,
+                currentGoalId: null,
+              },
+              error: "exists tactic requires an expression parameter",
             };
           }
           const existsValue = Parser.parsePie(params.expression);
-          tactic = new tactics.ExistsTactic(loc, existsValue, params.variableName);
+          tactic = new tactics.ExistsTactic(
+            loc,
+            existsValue,
+            params.variableName,
+          );
           break;
 
-        case 'split':
+        case "split":
           tactic = new tactics.SpiltTactic(loc); // Note: typo in original code
           break;
 
-        case 'left':
+        case "left":
           tactic = new tactics.LeftTactic(loc);
           break;
 
-        case 'right':
+        case "right":
           tactic = new tactics.RightTactic(loc);
           break;
 
-        case 'elimNat':
-        case 'induction':
+        case "elimNat":
+        case "induction":
           if (!params.variableName) {
             return {
               success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimNat tactic requires a target variable name',
+              proofTree: this.getProofTree(sessionId) || {
+                root: {
+                  goal: {
+                    id: "",
+                    type: "",
+                    context: [],
+                    isComplete: false,
+                    isCurrent: false,
+                  },
+                  children: [],
+                },
+                isComplete: false,
+                currentGoalId: null,
+              },
+              error: "elimNat tactic requires a target variable name",
             };
           }
           tactic = new tactics.EliminateNatTactic(loc, params.variableName);
           break;
 
-        case 'elimList':
+        case "elimList":
           if (!params.variableName) {
             return {
               success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimList tactic requires a target variable name',
+              proofTree: this.getProofTree(sessionId) || {
+                root: {
+                  goal: {
+                    id: "",
+                    type: "",
+                    context: [],
+                    isComplete: false,
+                    isCurrent: false,
+                  },
+                  children: [],
+                },
+                isComplete: false,
+                currentGoalId: null,
+              },
+              error: "elimList tactic requires a target variable name",
             };
           }
           tactic = new tactics.EliminateListTactic(loc, params.variableName);
           break;
 
-        case 'elimEither':
+        case "elimEither":
           if (!params.variableName) {
             return {
               success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimEither tactic requires a target variable name',
+              proofTree: this.getProofTree(sessionId) || {
+                root: {
+                  goal: {
+                    id: "",
+                    type: "",
+                    context: [],
+                    isComplete: false,
+                    isCurrent: false,
+                  },
+                  children: [],
+                },
+                isComplete: false,
+                currentGoalId: null,
+              },
+              error: "elimEither tactic requires a target variable name",
             };
           }
           tactic = new tactics.EliminateEitherTactic(loc, params.variableName);
           break;
 
-        case 'elimAbsurd':
+        case "elimAbsurd":
           if (!params.variableName) {
             return {
               success: false,
-              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-              error: 'elimAbsurd tactic requires a target variable name',
+              proofTree: this.getProofTree(sessionId) || {
+                root: {
+                  goal: {
+                    id: "",
+                    type: "",
+                    context: [],
+                    isComplete: false,
+                    isCurrent: false,
+                  },
+                  children: [],
+                },
+                isComplete: false,
+                currentGoalId: null,
+              },
+              error: "elimAbsurd tactic requires a target variable name",
             };
           }
           tactic = new tactics.EliminateAbsurdTactic(loc, params.variableName);
@@ -491,7 +684,20 @@ const proofWorkerAPI: ProofWorkerAPI = {
         default:
           return {
             success: false,
-            proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+            proofTree: this.getProofTree(sessionId) || {
+              root: {
+                goal: {
+                  id: "",
+                  type: "",
+                  context: [],
+                  isComplete: false,
+                  isCurrent: false,
+                },
+                children: [],
+              },
+              isComplete: false,
+              currentGoalId: null,
+            },
             error: `Unknown tactic type: ${tacticType}`,
           };
       }
@@ -502,20 +708,46 @@ const proofWorkerAPI: ProofWorkerAPI = {
       if (result instanceof stop) {
         return {
           success: false,
-          proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+          proofTree: this.getProofTree(sessionId) || {
+            root: {
+              goal: {
+                id: "",
+                type: "",
+                context: [],
+                isComplete: false,
+                isCurrent: false,
+              },
+              children: [],
+            },
+            isComplete: false,
+            currentGoalId: null,
+          },
           error: result.message.toString(),
         };
       }
 
-      console.log('[ProofWorker] Tactic applied successfully');
+      console.log("[ProofWorker] Tactic applied successfully");
 
       // Get updated proof tree
       const proofTree = this.getProofTree(sessionId);
       if (!proofTree) {
         return {
           success: false,
-          proofTree: { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
-          error: 'Failed to get proof tree after applying tactic',
+          proofTree: {
+            root: {
+              goal: {
+                id: "",
+                type: "",
+                context: [],
+                isComplete: false,
+                isCurrent: false,
+              },
+              children: [],
+            },
+            isComplete: false,
+            currentGoalId: null,
+          },
+          error: "Failed to get proof tree after applying tactic",
         };
       }
 
@@ -524,17 +756,30 @@ const proofWorkerAPI: ProofWorkerAPI = {
         proofTree,
       };
     } catch (error) {
-      console.error('[ProofWorker] Error applying tactic:', error);
+      console.error("[ProofWorker] Error applying tactic:", error);
       return {
         success: false,
-        proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+        proofTree: this.getProofTree(sessionId) || {
+          root: {
+            goal: {
+              id: "",
+              type: "",
+              context: [],
+              isComplete: false,
+              isCurrent: false,
+            },
+            children: [],
+          },
+          isComplete: false,
+          currentGoalId: null,
+        },
         error: String(error),
       };
     }
   },
 
   closeSession(sessionId: string): void {
-    console.log('[ProofWorker] closeSession():', sessionId);
+    console.log("[ProofWorker] closeSession():", sessionId);
     sessions.delete(sessionId);
   },
 
@@ -573,13 +818,18 @@ const proofWorkerAPI: ProofWorkerAPI = {
   },
 
   async getHint(request: GetHintRequest): Promise<ProgressiveHintResponse> {
-    console.log('[ProofWorker] getHint() called for goal:', request.goalId, 'level:', request.currentLevel);
+    console.log(
+      "[ProofWorker] getHint() called for goal:",
+      request.goalId,
+      "level:",
+      request.currentLevel,
+    );
 
     const session = sessions.get(request.sessionId);
     if (!session) {
       return {
         level: request.currentLevel,
-        explanation: 'Session not found. Please start a new proof.',
+        explanation: "Session not found. Please start a new proof.",
         confidence: 0,
       };
     }
@@ -590,7 +840,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       if (!proofTree) {
         return {
           level: request.currentLevel,
-          explanation: 'Could not get proof tree.',
+          explanation: "Could not get proof tree.",
           confidence: 0,
         };
       }
@@ -600,7 +850,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       if (!goal) {
         return {
           level: request.currentLevel,
-          explanation: 'Goal not found.',
+          explanation: "Goal not found.",
           confidence: 0,
         };
       }
@@ -608,11 +858,20 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Build hint request
       const hintRequest = {
         goalType: goal.goal.type,
-        context: goal.goal.context.map(c => ({ name: c.name, type: c.type })),
+        context: goal.goal.context.map((c) => ({ name: c.name, type: c.type })),
         availableTactics: [
-          'intro', 'exact', 'split', 'left', 'right',
-          'elimNat', 'elimList', 'elimVec', 'elimEither', 'elimEqual', 'elimAbsurd',
-          'apply'
+          "intro",
+          "exact",
+          "split",
+          "left",
+          "right",
+          "elimNat",
+          "elimList",
+          "elimVec",
+          "elimEither",
+          "elimEqual",
+          "elimAbsurd",
+          "apply",
         ],
         currentLevel: request.currentLevel,
         previousHint: request.previousHint,
@@ -620,26 +879,31 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
       // Import hint generator
       const { generateProgressiveHint, generateRuleBasedHint } =
-        await import('@pie/solver/hint-generator');
+        await import("@pie/solver/hint-generator");
 
       // Try AI-powered hint if API key is provided
       if (request.apiKey) {
         try {
-          const hint = await generateProgressiveHint(request.apiKey, hintRequest);
-          console.log('[ProofWorker] AI hint generated:', hint);
+          const hint = await generateProgressiveHint(
+            request.apiKey,
+            hintRequest,
+          );
+          console.log("[ProofWorker] AI hint generated:", hint);
           return hint;
         } catch (aiError) {
-          console.warn('[ProofWorker] AI hint failed, falling back to rule-based:', aiError);
+          console.warn(
+            "[ProofWorker] AI hint failed, falling back to rule-based:",
+            aiError,
+          );
         }
       }
 
       // Fallback to rule-based hints
       const hint = generateRuleBasedHint(hintRequest);
-      console.log('[ProofWorker] Rule-based hint generated:', hint);
+      console.log("[ProofWorker] Rule-based hint generated:", hint);
       return hint;
-
     } catch (error) {
-      console.error('[ProofWorker] Error generating hint:', error);
+      console.error("[ProofWorker] Error generating hint:", error);
       return {
         level: request.currentLevel,
         explanation: `Error generating hint: ${String(error)}`,
@@ -652,7 +916,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
 /**
  * Helper to find a goal by ID in the proof tree
  */
-function findGoalById(node: SerializableGoalNode, goalId: string): SerializableGoalNode | null {
+function findGoalById(
+  node: SerializableGoalNode,
+  goalId: string,
+): SerializableGoalNode | null {
   if (node.goal.id === goalId) {
     return node;
   }
@@ -664,4 +931,4 @@ function findGoalById(node: SerializableGoalNode, goalId: string): SerializableG
 }
 
 Comlink.expose(proofWorkerAPI);
-console.log('[ProofWorker] API exposed');
+console.log("[ProofWorker] API exposed");
