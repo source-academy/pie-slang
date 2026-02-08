@@ -8,6 +8,7 @@
 COPYING
 yarn.lock
 package-lock.json
+**/*lsp*bundle*.js*
 
 # Environment variables (contains API keys)
 .env
