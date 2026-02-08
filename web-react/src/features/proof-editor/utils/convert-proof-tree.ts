@@ -6,13 +6,13 @@ import type {
   GoalNodeData,
   TacticNodeData,
   ContextEntry,
-} from '../store/types';
+} from "../store/types";
 import type {
   ProofTreeData,
   SerializableGoalNode,
   SerializableContextEntry,
-} from '@/workers/proof-worker';
-import { nanoid } from 'nanoid';
+} from "@/workers/proof-worker";
+import { nanoid } from "nanoid";
 
 // Layout constants
 const NODE_WIDTH = 200;
@@ -34,7 +34,7 @@ interface ConversionResult {
  * - Edges connecting goals to tactics and tactics to subgoals
  */
 export function convertProofTreeToReactFlow(
-  proofTree: ProofTreeData
+  proofTree: ProofTreeData,
 ): ConversionResult {
   const nodes: ProofNode[] = [];
   const edges: ProofEdge[] = [];
@@ -48,7 +48,7 @@ export function convertProofTreeToReactFlow(
     nodes,
     edges,
     positions,
-    proofTree.currentGoalId
+    proofTree.currentGoalId,
   );
 
   return { nodes, edges };
@@ -59,7 +59,7 @@ export function convertProofTreeToReactFlow(
  * Returns a map from goal ID to position.
  */
 function calculateTreeLayout(
-  root: SerializableGoalNode
+  root: SerializableGoalNode,
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
 
@@ -78,7 +78,7 @@ function calculateTreeLayout(
  */
 function calculateSubtreeWidths(
   node: SerializableGoalNode,
-  widths: Map<string, number>
+  widths: Map<string, number>,
 ): number {
   if (node.children.length === 0) {
     const width = NODE_WIDTH;
@@ -107,7 +107,7 @@ function assignPositions(
   x: number,
   y: number,
   widths: Map<string, number>,
-  positions: Map<string, { x: number; y: number }>
+  positions: Map<string, { x: number; y: number }>,
 ): void {
   const nodeWidth = widths.get(node.goal.id) || NODE_WIDTH;
 
@@ -124,7 +124,10 @@ function assignPositions(
   // Calculate starting x for children
   let childX = x;
   const totalChildrenWidth =
-    node.children.reduce((sum, child) => sum + (widths.get(child.goal.id) || NODE_WIDTH), 0) +
+    node.children.reduce(
+      (sum, child) => sum + (widths.get(child.goal.id) || NODE_WIDTH),
+      0,
+    ) +
     (node.children.length - 1) * HORIZONTAL_SPACING;
 
   // Center children under parent
@@ -152,16 +155,23 @@ function traverseTree(
   nodes: ProofNode[],
   edges: ProofEdge[],
   positions: Map<string, { x: number; y: number }>,
-  currentGoalId: string | null
+  currentGoalId: string | null,
 ): void {
   const position = positions.get(node.goal.id) || { x: 0, y: 0 };
 
   // Determine goal status
-  let status: GoalNodeData['status'] = 'pending';
-  if (node.goal.isComplete) {
-    status = 'completed';
+  let status: GoalNodeData["status"] = "pending";
+  if (node.completedBy && node.completedBy.toLowerCase().includes("todo")) {
+    status = "todo";
+  } else if (
+    node.appliedTactic &&
+    node.appliedTactic.toLowerCase().includes("todo")
+  ) {
+    status = "todo";
+  } else if (node.goal.isComplete) {
+    status = "completed";
   } else if (node.goal.id === currentGoalId) {
-    status = 'in-progress';
+    status = "in-progress";
   }
 
   // Convert context entries
@@ -170,10 +180,10 @@ function traverseTree(
   // Create goal node
   const goalNode: GoalNode = {
     id: node.goal.id,
-    type: 'goal',
+    type: "goal",
     position,
     data: {
-      kind: 'goal',
+      kind: "goal",
       goalType: node.goal.type,
       expandedGoalType: node.goal.expandedType, // Full expanded type (if different)
       context,
@@ -194,14 +204,14 @@ function traverseTree(
 
     const tacticNode: TacticNode = {
       id: tacticId,
-      type: 'tactic',
+      type: "tactic",
       position: tacticPosition,
       data: {
-        kind: 'tactic',
+        kind: "tactic",
         tacticType: parseTacticType(node.appliedTactic),
         displayName: node.appliedTactic,
         parameters: {}, // Parameters would need to be serialized from worker
-        status: 'applied',
+        status: "applied",
         connectedGoalId: node.goal.id,
       },
     };
@@ -212,7 +222,7 @@ function traverseTree(
       id: `edge-${nanoid(8)}`,
       source: node.goal.id,
       target: tacticId,
-      data: { kind: 'goal-to-tactic' },
+      data: { kind: "goal-to-tactic" },
     });
 
     // Edges from tactic to children
@@ -221,7 +231,7 @@ function traverseTree(
         id: `edge-${nanoid(8)}`,
         source: tacticId,
         target: child.goal.id,
-        data: { kind: 'tactic-to-goal', outputIndex: index },
+        data: { kind: "tactic-to-goal", outputIndex: index },
       });
     });
   }
@@ -236,14 +246,14 @@ function traverseTree(
 
     const tacticNode: TacticNode = {
       id: tacticId,
-      type: 'tactic',
+      type: "tactic",
       position: tacticPosition,
       data: {
-        kind: 'tactic',
+        kind: "tactic",
         tacticType: parseTacticType(node.completedBy),
         displayName: node.completedBy,
         parameters: {},
-        status: 'applied',
+        status: "applied",
         connectedGoalId: node.goal.id,
       },
     };
@@ -253,7 +263,7 @@ function traverseTree(
       id: `edge-${nanoid(8)}`,
       source: node.goal.id,
       target: tacticId,
-      data: { kind: 'goal-to-tactic' },
+      data: { kind: "goal-to-tactic" },
     });
   }
 
@@ -271,7 +281,7 @@ function convertContextEntry(entry: SerializableContextEntry): ContextEntry {
     id: entry.id || `ctx-${entry.name}`,
     name: entry.name,
     type: entry.type,
-    origin: entry.introducedBy ? 'introduced' : 'inherited',
+    origin: entry.introducedBy ? "introduced" : "inherited",
     introducedBy: entry.introducedBy,
   };
 }
@@ -279,21 +289,22 @@ function convertContextEntry(entry: SerializableContextEntry): ContextEntry {
 /**
  * Parse a tactic name string to TacticType
  */
-function parseTacticType(tacticName: string): TacticNodeData['tacticType'] {
-  const normalized = tacticName.toLowerCase().replace(/[^a-z]/g, '');
-  const tacticTypes: TacticNodeData['tacticType'][] = [
-    'intro',
-    'exact',
-    'split',
-    'left',
-    'right',
-    'elimNat',
-    'elimList',
-    'elimVec',
-    'elimEither',
-    'elimEqual',
-    'elimAbsurd',
-    'apply',
+function parseTacticType(tacticName: string): TacticNodeData["tacticType"] {
+  const normalized = tacticName.toLowerCase().replace(/[^a-z]/g, "");
+  const tacticTypes: TacticNodeData["tacticType"][] = [
+    "intro",
+    "exact",
+    "split",
+    "left",
+    "right",
+    "elimNat",
+    "elimList",
+    "elimVec",
+    "elimEither",
+    "elimEqual",
+    "elimAbsurd",
+    "apply",
+    "todo",
   ];
 
   for (const type of tacticTypes) {
@@ -303,5 +314,5 @@ function parseTacticType(tacticName: string): TacticNodeData['tacticType'] {
   }
 
   // Default to 'exact' if unknown
-  return 'exact';
+  return "exact";
 }

@@ -1,19 +1,19 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import { subscribeWithSelector } from 'zustand/middleware';
-import { enableMapSet } from 'immer';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
+import { subscribeWithSelector } from "zustand/middleware";
+import { enableMapSet } from "immer";
+
+// Enable Map and Set support in immer
+// Required for manualPositions Map to work correctly
+enableMapSet();
 import {
   applyNodeChanges,
   applyEdgeChanges,
   type NodeChange,
   type EdgeChange,
   type Connection,
-} from '@xyflow/react';
-import { nanoid } from 'nanoid';
-
-// Enable Map and Set support in immer
-// Required for manualPositions Map to work correctly
-enableMapSet();
+} from "@xyflow/react";
+import { nanoid } from "nanoid";
 import type {
   ProofStore,
   ProofState,
@@ -23,12 +23,15 @@ import type {
   TacticNode,
   LemmaNode,
   ProofEdgeData,
-} from './types';
-import { convertProofTreeToReactFlow } from '../utils/convert-proof-tree';
-import { generateProofScript } from '../utils/generate-proof-script';
-import type { ProofTreeData } from '@/workers/proof-worker';
-import { useHistoryStore } from './history-store';
-import { useMetadataStore } from './metadata-store';
+  GoalNodeData,
+  TacticNodeData,
+} from "./types";
+import { convertProofTreeToReactFlow } from "../utils/convert-proof-tree";
+import { generateProofScript } from "../utils/generate-proof-script";
+import type { ProofTreeData } from "@/workers/proof-worker";
+
+// Track positions during drag (outside store to avoid re-renders)
+const draggingPositions = new Map<string, { x: number; y: number }>();
 
 // Initial state
 const initialState: ProofState = {
@@ -38,22 +41,12 @@ const initialState: ProofState = {
   isProofComplete: false,
   sessionId: null,
   lastSyncedState: null,
-  globalContext: { definitions: [], theorems: [] },
   proofTreeData: null,
   claimName: null,
   history: [],
   historyIndex: -1,
   manualPositions: new Map(),
 };
-
-// Track high water mark for edge count per session to prevent stale sync race conditions
-// This guards against React StrictMode double-renders and multiple hook instances
-// causing older sync results to overwrite newer ones
-const sessionEdgeHighWaterMark = new Map<string, number>();
-
-// Track positions during dragging to capture the final position when drag ends
-// This is needed because React Flow's dragging: false event may have position: undefined
-const draggingPositions = new Map<string, { x: number; y: number }>();
 
 /**
  * Proof Store
@@ -75,7 +68,7 @@ export const useProofStore = create<ProofStore>()(
         set((state) => {
           const node: GoalNode = {
             id,
-            type: 'goal',
+            type: "goal",
             position,
             data,
           };
@@ -92,7 +85,7 @@ export const useProofStore = create<ProofStore>()(
         set((state) => {
           const node: TacticNode = {
             id,
-            type: 'tactic',
+            type: "tactic",
             position,
             data,
           };
@@ -106,7 +99,7 @@ export const useProofStore = create<ProofStore>()(
         set((state) => {
           const node: LemmaNode = {
             id,
-            type: 'lemma',
+            type: "lemma",
             position,
             data,
           };
@@ -126,146 +119,123 @@ export const useProofStore = create<ProofStore>()(
 
       removeNode: (id) => {
         set((state) => {
+          // Check if we're removing an applied tactic node
+          const nodeToRemove = state.nodes.find((n) => n.id === id);
+          const isAppliedTactic =
+            nodeToRemove?.type === "tactic" &&
+            (nodeToRemove.data as TacticNodeData).status === "applied";
+
+          // Capture parent goal ID before deleting edges
+          let parentGoalIdToReset: string | undefined;
+          if (isAppliedTactic) {
+            const parentEdge = state.edges.find(
+              (e) => e.target === id && e.data?.kind === "goal-to-tactic",
+            );
+            parentGoalIdToReset = parentEdge?.source;
+          }
+
+          // Remove the node and its edges
           state.nodes = state.nodes.filter((n) => n.id !== id);
           state.edges = state.edges.filter(
-            (e) => e.source !== id && e.target !== id
+            (e) => e.source !== id && e.target !== id,
           );
-        });
-      },
 
-      /**
-       * Delete a tactic node and cascade delete all downstream nodes.
-       * Also reverts the parent goal to 'pending' status.
-       * Saves a snapshot before deletion for undo support.
-       */
-      deleteTacticCascade: (tacticId) => {
-        // Save snapshot BEFORE deletion for undo
-        get().saveSnapshot();
+          // If we removed an applied tactic, the proof is no longer valid
+          // Mark proof as incomplete and clear proof tree data
+          if (isAppliedTactic) {
+            state.isProofComplete = false;
+            state.proofTreeData = null;
 
-        set((state) => {
-          console.log('[deleteTacticCascade] Called with tacticId:', tacticId);
-          console.log('[deleteTacticCascade] All nodes:', state.nodes.map(n => ({
-            id: n.id,
-            type: n.type
-          })));
-          console.log('[deleteTacticCascade] All edges:', state.edges.map(e => ({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            kind: e.data?.kind
-          })));
-
-          // Find the tactic node to get its connected goal
-          const tacticNode = state.nodes.find(n => n.id === tacticId && n.type === 'tactic');
-
-          // Derive parent goal from tactic ID pattern or tactic data
-          // Tactic IDs follow pattern: "tactic-for-{goalId}" or "tactic-completing-{goalId}"
-          let parentGoalId: string | undefined;
-          if (tacticId.startsWith('tactic-for-')) {
-            parentGoalId = tacticId.replace('tactic-for-', '');
-          } else if (tacticId.startsWith('tactic-completing-')) {
-            parentGoalId = tacticId.replace('tactic-completing-', '');
-          } else if (tacticNode?.type === 'tactic') {
-            // Fall back to connectedGoalId from tactic data
-            parentGoalId = (tacticNode.data as { connectedGoalId?: string }).connectedGoalId;
-          }
-          // Also try to find from edges if available
-          if (!parentGoalId && state.edges.length > 0) {
-            const parentEdge = state.edges.find(
-              (e) => e.target === tacticId && e.data?.kind === 'goal-to-tactic'
-            );
-            parentGoalId = parentEdge?.source;
-          }
-          console.log('[deleteTacticCascade] Parent goal ID:', parentGoalId);
-
-          // Helper to get all child node IDs recursively
-          // Uses both edge data AND node parentGoalId for robustness
-          function getDescendantIds(nodeId: string): string[] {
-            const descendants: string[] = [];
-
-            // Method 1: Use edges if available
-            if (state.edges.length > 0) {
-              const childEdges = state.edges.filter((e) => e.source === nodeId);
-              for (const edge of childEdges) {
-                descendants.push(edge.target);
-                descendants.push(...getDescendantIds(edge.target));
+            // 1. Reset ONLY the specific goal connected to this tactic
+            if (parentGoalIdToReset) {
+              const parentGoal = state.nodes.find(
+                (n) => n.id === parentGoalIdToReset,
+              );
+              if (parentGoal && parentGoal.type === "goal") {
+                const goalData = parentGoal.data as GoalNodeData;
+                goalData.status = "pending";
+                goalData.completedBy = undefined;
               }
             }
 
-            // Method 2: Use node data relationships (more robust when edges are empty)
-            // For tactics: find goals whose parentGoalId matches the tactic's parent goal
-            if (nodeId.startsWith('tactic-for-') || nodeId.startsWith('tactic-completing-')) {
-              const tacticParentGoal = nodeId.replace('tactic-for-', '').replace('tactic-completing-', '');
-              console.log(`[getDescendantIds] Looking for child goals of tactic. tacticParentGoal=${tacticParentGoal}`);
-              // Find child goals that were created by this tactic
-              // These are goals whose parentGoalId equals the tactic's parent goal
-              // (because the tactic transforms the parent goal into child goals)
+            // 2. Propagate status changes UP the tree (Negative & Positive propagation)
+            // If a child becomes pending, the parent must become pending.
+            // If all children become done, the parent becomes completed.
+            let changed = true;
+            // Limit iterations to prevent infinite loops in case of cycles (though trees strictly acyclic here)
+            let iterations = 0;
+            while (changed && iterations < 50) {
+              changed = false;
+              iterations++;
+
               for (const node of state.nodes) {
-                if (node.type === 'goal') {
-                  const goalData = node.data as { parentGoalId?: string };
-                  console.log(`[getDescendantIds] Checking goal ${node.id}: parentGoalId=${goalData.parentGoalId}`);
-                  if (node.id !== tacticParentGoal && goalData.parentGoalId === tacticParentGoal && !descendants.includes(node.id)) {
-                    console.log(`[getDescendantIds] Found child goal: ${node.id}`);
-                    descendants.push(node.id);
-                    descendants.push(...getDescendantIds(node.id));
+                if (node.type !== "goal") continue;
+                const goalData = node.data as GoalNodeData;
+
+                // Skip explicitly marked 'todo' roots (they are "done" by definition locally)
+                if (goalData.status === "todo") continue;
+
+                // Find applied tactic
+                const tacticEdge = state.edges.find(
+                  (e) =>
+                    e.source === node.id && e.data?.kind === "goal-to-tactic",
+                );
+
+                if (!tacticEdge) {
+                  // No tactic? Should be pending.
+                  if (goalData.status !== "pending") {
+                    goalData.status = "pending";
+                    changed = true;
                   }
+                  continue;
                 }
-              }
-            }
 
-            // For goals: find tactics that are connected to this goal
-            if (nodeId.startsWith('goal')) {
-              for (const node of state.nodes) {
-                if (node.type === 'tactic') {
-                  const tacticData = node.data as { connectedGoalId?: string };
-                  if (tacticData.connectedGoalId === nodeId && !descendants.includes(node.id)) {
-                    descendants.push(node.id);
-                    descendants.push(...getDescendantIds(node.id));
+                const tacticId = tacticEdge.target;
+                const tacticNode = state.nodes.find((n) => n.id === tacticId);
+                // If tactic missing or not applied -> pending
+                // (Unless it's a incomplete tactic node... but status check handles that)
+                if (
+                  !tacticNode ||
+                  (tacticNode.data as TacticNodeData).status !== "applied"
+                ) {
+                  if (goalData.status !== "pending") {
+                    goalData.status = "pending";
+                    changed = true;
                   }
-                  // Also check ID pattern
-                  if (node.id === `tactic-for-${nodeId}` || node.id === `tactic-completing-${nodeId}`) {
-                    if (!descendants.includes(node.id)) {
-                      descendants.push(node.id);
-                      descendants.push(...getDescendantIds(node.id));
+                  continue;
+                }
+
+                // Check subgoals
+                const childEdges = state.edges.filter(
+                  (e) =>
+                    e.source === tacticId && e.data?.kind === "tactic-to-goal",
+                );
+
+                if (childEdges.length > 0) {
+                  const allChildrenDone = childEdges.every((edge) => {
+                    const childNode = state.nodes.find(
+                      (n) => n.id === edge.target,
+                    );
+                    const s = (childNode?.data as GoalNodeData)?.status;
+                    return s === "completed" || s === "todo";
+                  });
+
+                  if (allChildrenDone) {
+                    if (goalData.status !== "completed") {
+                      goalData.status = "completed";
+                      changed = true;
+                    }
+                  } else {
+                    if (goalData.status === "completed") {
+                      goalData.status = "pending";
+                      changed = true;
                     }
                   }
                 }
+                // (If childEdges.length === 0, it's a leaf tactic like 'exact', status remains as set by worker/logic)
               }
             }
-
-            console.log(`[getDescendantIds] Node ${nodeId} descendants:`, descendants);
-            return [...new Set(descendants)]; // Remove duplicates
           }
-
-          // Get all descendant nodes to delete
-          const nodesToDelete = new Set([tacticId, ...getDescendantIds(tacticId)]);
-          console.log('[deleteTacticCascade] Nodes to delete:', Array.from(nodesToDelete));
-
-          // Remove all descendant nodes
-          state.nodes = state.nodes.filter((n) => !nodesToDelete.has(n.id));
-
-          // Remove all edges connected to deleted nodes
-          state.edges = state.edges.filter(
-            (e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target)
-          );
-
-          // Revert parent goal to 'pending' status
-          if (parentGoalId) {
-            const parentGoal = state.nodes.find((n) => n.id === parentGoalId);
-            if (parentGoal && parentGoal.type === 'goal') {
-              (parentGoal as GoalNode).data.status = 'pending';
-              (parentGoal as GoalNode).data.completedBy = undefined;
-            }
-          }
-
-          // Update proof completion status
-          const pendingGoals = state.nodes.filter(
-            (n): n is GoalNode => n.type === 'goal' && n.data.status === 'pending'
-          );
-          state.isProofComplete = pendingGoals.length === 0;
-
-          // Clear proof tree data since it's no longer valid
-          state.proofTreeData = null;
         });
       },
 
@@ -280,22 +250,22 @@ export const useProofStore = create<ProofStore>()(
           let targetHandle: string | undefined;
 
           switch (data.kind) {
-            case 'goal-to-tactic':
-              sourceHandle = 'goal-output';
-              targetHandle = 'goal-input';
+            case "goal-to-tactic":
+              sourceHandle = "goal-output";
+              targetHandle = "goal-input";
               break;
-            case 'tactic-to-goal':
-              sourceHandle = 'tactic-output';
-              targetHandle = 'goal-input';
+            case "tactic-to-goal":
+              sourceHandle = "tactic-output";
+              targetHandle = "goal-input";
               break;
-            case 'context-to-tactic':
+            case "context-to-tactic":
               // Source is the context variable handle on the goal
               sourceHandle = `ctx-${data.contextVarId}`;
-              targetHandle = 'context-input';
+              targetHandle = "context-input";
               break;
-            case 'lemma-to-tactic':
-              sourceHandle = 'lemma-output';
-              targetHandle = 'context-input';
+            case "lemma-to-tactic":
+              sourceHandle = "lemma-output";
+              targetHandle = "context-input";
               break;
           }
 
@@ -317,118 +287,152 @@ export const useProofStore = create<ProofStore>()(
         });
       },
 
+      /**
+       * Delete a tactic node and cascade delete all downstream nodes.
+       * Also reverts the parent goal to 'pending' status.
+       * Saves a snapshot before deletion for undo support.
+       */
+      deleteTacticCascade: (tacticId: string) => {
+        // Save snapshot BEFORE deletion for undo
+        get().saveSnapshot();
+
+        set((state) => {
+          // Find the tactic node
+          const tacticNode = state.nodes.find((n) => n.id === tacticId && n.type === "tactic");
+
+          // Derive parent goal from tactic ID pattern
+          let parentGoalId: string | undefined;
+          if (tacticId.startsWith("tactic-for-")) {
+            parentGoalId = tacticId.replace("tactic-for-", "");
+          } else if (tacticId.startsWith("tactic-completing-")) {
+            parentGoalId = tacticId.replace("tactic-completing-", "");
+          } else if (tacticNode?.type === "tactic") {
+            parentGoalId = (tacticNode.data as TacticNodeData).connectedGoalId;
+          }
+
+          // Helper to get all child node IDs recursively
+          const getDescendantIds = (nodeId: string): string[] => {
+            const descendants: string[] = [];
+            const childEdges = state.edges.filter((e) => e.source === nodeId);
+            for (const edge of childEdges) {
+              descendants.push(edge.target);
+              descendants.push(...getDescendantIds(edge.target));
+            }
+            return [...new Set(descendants)];
+          };
+
+          // Get all descendant nodes to delete
+          const nodesToDelete = new Set([tacticId, ...getDescendantIds(tacticId)]);
+
+          // Remove all descendant nodes
+          state.nodes = state.nodes.filter((n) => !nodesToDelete.has(n.id));
+
+          // Remove all edges connected to deleted nodes
+          state.edges = state.edges.filter(
+            (e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target),
+          );
+
+          // Revert parent goal to 'pending' status
+          if (parentGoalId) {
+            const parentGoal = state.nodes.find((n) => n.id === parentGoalId);
+            if (parentGoal && parentGoal.type === "goal") {
+              (parentGoal.data as GoalNodeData).status = "pending";
+              (parentGoal.data as GoalNodeData).completedBy = undefined;
+            }
+          }
+
+          // Invalidate proof state
+          state.isProofComplete = false;
+          state.proofTreeData = null;
+        });
+      },
+
       // ================================================
       // Sync from Worker
       // ================================================
 
-      syncFromWorker: (proofTree: ProofTreeData, sessionId: string, claimName?: string) => {
+      syncFromWorker: (
+        proofTree: ProofTreeData,
+        sessionId: string,
+        claimName?: string,
+      ) => {
         const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
         const { manualPositions } = get();
 
-        // DEBUG: Log manual positions state
-        console.log(`[syncFromWorker] manualPositions size: ${manualPositions.size}`);
-        console.log(`[syncFromWorker] manualPositions entries:`, Array.from(manualPositions.entries()));
-        console.log(`[syncFromWorker] new node IDs:`, nodes.map(n => n.id));
-
-        // Get the high water mark for this session
-        const currentHighWaterMark = sessionEdgeHighWaterMark.get(sessionId) ?? 0;
-
-        // Update high water mark if this sync has more edges
-        if (edges.length > currentHighWaterMark) {
-          sessionEdgeHighWaterMark.set(sessionId, edges.length);
-        }
-
-        // Guard against stale syncs: if we've seen more edges for this session before,
-        // skip this sync (it's a stale result from StrictMode or async race conditions)
-        const newHighWaterMark = sessionEdgeHighWaterMark.get(sessionId) ?? 0;
-        console.log(`[syncFromWorker] sessionId=${sessionId}, edges=${edges.length}, highWaterMark=${newHighWaterMark}`);
-        if (edges.length < newHighWaterMark) {
-          console.log(`[syncFromWorker] Skipping stale sync (edges=${edges.length} < highWaterMark=${newHighWaterMark})`);
-          return;
-        }
-
         // Build a map of node IDs to their auto-calculated positions
         const autoPositions = new Map<string, { x: number; y: number }>();
-        nodes.forEach(node => {
+        nodes.forEach((node) => {
           autoPositions.set(node.id, { ...node.position });
         });
 
         // Build parent-child relationships from edges
-        // tactic-to-goal edges connect tactics to their child goals
         const parentMap = new Map<string, string>(); // childId -> parentTacticId
-        edges.forEach(edge => {
-          if (edge.data?.kind === 'tactic-to-goal') {
-            parentMap.set(edge.target, edge.source); // child goal -> parent tactic
+        edges.forEach((edge) => {
+          if (edge.data?.kind === "tactic-to-goal") {
+            parentMap.set(edge.target, edge.source);
           }
         });
 
-        // First pass: calculate position deltas for nodes with manual positions
+        // Calculate position deltas for nodes with manual positions
         const positionDeltas = new Map<string, { dx: number; dy: number }>();
-        nodes.forEach(node => {
+        nodes.forEach((node) => {
           const manualPos = manualPositions.get(node.id);
           if (manualPos) {
             const autoPos = autoPositions.get(node.id)!;
             positionDeltas.set(node.id, {
               dx: manualPos.x - autoPos.x,
-              dy: manualPos.y - autoPos.y
+              dy: manualPos.y - autoPos.y,
             });
           }
         });
 
-        // Second pass: apply manual positions and offset children
-        const mergedNodes = nodes.map(node => {
+        // Apply manual positions and offset children
+        const mergedNodes = nodes.map((node) => {
           const manualPos = manualPositions.get(node.id);
           if (manualPos) {
-            console.log(`[syncFromWorker] ✅ Preserving manual position for ${node.id}:`, manualPos);
             return { ...node, position: manualPos };
           }
 
-          // Check if this node's parent (tactic) has been manually positioned
+          // Check if this node's parent has been manually positioned
           const parentTacticId = parentMap.get(node.id);
           if (parentTacticId) {
             const parentDelta = positionDeltas.get(parentTacticId);
             if (parentDelta) {
-              // Offset this child by the parent's position delta
-              const offsetPosition = {
-                x: node.position.x + parentDelta.dx,
-                y: node.position.y + parentDelta.dy
+              return {
+                ...node,
+                position: {
+                  x: node.position.x + parentDelta.dx,
+                  y: node.position.y + parentDelta.dy,
+                },
               };
-              console.log(`[syncFromWorker] 📍 Offsetting child ${node.id} by parent delta:`, parentDelta, '-> new position:', offsetPosition);
-              return { ...node, position: offsetPosition };
             }
           }
 
-          // Also check if this is a tactic and its parent goal has been moved
-          if (node.id.startsWith('tactic-for-') || node.id.startsWith('tactic-completing-')) {
-            // Extract the goal ID from tactic ID
-            const goalId = node.id.replace('tactic-for-', '').replace('tactic-completing-', '');
+          // Check if this is a tactic and its parent goal has been moved
+          if (node.id.startsWith("tactic-for-") || node.id.startsWith("tactic-completing-")) {
+            const goalId = node.id.replace("tactic-for-", "").replace("tactic-completing-", "");
             const parentDelta = positionDeltas.get(goalId);
             if (parentDelta) {
-              const offsetPosition = {
-                x: node.position.x + parentDelta.dx,
-                y: node.position.y + parentDelta.dy
+              return {
+                ...node,
+                position: {
+                  x: node.position.x + parentDelta.dx,
+                  y: node.position.y + parentDelta.dy,
+                },
               };
-              console.log(`[syncFromWorker] 📍 Offsetting tactic ${node.id} by goal delta:`, parentDelta, '-> new position:', offsetPosition);
-              return { ...node, position: offsetPosition };
             }
           }
 
-          console.log(`[syncFromWorker] ❌ No manual position for ${node.id}, using auto:`, node.position);
           return node;
         });
 
         set((state) => {
-          console.log(`[syncFromWorker] nodeCount=${mergedNodes.length}, edgeCount=${edges.length}`);
-          if (edges.length > 0) {
-            console.log('[syncFromWorker] edges:', JSON.stringify(edges.map(e => ({ id: e.id, source: e.source, target: e.target, kind: e.data?.kind }))));
-          }
           state.nodes = mergedNodes;
           state.edges = edges;
           state.sessionId = sessionId;
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
           state.lastSyncedState = { nodes: mergedNodes, edges };
-          // Store proof tree data for script generation
           state.proofTreeData = proofTree;
           if (claimName) {
             state.claimName = claimName;
@@ -443,32 +447,43 @@ export const useProofStore = create<ProofStore>()(
       },
 
       // ================================================
-      // History (Undo/Redo) - Delegates to history-store
+      // History (Undo/Redo)
       // ================================================
 
       saveSnapshot: () => {
-        const state = get();
-        useHistoryStore.getState().saveSnapshot(state.nodes, state.edges);
+        set((state) => {
+          const snapshot = {
+            nodes: JSON.parse(JSON.stringify(state.nodes)) as ProofNode[],
+            edges: JSON.parse(JSON.stringify(state.edges)) as ProofEdge[],
+            timestamp: Date.now(),
+          };
+          // Truncate any redo history
+          state.history = state.history.slice(0, state.historyIndex + 1);
+          state.history.push(snapshot);
+          state.historyIndex = state.history.length - 1;
+        });
       },
 
       undo: () => {
-        const snapshot = useHistoryStore.getState().undo();
-        if (snapshot) {
-          set((state) => {
+        set((state) => {
+          if (state.historyIndex > 0) {
+            state.historyIndex -= 1;
+            const snapshot = state.history[state.historyIndex];
             state.nodes = snapshot.nodes;
             state.edges = snapshot.edges;
-          });
-        }
+          }
+        });
       },
 
       redo: () => {
-        const snapshot = useHistoryStore.getState().redo();
-        if (snapshot) {
-          set((state) => {
+        set((state) => {
+          if (state.historyIndex < state.history.length - 1) {
+            state.historyIndex += 1;
+            const snapshot = state.history[state.historyIndex];
             state.nodes = snapshot.nodes;
             state.edges = snapshot.edges;
-          });
-        }
+          }
+        });
       },
 
       // ================================================
@@ -477,33 +492,150 @@ export const useProofStore = create<ProofStore>()(
 
       checkProofComplete: () => {
         set((state) => {
+          // Helper to recursively check if a goal and all its descendants are done (completed or todo)
+          const isGoalDone = (goalId: string): boolean => {
+            const goal = state.nodes.find(
+              (n) => n.id === goalId && n.type === "goal",
+            );
+            if (!goal) return true; // Should not happen
+
+            const goalData = goal.data as GoalNodeData;
+
+            // Base case: If explicitly completed or todo, it's personally done
+            // BUT we must also check if it relies on subgoals (e.g. if it was completed by a tactic that has subgoals)
+
+            // Find the tactic connected to this goal
+            const tacticEdge = state.edges.find(
+              (e) => e.source === goalId && e.data?.kind === "goal-to-tactic",
+            );
+            if (!tacticEdge) {
+              // No tactic applied? Then it's only done if explicitly marked todo
+              // (Ideally 'completed' status implies a tactic was applied, but 'todo' might be standalone)
+              return (
+                goalData.status === "completed" || goalData.status === "todo"
+              );
+            }
+
+            const tacticId = tacticEdge.target;
+            const tacticNode = state.nodes.find((n) => n.id === tacticId);
+
+            // If the tactic is a 'todo' tactic, this branch is done
+            if (
+              tacticNode &&
+              (tacticNode.data as TacticNodeData).tacticType === "todo"
+            ) {
+              return true;
+            }
+
+            // Otherwise, check all subgoals generated by this tactic
+            const subgoalEdges = state.edges.filter(
+              (e) => e.source === tacticId && e.data?.kind === "tactic-to-goal",
+            );
+
+            if (subgoalEdges.length === 0) {
+              // No subgoals -> leaf node. Is it completed?
+              return goalData.status === "completed";
+            }
+
+            // Recursive step: All subgoals must be done
+            const allSubgoalsDone = subgoalEdges.every((edge) =>
+              isGoalDone(edge.target),
+            );
+
+            // If all subgoals are done, we can mark this goal as completed (if not already)
+            // Note: In Redux/Immer we can mutate 'goal' here to propagate status!
+            if (
+              allSubgoalsDone &&
+              goalData.status !== "completed" &&
+              goalData.status !== "todo"
+            ) {
+              // Determine if we should mark as 'completed' (fully solved) or something else?
+              // The request says "if a goal has all subgoals either marked as todo or completed then that goal is completed"
+              // We will update the state here to reflect that propagation.
+              goalData.status = "completed";
+            }
+
+            return allSubgoalsDone;
+          };
+
+          // Re-evaluate the root goal (or all top-level goals)
+          // We'll iterate all goals to propagate, starting from leaves effectively by recursion
+          // But since we can't easily topologically sort, let's just re-check "completeness" of the whole proof
+          // The request specifically asks to propagate info upwards.
+
+          // A simpler approach for the store property is:
+          // A proof is complete if ALL pending goals are gone.
+          // BUT we now have 'todo' goals which are "done" in terms of blocking, but valid logic?
+          // The requirements:
+          // 1. "if a goal has all subgoals either marked as todo or completed then that goal is completed"
+
+          // We need to implement a bottom-up propagation or repeated passes.
+          // Let's do a multi-pass propagation until stable, since the tree depth is small.
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const node of state.nodes) {
+              if (node.type === "goal") {
+                const goalData = node.data as GoalNodeData;
+                if (
+                  goalData.status === "completed" ||
+                  goalData.status === "todo"
+                )
+                  continue;
+
+                // Find applied tactic
+                const tacticEdge = state.edges.find(
+                  (e) =>
+                    e.source === node.id && e.data?.kind === "goal-to-tactic",
+                );
+                if (!tacticEdge) continue; // No tactic, still pending
+
+                const tacticId = tacticEdge.target;
+                const childEdges = state.edges.filter(
+                  (e) =>
+                    e.source === tacticId && e.data?.kind === "tactic-to-goal",
+                );
+
+                if (childEdges.length > 0) {
+                  const allChildrenDone = childEdges.every((edge) => {
+                    const childNode = state.nodes.find(
+                      (n) => n.id === edge.target,
+                    );
+                    const childStatus = (childNode?.data as GoalNodeData)
+                      ?.status;
+                    return (
+                      childStatus === "completed" || childStatus === "todo"
+                    );
+                  });
+
+                  if (allChildrenDone) {
+                    goalData.status = "completed";
+                    changed = true;
+                  }
+                }
+              }
+            }
+          }
+
+          // Finally, check if the entire proof is arguably "complete" (no pending goals remained)
+          // We consider 'todo' as valid termination for "completing" the interaction, even if logically incomplete.
           const pendingGoals = state.nodes.filter(
             (n): n is GoalNode =>
-              n.type === 'goal' && n.data.status === 'pending'
+              n.type === "goal" && n.data.status === "pending",
           );
           state.isProofComplete = pendingGoals.length === 0;
         });
       },
 
       reset: () => {
-        set(() => ({ ...initialState, manualPositions: new Map() }));
-        useHistoryStore.getState().reset();
-        useMetadataStore.getState().reset();
-        // Clear high water marks for all sessions
-        sessionEdgeHighWaterMark.clear();
-      },
-
-      // Delegates to metadata-store for backwards compatibility
-      setGlobalContext: (context) => {
-        useMetadataStore.getState().setGlobalContext(context);
-        // Also keep in local state for backwards compatibility during transition
-        set((state) => {
-          state.globalContext = context;
-        });
+        set(() => ({
+          ...initialState,
+          manualPositions: new Map(),
+        }));
       },
 
       // ================================================
-      // Manual Position Management
+      // Position Management
       // ================================================
 
       setManualPosition: (nodeId: string, position: { x: number; y: number }) => {
@@ -515,18 +647,6 @@ export const useProofStore = create<ProofStore>()(
       clearManualPositions: () => {
         set((state) => {
           state.manualPositions.clear();
-          // Re-layout nodes by recalculating from proof tree data
-          if (state.proofTreeData) {
-            const { nodes } = convertProofTreeToReactFlow(state.proofTreeData);
-            state.nodes = nodes.map(newNode => {
-              // Preserve node data from current state, only update position
-              const existingNode = state.nodes.find(n => n.id === newNode.id);
-              if (existingNode) {
-                return { ...existingNode, position: newNode.position };
-              }
-              return newNode;
-            });
-          }
         });
       },
 
@@ -536,48 +656,80 @@ export const useProofStore = create<ProofStore>()(
 
       onNodesChange: (changes: NodeChange<ProofNode>[]) => {
         set((state) => {
-          // Track manual positions when user finishes dragging
-          for (const change of changes) {
-            if (change.type === 'position') {
-              // Log all position changes to debug
-              console.log(`[onNodesChange] Position change for ${change.id}:`, {
-                position: change.position,
-                dragging: change.dragging,
-                positionAbsolute: (change as any).positionAbsolute
-              });
+          // Handle side effects for removed nodes
+          const removedIds = changes
+            .filter((c) => c.type === "remove")
+            .map((c) => c.id);
 
-              // Track position during dragging (position is available while dragging)
-              if (change.position && change.dragging === true) {
+          if (removedIds.length > 0) {
+            // Find nodes that are about to be removed
+            const removedNodes = state.nodes.filter((n) =>
+              removedIds.includes(n.id),
+            );
+
+            // Check if any applied tactic is being removed
+            const isAppliedTactic = removedNodes.some(
+              (n) =>
+                n.type === "tactic" &&
+                (n.data as TacticNodeData).status === "applied",
+            );
+
+            // Cleanup edges connected to removed nodes
+            state.edges = state.edges.filter(
+              (e) =>
+                !removedIds.includes(e.source) &&
+                !removedIds.includes(e.target),
+            );
+
+            // If we removed an applied tactic, invalidate proof and reset goals
+            if (isAppliedTactic) {
+              state.isProofComplete = false;
+              state.proofTreeData = null;
+
+              // Also update any goal nodes that were marked complete/todo by this tactic
+              // to be pending again.
+              // Note: Currently we reset ALL goals on any tactic removal because we operate
+              // on a simplistic invalidation model. Ideally we'd only invalidate the subtree.
+              for (const node of state.nodes) {
+                if (node.type === "goal") {
+                  const goalData = node.data as GoalNodeData;
+                  if (
+                    goalData.status === "completed" ||
+                    goalData.status === "todo"
+                  ) {
+                    goalData.status = "pending";
+                    goalData.completedBy = undefined;
+                  }
+                }
+              }
+            }
+          }
+
+          // Track position changes for manual position preservation
+          for (const change of changes) {
+            if (change.type === "position" && change.position) {
+              // Track position during drag
+              if (change.dragging === true) {
                 draggingPositions.set(change.id, { ...change.position });
               }
-
-              // When drag ends, save the last known position to manualPositions
+              // On drag end, save to manualPositions
               if (change.dragging === false) {
-                // Try to use position from this change, or fall back to tracked position
                 const finalPosition = change.position || draggingPositions.get(change.id);
                 if (finalPosition) {
-                  console.log(`[onNodesChange] ✅ Saving manual position for ${change.id}:`, finalPosition);
                   state.manualPositions.set(change.id, { ...finalPosition });
-                  console.log(`[onNodesChange] manualPositions now has ${state.manualPositions.size} entries:`,
-                    Array.from(state.manualPositions.entries()));
-                } else {
-                  console.log(`[onNodesChange] ⚠️ No position available for ${change.id} on drag end`);
                 }
-                // Clean up tracking
                 draggingPositions.delete(change.id);
               }
             }
           }
+
           state.nodes = applyNodeChanges(changes, state.nodes) as ProofNode[];
         });
       },
 
       onEdgesChange: (changes: EdgeChange<ProofEdge>[]) => {
-        console.log('[onEdgesChange] Received changes:', changes);
         set((state) => {
-          const beforeCount = state.edges.length;
           state.edges = applyEdgeChanges(changes, state.edges) as ProofEdge[];
-          console.log('[onEdgesChange] Edge count:', beforeCount, '->', state.edges.length);
         });
       },
 
@@ -586,15 +738,24 @@ export const useProofStore = create<ProofStore>()(
         const sourceNode = state.nodes.find((n) => n.id === connection.source);
         const targetNode = state.nodes.find((n) => n.id === connection.target);
 
-        if (sourceNode && targetNode && connection.source && connection.target) {
-          const edgeData = getConnectionData(sourceNode, targetNode, connection);
+        if (
+          sourceNode &&
+          targetNode &&
+          connection.source &&
+          connection.target
+        ) {
+          const edgeData = getConnectionData(
+            sourceNode,
+            targetNode,
+            connection,
+          );
           if (edgeData) {
             get().connectNodes(connection.source, connection.target, edgeData);
           }
         }
       },
-    }))
-  )
+    })),
+  ),
 );
 
 /**
@@ -603,30 +764,30 @@ export const useProofStore = create<ProofStore>()(
 function getConnectionData(
   source: ProofNode,
   target: ProofNode,
-  connection: Connection
+  connection: Connection,
 ): ProofEdgeData | null {
   // Goal → Tactic (from goal-output or context handle)
-  if (source.type === 'goal' && target.type === 'tactic') {
+  if (source.type === "goal" && target.type === "tactic") {
     // Check if this is a context-to-tactic connection
-    if (connection.sourceHandle?.startsWith('ctx-')) {
-      const contextVarId = connection.sourceHandle.replace('ctx-', '');
+    if (connection.sourceHandle?.startsWith("ctx-")) {
+      const contextVarId = connection.sourceHandle.replace("ctx-", "");
       return {
-        kind: 'context-to-tactic',
+        kind: "context-to-tactic",
         contextVarId,
       };
     }
     // Regular goal-to-tactic connection
-    return { kind: 'goal-to-tactic' };
+    return { kind: "goal-to-tactic" };
   }
 
   // Tactic → Goal
-  if (source.type === 'tactic' && target.type === 'goal') {
-    return { kind: 'tactic-to-goal' };
+  if (source.type === "tactic" && target.type === "goal") {
+    return { kind: "tactic-to-goal" };
   }
 
   // Lemma → Tactic
-  if (source.type === 'lemma' && target.type === 'tactic') {
-    return { kind: 'lemma-to-tactic' };
+  if (source.type === "lemma" && target.type === "tactic") {
+    return { kind: "lemma-to-tactic" };
   }
 
   // Invalid connection
@@ -639,7 +800,7 @@ function getConnectionData(
  */
 export function isValidConnection(
   connection: Connection,
-  nodes: ProofNode[]
+  nodes: ProofNode[],
 ): boolean {
   const sourceNode = nodes.find((n) => n.id === connection.source);
   const targetNode = nodes.find((n) => n.id === connection.target);
@@ -647,23 +808,32 @@ export function isValidConnection(
   if (!sourceNode || !targetNode) return false;
 
   // Goal → Tactic: goal-output or ctx-* handle to goal-input or context-input
-  if (sourceNode.type === 'goal' && targetNode.type === 'tactic') {
+  if (sourceNode.type === "goal" && targetNode.type === "tactic") {
     // Context handle to context-input
-    if (connection.sourceHandle?.startsWith('ctx-')) {
-      return connection.targetHandle === 'context-input';
+    if (connection.sourceHandle?.startsWith("ctx-")) {
+      return connection.targetHandle === "context-input";
     }
     // Goal output to goal input
-    return connection.sourceHandle === 'goal-output' && connection.targetHandle === 'goal-input';
+    return (
+      connection.sourceHandle === "goal-output" &&
+      connection.targetHandle === "goal-input"
+    );
   }
 
   // Tactic → Goal: tactic-output to goal-input
-  if (sourceNode.type === 'tactic' && targetNode.type === 'goal') {
-    return connection.sourceHandle === 'tactic-output' && connection.targetHandle === 'goal-input';
+  if (sourceNode.type === "tactic" && targetNode.type === "goal") {
+    return (
+      connection.sourceHandle === "tactic-output" &&
+      connection.targetHandle === "goal-input"
+    );
   }
 
   // Lemma → Tactic: lemma-output to context-input
-  if (sourceNode.type === 'lemma' && targetNode.type === 'tactic') {
-    return connection.sourceHandle === 'lemma-output' && connection.targetHandle === 'context-input';
+  if (sourceNode.type === "lemma" && targetNode.type === "tactic") {
+    return (
+      connection.sourceHandle === "lemma-output" &&
+      connection.targetHandle === "context-input"
+    );
   }
 
   // All other combinations are invalid
@@ -675,14 +845,29 @@ export const useProofNodes = () => useProofStore((s) => s.nodes);
 export const useProofEdges = () => useProofStore((s) => s.edges);
 export const useIsProofComplete = () => useProofStore((s) => s.isProofComplete);
 export const useSessionId = () => useProofStore((s) => s.sessionId);
-export const useGlobalContext = () => useProofStore((s) => s.globalContext);
 export const useProofTreeData = () => useProofStore((s) => s.proofTreeData);
+export const useClaimName = () => useProofStore((s) => s.claimName);
 export const useClaimNameFromProof = () => useProofStore((s) => s.claimName);
-export const useClearManualPositions = () => useProofStore((s) => s.clearManualPositions);
-export const useHasManualPositions = () => useProofStore((s) => s.manualPositions.size > 0);
+
+// Global context selector (builds context from root goal)
+export const useGlobalContext = () =>
+  useProofStore((s) => {
+    const rootGoal = s.nodes.find(
+      (n) => n.type === "goal" && n.id === s.rootGoalId,
+    );
+    if (!rootGoal) return [];
+    return (rootGoal.data as import("./types").GoalNodeData).context || [];
+  });
+
+// Position management selectors
+export const useHasManualPositions = () =>
+  useProofStore((s) => s.manualPositions.size > 0);
+export const useClearManualPositions = () =>
+  useProofStore((s) => s.clearManualPositions);
 
 // Selector for generated proof script
-export const useGeneratedProofScript = () => useProofStore((s) => {
-  if (!s.proofTreeData || !s.claimName) return null;
-  return generateProofScript(s.proofTreeData, s.claimName);
-});
+export const useGeneratedProofScript = () =>
+  useProofStore((s) => {
+    if (!s.proofTreeData || !s.claimName) return null;
+    return generateProofScript(s.proofTreeData, s.claimName);
+  });

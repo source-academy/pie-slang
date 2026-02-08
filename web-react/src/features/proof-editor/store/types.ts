@@ -1,4 +1,10 @@
-import type { Node, Edge, NodeChange, EdgeChange, Connection } from '@xyflow/react';
+import type {
+  Node,
+  Edge,
+  NodeChange,
+  EdgeChange,
+  Connection,
+} from "@xyflow/react";
 
 // ============================================
 // Context & Scope Types
@@ -6,10 +12,10 @@ import type { Node, Edge, NodeChange, EdgeChange, Connection } from '@xyflow/rea
 
 export interface ContextEntry {
   id: string;
-  name: string;           // Variable name (e.g., "n")
-  type: string;           // Type expression (e.g., "Nat")
-  origin: 'inherited' | 'introduced';
-  introducedBy?: string;  // Tactic node ID that introduced this
+  name: string; // Variable name (e.g., "n")
+  type: string; // Type expression (e.g., "Nat")
+  origin: "inherited" | "introduced";
+  introducedBy?: string; // Tactic node ID that introduced this
 }
 
 // ============================================
@@ -17,27 +23,26 @@ export interface ContextEntry {
 // ============================================
 
 export type TacticType =
-  | 'intro'
-  | 'exact'
-  | 'exists'
-  | 'split'
-  | 'left'
-  | 'right'
-  | 'elimNat'
-  | 'elimList'
-  | 'elimVec'
-  | 'elimEither'
-  | 'elimEqual'
-  | 'elimAbsurd'
-  | 'apply';
+  | "intro"
+  | "exact"
+  | "split"
+  | "left"
+  | "right"
+  | "elimNat"
+  | "elimList"
+  | "elimVec"
+  | "elimEither"
+  | "elimEqual"
+  | "elimAbsurd"
+  | "apply"
+  | "todo";
 
 export interface TacticParameters {
-  variableName?: string;      // For intro
-  targetContextId?: string;   // For elim tactics
-  expression?: string;        // For exact, exists, apply, elimEqual motive
-  lemmaId?: string;           // For apply
-  lengthExpression?: string;  // For elimVec (optional length expression)
-  [key: string]: unknown;     // Index signature for React Flow compatibility
+  variableName?: string; // For intro
+  targetContextId?: string; // For elim tactics
+  expression?: string; // For exact
+  lemmaId?: string; // For apply
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 // ============================================
@@ -46,14 +51,13 @@ export interface TacticParameters {
 // ============================================
 
 export interface GoalNodeData {
-  kind: 'goal';
-  goalType: string;           // The type to prove (may be sugared)
-  expandedGoalType?: string;  // Full expanded type (only set if different from goalType)
-  context: ContextEntry[];    // Scoped context for this goal
-  status: 'pending' | 'in-progress' | 'completed';
-  parentGoalId?: string;      // For scope inheritance
-  completedBy?: string;       // Tactic that solved this goal
-  [key: string]: unknown;     // Index signature for React Flow compatibility
+  kind: "goal";
+  goalType: string; // The type to prove
+  context: ContextEntry[]; // Scoped context for this goal
+  status: "pending" | "in-progress" | "completed" | "todo";
+  parentGoalId?: string; // For scope inheritance
+  completedBy?: string; // Tactic that solved this goal
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 /**
@@ -63,34 +67,34 @@ export interface GoalNodeData {
  * - 'applied': Successfully applied to a goal, child goals created
  * - 'error': Tactic application failed (type error, invalid goal, etc.)
  */
-export type TacticNodeStatus = 'incomplete' | 'ready' | 'applied' | 'error';
+export type TacticNodeStatus = "incomplete" | "ready" | "applied" | "error";
 
 export interface TacticNodeData {
-  kind: 'tactic';
+  kind: "tactic";
   tacticType: TacticType;
   displayName: string;
   parameters: TacticParameters;
   status: TacticNodeStatus;
-  connectedGoalId?: string;   // Which goal this tactic is connected to
-  errorMessage?: string;      // Error message when status is 'error'
-  [key: string]: unknown;     // Index signature for React Flow compatibility
+  connectedGoalId?: string; // Which goal this tactic is connected to
+  errorMessage?: string; // Error message when status is 'error'
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 export interface LemmaNodeData {
-  kind: 'lemma';
+  kind: "lemma";
   name: string;
   type: string;
-  source: 'definition' | 'claim' | 'proven';
-  [key: string]: unknown;     // Index signature for React Flow compatibility
+  source: "definition" | "claim" | "proven";
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 // ============================================
 // React Flow Node Union Types
 // ============================================
 
-export type GoalNode = Node<GoalNodeData, 'goal'>;
-export type TacticNode = Node<TacticNodeData, 'tactic'>;
-export type LemmaNode = Node<LemmaNodeData, 'lemma'>;
+export type GoalNode = Node<GoalNodeData, "goal">;
+export type TacticNode = Node<TacticNodeData, "tactic">;
+export type LemmaNode = Node<LemmaNodeData, "lemma">;
 
 export type ProofNode = GoalNode | TacticNode | LemmaNode;
 
@@ -99,10 +103,14 @@ export type ProofNode = GoalNode | TacticNode | LemmaNode;
 // ============================================
 
 export interface ProofEdgeData {
-  kind: 'goal-to-tactic' | 'tactic-to-goal' | 'lemma-to-tactic' | 'context-to-tactic';
-  outputIndex?: number;       // Which output port of tactic
-  contextVarId?: string;      // Which context variable (for context-to-tactic edges)
-  [key: string]: unknown;     // Index signature for React Flow compatibility
+  kind:
+    | "goal-to-tactic"
+    | "tactic-to-goal"
+    | "lemma-to-tactic"
+    | "context-to-tactic";
+  outputIndex?: number; // Which output port of tactic
+  contextVarId?: string; // Which context variable (for context-to-tactic edges)
+  [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
 export type ProofEdge = Edge<ProofEdgeData>;
@@ -111,7 +119,11 @@ export type ProofEdge = Edge<ProofEdgeData>;
 // Handle (Port) Types
 // ============================================
 
-export type HandleType = 'goal-input' | 'goal-output' | 'theorem-input' | 'theorem-output';
+export type HandleType =
+  | "goal-input"
+  | "goal-output"
+  | "theorem-input"
+  | "theorem-output";
 
 // ============================================
 // History Types
@@ -140,39 +152,55 @@ export interface ProofState {
   sessionId: string | null;
   lastSyncedState: { nodes: ProofNode[]; edges: ProofEdge[] } | null;
 
-  // Global context (definitions/theorems from source code)
-  globalContext: {
-    definitions: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
-    theorems: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
-  };
-
-  // Proof tree data for script generation (from upstream)
-  proofTreeData: import('@/workers/proof-worker').ProofTreeData | null;
+  // Proof tree data for script generation
+  proofTreeData: import("@/workers/proof-worker").ProofTreeData | null;
   claimName: string | null;
 
   // History for undo/redo
   history: ProofSnapshot[];
   historyIndex: number;
 
-  // Manual node positions (preserves user-dragged positions across syncs)
+  // Position preservation
   manualPositions: Map<string, { x: number; y: number }>;
 }
 
 export interface ProofActions {
   // Node operations
-  addGoalNode: (goal: GoalNodeData, position: { x: number; y: number }) => string;
-  addTacticNode: (tactic: TacticNodeData, position: { x: number; y: number }) => string;
-  addLemmaNode: (lemma: LemmaNodeData, position: { x: number; y: number }) => string;
-  updateNode: <T extends ProofNode>(id: string, data: Partial<T['data']>) => void;
+  addGoalNode: (
+    goal: GoalNodeData,
+    position: { x: number; y: number },
+  ) => string;
+  addTacticNode: (
+    tactic: TacticNodeData,
+    position: { x: number; y: number },
+  ) => string;
+  addLemmaNode: (
+    lemma: LemmaNodeData,
+    position: { x: number; y: number },
+  ) => string;
+  updateNode: <T extends ProofNode>(
+    id: string,
+    data: Partial<T["data"]>,
+  ) => void;
   removeNode: (id: string) => void;
-  deleteTacticCascade: (tacticId: string) => void;
 
   // Edge operations
-  connectNodes: (sourceId: string, targetId: string, data: ProofEdgeData) => void;
+  connectNodes: (
+    sourceId: string,
+    targetId: string,
+    data: ProofEdgeData,
+  ) => void;
   removeEdge: (id: string) => void;
 
+  // Cascade delete
+  deleteTacticCascade: (tacticId: string) => void;
+
   // Sync from worker
-  syncFromWorker: (proofTree: import('@/workers/proof-worker').ProofTreeData, sessionId: string, claimName?: string) => void;
+  syncFromWorker: (
+    proofTree: import("@/workers/proof-worker").ProofTreeData,
+    sessionId: string,
+    claimName?: string,
+  ) => void;
 
   // Set claim name (used when starting a session)
   setClaimName: (name: string) => void;
@@ -185,14 +213,13 @@ export interface ProofActions {
   // Proof state
   checkProofComplete: () => void;
   reset: () => void;
-  setGlobalContext: (context: ProofState['globalContext']) => void;
 
   // React Flow handlers
   onNodesChange: (changes: NodeChange<ProofNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<ProofEdge>[]) => void;
   onConnect: (connection: Connection) => void;
 
-  // Manual position management
+  // Position management
   setManualPosition: (nodeId: string, position: { x: number; y: number }) => void;
   clearManualPositions: () => void;
 }
@@ -205,7 +232,7 @@ export type ProofStore = ProofState & ProofActions;
 
 export interface DeleteConfirmation {
   nodeId: string;
-  pendingChanges: NodeChange<ProofNode>[];
+  pendingChanges?: NodeChange<ProofNode>[];
 }
 
 export interface UIState {
