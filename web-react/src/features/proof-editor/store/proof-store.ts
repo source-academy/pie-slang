@@ -121,6 +121,7 @@ export const useProofStore = create<ProofStore>()(
             (nodeToRemove.data as TacticNodeData).status === "applied";
 
           // Capture parent goal ID before deleting edges
+          let parentGoalIdToReset: string | undefined;
           if (isAppliedTactic) {
             const parentEdge = state.edges.find(
               (e) => e.target === id && e.data?.kind === "goal-to-tactic",
@@ -151,6 +152,96 @@ export const useProofStore = create<ProofStore>()(
           if (isAppliedTactic) {
             state.isProofComplete = false;
             state.proofTreeData = null;
+
+            // 1. Reset ONLY the specific goal connected to this tactic
+            if (parentGoalIdToReset) {
+              const parentGoal = state.nodes.find(
+                (n) => n.id === parentGoalIdToReset,
+              );
+              if (parentGoal && parentGoal.type === "goal") {
+                const goalData = parentGoal.data as GoalNodeData;
+                goalData.status = "pending";
+                goalData.completedBy = undefined;
+              }
+            }
+
+            // 2. Propagate status changes UP the tree (Negative & Positive propagation)
+            // If a child becomes pending, the parent must become pending.
+            // If all children become done, the parent becomes completed.
+            let changed = true;
+            // Limit iterations to prevent infinite loops in case of cycles (though trees strictly acyclic here)
+            let iterations = 0;
+            while (changed && iterations < 50) {
+              changed = false;
+              iterations++;
+
+              for (const node of state.nodes) {
+                if (node.type !== "goal") continue;
+                const goalData = node.data as GoalNodeData;
+
+                // Skip explicitly marked 'todo' roots (they are "done" by definition locally)
+                if (goalData.status === "todo") continue;
+
+                // Find applied tactic
+                const tacticEdge = state.edges.find(
+                  (e) =>
+                    e.source === node.id && e.data?.kind === "goal-to-tactic",
+                );
+
+                if (!tacticEdge) {
+                  // No tactic? Should be pending.
+                  if (goalData.status !== "pending") {
+                    goalData.status = "pending";
+                    changed = true;
+                  }
+                  continue;
+                }
+
+                const tacticId = tacticEdge.target;
+                const tacticNode = state.nodes.find((n) => n.id === tacticId);
+                // If tactic missing or not applied -> pending
+                // (Unless it's a incomplete tactic node... but status check handles that)
+                if (
+                  !tacticNode ||
+                  (tacticNode.data as TacticNodeData).status !== "applied"
+                ) {
+                  if (goalData.status !== "pending") {
+                    goalData.status = "pending";
+                    changed = true;
+                  }
+                  continue;
+                }
+
+                // Check subgoals
+                const childEdges = state.edges.filter(
+                  (e) =>
+                    e.source === tacticId && e.data?.kind === "tactic-to-goal",
+                );
+
+                if (childEdges.length > 0) {
+                  const allChildrenDone = childEdges.every((edge) => {
+                    const childNode = state.nodes.find(
+                      (n) => n.id === edge.target,
+                    );
+                    const s = (childNode?.data as GoalNodeData)?.status;
+                    return s === "completed" || s === "todo";
+                  });
+
+                  if (allChildrenDone) {
+                    if (goalData.status !== "completed") {
+                      goalData.status = "completed";
+                      changed = true;
+                    }
+                  } else {
+                    if (goalData.status === "completed") {
+                      goalData.status = "pending";
+                      changed = true;
+                    }
+                  }
+                }
+                // (If childEdges.length === 0, it's a leaf tactic like 'exact', status remains as set by worker/logic)
+              }
+            }
           }
         });
         get().checkProofComplete();
