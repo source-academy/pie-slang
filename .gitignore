@@ -1,5 +1,11 @@
 *.css
 !web-react/*.css
+!web-react/src/**/*.css
+web/*-bundle.js
+web/*-bundle.js.map
+web/app.js.map
+web/lsp/*.js
+web/lsp/*.js.map
 .DS_Store
 *.cjs
 *~
@@ -28,3 +34,4 @@ node_modules
 dist
 dist-*
 /coordination
+/web-react/tsconfig.tsbuildinfo

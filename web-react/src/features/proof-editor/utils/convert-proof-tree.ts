@@ -185,10 +185,12 @@ function traverseTree(
     data: {
       kind: "goal",
       goalType: node.goal.type,
+      expandedGoalType: node.goal.expandedType, // Full expanded type (if different)
       context,
       status,
       parentGoalId: node.goal.parentId,
       completedBy: node.completedBy,
+      isSubtreeComplete: node.isSubtreeComplete,
     },
   };
   nodes.push(goalNode);

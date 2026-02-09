@@ -1,7 +1,7 @@
 import { memo, useCallback } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
-import { Lightbulb, ChevronRight, Check, X, Loader2, Sparkles, Cpu } from 'lucide-react';
+import { ChevronRight, Check, X, Loader2, Sparkles, Cpu } from 'lucide-react';
 import type { HintLevel, ProgressiveHintResponse } from '@/workers/proof-worker';
 import { useHintStore } from '../../store';
 

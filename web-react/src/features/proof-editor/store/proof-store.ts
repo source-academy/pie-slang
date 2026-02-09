@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { subscribeWithSelector } from "zustand/middleware";
+import { enableMapSet } from "immer";
+
+// Enable Map and Set support in immer
+// Required for manualPositions Map to work correctly
+enableMapSet();
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -25,6 +30,9 @@ import { convertProofTreeToReactFlow } from "../utils/convert-proof-tree";
 import { generateProofScript } from "../utils/generate-proof-script";
 import type { ProofTreeData } from "@/workers/proof-worker";
 
+// Track positions during drag (outside store to avoid re-renders)
+const draggingPositions = new Map<string, { x: number; y: number }>();
+
 // Initial state
 const initialState: ProofState = {
   nodes: [],
@@ -37,6 +45,7 @@ const initialState: ProofState = {
   claimName: null,
   history: [],
   historyIndex: -1,
+  manualPositions: new Map(),
 };
 
 /**
@@ -278,6 +287,66 @@ export const useProofStore = create<ProofStore>()(
         });
       },
 
+      /**
+       * Delete a tactic node and cascade delete all downstream nodes.
+       * Also reverts the parent goal to 'pending' status.
+       * Saves a snapshot before deletion for undo support.
+       */
+      deleteTacticCascade: (tacticId: string) => {
+        // Save snapshot BEFORE deletion for undo
+        get().saveSnapshot();
+
+        set((state) => {
+          // Find the tactic node
+          const tacticNode = state.nodes.find((n) => n.id === tacticId && n.type === "tactic");
+
+          // Derive parent goal from tactic ID pattern
+          let parentGoalId: string | undefined;
+          if (tacticId.startsWith("tactic-for-")) {
+            parentGoalId = tacticId.replace("tactic-for-", "");
+          } else if (tacticId.startsWith("tactic-completing-")) {
+            parentGoalId = tacticId.replace("tactic-completing-", "");
+          } else if (tacticNode?.type === "tactic") {
+            parentGoalId = (tacticNode.data as TacticNodeData).connectedGoalId;
+          }
+
+          // Helper to get all child node IDs recursively
+          const getDescendantIds = (nodeId: string): string[] => {
+            const descendants: string[] = [];
+            const childEdges = state.edges.filter((e) => e.source === nodeId);
+            for (const edge of childEdges) {
+              descendants.push(edge.target);
+              descendants.push(...getDescendantIds(edge.target));
+            }
+            return [...new Set(descendants)];
+          };
+
+          // Get all descendant nodes to delete
+          const nodesToDelete = new Set([tacticId, ...getDescendantIds(tacticId)]);
+
+          // Remove all descendant nodes
+          state.nodes = state.nodes.filter((n) => !nodesToDelete.has(n.id));
+
+          // Remove all edges connected to deleted nodes
+          state.edges = state.edges.filter(
+            (e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target),
+          );
+
+          // Revert parent goal to 'pending' status
+          if (parentGoalId) {
+            const parentGoal = state.nodes.find((n) => n.id === parentGoalId);
+            if (parentGoal && parentGoal.type === "goal") {
+              (parentGoal.data as GoalNodeData).status = "pending";
+              (parentGoal.data as GoalNodeData).completedBy = undefined;
+            }
+          }
+
+          // Invalidate proof state
+          state.isProofComplete = false;
+          state.proofTreeData = null;
+        });
+      },
+
       // ================================================
       // Sync from Worker
       // ================================================
@@ -287,15 +356,83 @@ export const useProofStore = create<ProofStore>()(
         sessionId: string,
         claimName?: string,
       ) => {
+        const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
+        const { manualPositions } = get();
+
+        // Build a map of node IDs to their auto-calculated positions
+        const autoPositions = new Map<string, { x: number; y: number }>();
+        nodes.forEach((node) => {
+          autoPositions.set(node.id, { ...node.position });
+        });
+
+        // Build parent-child relationships from edges
+        const parentMap = new Map<string, string>(); // childId -> parentTacticId
+        edges.forEach((edge) => {
+          if (edge.data?.kind === "tactic-to-goal") {
+            parentMap.set(edge.target, edge.source);
+          }
+        });
+
+        // Calculate position deltas for nodes with manual positions
+        const positionDeltas = new Map<string, { dx: number; dy: number }>();
+        nodes.forEach((node) => {
+          const manualPos = manualPositions.get(node.id);
+          if (manualPos) {
+            const autoPos = autoPositions.get(node.id)!;
+            positionDeltas.set(node.id, {
+              dx: manualPos.x - autoPos.x,
+              dy: manualPos.y - autoPos.y,
+            });
+          }
+        });
+
+        // Apply manual positions and offset children
+        const mergedNodes = nodes.map((node) => {
+          const manualPos = manualPositions.get(node.id);
+          if (manualPos) {
+            return { ...node, position: manualPos };
+          }
+
+          // Check if this node's parent has been manually positioned
+          const parentTacticId = parentMap.get(node.id);
+          if (parentTacticId) {
+            const parentDelta = positionDeltas.get(parentTacticId);
+            if (parentDelta) {
+              return {
+                ...node,
+                position: {
+                  x: node.position.x + parentDelta.dx,
+                  y: node.position.y + parentDelta.dy,
+                },
+              };
+            }
+          }
+
+          // Check if this is a tactic and its parent goal has been moved
+          if (node.id.startsWith("tactic-for-") || node.id.startsWith("tactic-completing-")) {
+            const goalId = node.id.replace("tactic-for-", "").replace("tactic-completing-", "");
+            const parentDelta = positionDeltas.get(goalId);
+            if (parentDelta) {
+              return {
+                ...node,
+                position: {
+                  x: node.position.x + parentDelta.dx,
+                  y: node.position.y + parentDelta.dy,
+                },
+              };
+            }
+          }
+
+          return node;
+        });
+
         set((state) => {
-          const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
-          state.nodes = nodes;
+          state.nodes = mergedNodes;
           state.edges = edges;
           state.sessionId = sessionId;
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
-          state.lastSyncedState = { nodes, edges };
-          // Store proof tree data for script generation
+          state.lastSyncedState = { nodes: mergedNodes, edges };
           state.proofTreeData = proofTree;
           if (claimName) {
             state.claimName = claimName;
@@ -491,7 +628,26 @@ export const useProofStore = create<ProofStore>()(
       },
 
       reset: () => {
-        set(() => initialState);
+        set(() => ({
+          ...initialState,
+          manualPositions: new Map(),
+        }));
+      },
+
+      // ================================================
+      // Position Management
+      // ================================================
+
+      setManualPosition: (nodeId: string, position: { x: number; y: number }) => {
+        set((state) => {
+          state.manualPositions.set(nodeId, position);
+        });
+      },
+
+      clearManualPositions: () => {
+        set((state) => {
+          state.manualPositions.clear();
+        });
       },
 
       // ================================================
@@ -545,6 +701,24 @@ export const useProofStore = create<ProofStore>()(
                     goalData.completedBy = undefined;
                   }
                 }
+              }
+            }
+          }
+
+          // Track position changes for manual position preservation
+          for (const change of changes) {
+            if (change.type === "position" && change.position) {
+              // Track position during drag
+              if (change.dragging === true) {
+                draggingPositions.set(change.id, { ...change.position });
+              }
+              // On drag end, save to manualPositions
+              if (change.dragging === false) {
+                const finalPosition = change.position || draggingPositions.get(change.id);
+                if (finalPosition) {
+                  state.manualPositions.set(change.id, { ...finalPosition });
+                }
+                draggingPositions.delete(change.id);
               }
             }
           }
@@ -673,6 +847,23 @@ export const useIsProofComplete = () => useProofStore((s) => s.isProofComplete);
 export const useSessionId = () => useProofStore((s) => s.sessionId);
 export const useProofTreeData = () => useProofStore((s) => s.proofTreeData);
 export const useClaimName = () => useProofStore((s) => s.claimName);
+export const useClaimNameFromProof = () => useProofStore((s) => s.claimName);
+
+// Global context selector (builds context from root goal)
+export const useGlobalContext = () =>
+  useProofStore((s) => {
+    const rootGoal = s.nodes.find(
+      (n) => n.type === "goal" && n.id === s.rootGoalId,
+    );
+    if (!rootGoal) return [];
+    return (rootGoal.data as import("./types").GoalNodeData).context || [];
+  });
+
+// Position management selectors
+export const useHasManualPositions = () =>
+  useProofStore((s) => s.manualPositions.size > 0);
+export const useClearManualPositions = () =>
+  useProofStore((s) => s.clearManualPositions);
 
 // Selector for generated proof script
 export const useGeneratedProofScript = () =>
