@@ -190,6 +190,7 @@ function traverseTree(
       status,
       parentGoalId: node.goal.parentId,
       completedBy: node.completedBy,
+      isSubtreeComplete: node.isSubtreeComplete,
     },
   };
   nodes.push(goalNode);

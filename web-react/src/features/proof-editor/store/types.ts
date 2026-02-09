@@ -57,6 +57,7 @@ export interface GoalNodeData {
   status: "pending" | "in-progress" | "completed" | "todo";
   parentGoalId?: string; // For scope inheritance
   completedBy?: string; // Tactic that solved this goal
+  isSubtreeComplete?: boolean; // For collapse eligibility
   [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
