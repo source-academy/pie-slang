@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useProofSession } from '../../hooks/useProofSession';
 import { useGeneratedProofScript } from '../../store';
+import { useExampleStore } from '../../store/example-store';
 
 /**
  * Sample Pie source code for demonstration.
@@ -29,11 +30,30 @@ const SAMPLE_SOURCE = `; Define addition function
  * - "Start Proof" button
  * - Auto-collapses after starting proof
  * - Shows loading and error states
+ * - Displays generated proof script
  */
 export function SourceCodePanel() {
   const [isExpanded, setIsExpanded] = useState(true);
   const [sourceCode, setSourceCode] = useState(SAMPLE_SOURCE);
   const [claimName, setClaimName] = useState('reflexivity');
+
+  // Get example from store
+  const exampleSource = useExampleStore((s) => s.exampleSource);
+  const exampleClaim = useExampleStore((s) => s.exampleClaim);
+
+  // Update source/claim when example is selected
+  useEffect(() => {
+    if (exampleSource !== undefined) {
+      setSourceCode(exampleSource);
+      setIsExpanded(true); // Expand to show the loaded example
+    }
+  }, [exampleSource]);
+
+  useEffect(() => {
+    if (exampleClaim !== undefined) {
+      setClaimName(exampleClaim);
+    }
+  }, [exampleClaim]);
 
   const {
     startSession,

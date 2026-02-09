@@ -34,7 +34,8 @@ export interface SerializableContextEntry {
 
 export interface SerializableGoal {
   id: string;
-  type: string;
+  type: string;              // Display type (may be sugared if abbreviations available)
+  expandedType?: string;     // Full expanded type (only set if different from type)
   context: SerializableContextEntry[];
   contextEntries?: SerializableContextEntry[]; // Alias for compatibility
   isComplete: boolean;
@@ -47,6 +48,7 @@ export interface SerializableGoalNode {
   children: SerializableGoalNode[];
   appliedTactic?: string;
   completedBy?: string;
+  isSubtreeComplete?: boolean;
 }
 
 export interface ProofTreeData {
@@ -343,6 +345,14 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
       // Transform the data to match our expected format
       const transformGoalNode = (node: any): SerializableGoalNode => {
+        // Compute isSubtreeComplete recursively
+        const computeIsSubtreeComplete = (n: any): boolean => {
+          const isComplete = n.goal?.isComplete || n.completedBy;
+          if (!isComplete) return false;
+          if (!n.children || n.children.length === 0) return true;
+          return n.children.every((child: any) => computeIsSubtreeComplete(child));
+        };
+
         const goal: SerializableGoal = {
           id: node.goal.id,
           type: node.goal.type,
@@ -362,6 +372,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
           children: (node.children || []).map(transformGoalNode),
           appliedTactic: node.appliedTactic,
           completedBy: node.completedBy,
+          isSubtreeComplete: computeIsSubtreeComplete(node),
         };
       };
 
@@ -791,24 +802,35 @@ const proofWorkerAPI: ProofWorkerAPI = {
     if (!rawData) return null;
 
     // Transform the data
-    const transformGoalNode = (node: any): SerializableGoalNode => ({
-      goal: {
-        id: node.goal.id,
-        type: node.goal.type,
-        context: (node.goal.contextEntries || []).map((e: any) => ({
-          id: e.id || nanoid(8),
-          name: e.name,
-          type: e.type,
-          // Include introducedBy to distinguish local (introduced by tactic) from global
-          introducedBy: e.introducedBy || undefined,
-        })),
-        isComplete: node.goal.isComplete,
-        isCurrent: node.goal.isCurrent,
-      },
-      children: (node.children || []).map(transformGoalNode),
-      appliedTactic: node.appliedTactic,
-      completedBy: node.completedBy,
-    });
+    const transformGoalNode = (node: any): SerializableGoalNode => {
+      // Compute isSubtreeComplete recursively
+      const computeIsSubtreeComplete = (n: any): boolean => {
+        const isComplete = n.goal?.isComplete || n.completedBy;
+        if (!isComplete) return false;
+        if (!n.children || n.children.length === 0) return true;
+        return n.children.every((child: any) => computeIsSubtreeComplete(child));
+      };
+
+      return {
+        goal: {
+          id: node.goal.id,
+          type: node.goal.type,
+          context: (node.goal.contextEntries || []).map((e: any) => ({
+            id: e.id || nanoid(8),
+            name: e.name,
+            type: e.type,
+            // Include introducedBy to distinguish local (introduced by tactic) from global
+            introducedBy: e.introducedBy || undefined,
+          })),
+          isComplete: node.goal.isComplete,
+          isCurrent: node.goal.isCurrent,
+        },
+        children: (node.children || []).map(transformGoalNode),
+        appliedTactic: node.appliedTactic,
+        completedBy: node.completedBy,
+        isSubtreeComplete: computeIsSubtreeComplete(node),
+      };
+    };
 
     return {
       root: transformGoalNode(rawData.root),

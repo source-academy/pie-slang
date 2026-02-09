@@ -57,6 +57,7 @@ export interface GoalNodeData {
   status: "pending" | "in-progress" | "completed" | "todo";
   parentGoalId?: string; // For scope inheritance
   completedBy?: string; // Tactic that solved this goal
+  isSubtreeComplete?: boolean; // For collapse eligibility
   [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
@@ -159,6 +160,9 @@ export interface ProofState {
   // History for undo/redo
   history: ProofSnapshot[];
   historyIndex: number;
+
+  // Position preservation
+  manualPositions: Map<string, { x: number; y: number }>;
 }
 
 export interface ProofActions {
@@ -189,6 +193,9 @@ export interface ProofActions {
   ) => void;
   removeEdge: (id: string) => void;
 
+  // Cascade delete
+  deleteTacticCascade: (tacticId: string) => void;
+
   // Sync from worker
   syncFromWorker: (
     proofTree: import("@/workers/proof-worker").ProofTreeData,
@@ -212,6 +219,10 @@ export interface ProofActions {
   onNodesChange: (changes: NodeChange<ProofNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<ProofEdge>[]) => void;
   onConnect: (connection: Connection) => void;
+
+  // Position management
+  setManualPosition: (nodeId: string, position: { x: number; y: number }) => void;
+  clearManualPositions: () => void;
 }
 
 export type ProofStore = ProofState & ProofActions;
@@ -220,11 +231,17 @@ export type ProofStore = ProofState & ProofActions;
 // UI Store Types
 // ============================================
 
+export interface DeleteConfirmation {
+  nodeId: string;
+  pendingChanges?: NodeChange<ProofNode>[];
+}
+
 export interface UIState {
   selectedNodeId: string | null;
   draggingTactic: TacticType | null;
   hoveredNodeId: string | null;
   validDropTargets: string[];
+  deleteConfirmation: DeleteConfirmation | null;
 }
 
 export interface UIActions {
@@ -233,6 +250,9 @@ export interface UIActions {
   setHoveredNode: (id: string | null) => void;
   setValidDropTargets: (goalIds: string[]) => void;
   clearDragState: () => void;
+  requestDelete: (nodeId: string, pendingChanges: NodeChange<ProofNode>[]) => void;
+  confirmDelete: () => void;
+  cancelDelete: () => void;
 }
 
 export type UIStore = UIState & UIActions;

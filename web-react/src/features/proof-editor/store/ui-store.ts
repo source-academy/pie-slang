@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { UIStore, UIState, TacticType } from './types';
+import type { NodeChange } from '@xyflow/react';
+import type { UIStore, UIState, TacticType, ProofNode } from './types';
+import { useProofStore } from './proof-store';
 
 // Initial state
 const initialState: UIState = {
@@ -8,16 +10,17 @@ const initialState: UIState = {
   draggingTactic: null,
   hoveredNodeId: null,
   validDropTargets: [],
+  deleteConfirmation: null,
 };
 
 /**
  * UI Store
  *
  * Manages UI-specific state that is separate from proof logic.
- * This includes selection, drag state, and hover state.
+ * This includes selection, drag state, hover state, and delete confirmation.
  */
 export const useUIStore = create<UIStore>()(
-  subscribeWithSelector((set) => ({
+  subscribeWithSelector((set, get) => ({
     ...initialState,
 
     selectNode: (id: string | null) => {
@@ -42,6 +45,35 @@ export const useUIStore = create<UIStore>()(
         validDropTargets: [],
       });
     },
+
+    /**
+     * Request deletion of a tactic node.
+     * Shows a confirmation modal before deleting.
+     */
+    requestDelete: (nodeId: string, pendingChanges: NodeChange<ProofNode>[]) => {
+      set({ deleteConfirmation: { nodeId, pendingChanges } });
+    },
+
+    /**
+     * Confirm the pending deletion.
+     * Performs cascade delete via proof-store.
+     */
+    confirmDelete: () => {
+      const { deleteConfirmation } = get();
+      if (deleteConfirmation) {
+        // Perform the cascade delete
+        useProofStore.getState().deleteTacticCascade(deleteConfirmation.nodeId);
+        // Clear the confirmation state
+        set({ deleteConfirmation: null });
+      }
+    },
+
+    /**
+     * Cancel the pending deletion.
+     */
+    cancelDelete: () => {
+      set({ deleteConfirmation: null });
+    },
   }))
 );
 
@@ -56,3 +88,5 @@ export const useValidDropTargets = () => useUIStore((s) => s.validDropTargets);
  */
 export const useIsValidDropTarget = (nodeId: string) =>
   useUIStore((s) => s.validDropTargets.includes(nodeId));
+
+export const useDeleteConfirmation = () => useUIStore((s) => s.deleteConfirmation);
