@@ -1,0 +1,48 @@
+.playground-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+
+  .playground-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+
+    .editor-pane {
+      // width handled by inline style
+      border-right: 1px solid #111; // Darker border
+    }
+
+    .resizer {
+      width: 8px;
+      cursor: col-resize;
+      background-color: #2d2d2d;
+      border-left: 1px solid #1e1e1e;
+      border-right: 1px solid #1e1e1e;
+      transition: background-color 0.2s;
+
+      &:hover,
+      .is-dragging & {
+        background-color: #0d8050; // Blueprint Success Green-ish or Primary Blue
+      }
+    }
+
+    .output-pane {
+      // width handled by inline style
+      // flex: 0 0 40%; // Removed fixed flex
+      background-color: #252526;
+    }
+  }
+
+  // Prevent selection during drag
+  .playground-content.is-dragging {
+    cursor: col-resize;
+    user-select: none;
+    pointer-events: none; // Verify if this breaks mouseup event on window
+
+    // Allow pointer events on resizer itself implicitly, but we are attaching to window
+  }
+}

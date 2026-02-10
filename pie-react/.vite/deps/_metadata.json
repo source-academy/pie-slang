@@ -1,0 +1,106 @@
+{
+  "hash": "bb86dd36",
+  "configHash": "f4647fb6",
+  "lockfileHash": "bde64d3a",
+  "browserHash": "11551aec",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "5f1d10d1",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "d06c2f73",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "dfceee22",
+      "needsInterop": true
+    },
+    "react-redux": {
+      "src": "../../node_modules/react-redux/dist/react-redux.mjs",
+      "file": "react-redux.js",
+      "fileHash": "92a94ec1",
+      "needsInterop": false
+    },
+    "@reduxjs/toolkit": {
+      "src": "../../node_modules/@reduxjs/toolkit/dist/redux-toolkit.modern.mjs",
+      "file": "@reduxjs_toolkit.js",
+      "fileHash": "58716f94",
+      "needsInterop": false
+    },
+    "classnames": {
+      "src": "../../node_modules/classnames/index.js",
+      "file": "classnames.js",
+      "fileHash": "1cc488f6",
+      "needsInterop": true
+    },
+    "@blueprintjs/core": {
+      "src": "../../node_modules/@blueprintjs/core/lib/esm/index.js",
+      "file": "@blueprintjs_core.js",
+      "fileHash": "1928b335",
+      "needsInterop": false
+    },
+    "@monaco-editor/react": {
+      "src": "../../node_modules/@monaco-editor/react/dist/index.mjs",
+      "file": "@monaco-editor_react.js",
+      "fileHash": "271b8d6c",
+      "needsInterop": false
+    },
+    "@blueprintjs/select": {
+      "src": "../../node_modules/@blueprintjs/select/lib/esm/index.js",
+      "file": "@blueprintjs_select.js",
+      "fileHash": "350ad54d",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "paths-H6AGMBAT": {
+      "file": "paths-H6AGMBAT.js"
+    },
+    "paths-5RJJ5UXH": {
+      "file": "paths-5RJJ5UXH.js"
+    },
+    "allPaths-GANFYA22": {
+      "file": "allPaths-GANFYA22.js"
+    },
+    "allPathsLoader-4HJSAEBW": {
+      "file": "allPathsLoader-4HJSAEBW.js"
+    },
+    "splitPathsBySizeLoader-LM4UX2PJ": {
+      "file": "splitPathsBySizeLoader-LM4UX2PJ.js"
+    },
+    "chunk-XY3LCTUC": {
+      "file": "chunk-XY3LCTUC.js"
+    },
+    "chunk-I3NABOFB": {
+      "file": "chunk-I3NABOFB.js"
+    },
+    "chunk-KMDP5OJR": {
+      "file": "chunk-KMDP5OJR.js"
+    },
+    "chunk-L22N6EOR": {
+      "file": "chunk-L22N6EOR.js"
+    },
+    "chunk-QBI6Y6X7": {
+      "file": "chunk-QBI6Y6X7.js"
+    },
+    "chunk-7P3OTVNA": {
+      "file": "chunk-7P3OTVNA.js"
+    },
+    "chunk-6VVNEJPD": {
+      "file": "chunk-6VVNEJPD.js"
+    },
+    "chunk-TWJRYSII": {
+      "file": "chunk-TWJRYSII.js"
+    },
+    "chunk-DC5AMYBS": {
+      "file": "chunk-DC5AMYBS.js"
+    }
+  }
+}
