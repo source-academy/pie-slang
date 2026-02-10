@@ -4,32 +4,60 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import path from 'path'
 import fs from 'fs'
 
+console.log('Vite config loaded!');
+
+const todoSolverBrowserPath = path.resolve(
+  __dirname,
+  '../src/pie-interpreter/solver/todo-solver.browser.ts'
+);
+const polyfillShim = (name: string) =>
+  path.resolve(
+    __dirname,
+    `node_modules/vite-plugin-node-polyfills/shims/${name}/dist/index.js`
+  );
+
+function resolveTodoSolverForBrowser() {
+  return {
+    name: 'resolve-todo-solver-browser',
+    enforce: 'pre',
+    resolveId(source: string) {
+      if (
+        source === '../solver/todo-solver' ||
+        source === '../solver/todo-solver.ts' ||
+        source.endsWith('/solver/todo-solver') ||
+        source.endsWith('/solver/todo-solver.ts')
+      ) {
+        return todoSolverBrowserPath;
+      }
+      return null;
+    }
+  };
+}
+
+function rewriteTodoSolverImport() {
+  return {
+    name: 'rewrite-todo-solver-import',
+    enforce: 'pre',
+    transform(code: string, id: string) {
+      if (id.endsWith('/src/pie-interpreter/typechecker/utils.ts')) {
+        return code.replace(
+          '../solver/todo-solver',
+          '../solver/todo-solver.browser'
+        );
+      }
+      return null;
+    }
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    {
-      name: 'force-solver-swap',
-      enforce: 'pre',
-      resolveId(source, _importer) {
-        // Optimization: Catch early
-        if (source.includes('todo-solver') && !source.includes('browser')) {
-          return path.resolve(__dirname, '../src/pie-interpreter/solver/todo-solver.browser.ts');
-        }
-      },
-      load(id) {
-        // Robustness: If resolution slipped through (e.g. absolute paths), catch it here
-        if (id.endsWith('todo-solver.ts') && !id.includes('browser')) {
-          console.log('[force-solver-swap] Intercepted load:', id);
-          // NOTE: fs needs to be imported here if not already available in the scope
-          // For this example, assuming fs is available or will be added.
-          // If not, you might need to add `import fs from 'fs';` at the top of this file.
-          return fs.readFileSync(path.resolve(__dirname, '../src/pie-interpreter/solver/todo-solver.browser.ts'), 'utf-8');
-        }
-      }
-    },
     react(),
+    rewriteTodoSolverImport(),
+    resolveTodoSolverForBrowser(),
     nodePolyfills({
-      exclude: ['fs'], // Keep Excluding fs to avoid conflicts if manual shim is needed again, but let's try relying on cleaner swap
+      exclude: ['fs'],
       globals: {
         Buffer: true,
         global: true,
@@ -42,11 +70,18 @@ export default defineConfig({
     alias: [
       { find: 'src', replacement: path.resolve(__dirname, './src') },
       { find: '@pie-src', replacement: path.resolve(__dirname, '../src') },
+      { find: 'vite-plugin-node-polyfills/shims/buffer', replacement: polyfillShim('buffer') },
+      { find: 'vite-plugin-node-polyfills/shims/global', replacement: polyfillShim('global') },
+      { find: 'vite-plugin-node-polyfills/shims/process', replacement: polyfillShim('process') },
+      // Force swap todo-solver to browser version
+      {
+        find: /\/todo-solver(\.ts)?$/,
+        replacement: todoSolverBrowserPath
+      }
     ]
   },
   server: {
     fs: {
-      // Allow serving files from one level up to the project root
       allow: ['..'],
     },
   },
@@ -60,7 +95,8 @@ export default defineConfig({
         },
         protocolImports: true,
       })
-    ]
+    ],
+    format: 'es',
   },
-  base: './', // Ensure relative paths for GitHub Pages deployment
+  base: './',
 })
