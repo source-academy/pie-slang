@@ -1,8 +1,7 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import path from 'path'
-import fs from 'fs'
 
 console.log('Vite config loaded!');
 
@@ -16,7 +15,7 @@ const polyfillShim = (name: string) =>
     `node_modules/vite-plugin-node-polyfills/shims/${name}/dist/index.js`
   );
 
-function resolveTodoSolverForBrowser() {
+function resolveTodoSolverForBrowser(): Plugin {
   return {
     name: 'resolve-todo-solver-browser',
     enforce: 'pre',
@@ -34,7 +33,7 @@ function resolveTodoSolverForBrowser() {
   };
 }
 
-function rewriteTodoSolverImport() {
+function rewriteTodoSolverImport(): Plugin {
   return {
     name: 'rewrite-todo-solver-import',
     enforce: 'pre',
