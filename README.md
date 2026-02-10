@@ -4,12 +4,8 @@ Implementation of Pie, following [The Little Typer](https://mitpress.mit.edu/978
 
 ## Our Online Playground
 
-We have a [online playground](https://source-academy.github.io/pie-slang/) for you to play with Pie.
+We have an [online playground](https://source-academy.github.io/pie-slang/) for you to play with Pie.
 It is still under construction, especially for the language server part, so it might be buggy.
-
-## Our Language Server
-
-We have published the Pie language server as a VSCode extension, named [pie-lsp](https://marketplace.visualstudio.com/items?itemName=DaoxinLi.pie-lsp&ssr=false#review-details)
 
 ## Our Language Server
 
@@ -18,8 +14,33 @@ We have published the Pie language server as a VSCode extension, named [pie-lsp]
 ## React Playground (New)
 
 We are developing a modern React-based playground to replace the legacy web interface.
-**Try it live here:** [https://source-academy.github.io/pie-slang/](https://source-academy.github.io/pie-slang/) (pending deployment on your fork)
 *Source code located in `pie-react/` directory.*
+
+### Branch: `react-playground`
+
+This branch contains the working React playground with the latest fixes for running the interpreter in the browser.
+It is the branch you should use for local development and for the GitHub Pages demo.
+
+### Online Demo (GitHub Pages via Actions)
+
+This repository already includes a GitHub Actions workflow that deploys the React playground on every push to `react-playground`:
+`.github/workflows/deploy-playground.yml`
+
+To enable the demo on your fork:
+1. Go to **Settings → Pages**.
+2. Under **Build and deployment**, select **GitHub Actions**.
+3. Push to `react-playground` (or re-run the workflow in the Actions tab).
+
+Your demo URL will be:
+`https://<your-username>.github.io/pie-slang/`
+
+### Run Locally (React Playground)
+
+```bash
+cd pie-react
+npm install
+npm run dev
+```
 
 ## Getting Started
 
@@ -54,7 +75,7 @@ To get started with the Pie interpreter:
    For more information about the project, please visit our wiki pages.
    To learn more about the language, you may read the book The Little Typer. Our wiki also contains a brief overview of the language.
 
-## Running the Frontend Locally
+## Running the Legacy Frontend Locally
 
 Once you have built the project, you can run the frontend locally:
 
