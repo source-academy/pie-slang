@@ -9,7 +9,6 @@ import { Source} from '../types/source';
 import { Variable } from '../types/neutral';
 import { ProofManager } from '../tactics/proof-manager';
 import { Tactic } from '../tactics/tactics';
-import { ProofTreeData } from '../tactics/proofstate';
 
 /*
     ## Contexts ##
@@ -277,6 +276,7 @@ export class EliminatorBinder extends Binder {
 }
 
 export function varType(ctx: Context, where: Location, x: string): Perhaps<Value> {
+  void where;
   if (ctx.size === 0) {
     throw new Error(`The context ${JSON.stringify(ctx)} is empty, but we are looking for ${x}`);
   }

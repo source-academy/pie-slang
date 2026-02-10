@@ -396,24 +396,31 @@ export class Transpiler implements Visitor {
   visitFunctionDefinition(
     node: Extended.FunctionDefinition
   ): [es.VariableDeclaration] {
+    void node;
     throw new Error("The AST should be simplified!");
   }
   visitLet(node: Extended.Let): [es.CallExpression] {
+    void node;
     throw new Error("The AST should be simplified!");
   }
   visitCond(node: Extended.Cond): [es.ConditionalExpression] {
+    void node;
     throw new Error("The AST should be simplified!");
   }
   visitBegin(node: Extended.Begin): [es.CallExpression] {
+    void node;
     throw new Error("The AST should be simplified!");
   }
   visitDelay(node: Extended.Delay): [es.ArrowFunctionExpression] {
+    void node;
     throw new Error("The AST should be simplified!");
   }
   visitDefineSyntax(node: Atomic.DefineSyntax) {
+    void node;
     throw new Error("This should not be called!");
   }
   visitSyntaxRules(node: Atomic.SyntaxRules) {
+    void node;
     throw new Error("This should not be called!");
   }
 }

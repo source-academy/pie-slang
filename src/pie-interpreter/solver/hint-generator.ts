@@ -315,7 +315,7 @@ export async function generateProgressiveHint(
     }
 
     return parseProgressiveHintResponse(result.text, request.currentLevel, responseFormat);
-  } catch (error: any) {
+  } catch {
     // Fallback to rule-based hints if API fails
     return generateRuleBasedHint(request);
   }
@@ -444,6 +444,8 @@ export function generateRuleBasedHint(request: ProgressiveHintRequest): Progress
   // Note: isNatType and isEqualType are available for future use
   const _isNatType = goalType === 'Nat' || goalType.includes('Nat');
   const _isEqualType = goalType.startsWith('(=') || goalType.startsWith('(Equal');
+  void _isNatType;
+  void _isEqualType;
 
   // Check context for useful variables
   const hasNatInContext = context.some(c => c.type === 'Nat' || c.type.includes('Nat'));

@@ -87,5 +87,5 @@ U ))
 (cong twice=doublen-1
 (+ (add1 (add1 zero))))))))
       `
-    const result = evaluatePie(src)
+    evaluatePie(src)
   })})

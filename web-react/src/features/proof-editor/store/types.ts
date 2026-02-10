@@ -36,6 +36,7 @@ export interface TacticParameters {
   targetContextId?: string;   // For elim tactics
   expression?: string;        // For exact, exists, apply, elimEqual motive
   lemmaId?: string;           // For apply
+  motiveExpression?: string;  // For elimEqual/elimVec motive
   lengthExpression?: string;  // For elimVec (optional length expression)
   [key: string]: unknown;     // Index signature for React Flow compatibility
 }

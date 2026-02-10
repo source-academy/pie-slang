@@ -876,6 +876,7 @@ export class Cons extends Source {
   }
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
+    void renames;
     const typeNow = type.now();
     if (typeNow instanceof V.Sigma) {
       const A = typeNow.carType;
@@ -1033,6 +1034,7 @@ export class Nil extends Source {
   }
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
+    void renames;
     const typeNow = type.now();
     if (typeNow instanceof V.List) {
       return new go(new C.Nil());
@@ -1567,6 +1569,7 @@ export class VecNil extends Source {
   }
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
+    void renames;
     const typeNow = type.now();
     if (typeNow instanceof V.Vec) {
       const lenNow = typeNow.length.now();
@@ -2141,7 +2144,7 @@ export class GeneralTypeConstructor extends Source {
     for (let i = 0; i < this.params.length; i++) {
       const result = this.params[i].check(ctx, renames, paramTypes[i].now())
       if (result instanceof stop) {
-        return stop
+        return result
       }
       normalized_params.push((result as go<C.Core>).result)
     }
@@ -2149,7 +2152,7 @@ export class GeneralTypeConstructor extends Source {
     for (let i = 0; i < this.indices.length; i++) {
       const result = this.indices[i].check(ctx, renames, idxTypes[i].now())
       if (result instanceof stop) {
-        return stop
+        return result
       }
       normalized_indices.push((result as go<C.Core>).result)
     }

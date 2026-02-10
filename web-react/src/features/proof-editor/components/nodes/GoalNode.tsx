@@ -51,7 +51,11 @@ export const GoalNode = memo(function GoalNode({
   const hintState = useGoalHintState(id);
   const hasApiKey = useHintStore((s) => !!s.apiKey);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [pendingTactic, setPendingTactic] = useState<{ type: TacticType; needsParam: 'variable' | 'expression' | null } | null>(null);
+  const [pendingTactic, setPendingTactic] = useState<{
+    type: TacticType;
+    needsParam: 'variable' | 'expression' | 'multi' | null;
+    message?: string;
+  } | null>(null);
   const [paramInput, setParamInput] = useState('');
 
   // Handle hint button click
@@ -91,25 +95,45 @@ export const GoalNode = memo(function GoalNode({
     const tacticInfo = TACTICS.find((t) => t.type === tacticType);
     if (!tacticInfo) return;
 
-    // Check if tactic needs parameters
-    const needsVariable = ['elimNat', 'elimList', 'elimEither', 'elimAbsurd', 'elimVec', 'elimEqual'].includes(tacticType);
-    const needsExpression = ['exact', 'exists'].includes(tacticType);
+    const requiredParams = (tacticInfo.params || []).filter((p) => p.required);
 
-    if (needsVariable) {
-      setPendingTactic({ type: tacticType, needsParam: 'variable' });
-      setParamInput('');
-    } else if (needsExpression) {
+    if (tacticType === 'apply') {
       setPendingTactic({ type: tacticType, needsParam: 'expression' });
       setParamInput('');
-    } else {
+      return;
+    }
+
+    if (requiredParams.length === 0) {
       // Simple tactic - apply directly
       await triggerApplyTactic(id, tacticType, {});
+      return;
     }
+
+    if (requiredParams.length === 1) {
+      const onlyParam = requiredParams[0].key;
+      if (onlyParam === 'variableName') {
+        setPendingTactic({ type: tacticType, needsParam: 'variable' });
+        setParamInput('');
+        return;
+      }
+      if (onlyParam === 'expression') {
+        setPendingTactic({ type: tacticType, needsParam: 'expression' });
+        setParamInput('');
+        return;
+      }
+    }
+
+    setPendingTactic({
+      type: tacticType,
+      needsParam: 'multi',
+      message: 'This tactic needs multiple parameters. Drag it onto the canvas and configure it in the details panel.',
+    });
+    setParamInput('');
   }, [id, data.status]);
 
   // Handle parameter submission
   const handleSubmitParam = useCallback(async () => {
-    if (!pendingTactic || !paramInput.trim()) return;
+    if (!pendingTactic || pendingTactic.needsParam === 'multi' || !paramInput.trim()) return;
 
     const params = pendingTactic.needsParam === 'variable'
       ? { variableName: paramInput.trim() }
@@ -158,35 +182,54 @@ export const GoalNode = memo(function GoalNode({
       {pendingTactic && (
         <div className="absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-black/50">
           <div className="mx-2 rounded-lg bg-white p-3 shadow-xl">
-            <div className="mb-2 text-sm font-medium">
-              {pendingTactic.needsParam === 'variable' ? 'Enter target variable:' : 'Enter expression:'}
-            </div>
-            <input
-              type="text"
-              className="mb-2 w-full rounded border px-2 py-1 font-mono text-sm"
-              placeholder={pendingTactic.needsParam === 'variable' ? 'e.g., n' : 'e.g., (same n)'}
-              value={paramInput}
-              onChange={(e) => setParamInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSubmitParam();
-                if (e.key === 'Escape') handleCancelParam();
-              }}
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                className="flex-1 rounded bg-blue-500 px-2 py-1 text-xs text-white hover:bg-blue-600"
-                onClick={handleSubmitParam}
-              >
-                Apply
-              </button>
-              <button
-                className="flex-1 rounded bg-gray-200 px-2 py-1 text-xs hover:bg-gray-300"
-                onClick={handleCancelParam}
-              >
-                Cancel
-              </button>
-            </div>
+            {pendingTactic.needsParam === 'multi' ? (
+              <>
+                <div className="mb-2 text-sm font-medium">Additional configuration required</div>
+                <div className="mb-3 text-xs text-gray-600">
+                  {pendingTactic.message}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="flex-1 rounded bg-gray-200 px-2 py-1 text-xs hover:bg-gray-300"
+                    onClick={handleCancelParam}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-2 text-sm font-medium">
+                  {pendingTactic.needsParam === 'variable' ? 'Enter target variable:' : 'Enter expression:'}
+                </div>
+                <input
+                  type="text"
+                  className="mb-2 w-full rounded border px-2 py-1 font-mono text-sm"
+                  placeholder={pendingTactic.needsParam === 'variable' ? 'e.g., n' : 'e.g., (same n)'}
+                  value={paramInput}
+                  onChange={(e) => setParamInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSubmitParam();
+                    if (e.key === 'Escape') handleCancelParam();
+                  }}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    className="flex-1 rounded bg-blue-500 px-2 py-1 text-xs text-white hover:bg-blue-600"
+                    onClick={handleSubmitParam}
+                  >
+                    Apply
+                  </button>
+                  <button
+                    className="flex-1 rounded bg-gray-200 px-2 py-1 text-xs hover:bg-gray-300"
+                    onClick={handleCancelParam}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

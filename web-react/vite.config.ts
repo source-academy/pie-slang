@@ -50,5 +50,9 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    fs: {
+      // Allow resolving monorepo imports like @pie/** and @scheme/**
+      allow: [path.resolve(__dirname, '..')],
+    },
   },
 });

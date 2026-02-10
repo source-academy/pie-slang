@@ -1,5 +1,4 @@
-import { BasicEvaluator } from "conductor/dist/conductor/runner";
-import { IRunnerPlugin } from "conductor/dist/conductor/runner/types";
+import { BasicEvaluator, IRunnerPlugin } from "conductor/runner";
 import { evaluatePie } from "./main";
 
 export class PieEvaluator extends BasicEvaluator {

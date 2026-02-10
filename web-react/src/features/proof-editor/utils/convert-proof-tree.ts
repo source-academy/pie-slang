@@ -283,6 +283,7 @@ function parseTacticType(tacticName: string): TacticNodeData['tacticType'] {
   const tacticTypes: TacticNodeData['tacticType'][] = [
     'intro',
     'exact',
+    'exists',
     'split',
     'left',
     'right',

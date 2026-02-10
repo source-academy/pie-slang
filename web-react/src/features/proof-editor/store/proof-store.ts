@@ -24,6 +24,7 @@ import { generateProofScript } from '../utils/generate-proof-script';
 import type { ProofTreeData } from '@/workers/proof-worker';
 import { useHistoryStore } from './history-store';
 import { useMetadataStore } from './metadata-store';
+import { getTacticInfo } from '../data/tactics';
 
 // Initial state
 const initialState: ProofState = {
@@ -395,6 +396,8 @@ export function isValidConnection(
   if (sourceNode.type === 'goal' && targetNode.type === 'tactic') {
     // Context handle to context-input
     if (connection.sourceHandle?.startsWith('ctx-')) {
+      const tacticInfo = getTacticInfo((targetNode as TacticNode).data.tacticType);
+      if (!tacticInfo?.requiresContextVar) return false;
       return connection.targetHandle === 'context-input';
     }
     // Goal output to goal input
@@ -408,6 +411,8 @@ export function isValidConnection(
 
   // Lemma → Tactic: lemma-output to context-input
   if (sourceNode.type === 'lemma' && targetNode.type === 'tactic') {
+    const tacticInfo = getTacticInfo((targetNode as TacticNode).data.tacticType);
+    if (!tacticInfo?.requiresLemma) return false;
     return connection.sourceHandle === 'lemma-output' && connection.targetHandle === 'context-input';
   }
 

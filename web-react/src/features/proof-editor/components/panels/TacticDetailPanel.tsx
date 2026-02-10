@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useProofStore, useUIStore } from '../../store';
 import type { TacticNode } from '../../store/types';
 import { cn } from '@/shared/lib/utils';
-import { TACTICS } from '../../data/tactics';
+import { TACTICS, isTacticConfigComplete } from '../../data/tactics';
 
 /**
  * TacticDetailPanel Component
@@ -135,16 +135,33 @@ function TacticConfigForm({
         />
       );
 
+    case 'exists':
+      return (
+        <ExistsConfig
+          node={node}
+          updateNode={updateNode}
+        />
+      );
+
     case 'elimNat':
     case 'elimList':
-    case 'elimVec':
     case 'elimEither':
-    case 'elimEqual':
     case 'elimAbsurd':
       return (
         <ElimConfig
           node={node}
           connectedContextVarId={connectedContextVarId}
+        />
+      );
+
+    case 'elimVec':
+    case 'elimEqual':
+      return (
+        <ElimWithMotiveConfig
+          node={node}
+          connectedContextVarId={connectedContextVarId}
+          requireLength={data.tacticType === 'elimVec'}
+          updateNode={updateNode}
         />
       );
 
@@ -188,10 +205,12 @@ function IntroConfig({
 
   const handleSave = () => {
     if (variableName.trim()) {
+      const parameters = { ...node.data.parameters, variableName: variableName.trim() };
+      const status = isTacticConfigComplete(node.data.tacticType, parameters) ? 'ready' : 'incomplete';
       updateNode(node.id, {
-        parameters: { ...node.data.parameters, variableName: variableName.trim() },
+        parameters,
         displayName: `intro ${variableName.trim()}`,
-        status: 'ready',
+        status,
       });
     }
   };
@@ -238,10 +257,12 @@ function ExactConfig({
 
   const handleSave = () => {
     if (expression.trim()) {
+      const parameters = { ...node.data.parameters, expression: expression.trim() };
+      const status = isTacticConfigComplete(node.data.tacticType, parameters) ? 'ready' : 'incomplete';
       updateNode(node.id, {
-        parameters: { ...node.data.parameters, expression: expression.trim() },
+        parameters,
         displayName: `exact`,
-        status: 'ready',
+        status,
       });
     }
   };
@@ -253,6 +274,55 @@ function ExactConfig({
         value={expression}
         onChange={(e) => setExpression(e.target.value)}
         placeholder="Enter a Pie expression..."
+        className="w-full rounded border px-2 py-1 font-mono text-sm focus:border-blue-400 focus:outline-none"
+        rows={3}
+      />
+      <button
+        onClick={handleSave}
+        disabled={!expression.trim()}
+        className="mt-2 rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-gray-300"
+      >
+        Set Expression
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Exists tactic configuration - witness expression input
+ */
+function ExistsConfig({
+  node,
+  updateNode,
+}: {
+  node: TacticNode;
+  updateNode: <T extends { data: unknown }>(id: string, data: Partial<T['data']>) => void;
+}) {
+  const [expression, setExpression] = useState(node.data.parameters.expression || '');
+
+  useEffect(() => {
+    setExpression(node.data.parameters.expression || '');
+  }, [node.id, node.data.parameters.expression]);
+
+  const handleSave = () => {
+    if (expression.trim()) {
+      const parameters = { ...node.data.parameters, expression: expression.trim() };
+      const status = isTacticConfigComplete(node.data.tacticType, parameters) ? 'ready' : 'incomplete';
+      updateNode(node.id, {
+        parameters,
+        displayName: `exists`,
+        status,
+      });
+    }
+  };
+
+  return (
+    <div className="p-4">
+      <div className="mb-2 text-xs font-medium text-gray-500">Witness Expression</div>
+      <textarea
+        value={expression}
+        onChange={(e) => setExpression(e.target.value)}
+        placeholder="Enter a witness expression..."
         className="w-full rounded border px-2 py-1 font-mono text-sm focus:border-blue-400 focus:outline-none"
         rows={3}
       />
@@ -299,6 +369,96 @@ function ElimConfig({
 }
 
 /**
+ * Elimination tactic configuration with motive (and optional length)
+ */
+function ElimWithMotiveConfig({
+  node,
+  connectedContextVarId,
+  requireLength,
+  updateNode,
+}: {
+  node: TacticNode;
+  connectedContextVarId?: string;
+  requireLength: boolean;
+  updateNode: <T extends { data: unknown }>(id: string, data: Partial<T['data']>) => void;
+}) {
+  const [motive, setMotive] = useState(node.data.parameters.motiveExpression || '');
+  const [lengthExpr, setLengthExpr] = useState(node.data.parameters.lengthExpression || '');
+
+  useEffect(() => {
+    setMotive(node.data.parameters.motiveExpression || '');
+  }, [node.id, node.data.parameters.motiveExpression]);
+
+  useEffect(() => {
+    setLengthExpr(node.data.parameters.lengthExpression || '');
+  }, [node.id, node.data.parameters.lengthExpression]);
+
+  const handleSave = () => {
+    const nextParams = {
+      ...node.data.parameters,
+      motiveExpression: motive.trim(),
+      ...(requireLength ? { lengthExpression: lengthExpr.trim() } : {}),
+    };
+    const status = isTacticConfigComplete(node.data.tacticType, nextParams) ? 'ready' : 'incomplete';
+    updateNode(node.id, {
+      parameters: nextParams,
+      status,
+    });
+  };
+
+  return (
+    <div className="p-4 space-y-3">
+      <div>
+        <div className="mb-2 text-xs font-medium text-gray-500">Target Variable</div>
+        {connectedContextVarId ? (
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-purple-100 px-2 py-1 font-mono text-sm text-purple-700">
+              {node.data.parameters.variableName || connectedContextVarId}
+            </span>
+            <span className="text-xs text-gray-500">connected via edge</span>
+          </div>
+        ) : (
+          <div className="rounded bg-yellow-50 p-2 text-sm text-yellow-700">
+            Connect a variable from a goal's context to this tactic's left handle.
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 text-xs font-medium text-gray-500">Motive</div>
+        <textarea
+          value={motive}
+          onChange={(e) => setMotive(e.target.value)}
+          placeholder="Enter motive expression..."
+          className="w-full rounded border px-2 py-1 font-mono text-sm focus:border-blue-400 focus:outline-none"
+          rows={3}
+        />
+      </div>
+
+      {requireLength && (
+        <div>
+          <div className="mb-2 text-xs font-medium text-gray-500">Length Expression</div>
+          <input
+            value={lengthExpr}
+            onChange={(e) => setLengthExpr(e.target.value)}
+            placeholder="Enter length expression..."
+            className="w-full rounded border px-2 py-1 font-mono text-sm focus:border-blue-400 focus:outline-none"
+          />
+        </div>
+      )}
+
+      <button
+        onClick={handleSave}
+        disabled={!motive.trim() || (requireLength && !lengthExpr.trim())}
+        className="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-gray-300"
+      >
+        Save Parameters
+      </button>
+    </div>
+  );
+}
+
+/**
  * Apply tactic configuration - lemma selection
  */
 function ApplyConfig({
@@ -309,19 +469,36 @@ function ApplyConfig({
   updateNode: <T extends { data: unknown }>(id: string, data: Partial<T['data']>) => void;
 }) {
   const nodes = useProofStore((s) => s.nodes);
+  const [expression, setExpression] = useState(node.data.parameters.expression || '');
 
   // Find available lemmas
   const lemmas = nodes.filter((n) => n.type === 'lemma');
 
+  useEffect(() => {
+    setExpression(node.data.parameters.expression || '');
+  }, [node.id, node.data.parameters.expression]);
+
   const handleSelect = (lemmaId: string) => {
     const lemma = lemmas.find((l) => l.id === lemmaId);
     if (lemma) {
+      const parameters = { ...node.data.parameters, lemmaId, expression: lemma.data.name };
+      const status = isTacticConfigComplete(node.data.tacticType, parameters) ? 'ready' : 'incomplete';
       updateNode(node.id, {
-        parameters: { ...node.data.parameters, lemmaId },
+        parameters,
         displayName: `apply ${lemma.data.name}`,
-        status: 'ready',
+        status,
       });
     }
+  };
+
+  const handleSaveExpr = () => {
+    const parameters = { ...node.data.parameters, expression: expression.trim() };
+    const status = isTacticConfigComplete(node.data.tacticType, parameters) ? 'ready' : 'incomplete';
+    updateNode(node.id, {
+      parameters,
+      displayName: `apply ${expression.trim()}`,
+      status,
+    });
   };
 
   return (
@@ -343,6 +520,23 @@ function ApplyConfig({
       ) : (
         <p className="text-sm text-gray-500 italic">No lemmas available</p>
       )}
+
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-medium text-gray-500">Or Enter Expression</div>
+        <input
+          value={expression}
+          onChange={(e) => setExpression(e.target.value)}
+          placeholder="Enter a function or lemma name..."
+          className="w-full rounded border px-2 py-1 text-sm focus:border-blue-400 focus:outline-none font-mono"
+        />
+        <button
+          onClick={handleSaveExpr}
+          disabled={!expression.trim()}
+          className="mt-2 rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-gray-300"
+        >
+          Set Expression
+        </button>
+      </div>
     </div>
   );
 }

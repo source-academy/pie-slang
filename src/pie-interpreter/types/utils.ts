@@ -107,7 +107,8 @@ export class Message {
 }
 
 export abstract class Perhaps<T> { // eslint-disable-line @typescript-eslint/no-unused-vars
-
+  // Keep T in the type system without affecting runtime or nominal typing.
+  declare readonly _phantom?: T;
 }
 
 export class go<T> extends Perhaps<T> {

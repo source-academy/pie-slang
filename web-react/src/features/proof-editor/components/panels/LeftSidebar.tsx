@@ -274,6 +274,11 @@ function DraggableTactic({ tactic }: { tactic: TacticInfo }) {
           ctx
         </span>
       )}
+      {tactic.requiresLemma && (
+        <span className="ml-auto text-[10px] text-green-600" title="Requires lemma">
+          lemma
+        </span>
+      )}
     </div>
   );
 }

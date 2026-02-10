@@ -20,7 +20,7 @@ import type { ProofNode, TacticType, GoalNode, TacticNode, TacticNodeData } from
 import type { GhostTacticNodeData } from './nodes/GhostTacticNode';
 import { useDemoData } from '../hooks/useDemoData';
 import { useHintSystem } from '../hooks/useHintSystem';
-import { TACTICS } from '../data/tactics';
+import { TACTICS, isTacticConfigComplete } from '../data/tactics';
 import { applyTactic as triggerApplyTactic } from '../utils/tactic-callback';
 
 /**
@@ -34,7 +34,7 @@ export function ProofCanvas() {
   useDemoData();
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getNodes } = useReactFlow();
 
   // State for delete confirmation dialog
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -50,7 +50,10 @@ export function ProofCanvas() {
   const onEdgesChange = useProofStore((s) => s.onEdgesChange);
   const storeOnConnect = useProofStore((s) => s.onConnect);
   const addTacticNode = useProofStore((s) => s.addTacticNode);
+  const addLemmaNode = useProofStore((s) => s.addLemmaNode);
+  const connectNodes = useProofStore((s) => s.connectNodes);
   const updateNode = useProofStore((s) => s.updateNode);
+  const sessionId = useProofStore((s) => s.sessionId);
 
   const selectNode = useUIStore((s) => s.selectNode);
   const setHoveredNode = useUIStore((s) => s.setHoveredNode);
@@ -157,6 +160,7 @@ export function ProofCanvas() {
       // Identify goal and tactic in the connection
       let goalNode: GoalNode | undefined;
       let tacticNode: TacticNode | undefined;
+      let lemmaNode: ProofNode | undefined;
       let isContextEdge = false;
 
       // Goal → Tactic (including context → tactic)
@@ -171,6 +175,41 @@ export function ProofCanvas() {
         // We don't trigger application for this direction
         return;
       }
+      // Lemma → Tactic
+      else if (sourceNode.type === 'lemma' && targetNode.type === 'tactic') {
+        lemmaNode = sourceNode;
+        tacticNode = targetNode as TacticNode;
+      }
+
+      if (lemmaNode && tacticNode) {
+        const lemmaData = (lemmaNode as ProofNode).data as { name?: string };
+        if (!lemmaData?.name) return;
+
+        const nextParams = {
+          ...tacticNode.data.parameters,
+          lemmaId: lemmaNode.id,
+          expression: lemmaData.name,
+        };
+        const nextStatus = isTacticConfigComplete(tacticNode.data.tacticType, nextParams)
+          ? 'ready'
+          : 'incomplete';
+
+        updateNode(tacticNode.id, {
+          parameters: nextParams,
+          status: nextStatus,
+        });
+
+        // If already connected to a goal, auto-apply
+        if (nextStatus === 'ready' && tacticNode.data.connectedGoalId) {
+          await triggerApplyTactic(
+            tacticNode.data.connectedGoalId,
+            tacticNode.data.tacticType,
+            nextParams,
+            tacticNode.id
+          );
+        }
+        return;
+      }
 
       if (!goalNode || !tacticNode) return;
 
@@ -179,29 +218,31 @@ export function ProofCanvas() {
         const contextVarId = connection.sourceHandle.replace('ctx-', '');
         const contextEntry = goalNode.data.context.find((c) => c.id === contextVarId);
         if (contextEntry) {
+          const nextParams = {
+            ...tacticNode.data.parameters,
+            targetContextId: contextVarId,
+            variableName: contextEntry.name,
+          };
+          const nextStatus = isTacticConfigComplete(tacticNode.data.tacticType, nextParams)
+            ? 'ready'
+            : 'incomplete';
+
           updateNode(tacticNode.id, {
-            parameters: {
-              ...tacticNode.data.parameters,
-              targetContextId: contextVarId,
-              variableName: contextEntry.name,
-            },
+            parameters: nextParams,
             connectedGoalId: goalNode.id,
-            // Update status to 'ready' if this was the missing parameter
-            status: 'ready',
+            status: nextStatus,
           });
 
           // Now trigger application since the tactic is ready
-          console.log('[ProofCanvas] Context edge connected, applying tactic:', tacticNode.data.tacticType);
-          await triggerApplyTactic(
-            goalNode.id,
-            tacticNode.data.tacticType,
-            {
-              ...tacticNode.data.parameters,
-              targetContextId: contextVarId,
-              variableName: contextEntry.name,
-            },
-            tacticNode.id // Pass tactic node ID for error handling
-          );
+          if (nextStatus === 'ready') {
+            console.log('[ProofCanvas] Context edge connected, applying tactic:', tacticNode.data.tacticType);
+            await triggerApplyTactic(
+              goalNode.id,
+              tacticNode.data.tacticType,
+              nextParams,
+              tacticNode.id // Pass tactic node ID for error handling
+            );
+          }
         }
         return;
       }
@@ -257,19 +298,19 @@ export function ProofCanvas() {
   }, []);
 
   // Parameterless tactics are immediately ready (no params needed)
-  const PARAMETERLESS_TACTICS = ['split', 'left', 'right'];
+  const PARAMETERLESS_TACTICS = TACTICS.filter((t) => t.parameterless).map((t) => t.type);
 
-  // Handle drop to create a new tactic node
+  // Handle drop to create a new tactic or lemma node
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
 
       const tacticType = event.dataTransfer.getData('application/tactic-type') as TacticType;
-      if (!tacticType) return;
+      const theoremName = event.dataTransfer.getData('application/theorem-name');
+      const theoremType = event.dataTransfer.getData('application/theorem-type');
+      const theoremKind = event.dataTransfer.getData('application/theorem-kind');
 
-      // Get tactic info
-      const tacticInfo = TACTICS.find((t) => t.type === tacticType);
-      if (!tacticInfo) return;
+      if (!tacticType && !theoremName) return;
 
       // Convert screen position to flow position
       const position = screenToFlowPosition({
@@ -277,9 +318,70 @@ export function ProofCanvas() {
         y: event.clientY,
       });
 
+      // Handle theorem/claim drop (create lemma node, optionally apply)
+      if (theoremName) {
+        const flowNodes = getNodes();
+        const goalNode = flowNodes.find((node) => {
+          if (node.type !== 'goal') return false;
+          const width = node.width ?? 200;
+          const height = node.height ?? 120;
+          return (
+            position.x >= node.position.x &&
+            position.x <= node.position.x + width &&
+            position.y >= node.position.y &&
+            position.y <= node.position.y + height
+          );
+        });
+
+        const lemmaSource = theoremKind === 'theorem' ? 'proven' : 'claim';
+        const lemmaId = addLemmaNode(
+          {
+            kind: 'lemma',
+            name: theoremName,
+            type: theoremType || 'unknown',
+            source: lemmaSource,
+          },
+          goalNode
+            ? { x: goalNode.position.x - 220, y: goalNode.position.y }
+            : position
+        );
+
+        if (goalNode) {
+          const applyParams = { expression: theoremName, lemmaId };
+          const applyId = addTacticNode(
+            {
+              kind: 'tactic',
+              tacticType: 'apply',
+              displayName: `apply ${theoremName}`,
+              parameters: applyParams,
+              status: isTacticConfigComplete('apply', applyParams) ? 'ready' : 'incomplete',
+              connectedGoalId: goalNode.id,
+            },
+            { x: goalNode.position.x, y: goalNode.position.y + 160 }
+          );
+
+          // Wire lemma and goal to apply tactic
+          connectNodes(goalNode.id, applyId, { kind: 'goal-to-tactic' });
+          connectNodes(lemmaId, applyId, { kind: 'lemma-to-tactic' });
+
+          if (sessionId) {
+            void triggerApplyTactic(goalNode.id, 'apply', applyParams, applyId);
+          }
+        }
+
+        clearDragState();
+        return;
+      }
+
+      // Get tactic info
+      const tacticInfo = TACTICS.find((t) => t.type === tacticType);
+      if (!tacticInfo) return;
+
       // Parameterless tactics start as 'ready', others start as 'incomplete'
       const isParameterless = PARAMETERLESS_TACTICS.includes(tacticType);
-      const initialStatus = isParameterless ? 'ready' : 'incomplete';
+      const initialStatus = isParameterless || isTacticConfigComplete(tacticType, {})
+        ? 'ready'
+        : 'incomplete';
 
       // Create the tactic node
       const newNodeId = addTacticNode(
@@ -297,7 +399,16 @@ export function ProofCanvas() {
       selectNode(newNodeId);
       clearDragState();
     },
-    [screenToFlowPosition, addTacticNode, selectNode, clearDragState]
+    [
+      screenToFlowPosition,
+      getNodes,
+      addLemmaNode,
+      addTacticNode,
+      connectNodes,
+      selectNode,
+      clearDragState,
+      sessionId,
+    ]
   );
 
   // Validate connections before allowing them

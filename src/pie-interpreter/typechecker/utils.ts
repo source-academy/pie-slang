@@ -21,7 +21,7 @@ type What = 'definition'
 
 export function PieInfoHook(where: Location, what: What): void {
   if (Array.isArray(what) && what[0] === 'TODO') {
-    const [_, serializedCtx, expectedTypeCore, renaming] = what;
+    const [_, , expectedTypeCore, renaming] = what;
 
     // Reconstruct the actual Context from SerializableContext
     // For now, we'll use a simpler approach - just pass empty context

@@ -4,17 +4,7 @@ import { cn } from '@/shared/lib/utils';
 import { useProofStore } from '../../store';
 import type { TacticNode as TacticNodeType, TacticType, TacticNodeStatus } from '../../store/types';
 import { applyTactic as triggerApplyTactic } from '../../utils/tactic-callback';
-
-// Tactics that require a context variable input
-const CONTEXT_INPUT_TACTICS: TacticType[] = [
-  'elimNat',
-  'elimList',
-  'elimVec',
-  'elimEither',
-  'elimEqual',
-  'elimAbsurd',
-  'apply',
-];
+import { getTacticInfo, isTacticConfigComplete } from '../../data/tactics';
 
 // Tactics that don't need any parameters (immediately ready)
 const PARAMETERLESS_TACTICS: TacticType[] = ['split', 'left', 'right'];
@@ -64,12 +54,14 @@ export const TacticNode = memo(function TacticNode({
   data,
   selected,
 }: NodeProps<TacticNodeType>) {
-  const needsContextInput = CONTEXT_INPUT_TACTICS.includes(data.tacticType);
+  const tacticInfo = getTacticInfo(data.tacticType);
+  const needsContextInput = tacticInfo?.requiresContextVar ?? false;
+  const needsLemmaInput = tacticInfo?.requiresLemma ?? false;
   const isParameterless = PARAMETERLESS_TACTICS.includes(data.tacticType);
   const styles = STATUS_STYLES[data.status];
 
   // Show inline input when incomplete and not a context-requiring or parameterless tactic
-  const showInlineInput = data.status === 'incomplete' && !needsContextInput && !isParameterless;
+  const showInlineInput = data.status === 'incomplete' && !needsContextInput && !needsLemmaInput && !isParameterless;
 
   return (
     <div
@@ -88,8 +80,8 @@ export const TacticNode = memo(function TacticNode({
         className="!h-3 !w-3 !border-2 !border-tactic !bg-white"
       />
 
-      {/* Input handle from context variable (left) - only for elim/apply tactics */}
-      {needsContextInput && (
+      {/* Input handle from context variable or lemma (left) */}
+      {(needsContextInput || needsLemmaInput) && (
         <Handle
           type="target"
           position={Position.Left}
@@ -131,10 +123,26 @@ export const TacticNode = memo(function TacticNode({
         />
       )}
 
+      {/* Inline parameter input for exists tactic */}
+      {showInlineInput && data.tacticType === 'exists' && (
+        <ExistsParamInput
+          nodeId={id}
+          currentExpr={data.parameters.expression}
+          connectedGoalId={data.connectedGoalId}
+        />
+      )}
+
       {/* Context input indicator for elim tactics (incomplete state) */}
       {data.status === 'incomplete' && needsContextInput && !data.parameters.targetContextId && (
         <div className="mt-1 rounded bg-purple-50 p-1.5 text-[10px] text-purple-600">
           Connect a variable from goal context to the left handle
+        </div>
+      )}
+
+      {/* Lemma input indicator for apply tactic */}
+      {data.status === 'incomplete' && needsLemmaInput && !data.parameters.expression && !data.parameters.lemmaId && (
+        <div className="mt-1 rounded bg-green-50 p-1.5 text-[10px] text-green-600">
+          Select a lemma in details or connect a lemma node to the left handle
         </div>
       )}
 
@@ -199,12 +207,13 @@ function IntroParamInput({
   const handleSubmit = useCallback(async () => {
     if (value.trim()) {
       const params = { variableName: value.trim() };
+      const status = isTacticConfigComplete('intro', params) ? 'ready' : 'incomplete';
 
       // Update node state
       updateNode(nodeId, {
         parameters: params,
         displayName: `intro ${value.trim()}`,
-        status: 'ready',
+        status,
       });
 
       // If already connected to a goal, trigger application
@@ -260,11 +269,12 @@ function ExactParamInput({
   const handleSubmit = useCallback(async () => {
     if (value.trim()) {
       const params = { expression: value.trim() };
+      const status = isTacticConfigComplete('exact', params) ? 'ready' : 'incomplete';
 
       // Update node state
       updateNode(nodeId, {
         parameters: params,
-        status: 'ready',
+        status,
       });
 
       // If already connected to a goal, trigger application
@@ -288,6 +298,67 @@ function ExactParamInput({
           }
         }}
         placeholder="expression"
+        className="w-full rounded border border-gray-300 px-1.5 py-0.5 text-xs font-mono focus:border-blue-400 focus:outline-none"
+        autoFocus
+      />
+      <button
+        onClick={handleSubmit}
+        disabled={!value.trim()}
+        className="mt-1 w-full rounded bg-tactic px-2 py-0.5 text-[10px] text-white hover:bg-blue-600 disabled:bg-gray-300"
+      >
+        {connectedGoalId ? 'Apply' : 'Set'}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Inline parameter input for exists tactic
+ */
+function ExistsParamInput({
+  nodeId,
+  currentExpr,
+  connectedGoalId,
+}: {
+  nodeId: string;
+  currentExpr?: string;
+  connectedGoalId?: string;
+}) {
+  const [value, setValue] = useState(currentExpr || '');
+  const updateNode = useProofStore((s) => s.updateNode);
+
+  const handleSubmit = useCallback(async () => {
+    if (value.trim()) {
+      const params = { expression: value.trim() };
+      const status = isTacticConfigComplete('exists', params) ? 'ready' : 'incomplete';
+
+      // Update node state
+      updateNode(nodeId, {
+        parameters: params,
+        status,
+      });
+
+      // If already connected to a goal, trigger application
+      if (connectedGoalId) {
+        console.log('[TacticNode] Params set and connected, applying exists');
+        await triggerApplyTactic(connectedGoalId, 'exists', params, nodeId);
+      }
+    }
+  }, [nodeId, value, updateNode, connectedGoalId]);
+
+  return (
+    <div className="mt-1 nodrag">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
+        placeholder="witness expression"
         className="w-full rounded border border-gray-300 px-1.5 py-0.5 text-xs font-mono focus:border-blue-400 focus:outline-none"
         autoFocus
       />

@@ -8,7 +8,7 @@ import { Atomic, Expression, Extended } from "./types/nodes/scheme-node-types";
 import { Program } from "estree";
 
 import { Simplifier, Transpiler, Redefiner } from "./visitors";
-import { estreeEncode } from "..";
+import { estreeEncode } from "../utils/encoder-visitor";
 import { MACRO_CHAPTER } from "./types/constants";
 
 export { LexerError } from "./lexer";

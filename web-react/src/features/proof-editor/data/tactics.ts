@@ -1,14 +1,28 @@
-import type { TacticType } from '../store/types';
+import type { TacticParameters, TacticType } from '../store/types';
 
 /**
  * Tactic metadata for the palette
  */
+export type TacticParamKind = 'variableName' | 'expression' | 'motiveExpression' | 'lengthExpression' | 'lemma';
+
+export interface TacticParamSpec {
+  key: keyof TacticParameters;
+  label: string;
+  kind: TacticParamKind;
+  required: boolean;
+  placeholder?: string;
+  rows?: number;
+}
+
 export interface TacticInfo {
   type: TacticType;
   displayName: string;
   description: string;
   category: TacticCategory;
   requiresContextVar: boolean;  // Does this tactic need a context variable input?
+  requiresLemma?: boolean;      // Does this tactic need a lemma input?
+  parameterless?: boolean;      // Does this tactic require any parameters?
+  params?: TacticParamSpec[];
 }
 
 export type TacticCategory = 'introduction' | 'elimination' | 'constructor' | 'application';
@@ -24,6 +38,15 @@ export const TACTICS: TacticInfo[] = [
     description: 'Introduce a variable from a Pi type into the context',
     category: 'introduction',
     requiresContextVar: false,
+    params: [
+      {
+        key: 'variableName',
+        label: 'Variable name',
+        kind: 'variableName',
+        required: true,
+        placeholder: 'e.g., n',
+      },
+    ],
   },
   {
     type: 'exact',
@@ -31,6 +54,16 @@ export const TACTICS: TacticInfo[] = [
     description: 'Provide an exact term that matches the goal type',
     category: 'introduction',
     requiresContextVar: false,
+    params: [
+      {
+        key: 'expression',
+        label: 'Expression',
+        kind: 'expression',
+        required: true,
+        placeholder: 'Enter a Pie expression...',
+        rows: 3,
+      },
+    ],
   },
   {
     type: 'exists',
@@ -38,6 +71,16 @@ export const TACTICS: TacticInfo[] = [
     description: 'Provide a witness for a Sigma (existential) type',
     category: 'introduction',
     requiresContextVar: false,
+    params: [
+      {
+        key: 'expression',
+        label: 'Witness expression',
+        kind: 'expression',
+        required: true,
+        placeholder: 'Enter a witness expression...',
+        rows: 3,
+      },
+    ],
   },
 
   // Constructor tactics (for sum types)
@@ -47,6 +90,7 @@ export const TACTICS: TacticInfo[] = [
     description: 'Split a Pair goal into two subgoals',
     category: 'constructor',
     requiresContextVar: false,
+    parameterless: true,
   },
   {
     type: 'left',
@@ -54,6 +98,7 @@ export const TACTICS: TacticInfo[] = [
     description: 'Construct a left injection for Either type',
     category: 'constructor',
     requiresContextVar: false,
+    parameterless: true,
   },
   {
     type: 'right',
@@ -61,6 +106,7 @@ export const TACTICS: TacticInfo[] = [
     description: 'Construct a right injection for Either type',
     category: 'constructor',
     requiresContextVar: false,
+    parameterless: true,
   },
 
   // Elimination tactics
@@ -70,6 +116,14 @@ export const TACTICS: TacticInfo[] = [
     description: 'Eliminate a Nat by induction (base case + step case)',
     category: 'elimination',
     requiresContextVar: true,
+    params: [
+      {
+        key: 'variableName',
+        label: 'Target variable',
+        kind: 'variableName',
+        required: true,
+      },
+    ],
   },
   {
     type: 'elimList',
@@ -77,6 +131,14 @@ export const TACTICS: TacticInfo[] = [
     description: 'Eliminate a List by induction (nil case + cons case)',
     category: 'elimination',
     requiresContextVar: true,
+    params: [
+      {
+        key: 'variableName',
+        label: 'Target variable',
+        kind: 'variableName',
+        required: true,
+      },
+    ],
   },
   {
     type: 'elimVec',
@@ -84,6 +146,29 @@ export const TACTICS: TacticInfo[] = [
     description: 'Eliminate a Vec by induction',
     category: 'elimination',
     requiresContextVar: true,
+    params: [
+      {
+        key: 'variableName',
+        label: 'Target variable',
+        kind: 'variableName',
+        required: true,
+      },
+      {
+        key: 'motiveExpression',
+        label: 'Motive',
+        kind: 'motiveExpression',
+        required: true,
+        placeholder: 'Enter motive expression...',
+        rows: 3,
+      },
+      {
+        key: 'lengthExpression',
+        label: 'Length expression',
+        kind: 'lengthExpression',
+        required: true,
+        placeholder: 'Enter length expression...',
+      },
+    ],
   },
   {
     type: 'elimEither',
@@ -91,6 +176,14 @@ export const TACTICS: TacticInfo[] = [
     description: 'Eliminate an Either by case analysis',
     category: 'elimination',
     requiresContextVar: true,
+    params: [
+      {
+        key: 'variableName',
+        label: 'Target variable',
+        kind: 'variableName',
+        required: true,
+      },
+    ],
   },
   {
     type: 'elimEqual',
@@ -98,6 +191,22 @@ export const TACTICS: TacticInfo[] = [
     description: 'Eliminate an equality proof by substitution',
     category: 'elimination',
     requiresContextVar: true,
+    params: [
+      {
+        key: 'variableName',
+        label: 'Target variable',
+        kind: 'variableName',
+        required: true,
+      },
+      {
+        key: 'motiveExpression',
+        label: 'Motive',
+        kind: 'motiveExpression',
+        required: true,
+        placeholder: 'Enter motive expression...',
+        rows: 3,
+      },
+    ],
   },
   {
     type: 'elimAbsurd',
@@ -105,6 +214,14 @@ export const TACTICS: TacticInfo[] = [
     description: 'Eliminate Absurd (false) to prove anything',
     category: 'elimination',
     requiresContextVar: true,
+    params: [
+      {
+        key: 'variableName',
+        label: 'Target variable',
+        kind: 'variableName',
+        required: true,
+      },
+    ],
   },
 
   // Application tactics
@@ -113,7 +230,23 @@ export const TACTICS: TacticInfo[] = [
     displayName: 'apply',
     description: 'Apply a function or lemma to the goal',
     category: 'application',
-    requiresContextVar: true,
+    requiresContextVar: false,
+    requiresLemma: true,
+    params: [
+      {
+        key: 'expression',
+        label: 'Function or lemma',
+        kind: 'expression',
+        required: false,
+        placeholder: 'Enter a function or lemma name...',
+      },
+      {
+        key: 'lemmaId',
+        label: 'Lemma',
+        kind: 'lemma',
+        required: false,
+      },
+    ],
   },
 ];
 
@@ -138,3 +271,30 @@ export const CATEGORY_NAMES: Record<TacticCategory, string> = {
   elimination: 'Elimination',
   application: 'Application',
 };
+
+export function getTacticInfo(type: TacticType): TacticInfo | undefined {
+  return TACTICS.find((t) => t.type === type);
+}
+
+export function isTacticConfigComplete(type: TacticType, params: TacticParameters): boolean {
+  const info = getTacticInfo(type);
+  if (!info) return false;
+
+  if (type === 'apply') {
+    const expr = typeof params.expression === 'string' ? params.expression.trim() : '';
+    return Boolean(expr || params.lemmaId);
+  }
+
+  const specs = info.params ?? [];
+  for (const spec of specs) {
+    if (!spec.required) continue;
+    const value = params[spec.key];
+    if (typeof value === 'string') {
+      if (!value.trim()) return false;
+    } else if (value === undefined || value === null) {
+      return false;
+    }
+  }
+
+  return true;
+}

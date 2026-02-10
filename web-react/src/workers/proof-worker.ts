@@ -1,6 +1,14 @@
 import * as Comlink from 'comlink';
 import { nanoid } from 'nanoid';
 
+import { schemeParse, pieDeclarationParser, Claim, Definition, DefineTactically, Parser } from '@pie/parser/parser';
+import { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext } from '@pie/utils/context';
+import { go, stop } from '@pie/types/utils';
+import { ProofManager } from '@pie/tactics/proof-manager';
+import { Location, Syntax } from '@pie/utils/locations';
+import { Position } from '@scheme/transpiler/types/location';
+import * as tactics from '@pie/tactics/tactics';
+
 console.log('[ProofWorker] Worker script starting...');
 
 // ============================================
@@ -15,12 +23,20 @@ export type TacticType =
   | 'induction'
   | 'exact'
   | 'exists'
+  | 'elimNat'
+  | 'elimList'
   | 'elimVec'
-  | 'elimEqual';
+  | 'elimEither'
+  | 'elimEqual'
+  | 'elimAbsurd'
+  | 'apply';
 
 export interface TacticParameters {
   variableName?: string;
   expression?: string;
+  lemmaId?: string;
+  motiveExpression?: string;
+  lengthExpression?: string;
 }
 
 // These types match the Pie interpreter's proofstate.ts exports
@@ -163,16 +179,13 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
     try {
       results.push('1. Testing parser imports...');
-      const parser = await import('@pie/parser/parser');
-      results.push('   schemeParse: ' + (typeof parser.schemeParse === 'function' ? 'OK' : 'MISSING'));
+      results.push('   schemeParse: ' + (typeof schemeParse === 'function' ? 'OK' : 'MISSING'));
 
       results.push('2. Testing context imports...');
-      const ctx = await import('@pie/utils/context');
-      results.push('   initCtx: ' + (ctx.initCtx ? 'OK' : 'MISSING'));
+      results.push('   initCtx: ' + (initCtx ? 'OK' : 'MISSING'));
 
       results.push('3. Testing ProofManager...');
-      const pmModule = await import('@pie/tactics/proof-manager');
-      results.push('   ProofManager: ' + (pmModule.ProofManager ? 'OK' : 'MISSING'));
+      results.push('   ProofManager: ' + (ProofManager ? 'OK' : 'MISSING'));
 
       results.push('ALL IMPORTS SUCCESSFUL!');
       return { success: true, results };
@@ -186,16 +199,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
     console.log('[ProofWorker] startSession() called for:', claimName);
 
     try {
-      // Dynamically import Pie modules
-      console.log('[ProofWorker] Importing modules...');
-      const { schemeParse, pieDeclarationParser, Claim, Definition, DefineTactically } =
-        await import('@pie/parser/parser');
-      const { initCtx, addClaimToContext, addDefineToContext, addDefineTacticallyToContext } =
-        await import('@pie/utils/context');
-      const { go, stop } = await import('@pie/types/utils');
-      const { ProofManager } = await import('@pie/tactics/proof-manager');
-      const { Location, Syntax } = await import('@pie/utils/locations');
-      const { Position } = await import('@scheme/transpiler/types/location');
+      console.log('[ProofWorker] Using preloaded modules...');
 
       // Create a dummy location
       const pos = new Position(1, 0);
@@ -362,12 +366,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
     }
 
     try {
-      // Import tactic classes
-      const tactics = await import('@pie/tactics/tactics');
-      const { Location, Syntax } = await import('@pie/utils/locations');
-      const { Position } = await import('@scheme/transpiler/types/location');
-      const { Parser } = await import('@pie/parser/parser');
-      const { stop } = await import('@pie/types/utils');
+      // Tactic classes and helper types are statically imported
 
       // Set the current goal to the one the user dropped onto
       const pm = session.proofManager;
@@ -466,6 +465,26 @@ const proofWorkerAPI: ProofWorkerAPI = {
           tactic = new tactics.EliminateListTactic(loc, params.variableName);
           break;
 
+        case 'elimVec':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimVec tactic requires a target variable name',
+            };
+          }
+          if (!params.motiveExpression || !params.lengthExpression) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimVec tactic requires motive and length expressions',
+            };
+          }
+          const vecMotive = Parser.parsePie(params.motiveExpression);
+          const vecLength = Parser.parsePie(params.lengthExpression);
+          tactic = new tactics.EliminateVecTactic(loc, params.variableName, vecMotive, vecLength);
+          break;
+
         case 'elimEither':
           if (!params.variableName) {
             return {
@@ -475,6 +494,25 @@ const proofWorkerAPI: ProofWorkerAPI = {
             };
           }
           tactic = new tactics.EliminateEitherTactic(loc, params.variableName);
+          break;
+
+        case 'elimEqual':
+          if (!params.variableName) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimEqual tactic requires a target variable name',
+            };
+          }
+          if (!params.motiveExpression) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'elimEqual tactic requires a motive expression',
+            };
+          }
+          const eqMotive = Parser.parsePie(params.motiveExpression);
+          tactic = new tactics.EliminateEqualTactic(loc, params.variableName, eqMotive);
           break;
 
         case 'elimAbsurd':
@@ -487,6 +525,20 @@ const proofWorkerAPI: ProofWorkerAPI = {
           }
           tactic = new tactics.EliminateAbsurdTactic(loc, params.variableName);
           break;
+
+        case 'apply': {
+          const expr = params.expression?.trim();
+          if (!expr) {
+            return {
+              success: false,
+              proofTree: this.getProofTree(sessionId) || { root: { goal: { id: '', type: '', context: [], isComplete: false, isCurrent: false }, children: [] }, isComplete: false, currentGoalId: null },
+              error: 'apply tactic requires an expression or lemma',
+            };
+          }
+          const applyExpr = Parser.parsePie(expr);
+          tactic = new tactics.ApplyTactic(loc, applyExpr);
+          break;
+        }
 
         default:
           return {

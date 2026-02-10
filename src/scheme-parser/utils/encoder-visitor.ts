@@ -1,6 +1,6 @@
 import * as es from "estree";
-import { decode, encode } from "..";
-const walk = require("acorn-walk");
+import * as walk from "acorn-walk";
+import { decode, encode } from "./identifier-encoding";
 
 // A function to modify all names in the estree program.
 // Prevents any name collisions with JS keywords and invalid characters.

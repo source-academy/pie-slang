@@ -9,7 +9,7 @@ import { doApp, indVecStepType } from '../evaluator/evaluator';
 import { readBack } from '../evaluator/utils';
 import { fresh } from '../types/utils';
 import { Variable } from '../types/neutral';
-import { convert, extendRenaming, Renaming} from '../typechecker/utils';
+import { convert, extendRenaming } from '../typechecker/utils';
 import { Location } from '../utils/locations';
 import * as V from '../types/value';
 import * as C from '../types/core';
@@ -254,7 +254,7 @@ export class EliminateNatTactic extends Tactic {
       );
     };
     
-    const rst = this.eliminateNat(currentGoal.context, currentGoal.renaming, motiveValue)
+    const rst = this.eliminateNat(currentGoal.context, motiveValue)
     state.addGoal(
       rst.map((type) => {
         const newGoalNode = new GoalNode(
@@ -287,7 +287,7 @@ export class EliminateNatTactic extends Tactic {
     );
   }
 
-  private eliminateNat(context: Context, r: Renaming, motiveType: Value): Value[] {
+  private eliminateNat(context: Context, motiveType: Value): Value[] {
     // 1. A base case: (motive zero)
     const baseType = doApp(motiveType, new V.Zero());
 
@@ -390,7 +390,7 @@ export class EliminateListTactic extends Tactic {
       );
     };
 
-    const rst = this.eliminateList(currentGoal.context, currentGoal.renaming, motiveType, E);
+      const rst = this.eliminateList(currentGoal.context, motiveType, E);
     state.addGoal(
       rst.map((type) => {
         const newGoalNode = new GoalNode(
@@ -415,7 +415,7 @@ export class EliminateListTactic extends Tactic {
     );
   }
 
-  private eliminateList(context: Context, r: Renaming, motiveType: Value, entryType: Value): Value[] {
+  private eliminateList(context: Context, motiveType: Value, entryType: Value): Value[] {
     //1. A base case: (motive nil)
     const baseType = doApp(motiveType, new V.Nil());
 
@@ -531,7 +531,7 @@ export class EliminateVecTactic extends Tactic {
         );
       };
       
-      const rst = this.eliminateVec(currentGoal.context, currentGoal.renaming, motiveType, E);
+      const rst = this.eliminateVec(motiveType, E);
       state.addGoal(
         rst.map((type) => {
           const newGoalNode = new GoalNode(
@@ -543,7 +543,7 @@ export class EliminateVecTactic extends Tactic {
     }
   }
 
-  private eliminateVec(context: Context, r: Renaming, motiveType: Value, entryType: Value): Value[] {
+  private eliminateVec(motiveType: Value, entryType: Value): Value[] {
     const baseType = doApp(doApp(motiveType, new V.Zero()), new V.VecNil())
     const stepType = indVecStepType(entryType, motiveType)
     return [baseType, stepType];

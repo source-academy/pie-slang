@@ -8,7 +8,6 @@ import {
   TypedBinder
 } from '../types/utils';
 import { bindFree, Context, contextToEnvironment, Define, valInContext, varType, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder } from '../utils/context';
-import { Environment, extendEnvironment } from '../utils/environment';
 import { atomOk, convert, extendRenaming, makeApp, PieInfoHook, rename, Renaming, sameType } from "./utils";
 import { notForInfo } from "../utils/locations";
 import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
@@ -19,6 +18,8 @@ import { Location } from '../utils/locations';
 export class synthesizer {
 
   public static synthNat(ctx: Context, r: Renaming): Perhaps<C.The> {
+    void ctx;
+    void r;
     return new go(new C.The(
       new C.Universe(),
       new C.Nat()
@@ -26,6 +27,8 @@ export class synthesizer {
   }
 
   public static synthUniverse(ctx: Context, r: Renaming, location: Location): Perhaps<C.The> {
+    void ctx;
+    void r;
     return new stop(location,
       new Message(["U is a type, but it does not have a type."])
     );
@@ -160,6 +163,8 @@ export class synthesizer {
   }
 
   public static synthZero(context: Context, r: Renaming): Perhaps<C.The> {
+    void context;
+    void r;
     return new go(
       new C.The(
         new C.Nat(),
@@ -369,6 +374,8 @@ export class synthesizer {
   }
 
   public static synthAtom(context: Context, r: Renaming): Perhaps<C.The> {
+    void context;
+    void r;
     return new go(
       new C.The(
         new C.Universe(),
@@ -510,7 +517,7 @@ export class synthesizer {
       () => {
         const val = valInContext(context, pout.value.type);
         if (val instanceof V.Sigma) {
-          const [x, A, clos] = [val.carName, val.carType, val.cdrType];
+          const clos = val.cdrType;
           return new go(
             new C.The(
               clos.valOfClosure(
@@ -532,6 +539,8 @@ export class synthesizer {
   }
 
   public static synthQuote(context: Context, r: Renaming, location: Location, atom: string): Perhaps<C.The> {
+    void context;
+    void r;
     if (atomOk(atom)) {
       return new go(
         new C.The(
@@ -548,6 +557,8 @@ export class synthesizer {
   }
 
   public static synthTrivial(context: Context, r: Renaming): Perhaps<C.The> {
+    void context;
+    void r;
     return new go(
       new C.The(
         new C.Universe(),
@@ -557,6 +568,8 @@ export class synthesizer {
   }
 
   public static synthSole(context: Context, r: Renaming): Perhaps<C.The> {
+    void context;
+    void r;
     return new go(
       new C.The(
         new C.Trivial(),
@@ -764,6 +777,9 @@ export class synthesizer {
   }
 
   public static synthAbsurd(context: Context, r: Renaming, e: S.Absurd): Perhaps<C.The> {
+    void context;
+    void r;
+    void e;
     return new go(
       new C.The(
         new C.Universe(),
@@ -930,7 +946,7 @@ export class synthesizer {
         if (result1 instanceof V.Equal) {
           const [Av, fromv, tov] = [result1.type, result1.from, result1.to];
           if (result2 instanceof V.Pi) {
-            const [x, Bv, c] = [result2.argName, result2.argType, result2.resultType];
+            const [Bv, c] = [result2.argType, result2.resultType];
             const ph = new PerhapsM<any>('ph');
             const Cv = new PerhapsM<V.Value>('Cv');
             const fv = new PerhapsM<V.Value>('fv');
@@ -1360,6 +1376,7 @@ export class synthesizer {
           fun.name,
           [arg, ...args]
         );
+        void constructorApp;
         // Constructors need to be checked, not synthesized, so we can't synthesize a type directly
         // Return an error suggesting the user provide type annotation
         return new stop(
@@ -1413,7 +1430,7 @@ export class synthesizer {
         () => {
           const result = valInContext(context, appout.value.type);
           if (result instanceof V.Pi) {
-            const [x, A, c] = [result.argName, result.argType, result.resultType];
+            const [A, c] = [result.argType, result.resultType];
             const argout = new PerhapsM<C.Core>('fout');
             return goOn(
               [[argout, () => args[args.length - 1].check(context, r, A)]],
@@ -1654,7 +1671,7 @@ export class synthesizer {
   private static getConstructorTypesForDatatype(ctx: Context, typeName: string): { core: C.ConstructorType, resultTypeValue: V.InductiveTypeConstructor }[] {
     const constructorTypes: { core: C.ConstructorType, resultTypeValue: V.InductiveTypeConstructor }[] = [];
 
-    for (const [name, binder] of ctx) {
+    for (const [, binder] of ctx) {
       if (binder instanceof ConstructorTypeBinder) {
         const ctor = binder.constructorType;
         if (ctor.type === typeName) {
@@ -1676,6 +1693,7 @@ export class synthesizer {
     motive_core: C.Core,
     typeParams: V.Value[]
   ): C.Core {
+    void typeParams;
     let cur_ret = motive_core
     for (const index of ctorType.resultType.indices) {
       cur_ret = new C.Application(cur_ret, index)
@@ -1722,11 +1740,4 @@ export class synthesizer {
     }
     return cur_ret
   }
-}
-
-function extractIndicesFromValue(val: V.Value): V.Value[] {
-  if (val instanceof V.InductiveTypeConstructor) {
-    return val.indices;
-  }
-  return [];
 }
