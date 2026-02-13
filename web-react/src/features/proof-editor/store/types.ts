@@ -163,6 +163,10 @@ export interface ProofState {
 
   // Position preservation
   manualPositions: Map<string, { x: number; y: number }>;
+
+  // Branch collapse state
+  collapsedBranches: Set<string>;  // Set of goal IDs whose subtrees are collapsed
+  autoCollapseEnabled: boolean;    // Whether to auto-collapse completed subtrees
 }
 
 export interface ProofActions {
@@ -223,6 +227,11 @@ export interface ProofActions {
   // Position management
   setManualPosition: (nodeId: string, position: { x: number; y: number }) => void;
   clearManualPositions: () => void;
+
+  // Branch collapse management
+  toggleBranchCollapse: (goalId: string) => void;
+  expandAllBranches: () => void;
+  setAutoCollapseEnabled: (enabled: boolean) => void;
 }
 
 export type ProofStore = ProofState & ProofActions;

@@ -1,7 +1,7 @@
 import { memo, useCallback, useState } from "react";
 import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { cn } from "@/shared/lib/utils";
-import { Lightbulb, Loader2, Sparkles } from "lucide-react";
+import { Lightbulb, Loader2, Sparkles, ChevronRight, ChevronDown } from "lucide-react";
 import type {
   GoalNode as GoalNodeType,
   ContextEntry,
@@ -79,6 +79,11 @@ export const GoalNode = memo(function GoalNode({
     needsParam: "variable" | "expression" | null;
   } | null>(null);
   const [paramInput, setParamInput] = useState("");
+
+  // Collapse state
+  const isCollapsed = useProofStore((s) => s.collapsedBranches.has(id));
+  const toggleCollapse = useProofStore((s) => s.toggleBranchCollapse);
+  const isCollapsible = data.isSubtreeComplete && data.status === 'completed';
 
   // Handle hint button click
   const handleHintClick = useCallback(
@@ -241,6 +246,7 @@ export const GoalNode = memo(function GoalNode({
           data.status !== "completed" &&
           data.status !== "todo" &&
           "ring-4 ring-blue-400 ring-offset-2",
+        isCollapsed && "ring-2 ring-green-400 ring-offset-1",
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -314,6 +320,23 @@ export const GoalNode = memo(function GoalNode({
         {/* Header with status badge and hint button */}
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            {/* Collapse toggle for completed subtrees */}
+            {isCollapsible && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleCollapse(id);
+                }}
+                className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                title={isCollapsed ? 'Expand branch' : 'Collapse branch'}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="w-4 h-4 text-green-600" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-green-600" />
+                )}
+              </button>
+            )}
             <span className="text-xs font-medium text-gray-500">Goal</span>
             {/* Hint button - only show for non-completed goals */}
             {data.status !== "completed" && data.status !== "todo" && (
@@ -357,6 +380,14 @@ export const GoalNode = memo(function GoalNode({
         <div className="rounded bg-white/50 p-2 font-mono text-sm break-all">
           {data.goalType}
         </div>
+
+        {/* Collapsed branch indicator */}
+        {isCollapsed && (
+          <div className="mt-2 text-xs text-green-600 italic flex items-center gap-1">
+            <ChevronRight className="w-3 h-3" />
+            <span>Branch collapsed - click chevron to expand</span>
+          </div>
+        )}
       </div>
 
       {/* Context variables as subblocks - only show local (introduced) variables */}

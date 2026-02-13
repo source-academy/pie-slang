@@ -12,7 +12,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useProofStore, useUIStore, isValidConnection } from "../store";
+import { useProofStore, useUIStore, isValidConnection, useClearManualPositions, useHasManualPositions, useCollapsedBranches, useHasCollapsedBranches, useExpandAllBranches } from "../store";
 import { nodeTypes } from "./nodes";
 import { setRequestHintCallback } from "./nodes/GoalNode";
 import { edgeTypes, getEdgeStyle } from "./edges";
@@ -64,6 +64,15 @@ export function ProofCanvas() {
   const selectNode = useUIStore((s) => s.selectNode);
   const setHoveredNode = useUIStore((s) => s.setHoveredNode);
   const clearDragState = useUIStore((s) => s.clearDragState);
+
+  // Position management
+  const clearManualPositions = useClearManualPositions();
+  const hasManualPositions = useHasManualPositions();
+
+  // Branch collapse management
+  const collapsedBranches = useCollapsedBranches();
+  const hasCollapsedBranches = useHasCollapsedBranches();
+  const expandAllBranches = useExpandAllBranches();
 
   // Hint system
   const {
@@ -420,11 +429,41 @@ export function ProofCanvas() {
     return ghosts;
   }, [goalHints, acceptGhostNode, dismissGhostNode, getMoreDetail]);
 
-  // Combine regular nodes with ghost nodes
+  // Compute which nodes should be hidden due to branch collapse
+  const hiddenNodeIds = useMemo(() => {
+    const hidden = new Set<string>();
+
+    // Build parent-child map from edges
+    const childrenMap = new Map<string, string[]>();
+    edges.forEach(edge => {
+      const children = childrenMap.get(edge.source) || [];
+      children.push(edge.target);
+      childrenMap.set(edge.source, children);
+    });
+
+    // Mark all descendants of collapsed nodes as hidden
+    function markDescendants(nodeId: string) {
+      const children = childrenMap.get(nodeId) || [];
+      children.forEach(childId => {
+        hidden.add(childId);
+        markDescendants(childId);
+      });
+    }
+
+    collapsedBranches.forEach(rootId => markDescendants(rootId));
+
+    return hidden;
+  }, [edges, collapsedBranches]);
+
+  // Combine regular nodes with ghost nodes and apply hidden property
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allNodes = useMemo(() => {
-    return [...nodes, ...ghostNodes] as any[];
-  }, [nodes, ghostNodes]);
+    const visibleNodes = nodes.map(node => ({
+      ...node,
+      hidden: hiddenNodeIds.has(node.id)
+    }));
+    return [...visibleNodes, ...ghostNodes] as any[];
+  }, [nodes, ghostNodes, hiddenNodeIds]);
 
   // Create ghost edges connecting goals to ghost nodes
   const ghostEdges = useMemo(() => {
@@ -484,6 +523,53 @@ export function ProofCanvas() {
       >
         <Background color="#e5e7eb" gap={16} />
         <Controls />
+        {/* Control buttons - Reset Layout and Expand All */}
+        {(hasManualPositions || hasCollapsedBranches) && (
+          <div className="absolute bottom-4 left-4 z-10 flex gap-2">
+            {hasManualPositions && (
+              <button
+                onClick={clearManualPositions}
+                className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 hover:bg-gray-50"
+                title="Reset nodes to auto-layout positions"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Reset Layout
+              </button>
+            )}
+            {hasCollapsedBranches && (
+              <button
+                onClick={expandAllBranches}
+                className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 hover:bg-gray-50"
+                title="Expand all collapsed branches"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Expand All
+              </button>
+            )}
+          </div>
+        )}
         <MiniMap
           nodeStrokeColor={(node) => {
             if (node.type === "goal") {
