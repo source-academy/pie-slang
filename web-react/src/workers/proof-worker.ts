@@ -357,6 +357,24 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
       // Build context and track definitions/claims for globalContext
       console.log("[ProofWorker] Building context...");
+      // Pre-scan for valid definitions and theorems to filter the context
+      console.log("[ProofWorker] Pre-scanning for definitions...");
+      const validNames = new Set<string>();
+
+      for (const node of astList) {
+        const src = pieDeclarationParser.parseDeclaration(node);
+        if (src instanceof Definition || src instanceof DefineTactically) {
+          validNames.add(src.name);
+        }
+      }
+
+      // Add the target claim to valid names so it's included (it won't have a definition yet)
+      validNames.add(claimName);
+
+      console.log("[ProofWorker] Found valid definitions:", Array.from(validNames));
+
+      // Build context and track definitions/claims for globalContext
+      console.log("[ProofWorker] Building context...");
       let ctx = initCtx;
       const globalDefinitions: GlobalContextEntry[] = [];
       const globalTheorems: GlobalContextEntry[] = [];
@@ -364,13 +382,28 @@ const proofWorkerAPI: ProofWorkerAPI = {
 
       for (let i = 0; i < astList.length; i++) {
         const src = pieDeclarationParser.parseDeclaration(astList[i]);
+
+        // Skip SamenessCheck or other non-declaration types if they don't have a name
+        if (!('name' in src)) continue;
+
+        // STOP CONDITION: If we've reached the target claim, we're done building context
+        // The target claim itself should be added, but nothing after it
+        const isTargetClaim = src.name === claimName;
+
         if (src instanceof Claim) {
+          // FILTER: Only add claim to context if it is proven (has a definition) OR is the target claim
+          if (!validNames.has(src.name)) {
+            // Skip unproven claims (unless it's the target, but target is in validNames)
+            continue;
+          }
+
           const result = addClaimToContext(
             ctx,
             src.name,
             src.location,
             src.type,
           );
+
           if (result instanceof go) {
             ctx = result.result;
             // Track claim for later - will become theorem if proved
@@ -379,11 +412,20 @@ const proofWorkerAPI: ProofWorkerAPI = {
             const typeStr = srcType.readBackType
               ? srcType.readBackType(ctx).prettyPrint()
               : String(src.type);
-            pendingClaims.push({ name: src.name, type: typeStr });
+
+            // If this is the target claim, we don't treat it as "pending" for the global list
+            // (or maybe we do? It doesn't matter for the proof session, but for the returned globalContext)
+            // Actually, we should probably treat it as a claim to prove.
+            if (!isTargetClaim) {
+              pendingClaims.push({ name: src.name, type: typeStr });
+            }
           } else if (result instanceof stop) {
             throw new Error(`Claim error: ${result.message}`);
           }
         } else if (src instanceof Definition) {
+          // Definitions are always valid if their claim was valid (which we filtered above)
+          // But strict check: is it in validNames? Yes by definition.
+
           const result = addDefineToContext(
             ctx,
             src.name,
@@ -432,6 +474,13 @@ const proofWorkerAPI: ProofWorkerAPI = {
           } else if (result instanceof stop) {
             throw new Error(`DefineTactically error: ${result.message}`);
           }
+        }
+
+        // If we just processed the target claim, STOP building context.
+        // We don't want anything declared *after* the claim to be available.
+        if (isTargetClaim) {
+          console.log(`[ProofWorker] Reached target claim '${claimName}', stopping context build.`);
+          break;
         }
       }
 
