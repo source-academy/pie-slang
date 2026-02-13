@@ -429,6 +429,16 @@ export const useProofStore = create<ProofStore>()(
         });
 
         set((state) => {
+          // Clear stale collapsedBranches when starting a new proof session.
+          // A new session is indicated by a new claimName being provided that
+          // differs from the current one. Within the same session (e.g. after
+          // applying a tactic), claimName is not passed, so collapse state is
+          // preserved.
+          if (claimName && claimName !== state.claimName) {
+            state.collapsedBranches = new Set();
+            state.manualPositions = new Map();
+          }
+
           state.nodes = mergedNodes;
           state.edges = edges;
           state.sessionId = sessionId;
