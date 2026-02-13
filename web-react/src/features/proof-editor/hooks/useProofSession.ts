@@ -30,8 +30,7 @@ export function useProofSession() {
   const setGlobalContext = useMetadataStore((s) => s.setGlobalContext);
   const setMetadataClaimName = useMetadataStore((s) => s.setClaimName);
 
-  // Also keep proof-store in sync for backwards compatibility
-  const setProofStoreGlobalContext = useProofStore((s) => s.setGlobalContext);
+
 
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
@@ -60,7 +59,7 @@ export function useProofSession() {
         setAvailableLemmas(result.availableLemmas);
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
-        setProofStoreGlobalContext(result.globalContext); // Keep proof-store in sync
+
         setMetadataClaimName(claimName); // Store claim name in metadata store
 
         return result;
@@ -72,7 +71,7 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [syncFromWorker, saveSnapshot, setGlobalContext, setProofStoreGlobalContext, setMetadataClaimName]
+    [syncFromWorker, saveSnapshot, setGlobalContext, setMetadataClaimName]
   );
 
   /**
@@ -132,13 +131,13 @@ export function useProofSession() {
       setAvailableLemmas([]);
       setClaimType(null);
       setGlobalContext({ definitions: [], theorems: [] });
-      setProofStoreGlobalContext({ definitions: [], theorems: [] });
+
       setMetadataClaimName(null);
       setError(null);
     } catch (e) {
       console.error('Failed to close session:', e);
     }
-  }, [sessionId, setGlobalContext, setProofStoreGlobalContext, setMetadataClaimName]);
+  }, [sessionId, setGlobalContext, setMetadataClaimName]);
 
   /**
    * Clear any error state.
