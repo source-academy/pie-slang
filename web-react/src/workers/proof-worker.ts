@@ -159,12 +159,130 @@ export interface ProofWorkerAPI {
   closeSession: (sessionId: string) => void;
   getProofTree: (sessionId: string) => ProofTreeData | null;
   getHint: (request: GetHintRequest) => Promise<ProgressiveHintResponse>;
+  scanFile: (sourceCode: string) => Promise<{
+    definitions: GlobalContextEntry[];
+    theorems: GlobalContextEntry[];
+    claims: GlobalContextEntry[];
+  }>;
 }
 
 const proofWorkerAPI: ProofWorkerAPI = {
   test() {
     console.log("[ProofWorker] test() called");
     return "Proof worker is responding!";
+  },
+
+  async scanFile(sourceCode: string) {
+    console.log("[ProofWorker] scanFile() called");
+    try {
+      // Dynamically import Pie modules
+      const {
+        schemeParse,
+        pieDeclarationParser,
+        Claim,
+        Definition,
+        DefineTactically,
+      } = await import("@pie/parser/parser");
+      const {
+        initCtx,
+        addClaimToContext,
+        addDefineToContext,
+        addDefineTacticallyToContext,
+      } = await import("@pie/utils/context");
+      const { go, stop } = await import("@pie/types/utils");
+      const { Position } = await import("@scheme/transpiler/types/location");
+      const { Syntax, Location } = await import("@pie/utils/locations");
+
+      // Parse source code
+      const astList = schemeParse(sourceCode);
+      if (!astList || !Array.isArray(astList)) {
+        throw new Error("Failed to parse source code");
+      }
+
+      let ctx = initCtx;
+      const definitions: GlobalContextEntry[] = [];
+      const theorems: GlobalContextEntry[] = [];
+      const claims: GlobalContextEntry[] = [];
+      const pendingClaims: Array<{ name: string; type: string }> = [];
+
+      for (let i = 0; i < astList.length; i++) {
+        const src = pieDeclarationParser.parseDeclaration(astList[i]);
+        if (src instanceof Claim) {
+          const result = addClaimToContext(
+            ctx,
+            src.name,
+            src.location,
+            src.type,
+          );
+          if (result instanceof go) {
+            ctx = result.result;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const srcType = src.type as any;
+            const typeStr = srcType.readBackType
+              ? srcType.readBackType(ctx).prettyPrint()
+              : String(src.type);
+            pendingClaims.push({ name: src.name, type: typeStr });
+          }
+        } else if (src instanceof Definition) {
+          const result = addDefineToContext(
+            ctx,
+            src.name,
+            src.location,
+            src.expr,
+          );
+          if (result instanceof go) {
+            ctx = result.result;
+            const binding = ctx.get(src.name);
+            const typeStr = binding
+              ? binding.type.readBackType(ctx).prettyPrint()
+              : "unknown";
+            definitions.push({
+              name: src.name,
+              type: typeStr,
+              kind: "definition",
+            });
+          }
+        } else if (src instanceof DefineTactically) {
+          const result = addDefineTacticallyToContext(
+            ctx,
+            src.name,
+            src.location,
+            src.tactics,
+          );
+          if (result instanceof go) {
+            ctx = result.result.context;
+            const binding = ctx.get(src.name);
+            const typeStr = binding
+              ? binding.type.readBackType(ctx).prettyPrint()
+              : "unknown";
+            theorems.push({
+              name: src.name,
+              type: typeStr,
+              kind: "theorem",
+            });
+            // Remove from pending claims if it was there
+            const claimIdx = pendingClaims.findIndex(
+              (c) => c.name === src.name,
+            );
+            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
+          }
+        }
+      }
+
+      // Add remaining unproved claims
+      for (const claim of pendingClaims) {
+        claims.push({
+          name: claim.name,
+          type: claim.type,
+          kind: "claim",
+        });
+      }
+
+      return { definitions, theorems, claims };
+    } catch (e) {
+      console.error("[ProofWorker] scanFile error:", e);
+      return { definitions: [], theorems: [], claims: [] };
+    }
   },
 
   async testImports() {
@@ -176,7 +294,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       const parser = await import("@pie/parser/parser");
       results.push(
         "   schemeParse: " +
-          (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
+        (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
       );
 
       results.push("2. Testing context imports...");

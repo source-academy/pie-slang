@@ -147,6 +147,40 @@ export function useProofSession() {
     setError(null);
   }, []);
 
+  /**
+   * Scan the source code for claims, theorems, and definitions.
+   */
+  const scan = useCallback(
+    async (sourceCode: string) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const result = await proofWorker.scanFile(sourceCode);
+
+        // Update global context with definitions and theorems found during scan
+        setGlobalContext({
+          definitions: result.definitions,
+          theorems: result.theorems,
+        });
+
+        // Return the claims (unproved) and theorems (proved) to the caller
+        // The caller (ProofPicker) can then display them
+        return {
+          claims: result.claims,
+          theorems: result.theorems,
+        };
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        setError(errorMessage);
+        throw e;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [setGlobalContext]
+  );
+
   return {
     // State
     isLoading,
@@ -161,6 +195,7 @@ export function useProofSession() {
     applyTactic,
     closeSession,
     clearError,
+    scan,
 
     // Computed
     hasActiveSession: sessionId !== null,
