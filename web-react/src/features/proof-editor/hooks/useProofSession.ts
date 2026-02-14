@@ -155,6 +155,7 @@ export function useProofSession() {
       setError(null);
 
       try {
+        // Scan the file for definitions and claims (Multi-proof support)
         const result = await proofWorker.scanFile(sourceCode);
 
         // Update global context with definitions and theorems found during scan
