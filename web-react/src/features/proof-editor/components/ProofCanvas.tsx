@@ -159,12 +159,53 @@ export function ProofCanvas() {
    */
   const handleEdgesChange = useCallback(
     (changes: import("@xyflow/react").EdgeChange[]) => {
+      // If we are already intercepting, block everything
       if (isInterceptingDelete.current) {
         return;
       }
-      onEdgesChange(changes);
+
+      // Filter out edge removals that are implicit (caused by deleting a protected node)
+      const filteredChanges = changes.filter((change) => {
+        if (change.type === "remove") {
+          const edge = edges.find((e) => e.id === change.id);
+          if (!edge) return true; // Edge not found in managed state (maybe ghost?)
+
+          // Helper to check if a node is "protected" (should trigger confirmation/blocking)
+          // AND is currently selected (meaning it is the target of the backspace)
+          const isNodeProtectedAndSelected = (nodeId: string) => {
+            const node = nodes.find((n) => n.id === nodeId);
+            if (!node || !node.selected) return false;
+
+            // Goals are always protected from direct deletion
+            if (node.type === "goal") return true;
+
+            // Applied tactics are protected
+            if (node.type === "tactic") {
+              const data = node.data as TacticNodeData;
+              return data.status === "applied";
+            }
+
+            return false;
+          };
+
+          // If either end of the edge is a protected node being deleted,
+          // we must block the edge deletion too. The store will handle cleaning up
+          // edges if/when the node deletion is confirmed.
+          if (
+            isNodeProtectedAndSelected(edge.source) ||
+            isNodeProtectedAndSelected(edge.target)
+          ) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (filteredChanges.length > 0) {
+        onEdgesChange(filteredChanges);
+      }
     },
-    [onEdgesChange],
+    [onEdgesChange, edges, nodes],
   );
 
   /**
