@@ -182,6 +182,7 @@ function traverseTree(
     id: node.goal.id,
     type: "goal",
     position,
+    deletable: false, // Prevent manual deletion
     data: {
       kind: "goal",
       goalType: node.goal.type,

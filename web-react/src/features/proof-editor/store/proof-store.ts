@@ -62,6 +62,7 @@ export const useProofStore = create<ProofStore>()(
             type: "goal",
             position,
             data,
+            deletable: false, // Prevent manual deletion
           };
           state.nodes.push(node);
           if (!state.rootGoalId) {
@@ -105,8 +106,10 @@ export const useProofStore = create<ProofStore>()(
           if (node) {
             Object.assign(node.data, data);
           }
-        });
-      },
+        });        // Check if data update affects proof completeness (e.g. status change)
+        if ("status" in data || "tacticType" in data) {
+            get().checkProofComplete();
+        }      },
 
       removeNode: (id) => {
         set((state) => {
@@ -117,25 +120,11 @@ export const useProofStore = create<ProofStore>()(
             (nodeToRemove.data as TacticNodeData).status === "applied";
 
           // Capture parent goal ID before deleting edges
-          let parentGoalIdToReset: string | undefined;
           if (isAppliedTactic) {
             const parentEdge = state.edges.find(
               (e) => e.target === id && e.data?.kind === "goal-to-tactic",
             );
-            parentGoalIdToReset = parentEdge?.source;
-          }
-
-          // Remove the node and its edges
-          state.nodes = state.nodes.filter((n) => n.id !== id);
-          state.edges = state.edges.filter(
-            (e) => e.source !== id && e.target !== id,
-          );
-
-          // If we removed an applied tactic, the proof is no longer valid
-          // Mark proof as incomplete and clear proof tree data
-          if (isAppliedTactic) {
-            state.isProofComplete = false;
-            state.proofTreeData = null;
+            const parentGoalIdToReset = parentEdge?.source;
 
             // 1. Reset ONLY the specific goal connected to this tactic
             if (parentGoalIdToReset) {
@@ -148,86 +137,22 @@ export const useProofStore = create<ProofStore>()(
                 goalData.completedBy = undefined;
               }
             }
+          }
 
-            // 2. Propagate status changes UP the tree (Negative & Positive propagation)
-            // If a child becomes pending, the parent must become pending.
-            // If all children become done, the parent becomes completed.
-            let changed = true;
-            // Limit iterations to prevent infinite loops in case of cycles (though trees strictly acyclic here)
-            let iterations = 0;
-            while (changed && iterations < 50) {
-              changed = false;
-              iterations++;
+          // Remove the node and its edges
+          state.nodes = state.nodes.filter((n) => n.id !== id);
+          state.edges = state.edges.filter(
+            (e) => e.source !== id && e.target !== id,
+          );
 
-              for (const node of state.nodes) {
-                if (node.type !== "goal") continue;
-                const goalData = node.data as GoalNodeData;
-
-                // Skip explicitly marked 'todo' roots (they are "done" by definition locally)
-                if (goalData.status === "todo") continue;
-
-                // Find applied tactic
-                const tacticEdge = state.edges.find(
-                  (e) =>
-                    e.source === node.id && e.data?.kind === "goal-to-tactic",
-                );
-
-                if (!tacticEdge) {
-                  // No tactic? Should be pending.
-                  if (goalData.status !== "pending") {
-                    goalData.status = "pending";
-                    changed = true;
-                  }
-                  continue;
-                }
-
-                const tacticId = tacticEdge.target;
-                const tacticNode = state.nodes.find((n) => n.id === tacticId);
-                // If tactic missing or not applied -> pending
-                // (Unless it's a incomplete tactic node... but status check handles that)
-                if (
-                  !tacticNode ||
-                  (tacticNode.data as TacticNodeData).status !== "applied"
-                ) {
-                  if (goalData.status !== "pending") {
-                    goalData.status = "pending";
-                    changed = true;
-                  }
-                  continue;
-                }
-
-                // Check subgoals
-                const childEdges = state.edges.filter(
-                  (e) =>
-                    e.source === tacticId && e.data?.kind === "tactic-to-goal",
-                );
-
-                if (childEdges.length > 0) {
-                  const allChildrenDone = childEdges.every((edge) => {
-                    const childNode = state.nodes.find(
-                      (n) => n.id === edge.target,
-                    );
-                    const s = (childNode?.data as GoalNodeData)?.status;
-                    return s === "completed" || s === "todo";
-                  });
-
-                  if (allChildrenDone) {
-                    if (goalData.status !== "completed") {
-                      goalData.status = "completed";
-                      changed = true;
-                    }
-                  } else {
-                    if (goalData.status === "completed") {
-                      goalData.status = "pending";
-                      changed = true;
-                    }
-                  }
-                }
-                // (If childEdges.length === 0, it's a leaf tactic like 'exact', status remains as set by worker/logic)
-              }
-            }
+          // If we removed an applied tactic, the proof might no longer be valid/complete
+          // We clear the proof tree data as it's out of sync
+          if (isAppliedTactic) {
+            state.isProofComplete = false;
+            state.proofTreeData = null;
           }
         });
+        get().checkProofComplete();
       },
 
       // ================================================
@@ -270,12 +195,14 @@ export const useProofStore = create<ProofStore>()(
           };
           state.edges.push(edge);
         });
+        get().checkProofComplete();
       },
 
       removeEdge: (id) => {
         set((state) => {
           state.edges = state.edges.filter((e) => e.id !== id);
         });
+        get().checkProofComplete();
       },
 
       // ================================================
@@ -355,133 +282,81 @@ export const useProofStore = create<ProofStore>()(
 
       checkProofComplete: () => {
         set((state) => {
-          // Helper to recursively check if a goal and all its descendants are done (completed or todo)
-          const isGoalDone = (goalId: string): boolean => {
-            const goal = state.nodes.find(
-              (n) => n.id === goalId && n.type === "goal",
-            );
-            if (!goal) return true; // Should not happen
-
-            const goalData = goal.data as GoalNodeData;
-
-            // Base case: If explicitly completed or todo, it's personally done
-            // BUT we must also check if it relies on subgoals (e.g. if it was completed by a tactic that has subgoals)
-
-            // Find the tactic connected to this goal
-            const tacticEdge = state.edges.find(
-              (e) => e.source === goalId && e.data?.kind === "goal-to-tactic",
-            );
-            if (!tacticEdge) {
-              // No tactic applied? Then it's only done if explicitly marked todo
-              // (Ideally 'completed' status implies a tactic was applied, but 'todo' might be standalone)
-              return (
-                goalData.status === "completed" || goalData.status === "todo"
-              );
-            }
-
-            const tacticId = tacticEdge.target;
-            const tacticNode = state.nodes.find((n) => n.id === tacticId);
-
-            // If the tactic is a 'todo' tactic, this branch is done
-            if (
-              tacticNode &&
-              (tacticNode.data as TacticNodeData).tacticType === "todo"
-            ) {
-              return true;
-            }
-
-            // Otherwise, check all subgoals generated by this tactic
-            const subgoalEdges = state.edges.filter(
-              (e) => e.source === tacticId && e.data?.kind === "tactic-to-goal",
-            );
-
-            if (subgoalEdges.length === 0) {
-              // No subgoals -> leaf node. Is it completed?
-              return goalData.status === "completed";
-            }
-
-            // Recursive step: All subgoals must be done
-            const allSubgoalsDone = subgoalEdges.every((edge) =>
-              isGoalDone(edge.target),
-            );
-
-            // If all subgoals are done, we can mark this goal as completed (if not already)
-            // Note: In Redux/Immer we can mutate 'goal' here to propagate status!
-            if (
-              allSubgoalsDone &&
-              goalData.status !== "completed" &&
-              goalData.status !== "todo"
-            ) {
-              // Determine if we should mark as 'completed' (fully solved) or something else?
-              // The request says "if a goal has all subgoals either marked as todo or completed then that goal is completed"
-              // We will update the state here to reflect that propagation.
-              goalData.status = "completed";
-            }
-
-            return allSubgoalsDone;
-          };
-
-          // Re-evaluate the root goal (or all top-level goals)
-          // We'll iterate all goals to propagate, starting from leaves effectively by recursion
-          // But since we can't easily topologically sort, let's just re-check "completeness" of the whole proof
-          // The request specifically asks to propagate info upwards.
-
-          // A simpler approach for the store property is:
-          // A proof is complete if ALL pending goals are gone.
-          // BUT we now have 'todo' goals which are "done" in terms of blocking, but valid logic?
-          // The requirements:
-          // 1. "if a goal has all subgoals either marked as todo or completed then that goal is completed"
-
-          // We need to implement a bottom-up propagation or repeated passes.
-          // Let's do a multi-pass propagation until stable, since the tree depth is small.
+          // Robust re-assessment of goal status (handles both completion and regression to pending)
           let changed = true;
-          while (changed) {
+          let iterations = 0;
+          while (changed && iterations < 50) {
             changed = false;
+            iterations++;
+
             for (const node of state.nodes) {
-              if (node.type === "goal") {
-                const goalData = node.data as GoalNodeData;
+              if (node.type !== "goal") continue;
+              const goalData = node.data as GoalNodeData;
+
+              // 1. Preserve 'todo' status (explicitly set by user/worker)
+              if (goalData.status === "todo") continue;
+
+              // 2. Calculate correct status based on current graph connectivity
+              let newStatus: GoalNodeData["status"] = "pending";
+
+              const tacticEdge = state.edges.find(
+                (e) =>
+                  e.source === node.id && e.data?.kind === "goal-to-tactic",
+              );
+
+              if (tacticEdge) {
+                const tacticNode = state.nodes.find(
+                  (n) => n.id === tacticEdge.target,
+                );
+                // Status is only derived from APPLIED tactics
                 if (
-                  goalData.status === "completed" ||
-                  goalData.status === "todo"
-                )
-                  continue;
+                  tacticNode &&
+                  (tacticNode.data as TacticNodeData).status === "applied"
+                ) {
+                  const tData = tacticNode.data as TacticNodeData;
 
-                // Find applied tactic
-                const tacticEdge = state.edges.find(
-                  (e) =>
-                    e.source === node.id && e.data?.kind === "goal-to-tactic",
-                );
-                if (!tacticEdge) continue; // No tactic, still pending
-
-                const tacticId = tacticEdge.target;
-                const childEdges = state.edges.filter(
-                  (e) =>
-                    e.source === tacticId && e.data?.kind === "tactic-to-goal",
-                );
-
-                if (childEdges.length > 0) {
-                  const allChildrenDone = childEdges.every((edge) => {
-                    const childNode = state.nodes.find(
-                      (n) => n.id === edge.target,
+                  if (tData.tacticType === "todo") {
+                    // 'todo' tactic completes the goal immediately
+                    newStatus = "completed";
+                  } else {
+                    // Check subgoals
+                    const childEdges = state.edges.filter(
+                      (e) =>
+                        e.source === tacticNode.id &&
+                        e.data?.kind === "tactic-to-goal",
                     );
-                    const childStatus = (childNode?.data as GoalNodeData)
-                      ?.status;
-                    return (
-                      childStatus === "completed" || childStatus === "todo"
-                    );
-                  });
 
-                  if (allChildrenDone) {
-                    goalData.status = "completed";
-                    changed = true;
+                    if (childEdges.length === 0) {
+                      // Leaf tactic (e.g. "exact") -> completes goal
+                      newStatus = "completed";
+                    } else {
+                      // Recursive check: all children must be done
+                      const allChildrenDone = childEdges.every((edge) => {
+                        const child = state.nodes.find(
+                          (n) => n.id === edge.target,
+                        );
+                        const s = (child?.data as GoalNodeData)?.status;
+                        return s === "completed" || s === "todo";
+                      });
+
+                      if (allChildrenDone) {
+                        newStatus = "completed";
+                      }
+                      // else stays pending
+                    }
                   }
                 }
+              }
+
+              // Apply change if needed
+              if (goalData.status !== newStatus) {
+                goalData.status = newStatus;
+                changed = true;
               }
             }
           }
 
           // Finally, check if the entire proof is arguably "complete" (no pending goals remained)
-          // We consider 'todo' as valid termination for "completing" the interaction, even if logically incomplete.
           const pendingGoals = state.nodes.filter(
             (n): n is GoalNode =>
               n.type === "goal" && n.data.status === "pending",
@@ -500,8 +375,18 @@ export const useProofStore = create<ProofStore>()(
 
       onNodesChange: (changes: NodeChange<ProofNode>[]) => {
         set((state) => {
+          // Filter out direct goal deletions from the changes
+          // Users cannot manually delete goals (they must delete the tactic that created them)
+          const changesToProcess = changes.filter((c) => {
+            if (c.type === "remove") {
+              const node = state.nodes.find((n) => n.id === c.id);
+              return node?.type !== "goal";
+            }
+            return true;
+          });
+
           // Handle side effects for removed nodes
-          const removedIds = changes
+          const removedIds = changesToProcess
             .filter((c) => c.type === "remove")
             .map((c) => c.id);
 
@@ -517,11 +402,14 @@ export const useProofStore = create<ProofStore>()(
                 n.type === "tactic" &&
                 (n.data as TacticNodeData).status === "applied",
             );
+            
+            // Goals are no longer manually deletable, so this list will be empty from manual actions
+            const removedGoals = removedNodes.filter((n) => n.type === "goal");
 
             // Set of IDs to be removed recursively (subtree)
             const extraIdsToRemove = new Set<string>();
 
-            // If we removed an applied tactic(s), invalidate proof and reset specific goals
+            // 1. Handle deleted Tactics -> Remove subtree & reset parent goal
             if (removedAppliedTactics.length > 0) {
               state.isProofComplete = false;
               state.proofTreeData = null;
@@ -529,10 +417,8 @@ export const useProofStore = create<ProofStore>()(
               removedAppliedTactics.forEach((tactic) => {
                 const tacticData = tactic.data as TacticNodeData;
 
-                // 1. Reset ONLY the connected parent goal
-                // Try to find parent via data property first (most reliable)
+                // Reset connected parent goal
                 let parentGoalId = tacticData.connectedGoalId;
-
                 if (!parentGoalId) {
                   const parentEdge = state.edges.find(
                     (e) =>
@@ -542,40 +428,102 @@ export const useProofStore = create<ProofStore>()(
                   parentGoalId = parentEdge?.source;
                 }
 
-                if (parentGoalId) {
+                if (parentGoalId && !removedIds.includes(parentGoalId)) {
                   const parent = state.nodes.find((n) => n.id === parentGoalId);
-                  if (
-                    parent?.type === "goal" &&
-                    !removedIds.includes(parentGoalId)
-                  ) {
+                  if (parent?.type === "goal") {
                     const gData = parent.data as GoalNodeData;
+                    // Only reset if THIS was the tactic completing/working on it
+                    // (Implicitly yes if connectedGoalId matches)
                     gData.status = "pending";
                     gData.completedBy = undefined;
                   }
                 }
 
-                // 2. Identify subtree to remove (BFS)
-                // Remove everything downstream of this tactic
-                const stack = [tactic.id];
-                while (stack.length > 0) {
-                  const currentId = stack.pop()!;
-                  // Find outgoing edges
-                  const outgoingEdges = state.edges.filter(
-                    (e) => e.source === currentId,
-                  );
-                  for (const edge of outgoingEdges) {
-                    const targetId = edge.target;
-                    // If target is not already being removed
-                    if (
-                      !removedIds.includes(targetId) &&
-                      !extraIdsToRemove.has(targetId)
-                    ) {
-                      extraIdsToRemove.add(targetId);
-                      stack.push(targetId);
-                    }
-                  }
-                }
+                // Add tactic to stack for subtree removal
+                extraIdsToRemove.add(tactic.id);
               });
+            }
+
+            // 2. Handle deleted Goals -> (Should be empty now for manual deletions, but good to keep for robustness)
+            if (removedGoals.length > 0) {
+              removedGoals.forEach((goal) => {
+                 extraIdsToRemove.add(goal.id);
+              });
+            }
+
+            // 3. Process recursive removal (BFS) for all starting points
+            // This handles both explicit edges AND logical parent-child relationships
+            const stack = Array.from(extraIdsToRemove);
+            
+            // Keep track of visited to avoid cycles, though graph should be acyclic
+            const visited = new Set<string>([...removedIds, ...stack]);
+
+            while (stack.length > 0) {
+              const currentId = stack.pop()!;
+              
+              // A. Find outgoing edges to children
+              const outgoingEdges = state.edges.filter(
+                (e) => e.source === currentId,
+              );
+              
+              for (const edge of outgoingEdges) {
+                const targetId = edge.target;
+                if (!visited.has(targetId)) {
+                  visited.add(targetId);
+                  extraIdsToRemove.add(targetId);
+                  stack.push(targetId);
+                }
+              }
+
+              // B. Find logical children (goals that claim this as parent)
+              // This catches disconnected nodes that should be deleted
+              const logicalGoalChildren = state.nodes.filter(
+                (n) => n.type === "goal" && n.data?.parentGoalId === currentId
+              );
+              
+              for (const child of logicalGoalChildren) {
+                if (!visited.has(child.id)) {
+                  visited.add(child.id);
+                  extraIdsToRemove.add(child.id);
+                  stack.push(child.id);
+                }
+              }
+
+              // C. Find logical child tactics (tactics that claim to be connected to this goal)
+              // This catches applied tactics that might be momentarily disconnected visually
+              const logicalTacticChildren = state.nodes.filter(
+                (n) => n.type === "tactic" && (n.data as TacticNodeData).connectedGoalId === currentId
+              );
+
+              for (const child of logicalTacticChildren) {
+                if (!visited.has(child.id)) {
+                  visited.add(child.id);
+                  extraIdsToRemove.add(child.id);
+                  stack.push(child.id);
+                }
+              }
+
+              // D. Special Case: Deleting a Tactic should delete subgoals of its parent goal
+              // If we are deleting a tactic, we should also delete goals that are children of the tactic's connected goal
+              // (This assumes the tactic was the one that created them, which is generally true in this single-tactic-per-goal model)
+              // We find the parent goal of this tactic
+              const tacticNode = state.nodes.find(n => n.id === currentId && n.type === "tactic");
+              if (tacticNode) {
+                  const parentGoalId = (tacticNode.data as TacticNodeData).connectedGoalId;
+                  if (parentGoalId) {
+                      // Find all goals that have this parentGoalId
+                      const siblingGoals = state.nodes.filter(
+                          (n) => n.type === "goal" && n.data?.parentGoalId === parentGoalId
+                      );
+                      for (const child of siblingGoals) {
+                        if (!visited.has(child.id)) {
+                            visited.add(child.id);
+                            extraIdsToRemove.add(child.id);
+                            stack.push(child.id);
+                        }
+                      }
+                  }
+              }
             }
 
             // Cleanup edges connected to ALL removed nodes (initially removed + subtree)
@@ -599,14 +547,31 @@ export const useProofStore = create<ProofStore>()(
             }
           }
 
-          state.nodes = applyNodeChanges(changes, state.nodes) as ProofNode[];
+          state.nodes = applyNodeChanges(changesToProcess, state.nodes) as ProofNode[];
         });
+
+        // Only check proof completeness if nodes were removed or added
+        // Position changes/selection shouldn't affect logical state
+        const hasStructuralChanges = changes.some(
+          (c) => c.type === "remove" || c.type === "add"
+        );
+        if (hasStructuralChanges) {
+          get().checkProofComplete();
+        }
       },
 
       onEdgesChange: (changes: EdgeChange<ProofEdge>[]) => {
         set((state) => {
           state.edges = applyEdgeChanges(changes, state.edges) as ProofEdge[];
         });
+
+        // Edges changing connectivity -> check completeness
+        const hasStructuralChanges = changes.some(
+          (c) => c.type === "remove" || c.type === "add",
+        );
+        if (hasStructuralChanges) {
+          get().checkProofComplete();
+        }
       },
 
       onConnect: (connection: Connection) => {

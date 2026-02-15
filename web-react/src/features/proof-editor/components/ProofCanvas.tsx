@@ -132,8 +132,22 @@ export function ProofCanvas() {
         }
       }
 
+      // Filter out goal deletions before passing to store
+      const filteredChanges = changes.filter((change) => {
+        if (change.type === "remove") {
+          const nodeToRemove = nodes.find((n) => n.id === change.id);
+          // If it's a goal node, never allow deletion via backspace/UI interactions
+          if (nodeToRemove?.type === "goal") {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (filteredChanges.length === 0) return;
+
       // No applied tactics being removed, proceed normally
-      onNodesChange(changes);
+      onNodesChange(filteredChanges);
     },
     [nodes, onNodesChange],
   );
