@@ -511,41 +511,91 @@ export const useProofStore = create<ProofStore>()(
               removedIds.includes(n.id),
             );
 
-            // Check if any applied tactic is being removed
-            const isAppliedTactic = removedNodes.some(
+            // Identify applied tactics being removed
+            const removedAppliedTactics = removedNodes.filter(
               (n) =>
                 n.type === "tactic" &&
                 (n.data as TacticNodeData).status === "applied",
             );
 
-            // Cleanup edges connected to removed nodes
-            state.edges = state.edges.filter(
-              (e) =>
-                !removedIds.includes(e.source) &&
-                !removedIds.includes(e.target),
-            );
+            // Set of IDs to be removed recursively (subtree)
+            const extraIdsToRemove = new Set<string>();
 
-            // If we removed an applied tactic, invalidate proof and reset goals
-            if (isAppliedTactic) {
+            // If we removed an applied tactic(s), invalidate proof and reset specific goals
+            if (removedAppliedTactics.length > 0) {
               state.isProofComplete = false;
               state.proofTreeData = null;
 
-              // Also update any goal nodes that were marked complete/todo by this tactic
-              // to be pending again.
-              // Note: Currently we reset ALL goals on any tactic removal because we operate
-              // on a simplistic invalidation model. Ideally we'd only invalidate the subtree.
-              for (const node of state.nodes) {
-                if (node.type === "goal") {
-                  const goalData = node.data as GoalNodeData;
+              removedAppliedTactics.forEach((tactic) => {
+                const tacticData = tactic.data as TacticNodeData;
+
+                // 1. Reset ONLY the connected parent goal
+                // Try to find parent via data property first (most reliable)
+                let parentGoalId = tacticData.connectedGoalId;
+
+                if (!parentGoalId) {
+                  const parentEdge = state.edges.find(
+                    (e) =>
+                      e.target === tactic.id &&
+                      e.data?.kind === "goal-to-tactic",
+                  );
+                  parentGoalId = parentEdge?.source;
+                }
+
+                if (parentGoalId) {
+                  const parent = state.nodes.find((n) => n.id === parentGoalId);
                   if (
-                    goalData.status === "completed" ||
-                    goalData.status === "todo"
+                    parent?.type === "goal" &&
+                    !removedIds.includes(parentGoalId)
                   ) {
-                    goalData.status = "pending";
-                    goalData.completedBy = undefined;
+                    const gData = parent.data as GoalNodeData;
+                    gData.status = "pending";
+                    gData.completedBy = undefined;
                   }
                 }
-              }
+
+                // 2. Identify subtree to remove (BFS)
+                // Remove everything downstream of this tactic
+                const stack = [tactic.id];
+                while (stack.length > 0) {
+                  const currentId = stack.pop()!;
+                  // Find outgoing edges
+                  const outgoingEdges = state.edges.filter(
+                    (e) => e.source === currentId,
+                  );
+                  for (const edge of outgoingEdges) {
+                    const targetId = edge.target;
+                    // If target is not already being removed
+                    if (
+                      !removedIds.includes(targetId) &&
+                      !extraIdsToRemove.has(targetId)
+                    ) {
+                      extraIdsToRemove.add(targetId);
+                      stack.push(targetId);
+                    }
+                  }
+                }
+              });
+            }
+
+            // Cleanup edges connected to ALL removed nodes (initially removed + subtree)
+            const allIdsToRemove = [
+              ...removedIds,
+              ...Array.from(extraIdsToRemove),
+            ];
+
+            state.edges = state.edges.filter(
+              (e) =>
+                !allIdsToRemove.includes(e.source) &&
+                !allIdsToRemove.includes(e.target),
+            );
+
+            // Remove the extra subtree nodes from state
+            // (The initial 'removedIds' are handled by applyNodeChanges below)
+            if (extraIdsToRemove.size > 0) {
+              state.nodes = state.nodes.filter(
+                (n) => !extraIdsToRemove.has(n.id),
+              );
             }
           }
 

@@ -51,6 +51,10 @@ export function ProofCanvas() {
     NodeChange<ProofNode>[] | null
   >(null);
 
+  // Ref to track if we are intercepting a delete operation
+  // This allows us to block edge removals that happen simultaneously
+  const isInterceptingDelete = useRef(false);
+
   // Get state from stores
   const nodes = useProofStore((s) => s.nodes);
   const edges = useProofStore((s) => s.edges);
@@ -108,6 +112,7 @@ export function ProofCanvas() {
               nodeName: tacticData.displayName,
             });
             setPendingChanges(changes);
+            isInterceptingDelete.current = true;
             return; // Don't apply changes yet
           }
         }
@@ -121,6 +126,7 @@ export function ProofCanvas() {
               nodeName: `Goal: ${goalData.goalType.substring(0, 30)}...`,
             });
             setPendingChanges(changes);
+            isInterceptingDelete.current = true;
             return; // Don't apply changes yet
           }
         }
@@ -133,9 +139,25 @@ export function ProofCanvas() {
   );
 
   /**
+   * Intercept edge changes to prevent edges from being deleted
+   * while we are waiting for node deletion confirmation.
+   * If we don't do this, edges disappear immediately even if user cancels.
+   */
+  const handleEdgesChange = useCallback(
+    (changes: import("@xyflow/react").EdgeChange[]) => {
+      if (isInterceptingDelete.current) {
+        return;
+      }
+      onEdgesChange(changes);
+    },
+    [onEdgesChange],
+  );
+
+  /**
    * Confirm deletion of applied tactic
    */
   const handleConfirmDelete = useCallback(() => {
+    isInterceptingDelete.current = false;
     if (pendingChanges) {
       onNodesChange(pendingChanges);
     }
@@ -147,6 +169,7 @@ export function ProofCanvas() {
    * Cancel deletion
    */
   const handleCancelDelete = useCallback(() => {
+    isInterceptingDelete.current = false;
     setDeleteConfirmation(null);
     setPendingChanges(null);
   }, []);
@@ -454,7 +477,7 @@ export function ProofCanvas() {
         nodes={allNodes}
         edges={allEdges}
         onNodesChange={handleNodesChange}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
         isValidConnection={handleIsValidConnection}
         onNodeClick={onNodeClick}
