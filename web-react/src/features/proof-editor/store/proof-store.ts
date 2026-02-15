@@ -106,10 +106,11 @@ export const useProofStore = create<ProofStore>()(
           if (node) {
             Object.assign(node.data, data);
           }
-        });        // Check if data update affects proof completeness (e.g. status change)
+        }); // Check if data update affects proof completeness (e.g. status change)
         if ("status" in data || "tacticType" in data) {
-            get().checkProofComplete();
-        }      },
+          get().checkProofComplete();
+        }
+      },
 
       removeNode: (id) => {
         set((state) => {
@@ -402,7 +403,7 @@ export const useProofStore = create<ProofStore>()(
                 n.type === "tactic" &&
                 (n.data as TacticNodeData).status === "applied",
             );
-            
+
             // Goals are no longer manually deletable, so this list will be empty from manual actions
             const removedGoals = removedNodes.filter((n) => n.type === "goal");
 
@@ -447,25 +448,25 @@ export const useProofStore = create<ProofStore>()(
             // 2. Handle deleted Goals -> (Should be empty now for manual deletions, but good to keep for robustness)
             if (removedGoals.length > 0) {
               removedGoals.forEach((goal) => {
-                 extraIdsToRemove.add(goal.id);
+                extraIdsToRemove.add(goal.id);
               });
             }
 
             // 3. Process recursive removal (BFS) for all starting points
             // This handles both explicit edges AND logical parent-child relationships
             const stack = Array.from(extraIdsToRemove);
-            
+
             // Keep track of visited to avoid cycles, though graph should be acyclic
             const visited = new Set<string>([...removedIds, ...stack]);
 
             while (stack.length > 0) {
               const currentId = stack.pop()!;
-              
+
               // A. Find outgoing edges to children
               const outgoingEdges = state.edges.filter(
                 (e) => e.source === currentId,
               );
-              
+
               for (const edge of outgoingEdges) {
                 const targetId = edge.target;
                 if (!visited.has(targetId)) {
@@ -478,9 +479,9 @@ export const useProofStore = create<ProofStore>()(
               // B. Find logical children (goals that claim this as parent)
               // This catches disconnected nodes that should be deleted
               const logicalGoalChildren = state.nodes.filter(
-                (n) => n.type === "goal" && n.data?.parentGoalId === currentId
+                (n) => n.type === "goal" && n.data?.parentGoalId === currentId,
               );
-              
+
               for (const child of logicalGoalChildren) {
                 if (!visited.has(child.id)) {
                   visited.add(child.id);
@@ -492,7 +493,9 @@ export const useProofStore = create<ProofStore>()(
               // C. Find logical child tactics (tactics that claim to be connected to this goal)
               // This catches applied tactics that might be momentarily disconnected visually
               const logicalTacticChildren = state.nodes.filter(
-                (n) => n.type === "tactic" && (n.data as TacticNodeData).connectedGoalId === currentId
+                (n) =>
+                  n.type === "tactic" &&
+                  (n.data as TacticNodeData).connectedGoalId === currentId,
               );
 
               for (const child of logicalTacticChildren) {
@@ -507,22 +510,27 @@ export const useProofStore = create<ProofStore>()(
               // If we are deleting a tactic, we should also delete goals that are children of the tactic's connected goal
               // (This assumes the tactic was the one that created them, which is generally true in this single-tactic-per-goal model)
               // We find the parent goal of this tactic
-              const tacticNode = state.nodes.find(n => n.id === currentId && n.type === "tactic");
+              const tacticNode = state.nodes.find(
+                (n) => n.id === currentId && n.type === "tactic",
+              );
               if (tacticNode) {
-                  const parentGoalId = (tacticNode.data as TacticNodeData).connectedGoalId;
-                  if (parentGoalId) {
-                      // Find all goals that have this parentGoalId
-                      const siblingGoals = state.nodes.filter(
-                          (n) => n.type === "goal" && n.data?.parentGoalId === parentGoalId
-                      );
-                      for (const child of siblingGoals) {
-                        if (!visited.has(child.id)) {
-                            visited.add(child.id);
-                            extraIdsToRemove.add(child.id);
-                            stack.push(child.id);
-                        }
-                      }
+                const parentGoalId = (tacticNode.data as TacticNodeData)
+                  .connectedGoalId;
+                if (parentGoalId) {
+                  // Find all goals that have this parentGoalId
+                  const siblingGoals = state.nodes.filter(
+                    (n) =>
+                      n.type === "goal" &&
+                      n.data?.parentGoalId === parentGoalId,
+                  );
+                  for (const child of siblingGoals) {
+                    if (!visited.has(child.id)) {
+                      visited.add(child.id);
+                      extraIdsToRemove.add(child.id);
+                      stack.push(child.id);
+                    }
                   }
+                }
               }
             }
 
@@ -547,13 +555,16 @@ export const useProofStore = create<ProofStore>()(
             }
           }
 
-          state.nodes = applyNodeChanges(changesToProcess, state.nodes) as ProofNode[];
+          state.nodes = applyNodeChanges(
+            changesToProcess,
+            state.nodes,
+          ) as ProofNode[];
         });
 
         // Only check proof completeness if nodes were removed or added
         // Position changes/selection shouldn't affect logical state
         const hasStructuralChanges = changes.some(
-          (c) => c.type === "remove" || c.type === "add"
+          (c) => c.type === "remove" || c.type === "add",
         );
         if (hasStructuralChanges) {
           get().checkProofComplete();
