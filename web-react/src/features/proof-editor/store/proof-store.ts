@@ -454,8 +454,10 @@ export const useProofStore = create<ProofStore>()(
           if (state.autoCollapseEnabled) {
             const findCollapsibleNodes = (node: typeof proofTree.root): string[] => {
               const result: string[] = [];
-              // If this subtree is complete AND has children, it's collapsible
-              if (node.isSubtreeComplete && node.children.length > 0) {
+              // A node is collapsible if its subtree is complete AND it has visual
+              // descendants: either subgoal children or a completing tactic node
+              const hasVisualDescendants = node.children.length > 0 || !!node.completedBy;
+              if (node.isSubtreeComplete && hasVisualDescendants) {
                 result.push(node.goal.id);
               }
               // Check children for collapsible subtrees (only if this node is not complete)

@@ -482,10 +482,14 @@ export function ProofCanvas() {
     }));
   }, [ghostNodes]);
 
-  // Combine regular edges with ghost edges
+  // Combine regular edges with ghost edges, hiding edges connected to hidden nodes
   const allEdges = useMemo(() => {
-    return [...styledEdges, ...ghostEdges];
-  }, [styledEdges, ghostEdges]);
+    const visibleStyledEdges = styledEdges.map(edge => ({
+      ...edge,
+      hidden: hiddenNodeIds.has(edge.source) || hiddenNodeIds.has(edge.target),
+    }));
+    return [...visibleStyledEdges, ...ghostEdges];
+  }, [styledEdges, ghostEdges, hiddenNodeIds]);
 
   return (
     <div className="h-full w-full" ref={reactFlowWrapper}>

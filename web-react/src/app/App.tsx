@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Providers } from './providers';
 import { ProofCanvas } from '@/features/proof-editor/components/ProofCanvas';
 import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPanel';
@@ -13,21 +13,14 @@ import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
-import { ProofPicker } from '@/features/proof-editor/components/ProofPicker';
-import { type GlobalContextEntry } from '@/workers/proof-worker';
 
 function AppContent() {
-  const { applyTactic, startSession, scan, error, isLoading } = useProofSession();
+  const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
   const nodes = useProofStore((s) => s.nodes);
   const setManualPosition = useProofStore((s) => s.setManualPosition);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
-
-  // Scan state
-  const [foundClaims, setFoundClaims] = useState<GlobalContextEntry[]>([]);
-  const [foundTheorems, setFoundTheorems] = useState<GlobalContextEntry[]>([]);
-  const [selectedProof, setSelectedProof] = useState<string | null>(null);
 
   // Use keyboard shortcuts hook
   useKeyboardShortcuts();
@@ -35,40 +28,9 @@ function AppContent() {
   // Use example store
   const selectedExample = useExampleStore((s) => s.selectedExample);
   const selectExample = useExampleStore((s) => s.selectExample);
-  const exampleSource = useExampleStore((s) => s.exampleSource);
 
   // Use metadata store for global context
   const globalContext = useMetadataStore((s) => s.globalContext);
-
-  // Scan whenever example source changes
-  useEffect(() => {
-    if (exampleSource) {
-      scan(exampleSource).then((result) => {
-        setFoundClaims(result.claims);
-        setFoundTheorems(result.theorems);
-
-        // Auto-select first claim if available
-        if (result.claims.length > 0) {
-          handleSelectProof(result.claims[0].name);
-        } else if (result.theorems.length > 0) {
-          handleSelectProof(result.theorems[0].name); // Or maybe don't auto-select completed?
-        } else {
-          setSelectedProof(null);
-        }
-      });
-    }
-  }, [exampleSource, scan]);
-
-  const handleSelectProof = useCallback(async (proofName: string) => {
-    if (!exampleSource) return;
-
-    setSelectedProof(proofName);
-    try {
-      await startSession(exampleSource, proofName);
-    } catch (e) {
-      console.error("Failed to start session:", e);
-    }
-  }, [exampleSource, startSession]);
 
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
@@ -161,16 +123,6 @@ function AppContent() {
             ))}
           </select>
         </div>
-
-        <div className="h-6 w-px bg-border" />
-
-        {/* Proof Picker */}
-        <ProofPicker
-          claims={foundClaims}
-          theorems={foundTheorems}
-          selectedClaim={selectedProof}
-          onSelect={handleSelectProof}
-        />
 
         {/* Show tactic error in header */}
         {(tacticError || error) && (
