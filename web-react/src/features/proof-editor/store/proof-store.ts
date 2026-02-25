@@ -355,9 +355,42 @@ export const useProofStore = create<ProofStore>()(
         proofTree: ProofTreeData,
         sessionId: string,
         claimName?: string,
+        theorems?: import("@/workers/proof-worker").GlobalContextEntry[],
       ) => {
         const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
         const { manualPositions } = get();
+
+        // Preserve existing lemma nodes or create new ones from theorems
+        let lemmaNodes: ProofNode[] = [];
+        if (theorems) {
+          lemmaNodes = theorems.map((thm, index) => {
+            // Find existing position if any
+            const existingNode = get().nodes.find(n => n.id === `lemma-${thm.name}`);
+            // Layout in a grid: 5 items per row
+            const row = Math.floor(index / 5);
+            const col = index % 5;
+            const position = existingNode?.position || { x: col * 220, y: -200 - row * 100 };
+
+            return {
+              id: `lemma-${thm.name}`,
+              type: "lemma",
+              position,
+              data: {
+                kind: "lemma",
+                name: thm.name,
+                type: thm.type,
+                source: thm.kind as any,
+              },
+            } as ProofNode;
+          });
+        } else {
+          lemmaNodes = get().nodes.filter((n) => n.type === "lemma");
+        }
+
+        // Preserve existing custom edges connected to lemma nodes
+        const existingLemmaEdges = get().edges.filter(
+          (e) => get().nodes.find((n) => n.id === e.source && n.type === "lemma")
+        );
 
         // Build a map of node IDs to their auto-calculated positions
         const autoPositions = new Map<string, { x: number; y: number }>();
@@ -387,7 +420,7 @@ export const useProofStore = create<ProofStore>()(
         });
 
         // Apply manual positions and offset children
-        const mergedNodes = nodes.map((node) => {
+        const dynamicNodes = nodes.map((node) => {
           const manualPos = manualPositions.get(node.id);
           if (manualPos) {
             return { ...node, position: manualPos };
@@ -426,13 +459,16 @@ export const useProofStore = create<ProofStore>()(
           return node;
         });
 
+        const mergedNodes = [...lemmaNodes, ...dynamicNodes];
+        const mergedEdges = [...existingLemmaEdges, ...edges];
+
         set((state) => {
           state.nodes = mergedNodes;
-          state.edges = edges;
+          state.edges = mergedEdges;
           state.sessionId = sessionId;
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
-          state.lastSyncedState = { nodes: mergedNodes, edges };
+          state.lastSyncedState = { nodes: mergedNodes, edges: mergedEdges };
           state.proofTreeData = proofTree;
           if (claimName) {
             state.claimName = claimName;
@@ -790,6 +826,21 @@ function getConnectionData(
     return { kind: "lemma-to-tactic" };
   }
 
+  // Goal → Lemma (Direct Application or Context binding)
+  if (source.type === "goal" && target.type === "lemma") {
+    if (connection.sourceHandle?.startsWith("ctx-")) {
+      const contextVarId = connection.sourceHandle.replace("ctx-", "");
+      // Get the parameter name from the target handle (e.g., lemma-input-x -> x)
+      const paramName = connection.targetHandle?.replace("lemma-input-", "") || "";
+      return {
+        kind: "context-to-lemma",
+        contextVarId,
+        paramName
+      };
+    }
+    return { kind: "goal-to-lemma" };
+  }
+
   // Invalid connection
   return null;
 }
@@ -833,6 +884,17 @@ export function isValidConnection(
     return (
       connection.sourceHandle === "lemma-output" &&
       connection.targetHandle === "context-input"
+    );
+  }
+
+  // Goal → Lemma (Direct Application & Context Binding)
+  if (sourceNode.type === "goal" && targetNode.type === "lemma") {
+    if (connection.sourceHandle?.startsWith("ctx-")) {
+      return connection.targetHandle?.startsWith("lemma-input-") ?? false;
+    }
+    return (
+      connection.sourceHandle === "goal-output" &&
+      connection.targetHandle === "lemma-input"
     );
   }
 

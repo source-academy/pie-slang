@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Providers } from './providers';
 import { ProofCanvas } from '@/features/proof-editor/components/ProofCanvas';
 import { DetailPanel } from '@/features/proof-editor/components/panels/DetailPanel';
@@ -17,7 +17,7 @@ import { ProofPicker } from '@/features/proof-editor/components/ProofPicker';
 import { type GlobalContextEntry } from '@/workers/proof-worker';
 
 function AppContent() {
-  const { applyTactic, startSession, scan, error, isLoading } = useProofSession();
+  const { applyTactic, startSession, scan, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
   const nodes = useProofStore((s) => s.nodes);
   const setManualPosition = useProofStore((s) => s.setManualPosition);
@@ -40,25 +40,6 @@ function AppContent() {
   // Use metadata store for global context
   const globalContext = useMetadataStore((s) => s.globalContext);
 
-  // Scan whenever example source changes
-  useEffect(() => {
-    if (exampleSource) {
-      scan(exampleSource).then((result) => {
-        setFoundClaims(result.claims);
-        setFoundTheorems(result.theorems);
-
-        // Auto-select first claim if available
-        if (result.claims.length > 0) {
-          handleSelectProof(result.claims[0].name);
-        } else if (result.theorems.length > 0) {
-          handleSelectProof(result.theorems[0].name); // Or maybe don't auto-select completed?
-        } else {
-          setSelectedProof(null);
-        }
-      });
-    }
-  }, [exampleSource, scan]);
-
   const handleSelectProof = useCallback(async (proofName: string) => {
     if (!exampleSource) return;
 
@@ -69,6 +50,38 @@ function AppContent() {
       console.error("Failed to start session:", e);
     }
   }, [exampleSource, startSession]);
+
+  // Scan whenever example source changes, debounced to avoid scanning on every keystroke
+
+  useEffect(() => {
+    if (!exampleSource) return;
+
+    const timeoutId = setTimeout(() => {
+      scan(exampleSource).then((result) => {
+        setFoundClaims(result.claims);
+        setFoundTheorems(result.theorems);
+
+        // Check if the currently selected proof is still in the file
+        const isCurrentStillValid =
+          selectedProof &&
+          (result.claims.some(c => c.name === selectedProof) ||
+            result.theorems.some(t => t.name === selectedProof));
+
+        // If not valid, or not set, try to select something
+        if (!isCurrentStillValid) {
+          if (result.claims.length > 0) {
+            handleSelectProof(result.claims[0].name);
+          } else if (result.theorems.length > 0) {
+            handleSelectProof(result.theorems[0].name);
+          } else {
+            setSelectedProof(null);
+          }
+        }
+      });
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [exampleSource, scan, selectedProof, handleSelectProof]);
 
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {

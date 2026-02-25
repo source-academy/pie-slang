@@ -30,7 +30,8 @@ export function GoalDetailPanel() {
 
   const { data } = selectedNode;
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
+    todo: 'bg-goal-pending',
     pending: 'bg-goal-pending',
     'in-progress': 'bg-goal-current',
     completed: 'bg-goal-complete',

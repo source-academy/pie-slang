@@ -1,5 +1,4 @@
 import { type GlobalContextEntry } from "@/workers/proof-worker";
-import { Check, Circle, ShieldCheck } from "lucide-react";
 
 interface ProofPickerProps {
     claims: GlobalContextEntry[];
