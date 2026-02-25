@@ -46,6 +46,8 @@ const initialState: ProofState = {
   history: [],
   historyIndex: -1,
   manualPositions: new Map(),
+  collapsedBranches: new Set(),
+  autoCollapseEnabled: true,
 };
 
 /**
@@ -463,6 +465,16 @@ export const useProofStore = create<ProofStore>()(
         const mergedEdges = [...existingLemmaEdges, ...edges];
 
         set((state) => {
+          // Clear stale collapsedBranches when starting a new proof session.
+          // A new session is indicated by a new claimName being provided that
+          // differs from the current one. Within the same session (e.g. after
+          // applying a tactic), claimName is not passed, so collapse state is
+          // preserved.
+          if (claimName && claimName !== state.claimName) {
+            state.collapsedBranches = new Set();
+            state.manualPositions = new Map();
+          }
+
           state.nodes = mergedNodes;
           state.edges = mergedEdges;
           state.sessionId = sessionId;
@@ -472,6 +484,36 @@ export const useProofStore = create<ProofStore>()(
           state.proofTreeData = proofTree;
           if (claimName) {
             state.claimName = claimName;
+          }
+
+          // Auto-collapse completed subtrees
+          if (state.autoCollapseEnabled) {
+            const findCollapsibleNodes = (node: typeof proofTree.root): string[] => {
+              const result: string[] = [];
+              // A node is collapsible if its subtree is complete AND it has visual
+              // descendants: either subgoal children or a completing tactic node
+              const hasVisualDescendants = node.children.length > 0 || !!node.completedBy;
+              if (node.isSubtreeComplete && hasVisualDescendants) {
+                result.push(node.goal.id);
+              }
+              // Check children for collapsible subtrees (only if this node is not complete)
+              // This prevents nested collapse (if parent is collapsed, don't also collapse children)
+              if (!node.isSubtreeComplete) {
+                node.children.forEach(child => {
+                  result.push(...findCollapsibleNodes(child));
+                });
+              }
+              return result;
+            };
+
+            const collapsibleIds = findCollapsibleNodes(proofTree.root);
+            collapsibleIds.forEach(id => {
+              // Only auto-collapse if not already expanded by user
+              if (!state.collapsedBranches.has(id)) {
+                state.collapsedBranches.add(id);
+                console.log(`[syncFromWorker] Auto-collapsing completed subtree: ${id}`);
+              }
+            });
           }
         });
       },
@@ -667,6 +709,7 @@ export const useProofStore = create<ProofStore>()(
         set(() => ({
           ...initialState,
           manualPositions: new Map(),
+          collapsedBranches: new Set(),
         }));
       },
 
@@ -683,6 +726,32 @@ export const useProofStore = create<ProofStore>()(
       clearManualPositions: () => {
         set((state) => {
           state.manualPositions.clear();
+        });
+      },
+
+      // ================================================
+      // Branch Collapse Management
+      // ================================================
+
+      toggleBranchCollapse: (goalId: string) => {
+        set((state) => {
+          if (state.collapsedBranches.has(goalId)) {
+            state.collapsedBranches.delete(goalId);
+          } else {
+            state.collapsedBranches.add(goalId);
+          }
+        });
+      },
+
+      expandAllBranches: () => {
+        set((state) => {
+          state.collapsedBranches.clear();
+        });
+      },
+
+      setAutoCollapseEnabled: (enabled: boolean) => {
+        set((state) => {
+          state.autoCollapseEnabled = enabled;
         });
       },
 
@@ -926,6 +995,12 @@ export const useHasManualPositions = () =>
   useProofStore((s) => s.manualPositions.size > 0);
 export const useClearManualPositions = () =>
   useProofStore((s) => s.clearManualPositions);
+
+// Branch collapse selectors
+export const useCollapsedBranches = () => useProofStore((s) => s.collapsedBranches);
+export const useHasCollapsedBranches = () => useProofStore((s) => s.collapsedBranches.size > 0);
+export const useToggleBranchCollapse = () => useProofStore((s) => s.toggleBranchCollapse);
+export const useExpandAllBranches = () => useProofStore((s) => s.expandAllBranches);
 
 // Selector for generated proof script
 export const useGeneratedProofScript = () =>

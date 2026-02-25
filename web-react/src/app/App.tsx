@@ -23,8 +23,6 @@ function AppContent() {
   const setManualPosition = useProofStore((s) => s.setManualPosition);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
-
-  // Scan state
   const [foundClaims, setFoundClaims] = useState<GlobalContextEntry[]>([]);
   const [foundTheorems, setFoundTheorems] = useState<GlobalContextEntry[]>([]);
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
@@ -82,7 +80,6 @@ function AppContent() {
 
     return () => clearTimeout(timeoutId);
   }, [exampleSource, scan, selectedProof, handleSelectProof]);
-
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
     const { goalId, tacticType, params, tacticNodeId } = options;
@@ -174,8 +171,6 @@ function AppContent() {
             ))}
           </select>
         </div>
-
-        <div className="h-6 w-px bg-border" />
 
         {/* Proof Picker */}
         <ProofPicker

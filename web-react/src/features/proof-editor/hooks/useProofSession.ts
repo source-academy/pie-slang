@@ -30,8 +30,6 @@ export function useProofSession() {
   const setGlobalContext = useMetadataStore((s) => s.setGlobalContext);
   const setMetadataClaimName = useMetadataStore((s) => s.setClaimName);
 
-
-
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
   const sessionId = useProofStore((s) => s.sessionId);
@@ -59,6 +57,7 @@ export function useProofSession() {
         setAvailableLemmas(result.availableLemmas);
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
+        setMetadataClaimName(claimName); // Store claim name in metadata store
 
         setMetadataClaimName(claimName); // Store claim name in metadata store
 
@@ -131,7 +130,6 @@ export function useProofSession() {
       setAvailableLemmas([]);
       setClaimType(null);
       setGlobalContext({ definitions: [], theorems: [] });
-
       setMetadataClaimName(null);
       setError(null);
     } catch (e) {

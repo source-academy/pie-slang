@@ -38,6 +38,10 @@ export {
   isValidConnection,
   useClearManualPositions,
   useHasManualPositions,
+  useCollapsedBranches,
+  useHasCollapsedBranches,
+  useToggleBranchCollapse,
+  useExpandAllBranches,
 } from './proof-store';
 
 // UI store
