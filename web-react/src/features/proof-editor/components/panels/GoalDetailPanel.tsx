@@ -5,11 +5,24 @@ import { useGoalDescriptionStore } from "../../store/goal-description-store";
 import { describeGoalBrowser } from "../../lib/describeGoalBrowser";
 import type { ContextEntry, GoalNode } from "../../store/types";
 import { cn } from "@/shared/lib/utils";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles, AlertCircle } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Extract a clean human-readable message from a raw error string. */
+function parseErrorMessage(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw);
+    const msg: string | undefined =
+      parsed?.error?.message ?? parsed?.message ?? parsed?.error?.status;
+    if (msg) return msg;
+  } catch {
+    // not JSON — fall through
+  }
+  return raw;
+}
 
 /**
  * Build a minimal self-contained Pie snippet for a single goal.
@@ -212,7 +225,12 @@ export function GoalDetailPanel() {
             Generating description…
           </div>
         ) : descEntry?.error ? (
-          <p className="text-xs text-red-500">{descEntry.error}</p>
+          <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+            <p className="text-xs leading-snug text-red-700">
+              {parseErrorMessage(descEntry.error)}
+            </p>
+          </div>
         ) : descEntry?.text ? (
           <p className="text-sm leading-relaxed text-gray-700">
             {descEntry.text}
