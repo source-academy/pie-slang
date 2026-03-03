@@ -23,7 +23,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: web-react
-        run: npm install
+        run: npx vite build
 
       - name: Build React App
         working-directory: web-react
