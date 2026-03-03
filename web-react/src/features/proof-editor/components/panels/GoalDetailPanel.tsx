@@ -2,8 +2,9 @@ import { useCallback, useEffect } from "react";
 import { useProofStore, useUIStore } from "../../store";
 import { useHintStore } from "../../store/hint-store";
 import { useGoalDescriptionStore } from "../../store/goal-description-store";
+import { useMetadataStore } from "../../store/metadata-store";
 import { describeGoalBrowser } from "../../lib/describeGoalBrowser";
-import type { ContextEntry, GoalNode } from "../../store/types";
+import type { GoalNode } from "../../store/types";
 import { cn } from "@/shared/lib/utils";
 import { RefreshCw, Sparkles, AlertCircle } from "lucide-react";
 
@@ -25,29 +26,6 @@ function parseErrorMessage(raw: string): string {
 }
 
 /**
- * Build a minimal self-contained Pie snippet for a single goal.
- * Wraps the goal type in Π bindings for each context entry so the LLM
- * sees a well-formed claim it can describe.
- */
-function buildGoalPieCode(
-  goalType: string,
-  context: ContextEntry[],
-): { pieCode: string; goalName: string } {
-  const goalName = "goal";
-  let type: string;
-  if (context.length > 0) {
-    const bindings = context
-      .map((e) => `(${e.name} ${e.type})`)
-      .join("\n      ");
-    type = `(Π (${bindings})\n    ${goalType})`;
-  } else {
-    type = goalType;
-  }
-  const pieCode = `(claim ${goalName}\n  ${type})`;
-  return { pieCode, goalName };
-}
-
-/**
  * GoalDetailPanel Component
  *
  * Shows detailed information about the selected goal node.
@@ -60,6 +38,8 @@ export function GoalDetailPanel() {
 
   // AI / description state
   const apiKey = useHintStore((s) => s.apiKey);
+  const sourceCode = useMetadataStore((s) => s.sourceCode);
+  const claimName = useMetadataStore((s) => s.claimName);
   const setLoading = useGoalDescriptionStore((s) => s.setLoading);
   const setDescription = useGoalDescriptionStore((s) => s.setDescription);
   const setError = useGoalDescriptionStore((s) => s.setError);
@@ -73,36 +53,40 @@ export function GoalDetailPanel() {
   );
 
   // ---------------------------------------------------------------------------
-  // Description fetching — per-goal: builds a Pie snippet from this goal's
-  // own type and context, so each goal gets a distinct description.
+  // Description fetching — uses the full session source code and the claim
+  // name being proved, so the LLM has full context.
   // ---------------------------------------------------------------------------
   const fetchDescription = useCallback(
-    async (nodeId: string, goalNode: GoalNode) => {
-      if (!apiKey) return;
+    async (nodeId: string) => {
+      if (!apiKey || !sourceCode || !claimName) return;
       setLoading(nodeId);
       try {
-        const { pieCode, goalName } = buildGoalPieCode(
-          goalNode.data.goalType,
-          goalNode.data.context,
-        );
-        const text = await describeGoalBrowser(pieCode, goalName, apiKey);
+        const text = await describeGoalBrowser(sourceCode, claimName, apiKey);
         setDescription(nodeId, text);
       } catch (e) {
         setError(nodeId, e instanceof Error ? e.message : String(e));
       }
     },
-    [apiKey, setLoading, setDescription, setError],
+    [apiKey, sourceCode, claimName, setLoading, setDescription, setError],
   );
 
   // Lazily trigger on first open of this goal's panel
   useEffect(() => {
     if (!selectedNodeId || !selectedNode) return;
-    if (!apiKey) return;
+    if (!apiKey || !sourceCode || !claimName) return;
     // Only auto-fetch if we have no cached entry for this node yet
     if (!descEntry) {
-      fetchDescription(selectedNodeId, selectedNode);
+      fetchDescription(selectedNodeId);
     }
-  }, [selectedNodeId, selectedNode, apiKey, descEntry, fetchDescription]);
+  }, [
+    selectedNodeId,
+    selectedNode,
+    apiKey,
+    sourceCode,
+    claimName,
+    descEntry,
+    fetchDescription,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -189,11 +173,7 @@ export function GoalDetailPanel() {
           </div>
           {apiKey && (
             <button
-              onClick={() =>
-                selectedNodeId &&
-                selectedNode &&
-                fetchDescription(selectedNodeId, selectedNode)
-              }
+              onClick={() => selectedNodeId && fetchDescription(selectedNodeId)}
               disabled={descEntry?.isLoading}
               title="Refresh description"
               className={cn(
@@ -218,6 +198,10 @@ export function GoalDetailPanel() {
           <p className="text-xs text-gray-400 italic">
             Configure a Gemini API key in AI Settings to enable goal
             descriptions.
+          </p>
+        ) : !sourceCode || !claimName ? (
+          <p className="text-xs text-gray-400 italic">
+            Start a proof session to generate a description.
           </p>
         ) : descEntry?.isLoading ? (
           <div className="flex items-center gap-2 text-xs text-purple-600">
