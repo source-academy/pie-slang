@@ -545,7 +545,7 @@ function initializeDiagnostics(editor) {
     return null;
   }
 
-  const worker = new Worker('diagnostics-worker.js', { type: 'module' });
+  const worker = new Worker(new URL('./diagnostics-worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = event => {
     const { type, payload } = event.data;
     if (type === 'diagnostics' && monacoApi) {
