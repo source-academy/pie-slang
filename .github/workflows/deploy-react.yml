@@ -1,0 +1,39 @@
+name: Deploy React App to Pie Playground
+
+on:
+  push:
+    branches:
+      - ai-visual
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: web-react
+        run: npm install
+
+      - name: Build React App
+        working-directory: web-react
+        run: npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web-react/dist
+          publish_branch: gh-pages
+          destination_dir: pie-playground
+          commit_message: "Deploy web-react from ai-visual"
