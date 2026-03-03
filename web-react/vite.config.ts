@@ -12,6 +12,13 @@ const aliasEntries = [
     find: "@scheme",
     replacement: path.resolve(__dirname, "../src/scheme-parser"),
   },
+  // Explicitly resolve @google/genai to web-react/node_modules so that files
+  // resolved via @pie aliases (which live outside this directory) can still
+  // find the package installed here.
+  {
+    find: "@google/genai",
+    replacement: path.resolve(__dirname, "node_modules/@google/genai"),
+  },
 ];
 
 // Create a custom alias plugin with enforce: 'pre' to run before vite:import-analysis
