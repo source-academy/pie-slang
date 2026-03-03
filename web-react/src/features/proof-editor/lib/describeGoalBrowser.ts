@@ -1,35 +1,10 @@
-// src/describe/promptLLM.ts
-// NOTE: This module uses Node.js-specific features (dotenv, process.env).
-// It won't work in a browser/worker context without adaptation.
+// Browser-compatible implementation of describeGoal.
+// Uses @google/genai ESM imports directly — no Node.js modules (dotenv, require, etc.).
 
-// Check if we're in Node.js environment
-const isNodeEnv =
-  typeof process !== "undefined" &&
-  typeof process.versions !== "undefined" &&
-  typeof process.versions.node !== "undefined";
-
-function getGenAIClient() {
-  if (!isNodeEnv) {
-    throw new Error("describeGoal is only available in a Node.js environment.");
-  }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require("dotenv/config");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { GoogleGenAI } = require("@google/genai");
-  const apiKey = process.env.GOOGLE_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "GOOGLE_API_KEY environment variable is not set. " +
-        "Please create a .env file in the project root with: GOOGLE_API_KEY=your_key_here",
-    );
-  }
-  return new GoogleGenAI({ apiKey });
-}
+import { GoogleGenAI } from "@google/genai";
 
 // ---------------------------------------------------------------------------
-// Few-shot examples
-// Each example shows a snippet of Pie code, the name of the goal to describe,
-// and the expected natural-language description.
+// Few-shot examples (identical to the Node.js version in src/describe/promptLLM.ts)
 // ---------------------------------------------------------------------------
 
 interface FewShotExample {
@@ -182,35 +157,7 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// ---------------------------------------------------------------------------
-// Main exported function
-// ---------------------------------------------------------------------------
-
-/**
- * Queries Google Gemini to produce a natural-language description of a named
- * goal found inside a snippet of Pie code.
- *
- * @param pieCode  - A string containing valid Pie source code that declares the goal.
- * @param goalName - The name of the `claim` / goal to describe.
- * @returns A promise that resolves to a natural-language description string.
- */
-export async function describeGoal(
-  pieCode: string,
-  goalName: string,
-): Promise<string> {
-  // validation
-  const claimPattern = new RegExp(
-    `\\(\\s*claim\\s+${escapeRegExp(goalName)}\\s`,
-  );
-  if (!claimPattern.test(pieCode)) {
-    throw new Error(
-      `No claim named '${goalName}' found in the provided Pie code.`,
-    );
-  }
-
-  const genAI = getGenAIClient();
-
-  // few shot learning
+function buildPrompt(pieCode: string, goalName: string): string {
   const fewShotSection = FEW_SHOT_EXAMPLES.map(
     (ex, i) =>
       `### Example ${i + 1}\n` +
@@ -219,7 +166,7 @@ export async function describeGoal(
       `**Description:** ${ex.description}`,
   ).join("\n\n");
 
-  const prompt =
+  return (
     `You are an expert in dependently-typed programming languages, specifically Pie ` +
     `(the language from "The Little Typer" by Daniel P. Friedman and David Thrane Christiansen). ` +
     `Your task is to read a snippet of Pie code and write a clear, accurate natural-language description ` +
@@ -237,12 +184,46 @@ export async function describeGoal(
     `## Your task\n\n` +
     `**Pie code:**\n\`\`\`\n${pieCode}\n\`\`\`\n` +
     `**Goal name:** \`${goalName}\`\n` +
-    `**Description:**`;
+    `**Description:**`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Exported function
+// ---------------------------------------------------------------------------
+
+/**
+ * Browser-compatible version of describeGoal.
+ *
+ * Queries Google Gemini to produce a natural-language description of a named
+ * claim found inside a snippet of Pie code.
+ *
+ * @param pieCode  - Pie source code containing at least the named claim.
+ * @param goalName - The name of the `claim` to describe.
+ * @param apiKey   - Google Gemini API key (from the user's settings).
+ * @returns A promise resolving to the natural-language description.
+ */
+export async function describeGoalBrowser(
+  pieCode: string,
+  goalName: string,
+  apiKey: string,
+): Promise<string> {
+  // Validate that a claim with the given name exists in the code.
+  const claimPattern = new RegExp(
+    `\\(\\s*claim\\s+${escapeRegExp(goalName)}\\s`,
+  );
+  if (!claimPattern.test(pieCode)) {
+    throw new Error(
+      `No claim named '${goalName}' found in the provided Pie code.`,
+    );
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (genAI as any).models.generateContent({
     model: "gemini-2.5-flash",
-    contents: prompt,
+    contents: buildPrompt(pieCode, goalName),
   });
 
   if (!result.text) {
