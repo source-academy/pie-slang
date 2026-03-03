@@ -3,7 +3,7 @@ name: Deploy React App to Pie Playground
 on:
   push:
     branches:
-      - ai-visual
+      - main
   workflow_dispatch:
 
 jobs:
