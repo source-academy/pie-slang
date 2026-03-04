@@ -22,7 +22,7 @@ export type {
   UIActions,
   UIStore,
   DeleteConfirmation,
-} from './types';
+} from "./types";
 
 // Proof store
 export {
@@ -42,7 +42,7 @@ export {
   useHasCollapsedBranches,
   useToggleBranchCollapse,
   useExpandAllBranches,
-} from './proof-store';
+} from "./proof-store";
 
 // UI store
 export {
@@ -53,20 +53,20 @@ export {
   useValidDropTargets,
   useIsValidDropTarget,
   useDeleteConfirmation,
-} from './ui-store';
+} from "./ui-store";
 
 // History store
 export {
   useHistoryStore,
   useHistoryIndex,
   useHistoryLength,
-} from './history-store';
+} from "./history-store";
 
 export type {
   HistoryState,
   HistoryActions,
   HistoryStore,
-} from './history-store';
+} from "./history-store";
 
 // Metadata store
 export {
@@ -75,14 +75,15 @@ export {
   useClaimName,
   useDefinitions,
   useTheorems,
-} from './metadata-store';
+  useSourceCode,
+} from "./metadata-store";
 
 export type {
   GlobalContext,
   MetadataState,
   MetadataActions,
   MetadataStore,
-} from './metadata-store';
+} from "./metadata-store";
 
 // Example store
 export {
@@ -90,13 +91,13 @@ export {
   useSelectedExample,
   useExampleSource,
   useExampleClaim,
-} from './example-store';
+} from "./example-store";
 
 export type {
   ExampleState,
   ExampleActions,
   ExampleStore,
-} from './example-store';
+} from "./example-store";
 
 // Hint store (from upstream)
 export {
@@ -109,4 +110,13 @@ export {
   type HintState,
   type HintActions,
   type HintStore,
-} from './hint-store';
+} from "./hint-store";
+
+// Goal description store
+export {
+  useGoalDescriptionStore,
+  type GoalDescriptionEntry,
+  type GoalDescriptionState,
+  type GoalDescriptionActions,
+  type GoalDescriptionStore,
+} from "./goal-description-store";
