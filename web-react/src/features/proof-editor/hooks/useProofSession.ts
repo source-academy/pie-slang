@@ -1,14 +1,14 @@
-import { useState, useCallback } from 'react';
-import { proofWorker } from '@/shared/lib/worker-client';
-import { useProofStore } from '../store';
-import { useMetadataStore } from '../store/metadata-store';
+import { useState, useCallback } from "react";
+import { proofWorker } from "@/shared/lib/worker-client";
+import { useProofStore } from "../store";
+import { useMetadataStore } from "../store/metadata-store";
 import type {
   TacticParameters,
   StartSessionResponse,
   TacticAppliedResponse,
   SerializableLemma,
   GlobalContext,
-} from '@/workers/proof-worker';
+} from "@/workers/proof-worker";
 
 /**
  * Hook for managing proof sessions with the proof worker.
@@ -22,13 +22,16 @@ import type {
 export function useProofSession() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableLemmas, setAvailableLemmas] = useState<SerializableLemma[]>([]);
+  const [availableLemmas, setAvailableLemmas] = useState<SerializableLemma[]>(
+    [],
+  );
   const [claimType, setClaimType] = useState<string | null>(null);
 
   // Use metadata store for globalContext and claimName so all hook instances see the same state
   const globalContext = useMetadataStore((s) => s.globalContext);
   const setGlobalContext = useMetadataStore((s) => s.setGlobalContext);
   const setMetadataClaimName = useMetadataStore((s) => s.setClaimName);
+  const setSourceCode = useMetadataStore((s) => s.setSourceCode);
 
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
@@ -42,7 +45,10 @@ export function useProofSession() {
    * @returns Session info including proof tree and available lemmas
    */
   const startSession = useCallback(
-    async (sourceCode: string, claimName: string): Promise<StartSessionResponse> => {
+    async (
+      sourceCode: string,
+      claimName: string,
+    ): Promise<StartSessionResponse> => {
       setIsLoading(true);
       setError(null);
 
@@ -58,6 +64,7 @@ export function useProofSession() {
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
         setMetadataClaimName(claimName); // Store claim name in metadata store
+        setSourceCode(sourceCode); // Store source code for goal descriptions
 
         setMetadataClaimName(claimName); // Store claim name in metadata store
 
@@ -70,7 +77,13 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [syncFromWorker, saveSnapshot, setGlobalContext, setMetadataClaimName]
+    [
+      syncFromWorker,
+      saveSnapshot,
+      setGlobalContext,
+      setMetadataClaimName,
+      setSourceCode,
+    ],
   );
 
   /**
@@ -85,10 +98,11 @@ export function useProofSession() {
     async (
       goalId: string,
       tacticType: string,
-      params: TacticParameters
+      params: TacticParameters,
     ): Promise<TacticAppliedResponse> => {
       if (!sessionId) {
-        const errorMessage = 'No active proof session. Call startSession first.';
+        const errorMessage =
+          "No active proof session. Call startSession first.";
         setError(errorMessage);
         throw new Error(errorMessage);
       }
@@ -97,7 +111,12 @@ export function useProofSession() {
       setError(null);
 
       try {
-        const result = await proofWorker.applyTactic(sessionId, goalId, tacticType, params);
+        const result = await proofWorker.applyTactic(
+          sessionId,
+          goalId,
+          tacticType,
+          params,
+        );
 
         if (result.success) {
           // Sync the updated proof tree to the store
@@ -116,7 +135,7 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [sessionId, syncFromWorker, saveSnapshot]
+    [sessionId, syncFromWorker, saveSnapshot],
   );
 
   /**
@@ -133,7 +152,7 @@ export function useProofSession() {
       setMetadataClaimName(null);
       setError(null);
     } catch (e) {
-      console.error('Failed to close session:', e);
+      console.error("Failed to close session:", e);
     }
   }, [sessionId, setGlobalContext, setMetadataClaimName]);
 
@@ -176,7 +195,7 @@ export function useProofSession() {
         setIsLoading(false);
       }
     },
-    [setGlobalContext]
+    [setGlobalContext],
   );
 
   return {
@@ -201,4 +220,10 @@ export function useProofSession() {
 }
 
 // Re-export types for convenience
-export type { TacticParameters, StartSessionResponse, TacticAppliedResponse, SerializableLemma, GlobalContext };
+export type {
+  TacticParameters,
+  StartSessionResponse,
+  TacticAppliedResponse,
+  SerializableLemma,
+  GlobalContext,
+};

@@ -34,8 +34,8 @@ export interface SerializableContextEntry {
 
 export interface SerializableGoal {
   id: string;
-  type: string;              // Display type (may be sugared if abbreviations available)
-  expandedType?: string;     // Full expanded type (only set if different from type)
+  type: string; // Display type (may be sugared if abbreviations available)
+  expandedType?: string; // Full expanded type (only set if different from type)
   context: SerializableContextEntry[];
   contextEntries?: SerializableContextEntry[]; // Alias for compatibility
   isComplete: boolean;
@@ -189,7 +189,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
         addDefineToContext,
         addDefineTacticallyToContext,
       } = await import("@pie/utils/context");
-      const { go } = await import("@pie/types/utils");
+      const { go, stop } = await import("@pie/types/utils");
+      const { Position } = await import("@scheme/transpiler/types/location");
 
       // Parse source code
       const astList = schemeParse(sourceCode);
@@ -369,7 +370,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Add the target claim to valid names so it's included (it won't have a definition yet)
       validNames.add(claimName);
 
-      console.log("[ProofWorker] Found valid definitions:", Array.from(validNames));
+      console.log(
+        "[ProofWorker] Found valid definitions:",
+        Array.from(validNames),
+      );
 
       // Build context and track definitions/claims for globalContext
       console.log("[ProofWorker] Building context...");
@@ -382,7 +386,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         const src = pieDeclarationParser.parseDeclaration(astList[i]);
 
         // Skip SamenessCheck or other non-declaration types if they don't have a name
-        if (!('name' in src)) continue;
+        if (!("name" in src)) continue;
 
         // STOP CONDITION: If we've reached the target claim, we're done building context
         // The target claim itself should be added, but nothing after it
@@ -477,7 +481,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
         // If we just processed the target claim, STOP building context.
         // We don't want anything declared *after* the claim to be available.
         if (isTargetClaim) {
-          console.log(`[ProofWorker] Reached target claim '${claimName}', stopping context build.`);
+          console.log(
+            `[ProofWorker] Reached target claim '${claimName}', stopping context build.`,
+          );
           break;
         }
       }
@@ -515,7 +521,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
           const isComplete = n.goal?.isComplete || n.completedBy;
           if (!isComplete) return false;
           if (!n.children || n.children.length === 0) return true;
-          return n.children.every((child: any) => computeIsSubtreeComplete(child));
+          return n.children.every((child: any) =>
+            computeIsSubtreeComplete(child),
+          );
         };
 
         const goal: SerializableGoal = {
@@ -973,7 +981,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
         const isComplete = n.goal?.isComplete || n.completedBy;
         if (!isComplete) return false;
         if (!n.children || n.children.length === 0) return true;
-        return n.children.every((child: any) => computeIsSubtreeComplete(child));
+        return n.children.every((child: any) =>
+          computeIsSubtreeComplete(child),
+        );
       };
 
       return {

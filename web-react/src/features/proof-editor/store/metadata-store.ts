@@ -1,23 +1,33 @@
-import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
 
 // ============================================
 // Metadata Store Types
 // ============================================
 
 export interface GlobalContext {
-  definitions: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
-  theorems: Array<{ name: string; type: string; kind: 'definition' | 'claim' | 'theorem' }>;
+  definitions: Array<{
+    name: string;
+    type: string;
+    kind: "definition" | "claim" | "theorem";
+  }>;
+  theorems: Array<{
+    name: string;
+    type: string;
+    kind: "definition" | "claim" | "theorem";
+  }>;
 }
 
 export interface MetadataState {
   globalContext: GlobalContext;
   claimName: string | null;
+  sourceCode: string | null;
 }
 
 export interface MetadataActions {
   setGlobalContext: (context: GlobalContext) => void;
   setClaimName: (name: string | null) => void;
+  setSourceCode: (code: string | null) => void;
   reset: () => void;
 }
 
@@ -27,6 +37,7 @@ export type MetadataStore = MetadataState & MetadataActions;
 const initialState: MetadataState = {
   globalContext: { definitions: [], theorems: [] },
   claimName: null,
+  sourceCode: null,
 };
 
 /**
@@ -48,14 +59,22 @@ export const useMetadataStore = create<MetadataStore>()(
       set({ claimName: name });
     },
 
+    setSourceCode: (code: string | null) => {
+      set({ sourceCode: code });
+    },
+
     reset: () => {
       set(initialState);
     },
-  }))
+  })),
 );
 
 // Convenience selectors
-export const useGlobalContextFromMetadata = () => useMetadataStore((s) => s.globalContext);
+export const useGlobalContextFromMetadata = () =>
+  useMetadataStore((s) => s.globalContext);
 export const useClaimName = () => useMetadataStore((s) => s.claimName);
-export const useDefinitions = () => useMetadataStore((s) => s.globalContext.definitions);
-export const useTheorems = () => useMetadataStore((s) => s.globalContext.theorems);
+export const useDefinitions = () =>
+  useMetadataStore((s) => s.globalContext.definitions);
+export const useSourceCode = () => useMetadataStore((s) => s.sourceCode);
+export const useTheorems = () =>
+  useMetadataStore((s) => s.globalContext.theorems);
