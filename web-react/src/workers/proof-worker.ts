@@ -293,7 +293,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       const parser = await import("@pie/parser/parser");
       results.push(
         "   schemeParse: " +
-          (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
+        (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
       );
 
       results.push("2. Testing context imports...");

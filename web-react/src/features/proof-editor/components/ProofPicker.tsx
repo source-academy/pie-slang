@@ -1,5 +1,4 @@
 import { type GlobalContextEntry } from "@/workers/proof-worker";
-import { Check, Circle, ShieldCheck } from "lucide-react";
 
 interface ProofPickerProps {
     claims: GlobalContextEntry[];
@@ -41,7 +40,7 @@ export function ProofPicker({
                 </option>
 
                 {claims.length > 0 && (
-                    <optgroup label="Pending Proofs">
+                    <optgroup label={`Pending Proofs (${claims.length})`}>
                         {claims.map((claim) => (
                             <option key={claim.name} value={claim.name}>
                                 ○ {claim.name}
@@ -51,7 +50,7 @@ export function ProofPicker({
                 )}
 
                 {theorems.length > 0 && (
-                    <optgroup label="Completed Theorems">
+                    <optgroup label={`Completed Theorems (${theorems.length})`}>
                         {theorems.map((theorem) => (
                             <option key={theorem.name} value={theorem.name}>
                                 ✓ {theorem.name}

@@ -56,7 +56,7 @@ export function useProofSession() {
         const result = await proofWorker.startSession(sourceCode, claimName);
 
         // Sync the proof tree to the store (include claimName for script generation)
-        syncFromWorker(result.proofTree, result.sessionId, claimName);
+        syncFromWorker(result.proofTree, result.sessionId, claimName, result.globalContext.theorems);
         saveSnapshot();
 
         // Store metadata
@@ -172,6 +172,7 @@ export function useProofSession() {
       setError(null);
 
       try {
+        // Scan the file for definitions and claims (Multi-proof support)
         const result = await proofWorker.scanFile(sourceCode);
 
         // Update global context with definitions and theorems found during scan

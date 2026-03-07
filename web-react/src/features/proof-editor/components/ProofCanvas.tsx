@@ -21,6 +21,7 @@ import type {
   TacticType,
   GoalNode,
   TacticNode,
+  LemmaNode,
   TacticNodeData,
 } from "../store/types";
 import type { GhostTacticNodeData } from "./nodes/GhostTacticNode";
@@ -28,6 +29,42 @@ import { useDemoData } from "../hooks/useDemoData";
 import { useHintSystem } from "../hooks/useHintSystem";
 import { TACTICS } from "../data/tactics";
 import { applyTactic as triggerApplyTactic } from "../utils/tactic-callback";
+import { extractParameters } from "./nodes/LemmaNode";
+
+/**
+ * Builds the compound expression string for a lemma node by inspecting
+ * incoming context-to-lemma edges.
+ */
+function buildLemmaExpression(
+  lemmaNode: LemmaNode,
+  edges: import("../store/types").ProofEdge[],
+  nodes: import("../store/types").ProofNode[]
+): string {
+  const parameters = extractParameters(lemmaNode.data.type);
+  if (parameters.length === 0) {
+    return lemmaNode.data.name;
+  }
+
+  const incomingEdges = edges.filter(
+    (e) => e.target === lemmaNode.id && e.data?.kind === "context-to-lemma"
+  );
+
+  const args = parameters.map((param) => {
+    const edge = incomingEdges.find(
+      (e) => e.targetHandle === `lemma-input-${param}`
+    );
+    if (edge && edge.data?.contextVarId) {
+      const sourceGoal = nodes.find((n) => n.id === edge.source) as GoalNode | undefined;
+      const contextVar = sourceGoal?.data.context.find(
+        (c) => c.id === edge.data?.contextVarId
+      );
+      return contextVar ? contextVar.name : "?";
+    }
+    return "?";
+  });
+
+  return `(${lemmaNode.data.name} ${args.join(" ")})`;
+}
 
 /**
  * ProofCanvas Component
@@ -195,6 +232,78 @@ export function ProofCanvas() {
         // We don't trigger application for this direction
         return;
       }
+      // Lemma → Tactic
+      else if (sourceNode.type === "lemma" && targetNode.type === "tactic") {
+        const lemmaNode = sourceNode as LemmaNode;
+        tacticNode = targetNode as TacticNode;
+
+        const state = useProofStore.getState();
+        const expression = buildLemmaExpression(lemmaNode, state.edges, state.nodes);
+
+        const tacticType = tacticNode.data.tacticType;
+        let newParams = { ...tacticNode.data.parameters };
+        newParams.expression = expression;
+
+        updateNode(tacticNode.id, {
+          parameters: newParams,
+          status: "ready", // assume ready
+        });
+
+        // Trigger application if it's already connected to a goal
+        if (tacticNode.data.connectedGoalId && !expression.includes("?")) {
+          console.log(
+            "[ProofCanvas] Lemma connected, applying tactic:",
+            tacticType,
+          );
+          await triggerApplyTactic(
+            tacticNode.data.connectedGoalId,
+            tacticType,
+            newParams,
+            tacticNode.id,
+          );
+        }
+        return;
+      }
+      // Goal → Lemma (Direct Application OR Context Binding)
+      else if (sourceNode.type === "goal" && targetNode.type === "lemma") {
+        const lemmaNode = targetNode as LemmaNode;
+        const state = useProofStore.getState();
+        const expression = buildLemmaExpression(lemmaNode, state.edges, state.nodes);
+
+        if (!expression.includes("?")) {
+          // Check if lemma goes to a goal (Direct Application) or a tactic
+          const directAppEdge = state.edges.find(e => e.target === lemmaNode.id && e.data?.kind === "goal-to-lemma");
+          const tacticEdge = state.edges.find(e => e.source === lemmaNode.id && e.data?.kind === "lemma-to-tactic");
+
+          if (directAppEdge) {
+            console.log(
+              "[ProofCanvas] Goal connected directly to lemma, applying exact:",
+              expression,
+            );
+            await triggerApplyTactic(
+              directAppEdge.source,
+              "exact",
+              { expression },
+              directAppEdge.source, // passing goal node ID
+            );
+          } else if (tacticEdge) {
+            const connectedTactic = state.nodes.find(n => n.id === tacticEdge.target) as TacticNode | undefined;
+            if (connectedTactic && connectedTactic.data.connectedGoalId) {
+              updateNode(connectedTactic.id, {
+                parameters: { ...connectedTactic.data.parameters, expression }
+              });
+              console.log("[ProofCanvas] Context edge connected, triggering lemma's tactic:", connectedTactic.data.tacticType);
+              await triggerApplyTactic(
+                connectedTactic.data.connectedGoalId,
+                connectedTactic.data.tacticType,
+                { ...connectedTactic.data.parameters, expression },
+                connectedTactic.id
+              );
+            }
+          }
+        }
+        return;
+      }
 
       if (!goalNode || !tacticNode) return;
 
@@ -360,11 +469,11 @@ export function ProofCanvas() {
       connection:
         | Connection
         | {
-            source: string;
-            target: string;
-            sourceHandle?: string | null;
-            targetHandle?: string | null;
-          },
+          source: string;
+          target: string;
+          sourceHandle?: string | null;
+          targetHandle?: string | null;
+        },
     ) => {
       // Normalize the connection object
       const conn: Connection = {
