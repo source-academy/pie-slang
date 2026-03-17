@@ -92,6 +92,22 @@ export type {
   ExampleStore,
 } from './example-store';
 
+// Editor store (Monaco playground sync state)
+export {
+  useEditorStore,
+  useSyncStatus,
+  useDirtySinceLastSync,
+  useEditorValue,
+  useEditorClaimName,
+} from './editor-store';
+
+export type {
+  SyncStatus,
+  EditorState,
+  EditorActions,
+  EditorStore,
+} from './editor-store';
+
 // Hint store (from upstream)
 export {
   useHintStore,

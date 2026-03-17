@@ -9,18 +9,24 @@ import { AISettingsPanel } from '@/features/proof-editor/components/panels/AISet
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
 import { useKeyboardShortcuts } from '@/features/proof-editor/hooks/useKeyboardShortcuts';
 import { useProofStore } from '@/features/proof-editor/store';
+import { useHistoryStore } from '@/features/proof-editor/store/history-store';
 import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
+import { useEditorStore } from '@/features/proof-editor/store/editor-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
 
 function AppContent() {
   const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
+  const undo = useProofStore((s) => s.undo);
+  const redo = useProofStore((s) => s.redo);
+  const canUndo = useHistoryStore((s) => s.canUndo);
+  const canRedo = useHistoryStore((s) => s.canRedo);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
 
-  // Use keyboard shortcuts hook
+  // Use keyboard shortcuts hook (registers global keydown handler)
   useKeyboardShortcuts();
 
   // Use example store
@@ -35,6 +41,17 @@ function AppContent() {
     const { goalId, tacticType, params, tacticNodeId } = options;
     console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params, 'tacticNodeId:', tacticNodeId);
     setTacticError(null);
+
+    // Conflict guard: read current store state (not stale closure) to avoid loops.
+    const currentlyDirty = useEditorStore.getState().dirtySinceLastSync;
+    if (currentlyDirty) {
+      const confirmFn = (window as unknown as Record<string, unknown>)
+        .confirmConflictAndProceed as ((action: () => void) => void) | undefined;
+      if (confirmFn) {
+        confirmFn(() => handleApplyTactic(options));
+        return;
+      }
+    }
 
     try {
       const result = await applyTactic(goalId, tacticType, params);
@@ -109,6 +126,26 @@ function AppContent() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Canvas undo/redo buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            title="Canvas undo (Ctrl/Cmd+Z when outside editor)"
+            className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
+            onClick={undo}
+            disabled={!canUndo()}
+          >
+            ↩ Undo
+          </button>
+          <button
+            title="Canvas redo (Ctrl/Cmd+Shift+Z when outside editor)"
+            className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
+            onClick={redo}
+            disabled={!canRedo()}
+          >
+            ↪ Redo
+          </button>
         </div>
 
         {/* Show tactic error in header */}

@@ -106,6 +106,17 @@ export interface TacticAppliedResponse {
   error?: string;
 }
 
+export interface SyncFromSourceResponse {
+  success: boolean;
+  sessionId?: string;
+  proofTree?: ProofTreeData;
+  globalContext?: GlobalContext;
+  claimType?: string;
+  availableLemmas?: SerializableLemma[];
+  error?: string;
+  diagnostics?: Array<{ message: string; severity: 'error' | 'warning' }>;
+}
+
 // ============================================
 // Session storage
 // ============================================
@@ -165,6 +176,7 @@ export interface ProofWorkerAPI {
   closeSession: (sessionId: string) => void;
   getProofTree: (sessionId: string) => ProofTreeData | null;
   getHint: (request: GetHintRequest) => Promise<ProgressiveHintResponse>;
+  syncFromSource: (sourceCode: string, claimName: string) => Promise<SyncFromSourceResponse>;
 }
 
 const proofWorkerAPI: ProofWorkerAPI = {
@@ -622,6 +634,37 @@ const proofWorkerAPI: ProofWorkerAPI = {
       isComplete: rawData.isComplete,
       currentGoalId: rawData.currentGoalId,
     };
+  },
+
+  /**
+   * Sync canvas state from source code (Code → Canvas).
+   *
+   * Parses sourceCode + claimName, rebuilds a new proof session, and returns
+   * the full result. On failure returns an error without touching any existing
+   * session. The caller is responsible for closing the old session and updating
+   * the proof store atomically on success.
+   */
+  async syncFromSource(sourceCode: string, claimName: string): Promise<SyncFromSourceResponse> {
+    console.log('[ProofWorker] syncFromSource() called for:', claimName);
+    try {
+      const result = await proofWorkerAPI.startSession(sourceCode, claimName);
+      return {
+        success: true,
+        sessionId: result.sessionId,
+        proofTree: result.proofTree,
+        globalContext: result.globalContext,
+        claimType: result.claimType,
+        availableLemmas: result.availableLemmas,
+      };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error('[ProofWorker] syncFromSource failed:', message);
+      return {
+        success: false,
+        error: message,
+        diagnostics: [{ message, severity: 'error' }],
+      };
+    }
   },
 
   async getHint(request: GetHintRequest): Promise<ProgressiveHintResponse> {
