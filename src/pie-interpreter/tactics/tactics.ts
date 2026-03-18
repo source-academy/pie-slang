@@ -1031,8 +1031,20 @@ export class ThenTactic extends Tactic {
     const savedPendingBranches = state.pendingBranches;
     state.pendingBranches = 0;
 
+    // Determine branch index from parent's childFocusIndex
+    const branchIndex = state.currentGoal.parent?.childFocusIndex ?? null;
+
     // Apply each tactic in sequence to the current goal
     for (const tactic of this.tactics) {
+      // Notify listener before applying tactic inside then block
+      if (state.tacticListener) {
+        state.tacticListener(
+          state.currentGoal.goal,
+          tactic.toString(),
+          true,
+          branchIndex
+        );
+      }
       const result = tactic.apply(state);
       if (result instanceof stop) {
         return result;
@@ -1043,11 +1055,10 @@ export class ThenTactic extends Tactic {
     // Restore the pending branches for sibling handling
     state.pendingBranches = savedPendingBranches;
 
-    // After completing this branch, if no more pending branches and there are sibling goals,
-    // move to the next sibling goal
-    if (state.pendingBranches === 0) {
-      state.nextGoal();
-    }
+    // Note: do NOT call nextGoal() here. The last tactic in the then block
+    // (typically `exact`) already calls nextGoal() when it solves a goal.
+    // Calling nextGoal() again would double-advance, breaking 3+ level
+    // nested elimination (e.g., nested elim-Either for 3-variable boolean proofs).
 
     return new go(state);
   }

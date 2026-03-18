@@ -128,7 +128,8 @@ export function addDefineTacticallyToContext(
   name: string,
   location: Location,
   tactics: Tactic[],
-  verbose: boolean = false
+  verbose: boolean = false,
+  tacticListener?: (goal: import('../tactics/proofstate').Goal, tacticStr: string, isInsideThen: boolean, branchIndex: number | null) => void
 ): Perhaps<TacticalResult> {
   const proofManager = new ProofManager();
   let message = '';
@@ -140,6 +141,11 @@ export function addDefineTacticallyToContext(
   }
   if (verbose) {
     message += (startResult as go<string>).result + '\n';
+  }
+
+  // Attach tactic listener if provided (for training data extraction)
+  if (tacticListener && proofManager.currentState) {
+    proofManager.currentState.tacticListener = tacticListener;
   }
 
   // Apply each tactic

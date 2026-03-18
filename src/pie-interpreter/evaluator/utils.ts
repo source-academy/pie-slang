@@ -141,6 +141,11 @@ export function readBack(context: Context, type: V.Value, value: V.Value): C.Cor
     return new C.Cons(
       readBack(context, typeNow.entryType, valueNow.head),
       readBack(context, new V.List(typeNow.entryType), valueNow.tail));
+  } else if (typeNow instanceof V.List
+    && valueNow instanceof V.Cons) {
+    return new C.Cons(
+      readBack(context, typeNow.entryType, valueNow.car),
+      readBack(context, new V.List(typeNow.entryType), valueNow.cdr));
   } else if (typeNow instanceof V.Absurd
     && valueNow instanceof V.Neutral) {
     return new C.The(

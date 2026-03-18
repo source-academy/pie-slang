@@ -210,12 +210,16 @@ export class GoalNode {
   }
 }
 
+export type TacticListener = (goal: Goal, tacticStr: string, isInsideThen: boolean, branchIndex: number | null) => void;
+
 export class ProofState {
   public currentGoal: GoalNode;
   public proofHistory: ProofState[] = [];
   private goalIdCounter: number = 0;
   // Track how many subgoal branches are pending (waiting for 'then' blocks)
   public pendingBranches: number = 0;
+  // Optional listener for training data extraction
+  public tacticListener?: TacticListener;
 
   constructor(
     public location: Location,

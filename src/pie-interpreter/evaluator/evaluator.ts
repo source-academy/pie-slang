@@ -241,6 +241,17 @@ export function doIndList(target: V.Value, motive: V.Value, base: V.Value, step:
       ),
       doIndList(targetNow.tail, motive, base, step)
     );
+  } else if (targetNow instanceof V.Cons) {
+    return doApp(
+      doApp(
+        doApp(
+          step,
+          targetNow.car
+        ),
+        targetNow.cdr
+      ),
+      doIndList(targetNow.cdr, motive, base, step)
+    );
   } else if (targetNow instanceof V.Neutral) {
     const typeNow = targetNow.type.now();
     if (typeNow instanceof V.List) {
@@ -294,6 +305,15 @@ export function doRecList(target: V.Value, baseType: V.Value, base: V.Value, ste
   } else if (targetNow instanceof V.ListCons) {
     const head = targetNow.head;
     const tail = targetNow.tail;
+    return doApp(
+      doApp(
+        doApp(step, head),
+        tail),
+      doRecList(tail, baseType, base, step)
+    );
+  } else if (targetNow instanceof V.Cons) {
+    const head = targetNow.car;
+    const tail = targetNow.cdr;
     return doApp(
       doApp(
         doApp(step, head),

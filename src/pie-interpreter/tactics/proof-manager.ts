@@ -30,6 +30,16 @@ export class ProofManager {
     // Store the current goal node before applying tactic
     const previousGoalNode = this.currentState.currentGoal;
 
+    // Notify listener before applying tactic (for training data extraction)
+    if (this.currentState.tacticListener) {
+      this.currentState.tacticListener(
+        previousGoalNode.goal,
+        tactic.toString(),
+        false,
+        null
+      );
+    }
+
     const newStateResult = tactic.apply(this.currentState);
     if (newStateResult instanceof stop) {
       return newStateResult;
