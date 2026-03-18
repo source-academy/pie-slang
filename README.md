@@ -56,3 +56,31 @@ Once you have built the project, you can run the frontend locally:
 3. Right click on `index.html` and select `Open with Live Server`.
 
 Caveat: Opening the html file directly in the browser gives rise to cors errors and the editor will not be loaded.
+
+## Generating Tactic Training Data
+
+The interpreter can automatically capture tactic proof steps as training data for AI models. Set the `COLLECT_TRAINING_DATA` env var to an output file path, then run the tactic tests:
+
+```bash
+COLLECT_TRAINING_DATA=training-data.jsonl npx jest --testPathPatterns="tactics-math" --runInBand --no-coverage
+```
+
+Or use the convenience script:
+
+```bash
+npx ts-node src/pie-interpreter/scripts/extract-training-data.ts [output-path]
+```
+
+Output is JSONL, one line per tactic step. Only successful proofs produce data. Each line contains:
+
+```json
+{
+  "theoremName": "n+0=n",
+  "theoremType": "(Π ((n Nat)) (= Nat (+ n 0) n))",
+  "stepIndex": 0,
+  "globalContext": [{"name": "+", "type": "(→ Nat Nat Nat)"}],
+  "localContext": [],
+  "goal": "(Π ((n Nat)) (= Nat (+ n 0) n))",
+  "tactic": "intro n"
+}
+```

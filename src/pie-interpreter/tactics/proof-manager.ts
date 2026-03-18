@@ -1,5 +1,5 @@
 import { ProofState, Goal, ProofTreeData } from './proofstate';
-import { Tactic } from './tactics';
+import { Tactic, ThenTactic } from './tactics';
 import { Context, Claim} from '../utils/context';
 
 import { Location } from '../utils/locations';
@@ -31,12 +31,11 @@ export class ProofManager {
     const previousGoalNode = this.currentState.currentGoal;
 
     // Notify listener before applying tactic (for training data extraction)
-    if (this.currentState.tacticListener) {
+    // Skip for ThenTactic since it calls the listener for each inner tactic itself
+    if (this.currentState.tacticListener && !(tactic instanceof ThenTactic)) {
       this.currentState.tacticListener(
         previousGoalNode.goal,
-        tactic.toString(),
-        false,
-        null
+        tactic.toString()
       );
     }
 

@@ -129,7 +129,7 @@ export function addDefineTacticallyToContext(
   location: Location,
   tactics: Tactic[],
   verbose: boolean = false,
-  tacticListener?: (goal: import('../tactics/proofstate').Goal, tacticStr: string, isInsideThen: boolean, branchIndex: number | null) => void
+  tacticListener?: (goal: import('../tactics/proofstate').Goal, tacticStr: string) => void
 ): Perhaps<TacticalResult> {
   const proofManager = new ProofManager();
   let message = '';
@@ -143,15 +143,52 @@ export function addDefineTacticallyToContext(
     message += (startResult as go<string>).result + '\n';
   }
 
+  // Auto-collection mode: when COLLECT_TRAINING_DATA env var is set and no explicit listener
+  const collectPath = process.env.COLLECT_TRAINING_DATA;
+  type TrainingExample = import('../tactics/training-data-extractor').TrainingExample;
+  let buffer: TrainingExample[] | null = null;
+  let effectiveListener = tacticListener;
+
+  if (collectPath && !tacticListener) {
+    // Lazy import to avoid circular dependency (training-data-extractor imports from context)
+    const { serializeContext, serializeGoal } = require('../tactics/training-data-extractor');
+
+    // Get theorem type from claim
+    const claim = ctx.get(name);
+    if (claim instanceof Claim) {
+      const theoremType = claim.type.readBackType(ctx).prettyPrint();
+      buffer = [];
+      let stepIndex = 0;
+
+      effectiveListener = (goal, tacticStr) => {
+        try {
+          const { globalContext, localContext } = serializeContext(goal.context);
+          buffer!.push({
+            theoremName: name,
+            theoremType,
+            stepIndex: stepIndex++,
+            globalContext,
+            localContext,
+            goal: serializeGoal(goal),
+            tactic: tacticStr,
+          });
+        } catch {
+          // Silently skip steps that can't be serialized
+        }
+      };
+    }
+  }
+
   // Attach tactic listener if provided (for training data extraction)
-  if (tacticListener && proofManager.currentState) {
-    proofManager.currentState.tacticListener = tacticListener;
+  if (effectiveListener && proofManager.currentState) {
+    proofManager.currentState.tacticListener = effectiveListener;
   }
 
   // Apply each tactic
   for (const tactic of tactics) {
     const tacticResult = proofManager.applyTactic(tactic);
     if (tacticResult instanceof stop) {
+      // Discard buffer on failure
       return tacticResult;
     }
     if (verbose) {
@@ -167,6 +204,7 @@ export function addDefineTacticallyToContext(
       const goal = currentGoal.result;
       goalInfo = `\n\n${goal.prettyPrintWithContext()}`;
     }
+    // Discard buffer on incomplete proof
     return new stop(
       location,
       new Message([`Proof incomplete. Not all goals have been solved.${goalInfo}`])
@@ -174,18 +212,25 @@ export function addDefineTacticallyToContext(
   }
 
   // Proof complete - add definition to context
-  const claim = ctx.get(name);
-  if (!(claim instanceof Claim)) {
+  const claimBinder = ctx.get(name);
+  if (!(claimBinder instanceof Claim)) {
     return new stop(location, new Message([`${name} is not a valid claim`]));
   }
 
-  const type = claim.type;
+  const type = claimBinder.type;
 
   // Extract proof term from the goal tree
   const goalTree = proofManager.currentState?.goalTree;
   const proofTerm = goalTree?.extractTerm();
 
   if (proofTerm) {
+    // Flush buffer to file on successful proof
+    if (buffer && buffer.length > 0 && collectPath) {
+      const fs = require('fs');
+      const lines = buffer.map(ex => JSON.stringify(ex)).join('\n') + '\n';
+      fs.appendFileSync(collectPath, lines);
+    }
+
     // We have the actual proof term - evaluate it and add to context
     const proofValue = valInContext(ctx, proofTerm);
     const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, proofValue);

@@ -1031,18 +1031,14 @@ export class ThenTactic extends Tactic {
     const savedPendingBranches = state.pendingBranches;
     state.pendingBranches = 0;
 
-    // Determine branch index from parent's childFocusIndex
-    const branchIndex = state.currentGoal.parent?.childFocusIndex ?? null;
-
     // Apply each tactic in sequence to the current goal
     for (const tactic of this.tactics) {
       // Notify listener before applying tactic inside then block
-      if (state.tacticListener) {
+      // Skip for nested ThenTactic (it will call the listener for its own inner tactics)
+      if (state.tacticListener && !(tactic instanceof ThenTactic)) {
         state.tacticListener(
           state.currentGoal.goal,
-          tactic.toString(),
-          true,
-          branchIndex
+          tactic.toString()
         );
       }
       const result = tactic.apply(state);

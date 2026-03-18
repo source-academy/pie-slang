@@ -210,7 +210,7 @@ export class GoalNode {
   }
 }
 
-export type TacticListener = (goal: Goal, tacticStr: string, isInsideThen: boolean, branchIndex: number | null) => void;
+export type TacticListener = (goal: Goal, tacticStr: string) => void;
 
 export class ProofState {
   public currentGoal: GoalNode;
