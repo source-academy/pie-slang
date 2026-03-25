@@ -351,7 +351,7 @@ describe("Strong Induction Patterns", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim double=n+n (Π ((n Nat)) (= Nat (double n) (+ n n))))
 (define-tactically double=n+n
@@ -362,7 +362,7 @@ describe("Strong Induction Patterns", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (trans (cong ih (+ 2)) (cong (symm (+add1 n-1 n-1)) (+ 1)))))))
+     (trans (cong ih (+ 2)) (cong (symm (+add1 n-1 n-1)) (+ 1))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -496,7 +496,7 @@ describe("Strong Induction Patterns", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim 1*n=n (Π ((n Nat)) (= Nat (* 1 n) n)))
 (define-tactically 1*n=n
@@ -535,7 +535,7 @@ describe("Strong Induction Patterns", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim n*1=n (Π ((n Nat)) (= Nat (* n 1) n)))
 (define-tactically n*1=n
@@ -546,7 +546,7 @@ describe("Strong Induction Patterns", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -582,7 +582,7 @@ describe("Strong Induction Patterns", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (* 2))))))
+     (cong ih (* 2)))))
 `;
       expect(() => evaluatePie(str)).toThrow();
     });

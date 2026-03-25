@@ -30,19 +30,19 @@ const arithLemmas = `
 (define-tactically n+0=n
   ((intro n) (elim-Nat n)
    (then (exact (same 0)))
-   (then (intro n-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro n-1) (intro ih) (cong ih (+ 1)))))
 
 (claim +add1 (Π ((n Nat) (m Nat)) (= Nat (+ n (add1 m)) (add1 (+ n m)))))
 (define-tactically +add1
   ((intro n) (intro m) (elim-Nat n)
    (then (exact (same (add1 m))))
-   (then (intro n-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro n-1) (intro ih) (cong ih (+ 1)))))
 
 (claim +-assoc (Π ((a Nat) (b Nat) (c Nat)) (= Nat (+ (+ a b) c) (+ a (+ b c)))))
 (define-tactically +-assoc
   ((intro a) (intro b) (intro c) (elim-Nat a)
    (then (exact (same (+ b c))))
-   (then (intro a-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro a-1) (intro ih) (cong ih (+ 1)))))
 `;
 
 describe("Universal List Properties — Complex Tactic Proofs", () => {

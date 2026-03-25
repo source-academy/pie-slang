@@ -20,19 +20,21 @@ const discrimPreamble = `${arithPreamble}
   (Pi ((n Nat)) (-> (= Nat 0 (add1 n)) Absurd)))
 (define-tactically zero-not-succ
   ((intro n) (intro eq)
-   (exact (replace eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 
 (claim succ-not-zero
   (Pi ((n Nat)) (-> (= Nat (add1 n) 0) Absurd)))
 (define-tactically succ-not-zero
   ((intro n) (intro eq)
-   (exact (replace (symm eq) (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite (symm eq) (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 
 (claim add1-injective
   (Pi ((n Nat) (m Nat)) (-> (= Nat (add1 n) (add1 m)) (= Nat n m))))
 (define-tactically add1-injective
   ((intro n) (intro m) (intro eq)
-   (exact (cong eq pred))))
+   (cong eq pred)))
 `;
 
 // ---------------------------------------------------------------------------
@@ -56,7 +58,7 @@ const monusPreamble = `${arithPreamble}
 (define-tactically n+0=n
   ((intro n) (elim-Nat n)
    (then (exact (same 0)))
-   (then (intro n-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro n-1) (intro ih) (cong ih (+ 1)))))
 `;
 
 // ---------------------------------------------------------------------------
@@ -104,7 +106,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
   (Pi ((n Nat)) (-> (= Nat 0 (add1 n)) Absurd)))
 (define-tactically zero-not-succ
   ((intro n) (intro eq)
-   (exact (replace eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -116,7 +119,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
   (Pi ((n Nat)) (-> (= Nat (add1 n) 0) Absurd)))
 (define-tactically succ-not-zero
   ((intro n) (intro eq)
-   (exact (replace (symm eq) (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite (symm eq) (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -131,7 +135,7 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
   (Pi ((n Nat) (m Nat)) (-> (= Nat (add1 n) (add1 m)) (= Nat n m))))
 (define-tactically add1-injective
   ((intro n) (intro m) (intro eq)
-   (exact (cong eq pred))))
+   (cong eq pred)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -142,7 +146,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
 (claim zero-not-one (-> (= Nat 0 1) Absurd))
 (define-tactically zero-not-one
   ((intro eq)
-   (exact (replace eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -153,7 +158,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
 (claim zero-not-two (-> (= Nat 0 2) Absurd))
 (define-tactically zero-not-two
   ((intro eq)
-   (exact (replace eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -194,7 +200,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
 (claim two-not-zero (-> (= Nat 2 0) Absurd))
 (define-tactically two-not-zero
   ((intro eq)
-   (exact (replace (symm eq) (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite (symm eq) (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -549,7 +556,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
 (claim even-not-odd (-> (= Nat 0 1) Absurd))
 (define-tactically even-not-odd
   ((intro eq)
-   (exact (replace eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -624,9 +632,9 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
   (-> (= Bool true false) Absurd))
 (define-tactically left-not-right
   ((intro eq)
-   (exact (replace (cong eq bool-to-nat)
-     (lambda (x) (which-Nat x Absurd (lambda (k) Trivial)))
-     sole))))
+   (rewrite (cong eq bool-to-nat)
+     (lambda (x) (which-Nat x Absurd (lambda (k) Trivial))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -638,9 +646,9 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
   (-> (= Bool false true) Absurd))
 (define-tactically right-not-left
   ((intro eq)
-   (exact (replace (cong eq bool-to-nat)
-     (lambda (x) (which-Nat x Trivial (lambda (k) Absurd)))
-     sole))))
+   (rewrite (cong eq bool-to-nat)
+     (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -698,9 +706,9 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
 (define-tactically true-neq-false
   ((go-Right)
    (intro eq)
-   (exact (replace (cong eq bool-to-nat)
-     (lambda (x) (which-Nat x Absurd (lambda (k) Trivial)))
-     sole))))
+   (rewrite (cong eq bool-to-nat)
+     (lambda (x) (which-Nat x Absurd (lambda (k) Trivial))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -713,9 +721,9 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
 (define-tactically false-neq-true
   ((go-Right)
    (intro eq)
-   (exact (replace (cong eq bool-to-nat)
-     (lambda (x) (which-Nat x Trivial (lambda (k) Absurd)))
-     sole))))
+   (rewrite (cong eq bool-to-nat)
+     (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -787,7 +795,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
 (define-tactically decide-0-eq-1
   ((go-Right)
    (intro eq)
-   (exact (replace eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -799,7 +808,8 @@ describe("Complex Decidability, Modular Arithmetic, and Min/Max/Monus Properties
   (-> (= Nat (monus 0 0) (monus 1 0)) Absurd))
 (define-tactically monus-discrim
   ((intro eq)
-   (exact (replace eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))) sole))))
+   (rewrite eq (lambda (x) (which-Nat x Trivial (lambda (k) Absurd))))
+   (exact sole)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });

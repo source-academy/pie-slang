@@ -103,7 +103,7 @@ describe("Order Relations and Divisibility", () => {
 (define-tactically le-succ
   ((intro n)
    (exists 1 k)
-   (exact (trans (+add1 n 0) (cong (n+0=n n) (+ 1))))))
+   (trans (+add1 n 0) (cong (n+0=n n) (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -114,7 +114,7 @@ describe("Order Relations and Divisibility", () => {
 (define-tactically le-succ
   ((intro n)
    (exists 1 k)
-   (exact (trans (+add1 n 0) (cong (n+0=n n) (+ 1))))))
+   (trans (+add1 n 0) (cong (n+0=n n) (+ 1)))))
 (car (le-succ 3))
 `;
       const output = evaluatePie(str);
@@ -136,7 +136,7 @@ describe("Order Relations and Divisibility", () => {
    (intro m)
    (intro p)
    (exists (car p) k)
-   (exact (cong (cdr p) (+ 1)))))
+   (cong (cdr p) (+ 1))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -152,7 +152,7 @@ describe("Order Relations and Divisibility", () => {
    (intro m)
    (intro p)
    (exists (car p) k)
-   (exact (cong (cdr p) (+ 1)))))
+   (cong (cdr p) (+ 1))))
 
 (claim le-2-5 (Le 2 5))
 (define-tactically le-2-5
@@ -239,9 +239,9 @@ describe("Order Relations and Divisibility", () => {
    (intro p1)
    (intro p2)
    (exists (+ (car p1) (car p2)) j)
-   (exact (trans (symm (+-assoc n (car p1) (car p2)))
+   (trans (symm (+-assoc n (car p1) (car p2)))
             (trans (cong (cdr p1) (the (→ Nat Nat) (λ (x) (+ x (car p2)))))
-              (cdr p2))))))
+              (cdr p2)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -260,9 +260,9 @@ describe("Order Relations and Divisibility", () => {
    (intro p1)
    (intro p2)
    (exists (+ (car p1) (car p2)) j)
-   (exact (trans (symm (+-assoc n (car p1) (car p2)))
+   (trans (symm (+-assoc n (car p1) (car p2)))
             (trans (cong (cdr p1) (the (→ Nat Nat) (λ (x) (+ x (car p2)))))
-              (cdr p2))))))
+              (cdr p2)))))
 
 (claim le-1-3 (Le 1 3))
 (define-tactically le-1-3
@@ -292,7 +292,7 @@ describe("Order Relations and Divisibility", () => {
    (intro m)
    (intro p)
    (exists (add1 (car p)) k)
-   (exact (trans (+add1 n (car p)) (cong (cdr p) (+ 1))))))
+   (trans (+add1 n (car p)) (cong (cdr p) (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -305,7 +305,7 @@ describe("Order Relations and Divisibility", () => {
    (intro m)
    (intro p)
    (exists (add1 (car p)) k)
-   (exact (trans (+add1 n (car p)) (cong (cdr p) (+ 1))))))
+   (trans (+add1 n (car p)) (cong (cdr p) (+ 1)))))
 
 (claim le-2-5 (Le 2 5))
 (define-tactically le-2-5

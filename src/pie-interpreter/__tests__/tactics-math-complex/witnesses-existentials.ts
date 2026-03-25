@@ -40,7 +40,7 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
     (-> (= A a b) (= B (f a) (f b)))))
 (define-tactically general-cong
   ((intro A) (intro B) (intro a) (intro b) (intro f) (intro eq)
-   (exact (cong eq f))))
+   (cong eq f)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -54,7 +54,7 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
   ((intro A) (intro B) (intro C) (intro f)
    (intro a) (intro b) (intro c) (intro d)
    (intro eq1) (intro eq2)
-   (exact (trans (cong eq1 (the (-> A C) (lambda (x) (f x c)))) (cong eq2 (f b))))))
+   (trans (cong eq1 (the (-> A C) (lambda (x) (f x c)))) (cong eq2 (f b)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -66,7 +66,8 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
     (-> (= A a b) (Pi ((P (-> A U))) (-> (P a) (P b))))))
 (define-tactically transport
   ((intro A) (intro a) (intro b) (intro eq) (intro P) (intro pa)
-   (exact (replace eq P pa))))
+   (rewrite eq P)
+   (exact pa)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -108,7 +109,7 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
       const str = `
 (claim cong-add1 (-> (= Nat 3 3) (= Nat (add1 3) (add1 3))))
 (define-tactically cong-add1
-  ((intro eq) (exact (cong eq (the (-> Nat Nat) (lambda (x) (add1 x)))))))
+  ((intro eq) (cong eq (the (-> Nat Nat) (lambda (x) (add1 x))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -117,7 +118,7 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
       const str = `${arithPreamble}
 (claim cong-double (-> (= Nat 2 2) (= Nat 4 4)))
 (define-tactically cong-double
-  ((intro eq) (exact (cong (cong eq (+ 1)) (+ 1)))))
+  ((intro eq) (cong (cong eq (+ 1)) (+ 1))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -516,7 +517,8 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
   (-> (= Nat 3 3) (= Nat (+ 3 0) 3) (= Nat (+ 3 0) 3)))
 (define-tactically replace-triv
   ((intro eq) (intro p)
-   (exact (replace eq (lambda (x) (= Nat (+ x 0) x)) p))))
+   (rewrite eq (lambda (x) (= Nat (+ x 0) x)))
+   (exact p)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -527,7 +529,8 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
   (-> (= Nat 2 2) (Sigma ((k Nat)) (= Nat (+ 2 k) 5)) (Sigma ((k Nat)) (= Nat (+ 2 k) 5))))
 (define-tactically transport-c
   ((intro eq) (intro witness)
-   (exact (replace eq (lambda (x) (Sigma ((k Nat)) (= Nat (+ x k) 5))) witness))))
+   (rewrite eq (lambda (x) (Sigma ((k Nat)) (= Nat (+ x k) 5))))
+   (exact witness)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -535,7 +538,7 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
     it("46. symmetry on concrete equality", () => {
       const str = `
 (claim symm-c (-> (= Nat 4 4) (= Nat 4 4)))
-(define-tactically symm-c ((intro eq) (exact (symm eq))))
+(define-tactically symm-c ((intro eq) (symm) (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -543,7 +546,7 @@ describe("Witnesses, Existentials, and Equality Rewriting", () => {
     it("47. transitivity chain on concrete", () => {
       const str = `
 (claim trans-c (-> (= Nat 7 7) (= Nat 7 7) (= Nat 7 7)))
-(define-tactically trans-c ((intro e1) (intro e2) (exact (trans e1 e2))))
+(define-tactically trans-c ((intro e1) (intro e2) (trans e1 e2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });

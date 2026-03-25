@@ -5,11 +5,11 @@ import { Core } from '../types/core';
 import { Value, Pi, Neutral, Nat } from '../types/value';
 import { Context, contextToEnvironment, Define, extendContext, Free, valInContext } from '../utils/context';
 
-import { doApp, indVecStepType } from '../evaluator/evaluator';
+import { doApp, doReplace, indVecStepType } from '../evaluator/evaluator';
 import { readBack } from '../evaluator/utils';
 import { fresh } from '../types/utils';
 import { Variable } from '../types/neutral';
-import { convert, extendRenaming, Renaming} from '../typechecker/utils';
+import { convert, sameType, extendRenaming, Renaming} from '../typechecker/utils';
 import { Location } from '../utils/locations';
 import * as V from '../types/value';
 import * as C from '../types/core';
@@ -1146,7 +1146,480 @@ export class ApplyTactic extends Tactic {
     );
     
     state.addGoal([newGoalNode]);
-    
+
     return new go(state);
   }
+}
+
+/**
+ * SymmetryTactic: If the current goal is (= A x y), transform it to (= A y x).
+ */
+export class SymmetryTactic extends Tactic {
+  constructor(public location: Location) {
+    super(location);
+  }
+
+  toString(): string {
+    return `symm`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const branchCheck = this.checkPendingBranches(state);
+    if (branchCheck instanceof stop) return branchCheck;
+
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+    const goalType = currentGoal.type.now();
+
+    if (!(goalType instanceof V.Equal)) {
+      return new stop(this.location,
+        new Message([`symm requires an = goal, but got: ${goalType.prettyPrint()}`]));
+    }
+
+    const newGoalType = new V.Equal(goalType.type, goalType.to, goalType.from);
+
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Symm(childTerms[0]);
+    };
+
+    const newGoalNode = new GoalNode(
+      new Goal(state.generateGoalId(), newGoalType, currentGoal.context, currentGoal.renaming)
+    );
+    state.addGoal([newGoalNode]);
+
+    return new go(state);
+  }
+}
+
+/**
+ * TransitivityTactic: If the current goal is (= A x z), split it into
+ * two subgoals (= A x middle) and (= A middle z), handled via then blocks.
+ */
+export class TransitivityTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private middleExpr: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `trans ${this.middleExpr.prettyPrint()}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const branchCheck = this.checkPendingBranches(state);
+    if (branchCheck instanceof stop) return branchCheck;
+
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+    const goalType = currentGoal.type.now();
+
+    if (!(goalType instanceof V.Equal)) {
+      return new stop(this.location,
+        new Message([`trans requires an = goal, but got: ${goalType.prettyPrint()}`]));
+    }
+
+    const [Av, fromv, tov] = [goalType.type, goalType.from, goalType.to];
+
+    // Type-check the middle expression against A
+    const midResult = this.middleExpr.check(currentGoal.context, currentGoal.renaming, Av);
+    if (midResult instanceof stop) return midResult;
+
+    const midCore = (midResult as go<Core>).result;
+    const midVal = midCore.valOf(contextToEnvironment(currentGoal.context));
+
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Trans(childTerms[0], childTerms[1]);
+    };
+
+    const leftGoalType = new V.Equal(Av, fromv, midVal);
+    const rightGoalType = new V.Equal(Av, midVal, tov);
+
+    state.addGoal([
+      new GoalNode(new Goal(state.generateGoalId(), leftGoalType, currentGoal.context, currentGoal.renaming)),
+      new GoalNode(new Goal(state.generateGoalId(), rightGoalType, currentGoal.context, currentGoal.renaming)),
+    ]);
+
+    return new go(state);
+  }
+}
+
+/**
+ * ForwardTransTactic: Given two equality proofs p1 : (= A x m) and p2 : (= A m y),
+ * produce (= A x y) and close the current goal.
+ * Works forward like exact — no subgoal created.
+ */
+export class ForwardTransTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private leftExpr: Source,
+    private rightExpr: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `trans ${this.leftExpr.prettyPrint()} ${this.rightExpr.prettyPrint()}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const branchCheck = this.checkPendingBranches(state);
+    if (branchCheck instanceof stop) return branchCheck;
+
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+    const goalType = currentGoal.type;
+
+    // Synth both proofs
+    const leftSynth = this.leftExpr.synth(currentGoal.context, currentGoal.renaming);
+    if (leftSynth instanceof stop) return leftSynth;
+
+    const rightSynth = this.rightExpr.synth(currentGoal.context, currentGoal.renaming);
+    if (rightSynth instanceof stop) return rightSynth;
+
+    const leftThe = (leftSynth as go<C.The>).result;
+    const rightThe = (rightSynth as go<C.The>).result;
+
+    const leftType = valInContext(currentGoal.context, leftThe.type);
+    const rightType = valInContext(currentGoal.context, rightThe.type);
+
+    if (!(leftType instanceof V.Equal)) {
+      return new stop(this.location,
+        new Message([`trans: first argument must be an equality proof, got: ${leftType.prettyPrint()}`]));
+    }
+    if (!(rightType instanceof V.Equal)) {
+      return new stop(this.location,
+        new Message([`trans: second argument must be an equality proof, got: ${rightType.prettyPrint()}`]));
+    }
+
+    // Check types match
+    const typeCheck = sameType(currentGoal.context, this.location, leftType.type, rightType.type);
+    if (typeCheck instanceof stop) return typeCheck;
+
+    // Check middle terms match: left.to == right.from
+    const midCheck = convert(currentGoal.context, this.location, leftType.type, leftType.to, rightType.from);
+    if (midCheck instanceof stop) {
+      return new stop(this.location,
+        new Message([`trans: middle terms don't match. Left proves (= _ _ ${leftType.to.prettyPrint()}), right proves (= _ ${rightType.from.prettyPrint()} _)`]));
+    }
+
+    // Result type: (= A left.from right.to)
+    const resultType = new V.Equal(leftType.type, leftType.from, rightType.to);
+
+    // Verify result matches goal
+    const matchCheck = convert(currentGoal.context, this.location, new V.Universe(), resultType, goalType);
+    if (matchCheck instanceof stop) {
+      return new stop(this.location,
+        new Message([`trans result type does not match goal. Expected: ${goalType.prettyPrint()}, got: ${resultType.prettyPrint()}`]));
+    }
+
+    state.currentGoal.goal.term = new C.Trans(leftThe.expr, rightThe.expr);
+    state.currentGoal.isComplete = true;
+    state.currentGoal.completedBy = this.toString();
+    state.nextGoal();
+
+    return new go(state);
+  }
+}
+
+/**
+ * CongTactic: Given proof p : (= A x y) and function f : (-> A B),
+ * produce (= B (f x) (f y)) and close the current goal.
+ * Works forward like exact — no subgoal created.
+ */
+export class CongTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private proofExpr: Source,
+    private funcExpr: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return `cong ${this.proofExpr.prettyPrint()} ${this.funcExpr.prettyPrint()}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const branchCheck = this.checkPendingBranches(state);
+    if (branchCheck instanceof stop) return branchCheck;
+
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+    const goalType = currentGoal.type;
+
+    // Synth the equality proof
+    const proofSynth = this.proofExpr.synth(currentGoal.context, currentGoal.renaming);
+    if (proofSynth instanceof stop) return proofSynth;
+
+    const proofThe = (proofSynth as go<C.The>).result;
+    const proofCore = proofThe.expr;
+    const proofType = valInContext(currentGoal.context, proofThe.type);
+
+    if (!(proofType instanceof V.Equal)) {
+      return new stop(this.location,
+        new Message([`cong requires an equality proof, but got type: ${proofType.prettyPrint()}`]));
+    }
+
+    const [Av, fromv, tov] = [proofType.type, proofType.from, proofType.to];
+
+    // Synth the function
+    const funcSynth = this.funcExpr.synth(currentGoal.context, currentGoal.renaming);
+    if (funcSynth instanceof stop) return funcSynth;
+
+    const funcThe = (funcSynth as go<C.The>).result;
+    const funcCore = funcThe.expr;
+    const funcType = valInContext(currentGoal.context, funcThe.type);
+
+    if (!(funcType instanceof V.Pi)) {
+      return new stop(this.location,
+        new Message([`cong requires a function, but got type: ${funcType.prettyPrint()}`]));
+    }
+
+    // Check that the function's argument type matches the equality's type
+    const argTypeCheck = sameType(currentGoal.context, this.location, Av, funcType.argType);
+    if (argTypeCheck instanceof stop) return argTypeCheck;
+
+    // Compute the result type: (= C (f from) (f to))
+    const Cv = funcType.resultType.valOfClosure(fromv);
+    const funcVal = valInContext(currentGoal.context, funcCore);
+    const resultType = new V.Equal(Cv, doApp(funcVal, fromv), doApp(funcVal, tov));
+
+    // Verify the result matches the goal
+    const matchCheck = convert(currentGoal.context, this.location, new V.Universe(), resultType, goalType);
+    if (matchCheck instanceof stop) {
+      return new stop(this.location,
+        new Message([`cong result type does not match goal. Expected: ${goalType.prettyPrint()}, got: ${resultType.prettyPrint()}`]));
+    }
+
+    // Build the proof term: (cong proof resultTypeCore func)
+    const resultTypeCore = Cv.readBackType(currentGoal.context);
+    state.currentGoal.goal.term = new C.Cong(proofCore, resultTypeCore, funcCore);
+    state.currentGoal.isComplete = true;
+    state.currentGoal.completedBy = this.toString();
+    state.nextGoal();
+
+    return new go(state);
+  }
+}
+
+/**
+ * RewriteTactic: Given proof p : (= A from to) and the current goal G,
+ * rewrite occurrences of `to` in G to `from`, producing subgoal G[from/to].
+ * Uses Pie's `replace` under the hood.
+ *
+ * Optionally takes a motive (→ A U). If not provided, auto-generates one
+ * by abstracting `to` out of the goal.
+ */
+export class RewriteTactic extends Tactic {
+  constructor(
+    public location: Location,
+    private proofExpr: Source,
+    private motiveExpr?: Source
+  ) {
+    super(location);
+  }
+
+  toString(): string {
+    return this.motiveExpr
+      ? `rewrite ${this.proofExpr.prettyPrint()} ${this.motiveExpr.prettyPrint()}`
+      : `rewrite ${this.proofExpr.prettyPrint()}`;
+  }
+
+  apply(state: ProofState): Perhaps<ProofState> {
+    const branchCheck = this.checkPendingBranches(state);
+    if (branchCheck instanceof stop) return branchCheck;
+
+    const currentGoal = (state.getCurrentGoal() as go<Goal>).result;
+    const goalType = currentGoal.type;
+
+    // Synth the equality proof
+    const proofSynth = this.proofExpr.synth(currentGoal.context, currentGoal.renaming);
+    if (proofSynth instanceof stop) return proofSynth;
+
+    const proofThe = (proofSynth as go<C.The>).result;
+    const proofCore = proofThe.expr;
+    const proofType = valInContext(currentGoal.context, proofThe.type);
+
+    if (!(proofType instanceof V.Equal)) {
+      return new stop(this.location,
+        new Message([`rewrite requires an equality proof, but got type: ${proofType.prettyPrint()}`]));
+    }
+
+    const [Av, fromv, tov] = [proofType.type, proofType.from, proofType.to];
+
+    // Determine the motive: (→ A U) such that (motive to) = goalType
+    let motiveCore: Core;
+    let motiveVal: Value;
+    const motiveMetaType = new V.Pi('x', Av, new HigherOrderClosure((_) => new V.Universe()));
+
+    if (this.motiveExpr) {
+      // User-provided motive
+      const motiveResult = this.motiveExpr.check(currentGoal.context, currentGoal.renaming, motiveMetaType);
+      if (motiveResult instanceof stop) return motiveResult;
+      motiveCore = (motiveResult as go<Core>).result;
+      motiveVal = motiveCore.valOf(contextToEnvironment(currentGoal.context));
+    } else {
+      // Auto-generate motive by abstracting `to` out of the goal
+      // Read back the goal type and `to` value, then structurally replace
+      const goalCore = goalType.readBackType(currentGoal.context);
+      const toCore = readBack(currentGoal.context, Av, tov);
+
+      const varName = fresh(currentGoal.context, "x");
+      const replaced = substituteCore(goalCore, toCore, new C.VarName(varName));
+
+      if (replaced === null) {
+        return new stop(this.location,
+          new Message([`rewrite: could not find the 'to' side of the equality in the goal. Provide a motive explicitly.`]));
+      }
+
+      motiveCore = new C.Lambda(varName, replaced);
+      motiveVal = motiveCore.valOf(contextToEnvironment(currentGoal.context));
+
+      // Verify (motive to) matches the goal
+      try {
+        convert(currentGoal.context, this.location, new V.Universe(), doApp(motiveVal, tov), goalType);
+      } catch {
+        return new stop(this.location,
+          new Message([`rewrite: auto-generated motive does not match the goal. Provide a motive explicitly.`]));
+      }
+    }
+
+    // The new subgoal is (motive from) — the goal with `to` replaced by `from`
+    const newGoalType = doApp(motiveVal, fromv);
+
+    state.currentGoal.termBuilder = (childTerms: Core[]) => {
+      return new C.Replace(proofCore, motiveCore, childTerms[0]);
+    };
+
+    const newGoalNode = new GoalNode(
+      new Goal(state.generateGoalId(), newGoalType, currentGoal.context, currentGoal.renaming)
+    );
+    state.addGoal([newGoalNode]);
+
+    return new go(state);
+  }
+}
+
+/**
+ * Structurally substitute occurrences of `target` with `replacement` in a Core expression.
+ * Returns null if no substitution was made (target not found).
+ */
+function substituteCore(expr: Core, target: Core, replacement: Core): Core | null {
+  // Check if the entire expression matches the target
+  if (coreEqual(expr, target)) {
+    return replacement;
+  }
+
+  // Recursively substitute in sub-expressions
+  let changed = false;
+  const sub = (e: Core): Core => {
+    if (coreEqual(e, target)) {
+      changed = true;
+      return replacement;
+    }
+    // Recurse into known Core constructors
+    if (e instanceof C.Application) {
+      const f = sub(e.fun);
+      const a = sub(e.arg);
+      return (f !== e.fun || a !== e.arg) ? new C.Application(f, a) : e;
+    }
+    if (e instanceof C.Lambda) {
+      const b = sub(e.body);
+      return b !== e.body ? new C.Lambda(e.param, b) : e;
+    }
+    if (e instanceof C.Pi) {
+      const at = sub(e.type);
+      const rt = sub(e.body);
+      return (at !== e.type || rt !== e.body) ? new C.Pi(e.name, at, rt) : e;
+    }
+    if (e instanceof C.Equal) {
+      const t = sub(e.type);
+      const l = sub(e.left);
+      const r = sub(e.right);
+      return (t !== e.type || l !== e.left || r !== e.right) ? new C.Equal(t, l, r) : e;
+    }
+    if (e instanceof C.Same) {
+      const t = sub(e.type);
+      return t !== e.type ? new C.Same(t) : e;
+    }
+    if (e instanceof C.Add1) {
+      const n = sub(e.n);
+      return n !== e.n ? new C.Add1(n) : e;
+    }
+    if (e instanceof C.Sigma) {
+      const ct = sub(e.type);
+      const cdt = sub(e.body);
+      return (ct !== e.type || cdt !== e.body) ? new C.Sigma(e.name, ct, cdt) : e;
+    }
+    if (e instanceof C.Cons) {
+      const a = sub(e.first);
+      const d = sub(e.second);
+      return (a !== e.first || d !== e.second) ? new C.Cons(a, d) : e;
+    }
+    if (e instanceof C.Cong) {
+      const tg = sub(e.target);
+      const b = sub(e.base);
+      const f = sub(e.fun);
+      return (tg !== e.target || b !== e.base || f !== e.fun) ? new C.Cong(tg, b, f) : e;
+    }
+    if (e instanceof C.Symm) {
+      const eq = sub(e.equality);
+      return eq !== e.equality ? new C.Symm(eq) : e;
+    }
+    if (e instanceof C.Trans) {
+      const l = sub(e.left);
+      const r = sub(e.right);
+      return (l !== e.left || r !== e.right) ? new C.Trans(l, r) : e;
+    }
+    if (e instanceof C.Replace) {
+      const tg = sub(e.target);
+      const m = sub(e.motive);
+      const b = sub(e.base);
+      return (tg !== e.target || m !== e.motive || b !== e.base) ? new C.Replace(tg, m, b) : e;
+    }
+    if (e instanceof C.IndNat) {
+      const tg = sub(e.target);
+      const m = sub(e.motive);
+      const b = sub(e.base);
+      const s = sub(e.step);
+      return (tg !== e.target || m !== e.motive || b !== e.base || s !== e.step) ? new C.IndNat(tg, m, b, s) : e;
+    }
+    if (e instanceof C.List) {
+      const et = sub(e.elemType);
+      return et !== e.elemType ? new C.List(et) : e;
+    }
+    if (e instanceof C.ListCons) {
+      const h = sub(e.head);
+      const t2 = sub(e.tail);
+      return (h !== e.head || t2 !== e.tail) ? new C.ListCons(h, t2) : e;
+    }
+    if (e instanceof C.Vec) {
+      const t2 = sub(e.type);
+      const l = sub(e.length);
+      return (t2 !== e.type || l !== e.length) ? new C.Vec(t2, l) : e;
+    }
+    if (e instanceof C.Either) {
+      const l = sub(e.left);
+      const r = sub(e.right);
+      return (l !== e.left || r !== e.right) ? new C.Either(l, r) : e;
+    }
+    if (e instanceof C.Left) {
+      const v = sub(e.value);
+      return v !== e.value ? new C.Left(v) : e;
+    }
+    if (e instanceof C.Right) {
+      const v = sub(e.value);
+      return v !== e.value ? new C.Right(v) : e;
+    }
+    // For other constructors (VarName, Zero, Nil, etc.), no sub-expressions to recurse into
+    return e;
+  };
+
+  const result = sub(expr);
+  return changed ? result : null;
+}
+
+/**
+ * Structural equality check for Core expressions by comparing prettyPrint output.
+ */
+function coreEqual(a: Core, b: Core): boolean {
+  return a.prettyPrint() === b.prettyPrint();
 }

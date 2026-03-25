@@ -53,7 +53,8 @@ describe("Equivalence Relations", () => {
   ((intro a)
    (intro b)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -69,7 +70,7 @@ describe("Equivalence Relations", () => {
    (intro c)
    (intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -101,7 +102,7 @@ describe("Equivalence Relations", () => {
   ((intro a)
    (intro b)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (add1 x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (add1 x))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -112,7 +113,7 @@ describe("Equivalence Relations", () => {
   (→ (= Nat 3 3) (= Nat 4 4)))
 (define-tactically cong-3
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (add1 x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (add1 x))))))
 (cong-3 (same 3))
 `;
       const output = evaluatePie(str);
@@ -132,11 +133,12 @@ describe("Equivalence Relations", () => {
      (split-Pair)
      (then
        (intro eq)
-       (exact (symm eq)))
+       (symm)
+       (exact eq))
      (then
        (intro eq1)
        (intro eq2)
-       (exact (trans eq1 eq2))))))
+       (trans eq1 eq2)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -160,7 +162,8 @@ describe("Equivalence Relations", () => {
    (intro a)
    (intro b)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -268,7 +271,8 @@ describe("Equivalence Relations", () => {
   (→ (= Nat (mod2 0) (mod2 2)) (= Nat (mod2 2) (mod2 0))))
 (define-tactically par-sym-0-2
   ((intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -330,7 +334,7 @@ describe("Equivalence Relations", () => {
   ((exact (same 0))))
 (claim cong-trans-0-4 (= Nat (mod2 0) (mod2 4)))
 (define-tactically cong-trans-0-4
-  ((exact (trans cong-trans-0-2 cong-trans-2-4))))
+  ((trans cong-trans-0-2 cong-trans-2-4)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -390,7 +394,7 @@ describe("Equivalence Relations", () => {
   ((exact (same 1))))
 (claim chain-1-5 (= Nat (mod2 1) (mod2 5)))
 (define-tactically chain-1-5
-  ((exact (trans chain-1-3 chain-3-5))))
+  ((trans chain-1-3 chain-3-5)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -491,7 +495,7 @@ describe("Equivalence Relations", () => {
   (→ (= Nat (mod2 0) (mod2 2)) (= Nat (add1 (mod2 0)) (add1 (mod2 2)))))
 (define-tactically cong-preserves
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (add1 x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (add1 x))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });

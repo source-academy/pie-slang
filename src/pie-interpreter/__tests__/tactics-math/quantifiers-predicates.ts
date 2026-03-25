@@ -97,7 +97,8 @@ describe("Quantifiers and Predicates", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -148,7 +149,7 @@ describe("Quantifiers and Predicates", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (right-zero 0)
 (right-zero 3)
 `;
@@ -620,7 +621,7 @@ witness
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (+ 1)))))
+   (cong eq (+ 1))))
 (cong-succ 3 3 (same 3))
 `;
       const output = evaluatePie(str);

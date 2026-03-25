@@ -153,7 +153,7 @@ export class TypeSugarer {
     if (core instanceof C.Pi) {
       const argType = this.sugar(core.type, ctx);
       const bodyType = this.sugar(core.body, ctx);
-      return `(Π ((${core.name} ${argType})) ${bodyType})`;
+      return `(Π (${core.name} ${argType}) ${bodyType})`;
     }
 
     // Arrow type (non-dependent function type) - represented as Pi in Core
@@ -163,7 +163,7 @@ export class TypeSugarer {
     if (core instanceof C.Sigma) {
       const carType = this.sugar(core.type, ctx);
       const bodyType = this.sugar(core.body, ctx);
-      return `(Σ ((${core.name} ${carType})) ${bodyType})`;
+      return `(Σ (${core.name} ${carType}) ${bodyType})`;
     }
 
     // Either type

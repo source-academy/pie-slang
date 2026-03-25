@@ -2,7 +2,7 @@ import { Syntax } from "../utils/locations";
 import * as S from "../types/source";
 import { syntaxToLocation } from "./parser";
 import { SiteBinder, TypedBinder } from "../types/utils";
-import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic, EliminateEqualTactic, ExistsTactic, LeftTactic, RightTactic, EliminateEitherTactic, SpiltTactic, EliminateAbsurdTactic, ThenTactic, ApplyTactic } from "../tactics/tactics";
+import { EliminateNatTactic, EliminateListTactic, ExactTactic, IntroTactic, Tactic, EliminateVecTactic, EliminateEqualTactic, ExistsTactic, LeftTactic, RightTactic, EliminateEitherTactic, SpiltTactic, EliminateAbsurdTactic, ThenTactic, ApplyTactic, SymmetryTactic, TransitivityTactic, ForwardTransTactic, CongTactic, RewriteTactic } from "../tactics/tactics";
 import { TypeDefinition, GeneralConstructor } from "../typechecker/type-definition";
 
 export function makeU(stx: Syntax): S.Source {
@@ -259,6 +259,26 @@ export function makeThenTactic(stx: Syntax, tactics: Tactic[]): Tactic {
 
 export function makeApplyTactic(stx: Syntax, funcExpr: S.Source): Tactic {
   return new ApplyTactic(syntaxToLocation(stx), funcExpr);
+}
+
+export function makeSymmetryTactic(stx: Syntax): Tactic {
+  return new SymmetryTactic(syntaxToLocation(stx));
+}
+
+export function makeTransitivityTactic(stx: Syntax, middleExpr: S.Source): Tactic {
+  return new TransitivityTactic(syntaxToLocation(stx), middleExpr);
+}
+
+export function makeForwardTransTactic(stx: Syntax, leftExpr: S.Source, rightExpr: S.Source): Tactic {
+  return new ForwardTransTactic(syntaxToLocation(stx), leftExpr, rightExpr);
+}
+
+export function makeCongTactic(stx: Syntax, proofExpr: S.Source, funcExpr: S.Source): Tactic {
+  return new CongTactic(syntaxToLocation(stx), proofExpr, funcExpr);
+}
+
+export function makeRewriteTactic(stx: Syntax, proofExpr: S.Source, motiveExpr?: S.Source): Tactic {
+  return new RewriteTactic(syntaxToLocation(stx), proofExpr, motiveExpr);
 }
 
 export function makeDefineDatatype(

@@ -23,7 +23,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 3) (add1 3)) (= Nat 3 3)))
 (define-tactically add1-inj-3-3
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim add1-inj-3-3-result (= (= Nat 3 3) (add1-inj-3-3 (same 4)) (same 3)))
 (define-tactically add1-inj-3-3-result
   ((exact (same (same 3)))))
@@ -37,7 +37,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 0) (add1 0)) (= Nat 0 0)))
 (define-tactically add1-inj-0-0
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim add1-inj-0-0-result (= (= Nat 0 0) (add1-inj-0-0 (same 1)) (same 0)))
 (define-tactically add1-inj-0-0-result
   ((exact (same (same 0)))))
@@ -51,7 +51,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 5) (add1 5)) (= Nat 5 5)))
 (define-tactically add1-inj-5-5
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim add1-inj-5-5-result (= (= Nat 5 5) (add1-inj-5-5 (same 6)) (same 5)))
 (define-tactically add1-inj-5-5-result
   ((exact (same (same 5)))))
@@ -120,7 +120,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 4 4) (= Nat (pred 4) (pred 4))))
 (define-tactically cong-pred-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim cong-pred-eq-result (= (= Nat 3 3) (cong-pred-eq (same 4)) (same 3)))
 (define-tactically cong-pred-eq-result
   ((exact (same (same 3)))))
@@ -134,7 +134,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 2 2) (= Nat (add1 2) (add1 2))))
 (define-tactically cong-add1-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (add1 x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (add1 x))))))
 (claim cong-add1-eq-result (= (= Nat 3 3) (cong-add1-eq (same 2)) (same 3)))
 (define-tactically cong-add1-eq-result
   ((exact (same (same 3)))))
@@ -151,7 +151,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -165,7 +165,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim add1-inj-7-7-result (= (= Nat 7 7) (add1-injective 7 7 (same 8)) (same 7)))
 (define-tactically add1-inj-7-7-result
   ((exact (same (same 7)))))
@@ -196,7 +196,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 3)) (add1 (add1 3))) (= Nat 3 3)))
 (define-tactically add2-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred2)))))
+   (cong eq (the (→ Nat Nat) pred2))))
 (claim add2-inj-result (= (= Nat 3 3) (add2-inj (same 5)) (same 3)))
 (define-tactically add2-inj-result
   ((exact (same (same 3)))))
@@ -210,7 +210,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 1)) (add1 (add1 1))) (= Nat 1 1)))
 (define-tactically two-step-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x))))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x)))))))
 (claim two-step-inj-result (= (= Nat 1 1) (two-step-inj (same 3)) (same 1)))
 (define-tactically two-step-inj-result
   ((exact (same (same 1)))))
@@ -227,7 +227,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim left-cancel-0-0-result (= (= Nat 0 0) (add1-injective 0 0 (same 1)) (same 0)))
 (define-tactically left-cancel-0-0-result
   ((exact (same (same 0)))))
@@ -241,7 +241,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 5 5) (= Nat 4 4)))
 (define-tactically transport-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim transport-inj-result (= (= Nat 4 4) (transport-inj (same 5)) (same 4)))
 (define-tactically transport-inj-result
   ((exact (same (same 4)))))
@@ -255,7 +255,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 0)) (add1 (add1 0))) (= Nat 0 0)))
 (define-tactically double-add1-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x))))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x)))))))
 (claim double-add1-inj-result (= (= Nat 0 0) (double-add1-inj (same 2)) (same 0)))
 (define-tactically double-add1-inj-result
   ((exact (same (same 0)))))
@@ -269,7 +269,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 10 10) (= Nat 9 9)))
 (define-tactically extract-pred
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim extract-pred-result (= (= Nat 9 9) (extract-pred (same 10)) (same 9)))
 (define-tactically extract-pred-result
   ((exact (same (same 9)))))
@@ -283,7 +283,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 5 5) (= Nat 0 0)))
 (define-tactically const-zero-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) 0))))))
+   (cong eq (the (→ Nat Nat) (λ (x) 0)))))
 (claim const-zero-eq-result (= (= Nat 0 0) (const-zero-eq (same 5)) (same 0)))
 (define-tactically const-zero-eq-result
   ((exact (same (same 0)))))
@@ -297,7 +297,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 3 3) (= Nat 4 4)))
 (define-tactically lift-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (add1 x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (add1 x))))))
 (claim lift-eq-result (= (= Nat 4 4) (lift-eq (same 3)) (same 4)))
 (define-tactically lift-eq-result
   ((exact (same (same 4)))))
@@ -311,7 +311,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 2 2) (= Nat (+ 2 2) (+ 2 2))))
 (define-tactically cong-double
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (+ x x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (+ x x))))))
 (claim cong-double-result (= (= Nat 4 4) (cong-double (same 2)) (same 4)))
 (define-tactically cong-double-result
   ((exact (same (same 4)))))
@@ -328,7 +328,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim inj-2-2-result (= (= Nat 2 2) (add1-injective 2 2 (same 3)) (same 2)))
 (define-tactically inj-2-2-result
   ((exact (same (same 2)))))
@@ -345,7 +345,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim inj-9-9-result (= (= Nat 9 9) (add1-injective 9 9 (same 10)) (same 9)))
 (define-tactically inj-9-9-result
   ((exact (same (same 9)))))
@@ -510,7 +510,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 2)) (add1 (add1 2))) (= Nat 2 2)))
 (define-tactically comp-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred2)))))
+   (cong eq (the (→ Nat Nat) pred2))))
 (claim comp-inj-result (= (= Nat 2 2) (comp-inj (same 4)) (same 2)))
 (define-tactically comp-inj-result
   ((exact (same (same 2)))))
@@ -526,7 +526,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 0)) (add1 (add1 0))) (= Nat 0 0)))
 (define-tactically comp-inj-0
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred2)))))
+   (cong eq (the (→ Nat Nat) pred2))))
 (claim comp-inj-0-result (= (= Nat 0 0) (comp-inj-0 (same 2)) (same 0)))
 (define-tactically comp-inj-0-result
   ((exact (same (same 0)))))
@@ -661,7 +661,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (claim inj-4-4-result (= (= Nat 4 4) (add1-injective 4 4 (same 5)) (same 4)))
 (define-tactically inj-4-4-result
   ((exact (same (same 4)))))

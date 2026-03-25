@@ -143,7 +143,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -159,7 +159,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (n+0=n 3)
 `;
       const output = evaluatePie(str);
@@ -177,7 +177,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (n+0=n 0)
 `;
       const output = evaluatePie(str);
@@ -195,7 +195,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (n+0=n 1)
 `;
       const output = evaluatePie(str);
@@ -213,7 +213,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (n+0=n 5)
 `;
       const output = evaluatePie(str);
@@ -305,7 +305,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -321,7 +321,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (n+1=add1-n 0)
 `;
       const output = evaluatePie(str);
@@ -339,7 +339,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (n+1=add1-n 4)
 `;
       const output = evaluatePie(str);
@@ -385,7 +385,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -406,7 +406,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -423,7 +423,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (+add1 0 3)
 `;
       const output = evaluatePie(str);
@@ -442,7 +442,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (+add1 2 3)
 `;
       const output = evaluatePie(str);
@@ -460,7 +460,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim +add1 (Π ((n Nat) (m Nat)) (= Nat (+ n (add1 m)) (add1 (+ n m)))))
 (define-tactically +add1
@@ -472,7 +472,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim +-comm (Π ((n Nat) (m Nat)) (= Nat (+ n m) (+ m n))))
 (define-tactically +-comm
@@ -480,11 +480,12 @@ describe("Simple Induction on Nat", () => {
    (intro m)
    (elim-Nat n)
    (then
-     (exact (symm (n+0=n m))))
+     (symm)
+     (exact (n+0=n m)))
    (then
      (intro n-1)
      (intro ih)
-     (exact (trans (cong ih (+ 1)) (symm (+add1 m n-1)))))))
+     (trans (cong ih (+ 1)) (symm (+add1 m n-1))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -500,7 +501,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim +add1 (Π ((n Nat) (m Nat)) (= Nat (+ n (add1 m)) (add1 (+ n m)))))
 (define-tactically +add1
@@ -512,7 +513,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim +-comm (Π ((n Nat) (m Nat)) (= Nat (+ n m) (+ m n))))
 (define-tactically +-comm
@@ -520,11 +521,12 @@ describe("Simple Induction on Nat", () => {
    (intro m)
    (elim-Nat n)
    (then
-     (exact (symm (n+0=n m))))
+     (symm)
+     (exact (n+0=n m)))
    (then
      (intro n-1)
      (intro ih)
-     (exact (trans (cong ih (+ 1)) (symm (+add1 m n-1)))))))
+     (trans (cong ih (+ 1)) (symm (+add1 m n-1))))))
 (+-comm 2 3)
 `;
       const output = evaluatePie(str);
@@ -542,7 +544,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim +add1 (Π ((n Nat) (m Nat)) (= Nat (+ n (add1 m)) (add1 (+ n m)))))
 (define-tactically +add1
@@ -554,7 +556,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim +-comm (Π ((n Nat) (m Nat)) (= Nat (+ n m) (+ m n))))
 (define-tactically +-comm
@@ -562,11 +564,12 @@ describe("Simple Induction on Nat", () => {
    (intro m)
    (elim-Nat n)
    (then
-     (exact (symm (n+0=n m))))
+     (symm)
+     (exact (n+0=n m)))
    (then
      (intro n-1)
      (intro ih)
-     (exact (trans (cong ih (+ 1)) (symm (+add1 m n-1)))))))
+     (trans (cong ih (+ 1)) (symm (+add1 m n-1))))))
 (+-comm 0 5)
 `;
       const output = evaluatePie(str);
@@ -602,7 +605,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (n+0=n 7)
 `;
       const output = evaluatePie(str);
@@ -621,7 +624,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (+add1 5 0)
 `;
       const output = evaluatePie(str);
@@ -645,7 +648,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro a-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -663,7 +666,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro a-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (+-assoc 1 2 3)
 `;
       const output = evaluatePie(str);
@@ -683,7 +686,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro a-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (+-assoc 0 3 4)
 `;
       const output = evaluatePie(str);
@@ -703,7 +706,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro a-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (+-assoc 2 2 2)
 `;
       const output = evaluatePie(str);
@@ -741,7 +744,7 @@ describe("Simple Induction on Nat", () => {
    (then
      (intro a-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (+-assoc 3 0 2)
 `;
       const output = evaluatePie(str);

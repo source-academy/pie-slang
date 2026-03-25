@@ -156,20 +156,31 @@ export function addDefineTacticallyToContext(
     // Get theorem type from claim
     const claim = ctx.get(name);
     if (claim instanceof Claim) {
-      const theoremType = claim.type.readBackType(ctx).prettyPrint();
+      const theoremTypeCore = claim.type.readBackType(ctx);
+      let theoremType: string;
+      try {
+        const { sugarType } = require('../unparser/sugar');
+        theoremType = sugarType(theoremTypeCore, ctx);
+      } catch {
+        theoremType = theoremTypeCore.prettyPrint();
+      }
+      // Normalize whitespace — prettyPrint() uses multi-line formatting
+      theoremType = theoremType.replace(/\s+/g, ' ').trim();
       buffer = [];
       let stepIndex = 0;
 
       effectiveListener = (goal, tacticStr) => {
         try {
-          const { globalContext, localContext } = serializeContext(goal.context);
+          const serializedGoal = serializeGoal(goal);
+          if (serializedGoal === null) return; // Skip steps with unserializable goals
+          const { globalContext, localContext } = serializeContext(goal.context, ctx);
           buffer!.push({
             theoremName: name,
             theoremType,
             stepIndex: stepIndex++,
             globalContext,
             localContext,
-            goal: serializeGoal(goal),
+            goal: serializedGoal,
             tactic: tacticStr,
           });
         } catch {

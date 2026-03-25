@@ -25,7 +25,7 @@ describe('Training Data Extraction', () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
       evaluatePie(source);
 
@@ -35,7 +35,7 @@ describe('Training Data Extraction', () => {
       const content = fs.readFileSync(tmpFile, 'utf-8').trim();
       const examples: TrainingExample[] = content.split('\n').map(line => JSON.parse(line));
 
-      // Should have examples for: intro n, ind-nat n, exact (same 0), intro n-1, intro ih, exact (cong ih (+ 1))
+      // Should have examples for: intro n, ind-nat n, exact (same 0), intro n-1, intro ih, cong ih (+ 1)
       expect(examples.length).toBe(6);
 
       // First step: intro n
@@ -92,7 +92,7 @@ describe('Training Data Extraction', () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
     evaluatePie(source);
 

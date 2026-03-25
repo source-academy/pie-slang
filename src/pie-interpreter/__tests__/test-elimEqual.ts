@@ -131,9 +131,7 @@ U ))
 (define-tactically step-incr=add1
     ((intro n-1)
      (intro incr=add1n-1)
-     (elim-Equal incr=add1n-1 (λ (x)
-          (λ (proof-incr-n-1=x)
-            (= Nat (add1 (incr n-1)) (add1 x)))))
+     (rewrite incr=add1n-1)
      (exact (same (add1 (incr n-1))))))
         `;
     expect(() => evaluatePie(str)).not.toThrow();

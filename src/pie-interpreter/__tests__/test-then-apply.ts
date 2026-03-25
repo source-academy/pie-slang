@@ -31,7 +31,7 @@ describe("ThenTactic Tests", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
     const result = evaluatePie(str);
     expect(result).toContain("n+0=n");
@@ -261,7 +261,7 @@ describe("Compulsory then blocks", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 `;
     const result = evaluatePie(str);
     expect(result).toContain("n+0=n");

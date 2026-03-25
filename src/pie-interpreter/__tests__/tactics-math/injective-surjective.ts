@@ -23,7 +23,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 3) (add1 3)) (= Nat 3 3)))
 (define-tactically add1-inj-3-3
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-inj-3-3 (same 4))
 `;
       const output = evaluatePie(str);
@@ -36,7 +36,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 0) (add1 0)) (= Nat 0 0)))
 (define-tactically add1-inj-0-0
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-inj-0-0 (same 1))
 `;
       const output = evaluatePie(str);
@@ -49,7 +49,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 5) (add1 5)) (= Nat 5 5)))
 (define-tactically add1-inj-5-5
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-inj-5-5 (same 6))
 `;
       const output = evaluatePie(str);
@@ -115,7 +115,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 4 4) (= Nat (pred 4) (pred 4))))
 (define-tactically cong-pred-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (cong-pred-eq (same 4))
 `;
       const output = evaluatePie(str);
@@ -128,7 +128,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 2 2) (= Nat (add1 2) (add1 2))))
 (define-tactically cong-add1-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (add1 x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (add1 x))))))
 (cong-add1-eq (same 2))
 `;
       const output = evaluatePie(str);
@@ -144,7 +144,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -158,7 +158,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-injective 7 7 (same 8))
 `;
       const output = evaluatePie(str);
@@ -188,7 +188,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 3)) (add1 (add1 3))) (= Nat 3 3)))
 (define-tactically add2-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred2)))))
+   (cong eq (the (→ Nat Nat) pred2))))
 (add2-inj (same 5))
 `;
       const output = evaluatePie(str);
@@ -201,7 +201,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 1)) (add1 (add1 1))) (= Nat 1 1)))
 (define-tactically two-step-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x))))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x)))))))
 (two-step-inj (same 3))
 `;
       const output = evaluatePie(str);
@@ -217,7 +217,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-injective 0 0 (same 1))
 `;
       const output = evaluatePie(str);
@@ -230,7 +230,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 5 5) (= Nat 4 4)))
 (define-tactically transport-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (transport-inj (same 5))
 `;
       const output = evaluatePie(str);
@@ -243,7 +243,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 0)) (add1 (add1 0))) (= Nat 0 0)))
 (define-tactically double-add1-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x))))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (pred (pred x)))))))
 (double-add1-inj (same 2))
 `;
       const output = evaluatePie(str);
@@ -256,7 +256,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 10 10) (= Nat 9 9)))
 (define-tactically extract-pred
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (extract-pred (same 10))
 `;
       const output = evaluatePie(str);
@@ -269,7 +269,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 5 5) (= Nat 0 0)))
 (define-tactically const-zero-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) 0))))))
+   (cong eq (the (→ Nat Nat) (λ (x) 0)))))
 (const-zero-eq (same 5))
 `;
       const output = evaluatePie(str);
@@ -282,7 +282,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 3 3) (= Nat 4 4)))
 (define-tactically lift-eq
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (add1 x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (add1 x))))))
 (lift-eq (same 3))
 `;
       const output = evaluatePie(str);
@@ -295,7 +295,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat 2 2) (= Nat (+ 2 2) (+ 2 2))))
 (define-tactically cong-double
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) (λ (x) (+ x x)))))))
+   (cong eq (the (→ Nat Nat) (λ (x) (+ x x))))))
 (cong-double (same 2))
 `;
       const output = evaluatePie(str);
@@ -311,7 +311,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-injective 2 2 (same 3))
 `;
       const output = evaluatePie(str);
@@ -327,7 +327,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-injective 9 9 (same 10))
 `;
       const output = evaluatePie(str);
@@ -482,7 +482,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 2)) (add1 (add1 2))) (= Nat 2 2)))
 (define-tactically comp-inj
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred2)))))
+   (cong eq (the (→ Nat Nat) pred2))))
 (comp-inj (same 4))
 `;
       const output = evaluatePie(str);
@@ -497,7 +497,7 @@ describe("Injective, Surjective, and Bijective", () => {
   (→ (= Nat (add1 (add1 0)) (add1 (add1 0))) (= Nat 0 0)))
 (define-tactically comp-inj-0
   ((intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred2)))))
+   (cong eq (the (→ Nat Nat) pred2))))
 (comp-inj-0 (same 2))
 `;
       const output = evaluatePie(str);
@@ -628,7 +628,7 @@ describe("Injective, Surjective, and Bijective", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (the (→ Nat Nat) pred)))))
+   (cong eq (the (→ Nat Nat) pred))))
 (add1-injective 4 4 (same 5))
 `;
       const output = evaluatePie(str);

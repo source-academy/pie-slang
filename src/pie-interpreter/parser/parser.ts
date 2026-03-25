@@ -585,6 +585,39 @@ export class Parser {
         locationToSyntax('apply', element.location),
         this.parseElements((element as Extended.List).elements[1] as Element)
       );
+    } else if (parsee === 'symm') {
+      return Maker.makeSymmetryTactic(
+        locationToSyntax('symm', element.location)
+      );
+    } else if (parsee === 'trans') {
+      const transElem = element as Extended.List;
+      if (transElem.elements[2]) {
+        // 2-arg form: (trans proof1 proof2) — forward, closes goal
+        return Maker.makeForwardTransTactic(
+          locationToSyntax('trans', element.location),
+          this.parseElements(transElem.elements[1] as Element),
+          this.parseElements(transElem.elements[2] as Element)
+        );
+      }
+      // 1-arg form: (trans middle) — branching, creates 2 subgoals
+      return Maker.makeTransitivityTactic(
+        locationToSyntax('trans', element.location),
+        this.parseElements(transElem.elements[1] as Element)
+      );
+    } else if (parsee === 'cong') {
+      const congElem = element as Extended.List;
+      return Maker.makeCongTactic(
+        locationToSyntax('cong', element.location),
+        this.parseElements(congElem.elements[1] as Element),
+        this.parseElements(congElem.elements[2] as Element)
+      );
+    } else if (parsee === 'rewrite') {
+      const rewriteElem = element as Extended.List;
+      return Maker.makeRewriteTactic(
+        locationToSyntax('rewrite', element.location),
+        this.parseElements(rewriteElem.elements[1] as Element),
+        rewriteElem.elements[2] ? this.parseElements(rewriteElem.elements[2] as Element) : undefined
+      );
     }
     throw new Error('Unexpected tactic: ' + element);
   }

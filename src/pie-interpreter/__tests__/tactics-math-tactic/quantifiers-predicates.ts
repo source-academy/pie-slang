@@ -101,7 +101,8 @@ describe("Quantifiers and Predicates", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -153,7 +154,7 @@ describe("Quantifiers and Predicates", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 (claim right-zero-at-0 (= (= Nat 0 0) (right-zero 0) (same 0)))
 (define-tactically right-zero-at-0
   ((exact (same (same 0)))))
@@ -662,7 +663,7 @@ describe("Quantifiers and Predicates", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (+ 1)))))
+   (cong eq (+ 1))))
 (claim cong-succ-3-3 (= (= Nat 4 4) (cong-succ 3 3 (same 3)) (same 4)))
 (define-tactically cong-succ-3-3
   ((exact (same (same 4)))))

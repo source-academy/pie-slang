@@ -140,7 +140,7 @@ describe("Proof Techniques", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (+ 1)))))
+   (cong eq (+ 1))))
 (succ-eq 3 3 (same 3))
 `;
       const output = evaluatePie(str);
@@ -157,7 +157,8 @@ describe("Proof Techniques", () => {
    (intro a)
    (intro b)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -174,7 +175,7 @@ describe("Proof Techniques", () => {
    (intro c)
    (intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -705,7 +706,7 @@ describe("Proof Techniques", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim right-zero-symm
   (Π ((n Nat))

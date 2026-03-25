@@ -116,7 +116,8 @@ describe("Relations Properties", () => {
 (claim sym-3 (→ (= Nat 3 3) (= Nat 3 3)))
 (define-tactically sym-3
   ((intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 (sym-3 (same 3))
 `;
       const output = evaluatePie(str);
@@ -132,7 +133,8 @@ describe("Relations Properties", () => {
   ((intro a)
    (intro b)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -146,7 +148,8 @@ describe("Relations Properties", () => {
   ((intro a)
    (intro b)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -160,7 +163,9 @@ describe("Relations Properties", () => {
   ((intro a)
    (intro b)
    (intro eq)
-   (exact (symm (symm eq)))))
+   (symm)
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -170,7 +175,8 @@ describe("Relations Properties", () => {
 (claim sym-0 (→ (= Nat 0 0) (= Nat 0 0)))
 (define-tactically sym-0
   ((intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 (sym-0 (same 0))
 `;
       const output = evaluatePie(str);
@@ -183,7 +189,8 @@ describe("Relations Properties", () => {
   (→ (= Trivial sole sole) (= Trivial sole sole)))
 (define-tactically triv-sym
   ((intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -198,7 +205,8 @@ describe("Relations Properties", () => {
    (intro a)
    (intro b)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -208,7 +216,8 @@ describe("Relations Properties", () => {
 (claim sym-atom (→ (= Atom 'x 'x) (= Atom 'x 'x)))
 (define-tactically sym-atom
   ((intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 (sym-atom (same 'x))
 `;
       const output = evaluatePie(str);
@@ -221,7 +230,8 @@ describe("Relations Properties", () => {
   (→ (= (List Nat) nil nil) (= (List Nat) nil nil)))
 (define-tactically sym-list
   ((intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -234,7 +244,8 @@ describe("Relations Properties", () => {
 (define-tactically sym-add1
   ((intro n)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -250,7 +261,7 @@ describe("Relations Properties", () => {
 (define-tactically trans-3
   ((intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 (trans-3 (same 3) (same 3))
 `;
       const output = evaluatePie(str);
@@ -268,7 +279,7 @@ describe("Relations Properties", () => {
    (intro c)
    (intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -284,7 +295,7 @@ describe("Relations Properties", () => {
    (intro c)
    (intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -296,7 +307,7 @@ describe("Relations Properties", () => {
 (define-tactically trans-0
   ((intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 (trans-0 (same 0) (same 0))
 `;
       const output = evaluatePie(str);
@@ -311,7 +322,7 @@ describe("Relations Properties", () => {
   ((intro eq1)
    (intro eq2)
    (intro eq3)
-   (exact (trans eq1 (trans eq2 eq3)))))
+   (trans eq1 (trans eq2 eq3))))
 (chain-3 (same 7) (same 7) (same 7))
 `;
       const output = evaluatePie(str);
@@ -330,7 +341,7 @@ describe("Relations Properties", () => {
    (intro c)
    (intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -343,7 +354,7 @@ describe("Relations Properties", () => {
 (define-tactically trans-sym-combo
   ((intro n)
    (intro eq)
-   (exact (trans eq (symm eq)))))
+   (trans eq (symm eq))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -381,7 +392,7 @@ describe("Relations Properties", () => {
 (define-tactically triv-trans
   ((intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -479,7 +490,7 @@ describe("Relations Properties", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim leq-refl
   (Π ((n Nat))
@@ -503,7 +514,7 @@ describe("Relations Properties", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 (claim leq-refl
   (Π ((n Nat))
@@ -565,14 +576,15 @@ describe("Relations Properties", () => {
        (intro a)
        (intro b)
        (intro eq)
-       (exact (symm eq)))
+       (symm)
+       (exact eq))
      (then
        (intro a)
        (intro b)
        (intro c)
        (intro eq1)
        (intro eq2)
-       (exact (trans eq1 eq2))))))
+       (trans eq1 eq2)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -599,7 +611,8 @@ describe("Relations Properties", () => {
   ((intro a)
    (intro b)
    (intro eq)
-   (exact (symm eq))))
+   (symm)
+   (exact eq)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -615,7 +628,7 @@ describe("Relations Properties", () => {
    (intro c)
    (intro eq1)
    (intro eq2)
-   (exact (trans eq1 eq2))))
+   (trans eq1 eq2)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -654,7 +667,8 @@ describe("Relations Properties", () => {
      (intro a)
      (intro b)
      (intro eq)
-     (exact (symm eq)))))
+     (symm)
+     (exact eq))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });

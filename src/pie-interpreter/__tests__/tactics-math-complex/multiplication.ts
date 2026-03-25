@@ -13,26 +13,26 @@ const multPreamble = `${arithPreamble}
 (define-tactically n+0=n
   ((intro n) (elim-Nat n)
    (then (exact (same 0)))
-   (then (intro n-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro n-1) (intro ih) (cong ih (+ 1)))))
 
 (claim +add1 (Pi ((n Nat) (m Nat)) (= Nat (+ n (add1 m)) (add1 (+ n m)))))
 (define-tactically +add1
   ((intro n) (intro m) (elim-Nat n)
    (then (exact (same (add1 m))))
-   (then (intro n-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro n-1) (intro ih) (cong ih (+ 1)))))
 
 (claim +-comm (Pi ((n Nat) (m Nat)) (= Nat (+ n m) (+ m n))))
 (define-tactically +-comm
   ((intro n) (intro m) (elim-Nat n)
-   (then (exact (symm (n+0=n m))))
+   (then (symm) (exact (n+0=n m)))
    (then (intro n-1) (intro ih)
-     (exact (trans (cong ih (+ 1)) (symm (+add1 m n-1)))))))
+     (trans (cong ih (+ 1)) (symm (+add1 m n-1))))))
 
 (claim +-assoc (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ (+ a b) c) (+ a (+ b c)))))
 (define-tactically +-assoc
   ((intro a) (intro b) (intro c) (elim-Nat a)
    (then (exact (same (+ b c))))
-   (then (intro a-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro a-1) (intro ih) (cong ih (+ 1)))))
 `;
 
 describe("Complex Multiplication Properties", () => {
@@ -74,7 +74,7 @@ describe("Complex Multiplication Properties", () => {
 (define-tactically n*1=n
   ((intro n) (elim-Nat n)
    (then (exact (same 0)))
-   (then (intro n-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro n-1) (intro ih) (cong ih (+ 1)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -88,21 +88,19 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 
 (claim *-add1 (Pi ((n Nat) (m Nat)) (= Nat (* n (add1 m)) (+ n (* n m)))))
 (define-tactically *-add1
   ((intro n) (intro m) (elim-Nat n)
    (then (exact (same 0)))
    (then (intro n-1) (intro ih)
-     (exact
-       (trans (cong ih (+ (add1 m)))
-         (cong (+-swap m n-1 (* n-1 m)) (+ 1)))))))
+     (trans (cong ih (+ (add1 m)))
+         (cong (+-swap m n-1 (* n-1 m)) (+ 1))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -116,12 +114,11 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 
 (claim n*0=0 (Pi ((n Nat)) (= Nat (* n 0) 0)))
 (define-tactically n*0=0
@@ -134,16 +131,15 @@ describe("Complex Multiplication Properties", () => {
   ((intro n) (intro m) (elim-Nat n)
    (then (exact (same 0)))
    (then (intro n-1) (intro ih)
-     (exact
-       (trans (cong ih (+ (add1 m)))
-         (cong (+-swap m n-1 (* n-1 m)) (+ 1)))))))
+     (trans (cong ih (+ (add1 m)))
+         (cong (+-swap m n-1 (* n-1 m)) (+ 1))))))
 
 (claim *-comm (Pi ((n Nat) (m Nat)) (= Nat (* n m) (* m n))))
 (define-tactically *-comm
   ((intro n) (intro m) (elim-Nat m)
    (then (exact (n*0=0 n)))
    (then (intro m-1) (intro ih)
-     (exact (trans (*-add1 n m-1) (cong ih (+ n)))))))
+     (trans (*-add1 n m-1) (cong ih (+ n))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -157,21 +153,19 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 
 (claim +swap4 (Pi ((m Nat) (k Nat) (a Nat) (b Nat))
   (= Nat (+ (+ m k) (+ a b)) (+ (+ m a) (+ k b)))))
 (define-tactically +swap4
   ((intro m) (intro k) (intro a) (intro b)
-   (exact
-     (trans (+-assoc m k (+ a b))
+   (trans (+-assoc m k (+ a b))
        (trans (cong (+-swap k a b) (+ m))
-         (symm (+-assoc m a (+ k b))))))))
+         (symm (+-assoc m a (+ k b)))))))
 
 (claim *-dist-left (Pi ((n Nat) (m Nat) (k Nat))
   (= Nat (* n (+ m k)) (+ (* n m) (* n k)))))
@@ -179,9 +173,8 @@ describe("Complex Multiplication Properties", () => {
   ((intro n) (intro m) (intro k) (elim-Nat n)
    (then (exact (same 0)))
    (then (intro n-1) (intro ih)
-     (exact
-       (trans (cong ih (+ (+ m k)))
-         (+swap4 m k (* n-1 m) (* n-1 k)))))))
+     (trans (cong ih (+ (+ m k)))
+         (+swap4 m k (* n-1 m) (* n-1 k))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -195,12 +188,11 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 
 (claim n*0=0 (Pi ((n Nat)) (= Nat (* n 0) 0)))
 (define-tactically n*0=0
@@ -213,25 +205,23 @@ describe("Complex Multiplication Properties", () => {
   ((intro n) (intro m) (elim-Nat n)
    (then (exact (same 0)))
    (then (intro n-1) (intro ih)
-     (exact
-       (trans (cong ih (+ (add1 m)))
-         (cong (+-swap m n-1 (* n-1 m)) (+ 1)))))))
+     (trans (cong ih (+ (add1 m)))
+         (cong (+-swap m n-1 (* n-1 m)) (+ 1))))))
 
 (claim *-comm (Pi ((n Nat) (m Nat)) (= Nat (* n m) (* m n))))
 (define-tactically *-comm
   ((intro n) (intro m) (elim-Nat m)
    (then (exact (n*0=0 n)))
    (then (intro m-1) (intro ih)
-     (exact (trans (*-add1 n m-1) (cong ih (+ n)))))))
+     (trans (*-add1 n m-1) (cong ih (+ n))))))
 
 (claim +swap4 (Pi ((m Nat) (k Nat) (a Nat) (b Nat))
   (= Nat (+ (+ m k) (+ a b)) (+ (+ m a) (+ k b)))))
 (define-tactically +swap4
   ((intro m) (intro k) (intro a) (intro b)
-   (exact
-     (trans (+-assoc m k (+ a b))
+   (trans (+-assoc m k (+ a b))
        (trans (cong (+-swap k a b) (+ m))
-         (symm (+-assoc m a (+ k b))))))))
+         (symm (+-assoc m a (+ k b)))))))
 
 (claim *-dist-left (Pi ((n Nat) (m Nat) (k Nat))
   (= Nat (* n (+ m k)) (+ (* n m) (* n k)))))
@@ -239,19 +229,17 @@ describe("Complex Multiplication Properties", () => {
   ((intro n) (intro m) (intro k) (elim-Nat n)
    (then (exact (same 0)))
    (then (intro n-1) (intro ih)
-     (exact
-       (trans (cong ih (+ (+ m k)))
-         (+swap4 m k (* n-1 m) (* n-1 k)))))))
+     (trans (cong ih (+ (+ m k)))
+         (+swap4 m k (* n-1 m) (* n-1 k))))))
 
 (claim *-dist-right (Pi ((n Nat) (m Nat) (k Nat))
   (= Nat (* (+ m k) n) (+ (* m n) (* k n)))))
 (define-tactically *-dist-right
   ((intro n) (intro m) (intro k)
-   (exact
-     (trans (*-comm (+ m k) n)
+   (trans (*-comm (+ m k) n)
        (trans (*-dist-left n m k)
          (trans (cong (*-comm n m) (the (-> Nat Nat) (lambda (y) (+ y (* n k)))))
-           (cong (*-comm n k) (+ (* m n)))))))))
+           (cong (*-comm n k) (+ (* m n))))))))
 
 (claim *-assoc (Pi ((a Nat) (b Nat) (c Nat))
   (= Nat (* (* a b) c) (* a (* b c)))))
@@ -259,9 +247,8 @@ describe("Complex Multiplication Properties", () => {
   ((intro a) (intro b) (intro c) (elim-Nat a)
    (then (exact (same 0)))
    (then (intro a-1) (intro ih)
-     (exact
-       (trans (*-dist-right c b (* a-1 b))
-         (cong ih (+ (* b c))))))))
+     (trans (*-dist-right c b (* a-1 b))
+         (cong ih (+ (* b c)))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -279,7 +266,7 @@ describe("Complex Multiplication Properties", () => {
   ((intro A) (intro B) (intro C) (intro f)
    (intro a) (intro b) (intro c) (intro d)
    (intro eq1) (intro eq2)
-   (exact (trans (cong eq1 (the (-> A C) (lambda (x) (f x c)))) (cong eq2 (f b))))))
+   (trans (cong eq1 (the (-> A C) (lambda (x) (f x c)))) (cong eq2 (f b)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -292,7 +279,8 @@ describe("Complex Multiplication Properties", () => {
 (define-tactically transport
   ((intro A) (intro a) (intro b)
    (intro eq) (intro P) (intro pa)
-   (exact (replace eq P pa))))
+   (rewrite eq P)
+   (exact pa)))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -367,7 +355,7 @@ describe("Complex Multiplication Properties", () => {
 (define-tactically n*1=n
   ((intro n) (elim-Nat n)
    (then (exact (same 0)))
-   (then (intro n-1) (intro ih) (exact (cong ih (+ 1))))))
+   (then (intro n-1) (intro ih) (cong ih (+ 1)))))
 (n*1=n 4)
 `;
       const output = evaluatePie(str);
@@ -469,12 +457,11 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -484,12 +471,11 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 (+-swap 2 3 4)
 `;
       const output = evaluatePie(str);
@@ -501,21 +487,19 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 
 (claim +swap4 (Pi ((m Nat) (k Nat) (a Nat) (b Nat))
   (= Nat (+ (+ m k) (+ a b)) (+ (+ m a) (+ k b)))))
 (define-tactically +swap4
   ((intro m) (intro k) (intro a) (intro b)
-   (exact
-     (trans (+-assoc m k (+ a b))
+   (trans (+-assoc m k (+ a b))
        (trans (cong (+-swap k a b) (+ m))
-         (symm (+-assoc m a (+ k b))))))))
+         (symm (+-assoc m a (+ k b)))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });
@@ -525,21 +509,19 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 
 (claim +swap4 (Pi ((m Nat) (k Nat) (a Nat) (b Nat))
   (= Nat (+ (+ m k) (+ a b)) (+ (+ m a) (+ k b)))))
 (define-tactically +swap4
   ((intro m) (intro k) (intro a) (intro b)
-   (exact
-     (trans (+-assoc m k (+ a b))
+   (trans (+-assoc m k (+ a b))
        (trans (cong (+-swap k a b) (+ m))
-         (symm (+-assoc m a (+ k b))))))))
+         (symm (+-assoc m a (+ k b)))))))
 (+swap4 1 2 3 4)
 `;
       const output = evaluatePie(str);
@@ -551,12 +533,11 @@ describe("Complex Multiplication Properties", () => {
 (claim +-swap (Pi ((a Nat) (b Nat) (c Nat)) (= Nat (+ a (+ b c)) (+ b (+ a c)))))
 (define-tactically +-swap
   ((intro a) (intro b) (intro c)
-   (exact
-     (trans (symm (+-assoc a b c))
+   (trans (symm (+-assoc a b c))
        (trans (replace (+-comm a b)
                 (the (-> Nat U) (lambda (x) (= Nat (+ (+ a b) c) (+ x c))))
                 (same (+ (+ a b) c)))
-         (+-assoc b a c))))))
+         (+-assoc b a c)))))
 
 (claim n*0=0 (Pi ((n Nat)) (= Nat (* n 0) 0)))
 (define-tactically n*0=0
@@ -569,25 +550,23 @@ describe("Complex Multiplication Properties", () => {
   ((intro n) (intro m) (elim-Nat n)
    (then (exact (same 0)))
    (then (intro n-1) (intro ih)
-     (exact
-       (trans (cong ih (+ (add1 m)))
-         (cong (+-swap m n-1 (* n-1 m)) (+ 1)))))))
+     (trans (cong ih (+ (add1 m)))
+         (cong (+-swap m n-1 (* n-1 m)) (+ 1))))))
 
 (claim *-comm (Pi ((n Nat) (m Nat)) (= Nat (* n m) (* m n))))
 (define-tactically *-comm
   ((intro n) (intro m) (elim-Nat m)
    (then (exact (n*0=0 n)))
    (then (intro m-1) (intro ih)
-     (exact (trans (*-add1 n m-1) (cong ih (+ n)))))))
+     (trans (*-add1 n m-1) (cong ih (+ n))))))
 
 (claim +swap4 (Pi ((m Nat) (k Nat) (a Nat) (b Nat))
   (= Nat (+ (+ m k) (+ a b)) (+ (+ m a) (+ k b)))))
 (define-tactically +swap4
   ((intro m) (intro k) (intro a) (intro b)
-   (exact
-     (trans (+-assoc m k (+ a b))
+   (trans (+-assoc m k (+ a b))
        (trans (cong (+-swap k a b) (+ m))
-         (symm (+-assoc m a (+ k b))))))))
+         (symm (+-assoc m a (+ k b)))))))
 
 (claim *-dist-left (Pi ((n Nat) (m Nat) (k Nat))
   (= Nat (* n (+ m k)) (+ (* n m) (* n k)))))
@@ -595,19 +574,17 @@ describe("Complex Multiplication Properties", () => {
   ((intro n) (intro m) (intro k) (elim-Nat n)
    (then (exact (same 0)))
    (then (intro n-1) (intro ih)
-     (exact
-       (trans (cong ih (+ (+ m k)))
-         (+swap4 m k (* n-1 m) (* n-1 k)))))))
+     (trans (cong ih (+ (+ m k)))
+         (+swap4 m k (* n-1 m) (* n-1 k))))))
 
 (claim *-dist-right (Pi ((n Nat) (m Nat) (k Nat))
   (= Nat (* (+ m k) n) (+ (* m n) (* k n)))))
 (define-tactically *-dist-right
   ((intro n) (intro m) (intro k)
-   (exact
-     (trans (*-comm (+ m k) n)
+   (trans (*-comm (+ m k) n)
        (trans (*-dist-left n m k)
          (trans (cong (*-comm n m) (the (-> Nat Nat) (lambda (y) (+ y (* n k)))))
-           (cong (*-comm n k) (+ (* m n)))))))))
+           (cong (*-comm n k) (+ (* m n))))))))
 `;
       expect(() => evaluatePie(str)).not.toThrow();
     });

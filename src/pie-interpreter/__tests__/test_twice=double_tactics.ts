@@ -44,8 +44,8 @@ describe("twice=double tactical proof", () => {
    (then (exact (same 0)))
    (then (intro n-1)
      (intro ih)
-     (elim-Equal ih (λ (to p) (= Nat (twice (add1 n-1)) (add1 (add1 to)))))
-     (then (exact (cong (symm (add1+=+add1 n-1 n-1)) (+ 1)))))))
+     (rewrite ih)
+     (cong (symm (add1+=+add1 n-1 n-1)) (+ 1)))))
       `
     const result = evaluatePie(src)
     // Verify proof is complete (not incomplete)

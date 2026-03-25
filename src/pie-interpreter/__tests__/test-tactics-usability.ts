@@ -399,7 +399,7 @@ describe("Tactic Usability Tests", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 ;; Use the proof
 (+-comm-zero 0)
@@ -440,7 +440,7 @@ describe("Tactic Usability Tests", () => {
    (then
      (intro n-1)
      (intro ih)
-     (exact (cong ih (+ 1))))))
+     (cong ih (+ 1)))))
 
 ;; Use it in another proof
 (claim simplify-with-zero
@@ -505,9 +505,7 @@ describe("Tactic Usability Tests", () => {
 (define-tactically step-incr=add1
   ((intro n-1)
    (intro incr=add1n-1)
-   (elim-Equal incr=add1n-1 (λ (x)
-     (λ (proof-incr-n-1=x)
-       (= Nat (add1 (incr n-1)) (add1 x)))))
+   (rewrite incr=add1n-1)
    (exact (same (add1 (incr n-1))))))
 
 ;; Use step-incr=add1 in constructing incr=add1
@@ -577,7 +575,7 @@ describe("Tactic Usability Tests", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong eq (+ 1)))))
+   (cong eq (+ 1))))
 
 ;; Second proof by tactics
 (claim double-succ-eq
@@ -589,7 +587,7 @@ describe("Tactic Usability Tests", () => {
   ((intro n)
    (intro m)
    (intro eq)
-   (exact (cong (succ-eq n m eq) (+ 1)))))
+   (cong (succ-eq n m eq) (+ 1))))
 
 ;; Use them
 (succ-eq 3 3 (same 3))
