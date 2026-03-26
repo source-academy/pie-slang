@@ -145,7 +145,7 @@ export class ExistsTactic extends Tactic {
   }
 
   toString(): string {
-    return `exists ${this.varName || ""}`;
+    return `exists ${this.value.prettyPrint()} ${this.varName || ""}`.trim();
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -207,7 +207,7 @@ export class EliminateNatTactic extends Tactic {
   }
 
   toString(): string {
-    return `ind-nat ${this.target}`;
+    return `elim-Nat ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -321,8 +321,8 @@ export class EliminateListTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`
-      : `ind-list ${this.target}`;
+      ? `elim-List ${this.target} ${this.motive.prettyPrint()}`
+      : `elim-List ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -454,7 +454,7 @@ export class EliminateVecTactic extends Tactic {
   }
 
   toString(): string {
-    return `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`;
+    return `elim-List ${this.target} ${this.motive.prettyPrint()}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -561,8 +561,8 @@ export class EliminateEqualTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `ind-equal ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-equal ${this.target}`;
+      ? `elim-Equal ${this.target} ${this.motive.prettyPrint()}`
+      : `elim-Equal ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -743,8 +743,8 @@ export class EliminateEitherTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `ind-Either ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-Either ${this.target}`;
+      ? `elim-Either ${this.target} ${this.motive.prettyPrint()}`
+      : `elim-Either ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -931,8 +931,8 @@ export class EliminateAbsurdTactic extends Tactic {
 
   toString(): string {
     return this.motive
-      ? `ind-Absurd ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-Absurd ${this.target}`;
+      ? `elim-Absurd ${this.target} ${this.motive.prettyPrint()}`
+      : `elim-Absurd ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
