@@ -34,3 +34,5 @@ node_modules
 dist
 dist-*
 /coordination
+tsconfig.tsbuildinfo
+web-react/tsconfig.tsbuildinfo
