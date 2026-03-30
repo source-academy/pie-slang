@@ -647,7 +647,15 @@ const proofWorkerAPI: ProofWorkerAPI = {
   async syncFromSource(sourceCode: string, claimName: string): Promise<SyncFromSourceResponse> {
     console.log('[ProofWorker] syncFromSource() called for:', claimName);
     try {
-      const result = await proofWorkerAPI.startSession(sourceCode, claimName);
+      // Strip any existing (define-tactically claimName ...) block before passing to
+      // startSession.  startSession expects only the preamble (claims + definitions)
+      // so it can start a fresh proof; if the tactic block is included, the claim
+      // gets added to context as a proved theorem and startProof fails.
+      const marker = `(define-tactically ${claimName}`;
+      const idx = sourceCode.indexOf(marker);
+      const preamble = idx === -1 ? sourceCode : sourceCode.slice(0, idx).trimEnd();
+
+      const result = await proofWorkerAPI.startSession(preamble, claimName);
       return {
         success: true,
         sessionId: result.sessionId,

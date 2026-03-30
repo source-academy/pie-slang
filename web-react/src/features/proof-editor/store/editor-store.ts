@@ -12,6 +12,8 @@ export interface EditorState {
   lastSyncError: string | null;
   lastGeneratedScript: string | null;
   hasUnsyncedConflict: boolean;
+  /** Source lines before the define-tactically block; set on Sync/Start success. */
+  preamble: string | null;
 }
 
 export interface EditorActions {
@@ -23,6 +25,7 @@ export interface EditorActions {
   setSyncStatus: (status: SyncStatus) => void;
   setSyncError: (error: string | null) => void;
   setConflict: (hasConflict: boolean) => void;
+  setPreamble: (preamble: string) => void;
   reset: () => void;
 }
 
@@ -51,6 +54,7 @@ const initialState: EditorState = {
   lastSyncError: null,
   lastGeneratedScript: null,
   hasUnsyncedConflict: false,
+  preamble: null,
 };
 
 /**
@@ -118,6 +122,12 @@ export const useEditorStore = create<EditorStore>()(
       setConflict: (hasConflict: boolean) => {
         set((state) => {
           state.hasUnsyncedConflict = hasConflict;
+        });
+      },
+
+      setPreamble: (preamble: string) => {
+        set((state) => {
+          state.preamble = preamble;
         });
       },
 

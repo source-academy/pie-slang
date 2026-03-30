@@ -4,6 +4,7 @@ import { useProofSession } from '../../hooks/useProofSession';
 import { useGeneratedProofScript } from '../../store';
 import { useExampleStore } from '../../store/example-store';
 import { useEditorStore, type SyncStatus } from '../../store/editor-store';
+import { extractPreamble } from '../../utils/generate-proof-script';
 import { proofWorker } from '@/shared/lib/worker-client';
 import { useProofStore } from '../../store';
 import { useMetadataStore } from '../../store/metadata-store';
@@ -214,6 +215,7 @@ export function SourceCodePanel() {
   const setSyncStatus = useEditorStore((s) => s.setSyncStatus);
   const setSyncError = useEditorStore((s) => s.setSyncError);
   const setConflict = useEditorStore((s) => s.setConflict);
+  const setPreamble = useEditorStore((s) => s.setPreamble);
 
   // Example store
   const exampleSource = useExampleStore((s) => s.exampleSource);
@@ -266,6 +268,22 @@ export function SourceCodePanel() {
   }, [generatedScript, setGeneratedScript]);
 
   // ----------------------------------------
+  // Canvas → Code: auto-update Monaco when canvas changes
+  // ----------------------------------------
+  useEffect(() => {
+    if (!generatedScript) return;
+    // Only auto-update if the user hasn't made unsaved edits
+    if (dirtySinceLastSync) return;
+    const preamble = useEditorStore.getState().preamble;
+    // Only update once a proof session has been started (preamble is set)
+    if (preamble === null) return;
+
+    const newValue = preamble ? `${preamble}\n\n${generatedScript}` : generatedScript;
+    setEditorValue(newValue);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedScript]);
+
+  // ----------------------------------------
   // Monaco lifecycle callbacks
   // ----------------------------------------
   const handleBeforeMount: BeforeMount = useCallback((monaco) => {
@@ -301,6 +319,8 @@ export function SourceCodePanel() {
 
     try {
       await startSession(editorValue, claimName);
+      // Store the preamble — the full source at this point (no tactic block yet)
+      setPreamble(extractPreamble(editorValue, claimName));
       clearDirty();
       setSyncStatus('synced');
       setIsExpanded(false);
@@ -309,7 +329,7 @@ export function SourceCodePanel() {
       setSyncStatus('sync-failed');
       setSyncError(e instanceof Error ? e.message : String(e));
     }
-  }, [editorValue, claimName, startSession, clearError, clearDirty, setSyncStatus, setSyncError]);
+  }, [editorValue, claimName, startSession, clearError, clearDirty, setSyncStatus, setSyncError, setPreamble]);
 
   // ----------------------------------------
   // Sync to Canvas (Code → Canvas manual apply)
@@ -344,6 +364,8 @@ export function SourceCodePanel() {
         }
         setMetadataClaimName(claimName);
 
+        // Store preamble = source minus the define-tactically block
+        setPreamble(extractPreamble(editorValue, claimName));
         clearDirty();
         setSyncStatus('synced');
         setConflict(false);
@@ -371,6 +393,7 @@ export function SourceCodePanel() {
     setSyncStatus,
     setSyncError,
     setConflict,
+    setPreamble,
   ]);
 
   // ----------------------------------------
@@ -594,29 +617,6 @@ export function SourceCodePanel() {
               </div>
             </div>
 
-            {/* Generated proof script — read-only display */}
-            {hasActiveSession && generatedScript && (
-              <div className="mt-4 border-t pt-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Generated Proof Script
-                  </label>
-                  <button
-                    className="rounded bg-secondary px-2 py-1 text-xs hover:bg-secondary/80"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigator.clipboard.writeText(generatedScript);
-                    }}
-                    title="Copy to clipboard"
-                  >
-                    Copy
-                  </button>
-                </div>
-                <pre className="max-h-48 overflow-auto rounded-md border bg-muted/50 p-3 font-mono text-sm">
-                  {generatedScript}
-                </pre>
-              </div>
-            )}
           </div>
         )}
       </div>

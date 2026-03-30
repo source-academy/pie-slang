@@ -91,6 +91,18 @@ function generateTacticsFromNode(
 }
 
 /**
+ * Extract the preamble from a Pie source string — everything before the
+ * `(define-tactically claimName ...)` block.  If no such block exists,
+ * the entire source is returned (used when starting a fresh proof session).
+ */
+export function extractPreamble(source: string, claimName: string): string {
+  const marker = `(define-tactically ${claimName}`;
+  const idx = source.indexOf(marker);
+  if (idx === -1) return source;
+  return source.slice(0, idx).trimEnd();
+}
+
+/**
  * Generate a minimal proof script showing just the tactics in order.
  * This is a flattened view without the full define-tactically structure.
  */
