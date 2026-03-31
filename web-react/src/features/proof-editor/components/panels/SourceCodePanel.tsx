@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Editor, { type OnMount, type BeforeMount, type Monaco } from '@monaco-editor/react';
 import { useProofSession } from '../../hooks/useProofSession';
 import { useGeneratedProofScript } from '../../store';
@@ -17,7 +17,7 @@ import { diagnosticsWorker } from '@/shared/lib/worker-client';
 function registerPieLanguage(monaco: Monaco) {
   // Register "pie" language if not already registered
   const langs = monaco.languages.getLanguages();
-  if (langs.find((l) => l.id === 'pie')) return;
+  if (langs.find((l: { id: string }) => l.id === 'pie')) return;
 
   monaco.languages.register({ id: 'pie' });
 
@@ -74,8 +74,8 @@ function registerPieLanguage(monaco: Monaco) {
 
 function registerPieCompletions(monaco: Monaco) {
   monaco.languages.registerCompletionItemProvider('pie', {
-    triggerCharacters: ['(', ' '],
-    async provideCompletionItems(model, position) {
+    triggerCharacters: ['('],
+    async provideCompletionItems(model: import('monaco-editor').editor.ITextModel, position: import('monaco-editor').Position) {
       const word = model.getWordUntilPosition(position);
       const range = {
         startLineNumber: position.lineNumber,
@@ -199,6 +199,10 @@ export function SourceCodePanel() {
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [pendingCanvasAction, setPendingCanvasAction] = useState<(() => void) | null>(null);
 
+  // Flag set before we programmatically update Monaco (canvas→code sync).
+  // Prevents the resulting onChange callback from falsely calling markDirty().
+  const isProgrammaticUpdate = useRef(false);
+
   // Editor store (Monaco value + sync state)
   const editorValue = useEditorStore((s) => s.editorValue);
   const claimName = useEditorStore((s) => s.claimName);
@@ -279,6 +283,8 @@ export function SourceCodePanel() {
     if (preamble === null) return;
 
     const newValue = preamble ? `${preamble}\n\n${generatedScript}` : generatedScript;
+    // Mark as programmatic so the resulting onChange callback skips markDirty()
+    isProgrammaticUpdate.current = true;
     setEditorValue(newValue);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedScript]);
@@ -302,6 +308,12 @@ export function SourceCodePanel() {
     (value: string | undefined) => {
       if (value === undefined) return;
       setEditorValue(value);
+      // Skip markDirty() when the change came from the canvas→code auto-sync,
+      // not from the user actually typing.
+      if (isProgrammaticUpdate.current) {
+        isProgrammaticUpdate.current = false;
+        return;
+      }
       markDirty();
     },
     [setEditorValue, markDirty]
