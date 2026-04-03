@@ -15,6 +15,7 @@ const EDGE_COLORS: Record<ProofEdgeData['kind'], string> = {
   'lemma-to-tactic': '#22c55e',   // Green
   'goal-to-lemma': '#10b981',     // Emerald Green
   'context-to-lemma': '#14b8a6',  // Teal
+  'lemma-to-goal': '#22c55e',     // Green
 };
 
 /**

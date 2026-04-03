@@ -1,11 +1,12 @@
 import { memo, useCallback, useState } from "react";
 import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { cn } from "@/shared/lib/utils";
-import { Lightbulb, Loader2, Sparkles, ChevronRight, ChevronDown } from "lucide-react";
+import { Lightbulb, Loader2, Sparkles, ChevronRight, ChevronDown, X, AlertTriangle } from "lucide-react";
 import type {
   GoalNode as GoalNodeType,
   ContextEntry,
   TacticType,
+  ErrorDetail,
 } from "../../store/types";
 import {
   useUIStore,
@@ -231,6 +232,28 @@ export const GoalNode = memo(function GoalNode({
     todo: "bg-pink-400 text-white",
   };
 
+  // Scope depth styling
+  const depth = (data.depth as number) ?? 0;
+
+  // Left accent border color — darker with deeper scope
+  const DEPTH_LEFT_BORDER = [
+    "border-l-blue-300",    // depth 0 — root
+    "border-l-indigo-400",  // depth 1
+    "border-l-violet-500",  // depth 2
+    "border-l-purple-600",  // depth 3
+    "border-l-fuchsia-700", // depth 4+
+  ];
+  const depthBorder = DEPTH_LEFT_BORDER[Math.min(depth, DEPTH_LEFT_BORDER.length - 1)];
+
+  // Scope: split context into categories
+  const inheritedEntries = data.context.filter((e) => !e.isNew);
+  const newEntries = data.context.filter((e) => e.isNew);
+  const totalBindings = data.context.length;
+
+  // Further split into Global (definitions) vs Local (proof-introduced)
+  const globalEntries = data.context.filter((e) => e.origin === "definition" || e.origin === "inherited");
+  const localEntries = data.context.filter((e) => e.origin !== "definition" && e.origin !== "inherited");
+
   const handleGoalClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     selectNode(id);
@@ -239,8 +262,9 @@ export const GoalNode = memo(function GoalNode({
   return (
     <div
       className={cn(
-        "min-w-[200px] max-w-[320px] rounded-lg border-2 shadow-sm transition-all",
+        "min-w-[200px] max-w-[320px] rounded-lg border-2 border-l-[5px] shadow-sm transition-all",
         statusColors[data.status],
+        depthBorder,
         selected && "ring-2 ring-primary ring-offset-2",
         isDragOver &&
           data.status !== "completed" &&
@@ -255,7 +279,7 @@ export const GoalNode = memo(function GoalNode({
       {/* Parameter input modal */}
       {pendingTactic && (
         <div className="absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-black/50">
-          <div className="mx-2 rounded-lg bg-white p-3 shadow-xl">
+          <div className="mx-2 rounded-lg bg-white p-3 shadow-xl min-w-[220px]">
             <div className="mb-2 text-sm font-medium">
               {pendingTactic.needsParam === "variable"
                 ? "Enter target variable:"
@@ -263,7 +287,7 @@ export const GoalNode = memo(function GoalNode({
             </div>
             <input
               type="text"
-              className="mb-2 w-full rounded border px-2 py-1 font-mono text-sm"
+              className="mb-1 w-full rounded border px-2 py-1 font-mono text-sm"
               placeholder={
                 pendingTactic.needsParam === "variable"
                   ? "e.g., n"
@@ -277,7 +301,15 @@ export const GoalNode = memo(function GoalNode({
               }}
               autoFocus
             />
-            <div className="flex gap-2">
+            {/* Live type match preview */}
+            <TypeMatchPreview
+              input={paramInput}
+              context={data.context}
+              goalType={data.goalType}
+              tacticType={pendingTactic.type}
+              needsParam={pendingTactic.needsParam}
+            />
+            <div className="flex gap-2 mt-2">
               <button
                 className="flex-1 rounded bg-blue-500 px-2 py-1 text-xs text-white hover:bg-blue-600"
                 onClick={handleSubmitParam}
@@ -338,6 +370,16 @@ export const GoalNode = memo(function GoalNode({
               </button>
             )}
             <span className="text-xs font-medium text-gray-500">Goal</span>
+            {/* Scope indicator: Γ with binding count */}
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[9px] font-bold font-mono leading-none",
+                "bg-slate-100 text-slate-600",
+              )}
+              title={`Scope: ${totalBindings} binding${totalBindings !== 1 ? "s" : ""} (${inheritedEntries.length} inherited, ${newEntries.length} new)`}
+            >
+              Γ{totalBindings > 0 ? `·${totalBindings}` : ""}
+            </span>
             {/* Hint button - only show for non-completed goals */}
             {data.status !== "completed" && data.status !== "todo" && (
               <button
@@ -376,11 +418,6 @@ export const GoalNode = memo(function GoalNode({
           </span>
         </div>
 
-        {/* Goal type */}
-        <div className="rounded bg-white/50 p-2 font-mono text-sm break-all">
-          {data.goalType}
-        </div>
-
         {/* Collapsed branch indicator */}
         {isCollapsed && (
           <div className="mt-2 text-xs text-green-600 italic flex items-center gap-1">
@@ -390,29 +427,64 @@ export const GoalNode = memo(function GoalNode({
         )}
       </div>
 
-      {/* Context variables as subblocks - only show local (introduced) variables */}
-      {(() => {
-        const localContext = data.context.filter(
-          (entry) => entry.origin === "introduced",
-        );
-        return localContext.length > 0 ? (
-          <div className="border-t border-gray-200 p-2">
-            <div className="mb-2 text-xs font-medium text-gray-500">
-              Local Context
-            </div>
-            <div className="space-y-1">
-              {localContext.map((entry) => (
-                <ContextVarBlock
-                  key={entry.id}
-                  entry={entry}
-                  goalId={id}
-                  isSelected={selectedNodeId === `${id}-ctx-${entry.id}`}
-                />
-              ))}
-            </div>
+      {/* Scope: Environment display with Global/Local partitions */}
+      {data.context.length > 0 && (
+        <div className="border-t border-gray-200 px-3 py-2">
+          <div className="mb-1.5 text-[10px] font-medium text-gray-400 tracking-wide">
+            SCOPE
           </div>
-        ) : null;
-      })()}
+          <div className="space-y-0.5">
+            {/* Global bindings (definitions & theorems) */}
+            {globalEntries.length > 0 && (
+              <>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="text-[8px] font-semibold text-purple-400 tracking-widest">GLOBAL</span>
+                  <span className="text-[8px] text-gray-300">({globalEntries.length})</span>
+                </div>
+                {globalEntries.map((entry) => (
+                  <ScopeBinding key={entry.id} entry={entry} isNew={false} goalId={id} isSelected={selectedNodeId === `${id}-ctx-${entry.id}`} />
+                ))}
+              </>
+            )}
+            {/* Separator between global and local */}
+            {globalEntries.length > 0 && localEntries.length > 0 && (
+              <div className="border-t border-dashed border-blue-200 my-1" />
+            )}
+            {/* Local bindings (proof-introduced variables) */}
+            {localEntries.length > 0 && (
+              <>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="text-[8px] font-semibold text-blue-400 tracking-widest">LOCAL</span>
+                  <span className="text-[8px] text-gray-300">({localEntries.length})</span>
+                </div>
+                {localEntries.map((entry) => (
+                  <ScopeBinding key={entry.id} entry={entry} isNew={!!entry.isNew} goalId={id} isSelected={selectedNodeId === `${id}-ctx-${entry.id}`} />
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Goal type: ⊢ T */}
+      <div className="border-t border-gray-200 px-3 py-2">
+        <div className="flex items-start gap-1.5">
+          <span className="font-mono text-sm text-gray-400 select-none shrink-0">⊢</span>
+          <div className="rounded bg-white/50 p-1.5 font-mono text-sm break-all flex-1">
+            {data.goalType}
+          </div>
+        </div>
+      </div>
+
+      {/* Type error visualization */}
+      {data.lastTacticError && (
+        <TypeErrorDisplay
+          error={data.lastTacticError as ErrorDetail}
+          failedTactic={data.lastFailedTactic as string | undefined}
+          goalType={data.goalType}
+          onDismiss={() => updateNode(id, { lastTacticError: undefined, lastFailedTactic: undefined })}
+        />
+      )}
 
       {/* Output handle (to tactic) */}
       <Handle
@@ -426,47 +498,258 @@ export const GoalNode = memo(function GoalNode({
 });
 
 /**
- * Context Variable Subblock
+ * ScopeBinding — compact display of one binding in the Environment.
  *
- * Displays a local context variable inside a goal node.
- * Has a handle on the right side that can connect to tactics that need this variable
- * (e.g., elimNat, elimList, apply).
+ * New entries (isNew=true) get green highlight; inherited entries are dimmed.
+ * Origin tags (def / ih) are shown as tiny badges.
  */
-function ContextVarBlock({
+const ORIGIN_TAG: Record<string, { label: string; cls: string } | undefined> = {
+  definition:              { label: "def", cls: "bg-purple-200 text-purple-700" },
+  inherited:               { label: "def", cls: "bg-purple-200 text-purple-700" },
+  "inductive-hypothesis":  { label: "ih",  cls: "bg-orange-200 text-orange-700" },
+};
+
+function ScopeBinding({
   entry,
+  isNew,
   isSelected,
 }: {
   entry: ContextEntry;
-  goalId: string; // kept for future use
+  isNew: boolean;
+  goalId: string;
   isSelected: boolean;
 }) {
+  const tag = ORIGIN_TAG[entry.origin];
+
   return (
     <div
       className={cn(
-        "relative flex items-center justify-between rounded border border-blue-300 bg-blue-50 px-2 py-1",
+        "relative flex items-center gap-1.5 rounded px-1.5 py-0.5",
+        isNew
+          ? "bg-emerald-50 border border-emerald-200"
+          : "bg-gray-50/50",
         isSelected && "ring-1 ring-primary",
       )}
     >
-      <div className="flex items-center gap-2">
-        <span className="font-mono text-sm font-semibold text-blue-700">
-          {entry.name}
+      {/* New indicator */}
+      {isNew && (
+        <span className="text-emerald-500 text-[10px] font-bold select-none">+</span>
+      )}
+
+      {/* Origin tag */}
+      {tag && (
+        <span className={cn("rounded px-1 py-0 text-[8px] font-medium leading-tight", tag.cls)}>
+          {tag.label}
         </span>
-        <span className="text-xs text-gray-500">:</span>
-        <span
-          className="font-mono text-xs text-gray-600 truncate max-w-[140px]"
-          title={entry.type}
-        >
-          {entry.type}
-        </span>
-      </div>
+      )}
+
+      {/* name : type */}
+      <span className={cn(
+        "font-mono text-xs font-semibold",
+        isNew ? "text-emerald-700" : "text-gray-500",
+      )}>
+        {entry.name}
+      </span>
+      <span className={cn("text-[10px]", isNew ? "text-emerald-400" : "text-gray-300")}>:</span>
+      <span
+        className={cn(
+          "font-mono text-[11px] truncate max-w-[160px]",
+          isNew ? "text-emerald-600" : "text-gray-400",
+        )}
+        title={entry.type}
+      >
+        {entry.type}
+      </span>
 
       {/* Handle for connecting this variable to tactics */}
       <Handle
         type="source"
         position={Position.Right}
         id={`ctx-${entry.id}`}
-        className="!right-[-6px] !h-2.5 !w-2.5 !border-2 !border-blue-400 !bg-blue-100"
+        className={cn(
+          "!right-[-6px] !h-2 !w-2 !border-2",
+          isNew ? "!border-emerald-400 !bg-emerald-100" : "!border-gray-300 !bg-gray-100",
+        )}
       />
+    </div>
+  );
+}
+
+/**
+ * TypeMatchPreview — live preview of whether the entered variable/expression matches the goal.
+ */
+function TypeMatchPreview({
+  input,
+  context,
+  goalType,
+  tacticType,
+  needsParam,
+}: {
+  input: string;
+  context: ContextEntry[];
+  goalType: string;
+  tacticType: TacticType;
+  needsParam: "variable" | "expression" | null;
+}) {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // For exact/exists: look up the expression in context (only simple identifiers)
+  if (needsParam === "expression") {
+    // Only preview for simple variable names (not S-expressions)
+    if (trimmed.startsWith("(")) {
+      return (
+        <div className="text-[10px] text-gray-400 italic py-0.5">
+          Expression — type checked on apply
+        </div>
+      );
+    }
+
+    const entry = context.find((e) => e.name === trimmed);
+    if (!entry) {
+      return (
+        <div className="flex items-center gap-1 py-0.5">
+          <span className="text-[10px] text-amber-600">?</span>
+          <span className="text-[10px] text-amber-600 font-mono">{trimmed}</span>
+          <span className="text-[10px] text-amber-500">not in scope</span>
+        </div>
+      );
+    }
+
+    // Compare type
+    const matches = entry.type === goalType;
+    return (
+      <div className={cn("rounded px-1.5 py-1 mt-0.5", matches ? "bg-green-50" : "bg-red-50")}>
+        <div className="flex items-center gap-1">
+          <span className={cn("text-[10px] font-bold", matches ? "text-green-600" : "text-red-500")}>
+            {matches ? "✓" : "✗"}
+          </span>
+          <span className="text-[10px] font-mono font-semibold text-gray-700">{trimmed}</span>
+          <span className="text-[10px] text-gray-400">:</span>
+          <span className={cn("text-[10px] font-mono", matches ? "text-green-600" : "text-red-500")}>
+            {entry.type}
+          </span>
+        </div>
+        {!matches && (
+          <div className="text-[10px] text-red-400 mt-0.5">
+            goal expects: <span className="font-mono">{goalType}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // For elimination tactics: show the variable's type
+  if (needsParam === "variable") {
+    const entry = context.find((e) => e.name === trimmed);
+    if (!entry) {
+      return (
+        <div className="flex items-center gap-1 py-0.5">
+          <span className="text-[10px] text-amber-600">?</span>
+          <span className="text-[10px] font-mono text-amber-600">{trimmed}</span>
+          <span className="text-[10px] text-amber-500">not in scope</span>
+        </div>
+      );
+    }
+
+    // For elim tactics, the variable should be of a specific type (Nat, List, etc.)
+    const elimExpected: Record<string, string> = {
+      elimNat: "Nat", elimList: "List", elimVec: "Vec",
+      elimEither: "Either", elimEqual: "=", elimAbsurd: "Absurd",
+    };
+    const expectedType = elimExpected[tacticType];
+    const typeMatches = expectedType ? entry.type.includes(expectedType) : true;
+
+    return (
+      <div className={cn("rounded px-1.5 py-1 mt-0.5", typeMatches ? "bg-blue-50" : "bg-red-50")}>
+        <div className="flex items-center gap-1">
+          <span className={cn("text-[10px] font-bold", typeMatches ? "text-blue-600" : "text-red-500")}>
+            {typeMatches ? "✓" : "✗"}
+          </span>
+          <span className="text-[10px] font-mono font-semibold text-gray-700">{trimmed}</span>
+          <span className="text-[10px] text-gray-400">:</span>
+          <span className={cn("text-[10px] font-mono", typeMatches ? "text-blue-600" : "text-red-500")}>
+            {entry.type}
+          </span>
+        </div>
+        {!typeMatches && expectedType && (
+          <div className="text-[10px] text-red-400 mt-0.5">
+            {tacticType} expects type containing <span className="font-mono">{expectedType}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+/**
+ * TypeErrorDisplay — shows type mismatch / error details directly on the goal node.
+ */
+function TypeErrorDisplay({
+  error,
+  failedTactic,
+  goalType,
+  onDismiss,
+}: {
+  error: ErrorDetail;
+  failedTactic?: string;
+  goalType: string;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="border-t-2 border-red-300 bg-red-50 px-3 py-2">
+      {/* Header with dismiss */}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3 text-red-500" />
+          <span className="text-[10px] font-medium text-red-600">
+            {failedTactic ? `${failedTactic} failed` : "Type Error"}
+          </span>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+          className="p-0.5 rounded hover:bg-red-200 text-red-400 hover:text-red-600"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+
+      {error.kind === "type-mismatch" && (
+        <div className="space-y-1">
+          <div className="flex items-start gap-1">
+            <span className="text-[10px] text-red-400 font-medium shrink-0 w-12">expect:</span>
+            <span className="font-mono text-[11px] text-green-700 bg-green-50 rounded px-1 break-all">
+              {error.expected || goalType}
+            </span>
+          </div>
+          <div className="flex items-start gap-1">
+            <span className="text-[10px] text-red-400 font-medium shrink-0 w-12">got:</span>
+            <span className="font-mono text-[11px] text-red-700 bg-red-100 rounded px-1 break-all">
+              {error.got}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {error.kind === "pi-type-hint" && (
+        <div className="text-[11px] text-red-600">
+          <span className="font-mono font-semibold">{error.lemmaName}</span>
+          {" needs "}
+          <span className="font-bold">{error.paramCount}</span>
+          {" parameter(s) — use "}
+          <span className="font-mono bg-red-100 rounded px-1">
+            ({error.lemmaName} arg1{error.paramCount > 1 ? " arg2" : ""}{error.paramCount > 2 ? " ..." : ""})
+          </span>
+        </div>
+      )}
+
+      {error.kind === "generic" && (
+        <div className="text-[11px] text-red-600 break-all line-clamp-3">
+          {error.message}
+        </div>
+      )}
     </div>
   );
 }

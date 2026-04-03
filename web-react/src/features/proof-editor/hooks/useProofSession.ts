@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import { proofWorker } from "@/shared/lib/worker-client";
 import { useProofStore } from "../store";
 import { useMetadataStore } from "../store/metadata-store";
+import { useExampleStore } from "../store/example-store";
+import { generateProofScript } from "../utils/generate-proof-script";
 import type {
   TacticParameters,
   StartSessionResponse,
@@ -9,6 +11,54 @@ import type {
   SerializableLemma,
   GlobalContext,
 } from "@/workers/proof-worker";
+
+/** Walk forward from startIndex balancing parens, returns index of closing ')'. */
+function findClosingParen(source: string, startIndex: number): number {
+  let depth = 0;
+  for (let i = startIndex; i < source.length; i++) {
+    if (source[i] === "(") depth++;
+    else if (source[i] === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return source.length - 1;
+}
+
+/**
+ * Inject (or replace) a proof script in source code.
+ * - Removes any existing (define-tactically claimName ...) block
+ * - Inserts the new proof script right after (claim claimName ...)
+ */
+function injectProofIntoSource(
+  sourceCode: string,
+  claimName: string,
+  proofScript: string,
+): string {
+  let src = sourceCode;
+
+  // Step 1: Remove existing (define-tactically claimName ...) if present
+  const definePattern = `(define-tactically ${claimName}`;
+  const defineIdx = src.indexOf(definePattern);
+  if (defineIdx !== -1) {
+    const end = findClosingParen(src, defineIdx);
+    // Also trim leading whitespace/newlines before the block
+    const before = src.slice(0, defineIdx).trimEnd();
+    const after = src.slice(end + 1);
+    src = before + after;
+  }
+
+  // Step 2: Find (claim claimName ...) and insert proof script after it
+  const claimPattern = `(claim ${claimName}`;
+  const claimIdx = src.indexOf(claimPattern);
+  if (claimIdx === -1) {
+    return src.trimEnd() + "\n\n" + proofScript;
+  }
+  const claimEnd = findClosingParen(src, claimIdx);
+  const before = src.slice(0, claimEnd + 1);
+  const after = src.slice(claimEnd + 1);
+  return before + "\n\n" + proofScript + after;
+}
 
 /**
  * Hook for managing proof sessions with the proof worker.
@@ -63,10 +113,8 @@ export function useProofSession() {
         setAvailableLemmas(result.availableLemmas);
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
-        setMetadataClaimName(claimName); // Store claim name in metadata store
-        setSourceCode(sourceCode); // Store source code for goal descriptions
-
-        setMetadataClaimName(claimName); // Store claim name in metadata store
+        setMetadataClaimName(claimName);
+        setSourceCode(sourceCode);
 
         return result;
       } catch (e) {
@@ -119,7 +167,22 @@ export function useProofSession() {
         );
 
         if (result.success) {
-          // Sync the updated proof tree to the store
+          // When proof is complete, inject the proof script FIRST (synchronous Zustand update)
+          // so exampleSource is guaranteed up-to-date before syncFromWorker triggers React re-renders.
+          if (result.proofTree.isComplete) {
+            const currentClaimName = useMetadataStore.getState().claimName;
+            if (currentClaimName) {
+              const script = generateProofScript(result.proofTree, currentClaimName);
+              const currentSource = useExampleStore.getState().exampleSource ?? "";
+              const updatedSource = injectProofIntoSource(currentSource, currentClaimName, script);
+              if (updatedSource !== currentSource) {
+                useExampleStore.getState().setExampleSource(updatedSource);
+              }
+            }
+          }
+
+          // Then sync the proof tree — this triggers React re-renders.
+          // By this point, exampleSource already contains the injected define-tactically.
           syncFromWorker(result.proofTree, sessionId);
           saveSnapshot();
         } else if (result.error) {

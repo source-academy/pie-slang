@@ -224,41 +224,91 @@ export function GoalDetailPanel() {
         )}
       </div>
 
-      {/* Context */}
+      {/* Scope / Environment — Global vs Local partitions */}
       <div className="p-4">
         <div className="mb-2 text-xs font-medium text-gray-500">
-          Context ({data.context.length} binding
+          Scope ({data.context.length} binding
           {data.context.length !== 1 ? "s" : ""})
         </div>
         {data.context.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No context bindings</p>
+          <p className="text-sm text-gray-400 italic">No bindings in scope</p>
         ) : (
           <div className="space-y-2">
-            {data.context.map((entry) => (
-              <div
-                key={entry.id}
-                className={cn(
-                  "rounded border p-2",
-                  entry.origin === "introduced"
-                    ? "border-blue-200 bg-blue-50"
-                    : "border-gray-200 bg-gray-50",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm font-semibold text-blue-700">
-                    {entry.name}
-                  </span>
-                  {entry.origin === "introduced" && (
-                    <span className="rounded bg-blue-200 px-1.5 py-0.5 text-[10px] text-blue-700">
-                      introduced
-                    </span>
+            {/* Global bindings (definitions & theorems) */}
+            {(() => {
+              const globalEntries = data.context.filter((e) => e.origin === "definition" || e.origin === "inherited");
+              const localEntries = data.context.filter((e) => e.origin !== "definition" && e.origin !== "inherited");
+              return (
+                <>
+                  {globalEntries.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold text-purple-500 tracking-wide">GLOBAL</span>
+                        <span className="text-[10px] text-gray-400">— definitions & theorems</span>
+                      </div>
+                      {globalEntries.map((entry) => (
+                        <div key={entry.id} className="rounded border border-purple-100 bg-purple-50/50 p-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-sm font-semibold text-purple-700">
+                              {entry.name}
+                            </span>
+                            <span className="rounded px-1.5 py-0.5 text-[10px] bg-purple-200 text-purple-700">
+                              def
+                            </span>
+                          </div>
+                          <div className="mt-1 font-mono text-xs text-purple-500">
+                            : {entry.type}
+                          </div>
+                        </div>
+                      ))}
+                    </>
                   )}
-                </div>
-                <div className="mt-1 font-mono text-xs text-gray-600">
-                  : {entry.type}
-                </div>
-              </div>
-            ))}
+                  {globalEntries.length > 0 && localEntries.length > 0 && (
+                    <div className="border-t border-dashed border-blue-200 my-1" />
+                  )}
+                  {localEntries.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold text-blue-500 tracking-wide">LOCAL</span>
+                        <span className="text-[10px] text-gray-400">— this proof only</span>
+                      </div>
+                      {localEntries.map((entry) => {
+                        const isNew = !!entry.isNew;
+                        const tag = entry.origin === "inductive-hypothesis"
+                          ? { badge: "ih", badgeBg: "bg-orange-200 text-orange-700" }
+                          : isNew
+                            ? { badge: "new", badgeBg: "bg-emerald-200 text-emerald-700" }
+                            : { badge: "local", badgeBg: "bg-blue-200 text-blue-700" };
+                        return (
+                          <div key={entry.id} className={cn(
+                            "rounded border p-2",
+                            isNew ? "border-emerald-200 bg-emerald-50" : "border-blue-100 bg-blue-50/50"
+                          )}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                {isNew && <span className="text-emerald-500 text-xs font-bold">+</span>}
+                                <span className={cn(
+                                  "font-mono text-sm font-semibold",
+                                  isNew ? "text-emerald-700" : "text-blue-700"
+                                )}>
+                                  {entry.name}
+                                </span>
+                              </div>
+                              <span className={cn("rounded px-1.5 py-0.5 text-[10px]", tag.badgeBg)}>
+                                {tag.badge}
+                              </span>
+                            </div>
+                            <div className={cn("mt-1 font-mono text-xs", isNew ? "text-emerald-600" : "text-blue-500")}>
+                              : {entry.type}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

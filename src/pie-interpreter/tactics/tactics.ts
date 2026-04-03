@@ -55,7 +55,7 @@ export class IntroTactic extends Tactic {
   }
 
   toString(): string {
-    return `intro ${this.varName || ""}`;
+    return `intro ${this.varName || ""}`.trimEnd();
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -69,6 +69,8 @@ export class IntroTactic extends Tactic {
     }
 
     const name = this.varName || goalType.argName || fresh(currentGoal.context, "x");
+    // Store the resolved name so toString() reflects the actual variable used
+    this.varName = name;
 
     const newRenaming = currentGoal.renaming
     if (name !== goalType.argName) {
@@ -207,7 +209,7 @@ export class EliminateNatTactic extends Tactic {
   }
 
   toString(): string {
-    return `ind-nat ${this.target}`;
+    return `elim-Nat ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -320,9 +322,7 @@ export class EliminateListTactic extends Tactic {
   }
 
   toString(): string {
-    return this.motive
-      ? `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`
-      : `ind-list ${this.target}`;
+    return `elim-List ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -454,7 +454,7 @@ export class EliminateVecTactic extends Tactic {
   }
 
   toString(): string {
-    return `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`;
+    return `elim-Vec ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -560,9 +560,7 @@ export class EliminateEqualTactic extends Tactic {
   }
 
   toString(): string {
-    return this.motive
-      ? `ind-equal ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-equal ${this.target}`;
+    return `elim-Equal ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -742,9 +740,7 @@ export class EliminateEitherTactic extends Tactic {
   }
 
   toString(): string {
-    return this.motive
-      ? `ind-Either ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-Either ${this.target}`;
+    return `elim-Either ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -930,9 +926,7 @@ export class EliminateAbsurdTactic extends Tactic {
   }
 
   toString(): string {
-    return this.motive
-      ? `ind-Absurd ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-Absurd ${this.target}`;
+    return `elim-Absurd ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {

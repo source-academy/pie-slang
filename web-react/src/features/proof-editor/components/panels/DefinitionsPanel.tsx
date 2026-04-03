@@ -13,9 +13,9 @@ interface DefinitionsPanelProps {
 /**
  * DefinitionsPanel Component
  *
- * A collapsible right sidebar showing global definitions and theorems
- * from the source code. Users can click on items to see their types
- * and copy names for use in expressions.
+ * Scratch-style theorem library zone showing global definitions and theorems.
+ * Theorems/claims can be dragged onto the proof canvas as lemma blocks.
+ * Visual style uses Scratch-like colored blocks with notch indicators.
  */
 export function DefinitionsPanel({
   definitions,
@@ -24,7 +24,7 @@ export function DefinitionsPanel({
   collapsed = false,
   onToggleCollapse,
 }: DefinitionsPanelProps) {
-  const [expandedSection, setExpandedSection] = useState<'definitions' | 'theorems' | null>('definitions');
+  const [expandedSection, setExpandedSection] = useState<'definitions' | 'theorems' | null>('theorems');
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
 
   const handleItemClick = (name: string) => {
@@ -68,6 +68,29 @@ export function DefinitionsPanel({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        {/* Theorem Library Zone */}
+        {theorems.length > 0 && (
+          <Section
+            title="Theorem Library"
+            count={theorems.length}
+            expanded={expandedSection === 'theorems'}
+            onToggle={() => setExpandedSection(expandedSection === 'theorems' ? null : 'theorems')}
+            accentColor="green"
+          >
+            <div className="text-[10px] text-gray-400 px-1 mb-1">
+              Drag onto canvas to use as lemma
+            </div>
+            {theorems.map((thm) => (
+              <TheoremBlock
+                key={thm.name}
+                entry={thm}
+                isSelected={selectedItem === thm.name}
+                onClick={() => handleItemClick(thm.name)}
+              />
+            ))}
+          </Section>
+        )}
+
         {/* Definitions Section */}
         {definitions.length > 0 && (
           <Section
@@ -75,32 +98,14 @@ export function DefinitionsPanel({
             count={definitions.length}
             expanded={expandedSection === 'definitions'}
             onToggle={() => setExpandedSection(expandedSection === 'definitions' ? null : 'definitions')}
+            accentColor="purple"
           >
             {definitions.map((def) => (
-              <ContextItem
+              <DefinitionBlock
                 key={def.name}
                 entry={def}
                 isSelected={selectedItem === def.name}
                 onClick={() => handleItemClick(def.name)}
-              />
-            ))}
-          </Section>
-        )}
-
-        {/* Theorems Section */}
-        {theorems.length > 0 && (
-          <Section
-            title="Theorems & Claims"
-            count={theorems.length}
-            expanded={expandedSection === 'theorems'}
-            onToggle={() => setExpandedSection(expandedSection === 'theorems' ? null : 'theorems')}
-          >
-            {theorems.map((thm) => (
-              <ContextItem
-                key={thm.name}
-                entry={thm}
-                isSelected={selectedItem === thm.name}
-                onClick={() => handleItemClick(thm.name)}
               />
             ))}
           </Section>
@@ -120,23 +125,30 @@ export function DefinitionsPanel({
 }
 
 /**
- * Collapsible section header
+ * Collapsible section with accent color
  */
 function Section({
   title,
   count,
   expanded,
   onToggle,
+  accentColor,
   children,
 }: {
   title: string;
   count: number;
   expanded: boolean;
   onToggle: () => void;
+  accentColor: 'green' | 'purple';
   children: React.ReactNode;
 }) {
+  const accentStyles = {
+    green: 'border-l-green-400',
+    purple: 'border-l-purple-400',
+  };
+
   return (
-    <div className="rounded border bg-white">
+    <div className={cn("rounded border bg-white border-l-[3px]", accentStyles[accentColor])}>
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between p-2 text-left hover:bg-gray-50"
@@ -173,9 +185,9 @@ function Section({
 }
 
 /**
- * Individual context item (definition or theorem)
+ * Scratch-style theorem block — draggable onto canvas
  */
-function ContextItem({
+function TheoremBlock({
   entry,
   isSelected,
   onClick,
@@ -184,35 +196,104 @@ function ContextItem({
   isSelected: boolean;
   onClick: () => void;
 }) {
-  const kindBadge = {
-    definition: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'def' },
-    claim: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'claim' },
-    theorem: { bg: 'bg-green-100', text: 'text-green-700', label: 'thm' },
-  }[entry.kind];
+  const isProven = entry.kind === 'theorem';
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/theorem-name', entry.name);
+    e.dataTransfer.setData('application/theorem-type', entry.type);
+    e.dataTransfer.setData('application/theorem-kind', entry.kind);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  return (
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      onClick={onClick}
+      className={cn(
+        'group rounded-md border-2 px-2 py-1.5 cursor-grab active:cursor-grabbing transition-all',
+        isProven
+          ? 'border-green-300 bg-green-50 hover:border-green-400 hover:shadow-sm'
+          : 'border-amber-300 bg-amber-50 hover:border-amber-400 hover:shadow-sm',
+        isSelected && 'ring-2 ring-primary ring-offset-1',
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {/* Scratch-style notch indicator */}
+        <div className={cn(
+          "w-1.5 h-4 rounded-sm flex-shrink-0",
+          isProven ? "bg-green-400" : "bg-amber-400",
+        )} />
+        <span className={cn(
+          "text-[10px] px-1 rounded font-medium",
+          isProven ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700',
+        )}>
+          {isProven ? 'thm' : 'claim'}
+        </span>
+        <span className="font-mono text-sm font-medium truncate" title={entry.name}>
+          {entry.name}
+        </span>
+        <span className="ml-auto text-[10px] text-gray-400 group-hover:text-green-600 transition-colors">
+          ↗
+        </span>
+      </div>
+
+      {/* Show type when selected */}
+      {isSelected && (
+        <div className="mt-1.5 pl-5">
+          <div className="font-mono text-[10px] text-gray-600 bg-white/70 rounded p-1.5 break-all leading-relaxed">
+            {entry.type}
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(entry.name);
+            }}
+            className="mt-1 text-[10px] text-blue-600 hover:text-blue-800"
+          >
+            Copy name
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Definition block — global context, non-draggable
+ */
+function DefinitionBlock({
+  entry,
+  isSelected,
+  onClick,
+}: {
+  entry: GlobalContextEntry;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
   return (
     <div
       onClick={onClick}
       className={cn(
-        'group cursor-pointer rounded px-2 py-1.5',
-        'hover:bg-blue-50 border border-transparent hover:border-blue-200',
-        isSelected && 'bg-blue-50 border-blue-200'
+        'group rounded px-2 py-1.5 cursor-pointer transition-all',
+        'border border-purple-200 bg-purple-50/50 hover:bg-purple-50 hover:border-purple-300',
+        isSelected && 'bg-purple-50 border-purple-300',
       )}
     >
       <div className="flex items-center gap-2">
-        <span className={cn('text-[10px] px-1 rounded', kindBadge.bg, kindBadge.text)}>
-          {kindBadge.label}
+        <div className="w-1.5 h-4 rounded-sm flex-shrink-0 bg-purple-400" />
+        <span className="text-[10px] px-1 rounded bg-purple-100 text-purple-700 font-medium">
+          def
         </span>
-        <span className="font-mono text-sm font-medium truncate" title={entry.name}>
+        <span className="font-mono text-sm font-medium truncate text-purple-800" title={entry.name}>
           {entry.name}
         </span>
       </div>
 
       {/* Show type when selected */}
       {isSelected && (
-        <div className="mt-1 pl-6">
-          <div className="text-[10px] text-gray-500 mb-0.5">Type:</div>
-          <div className="font-mono text-xs text-gray-700 bg-gray-100 rounded p-1 break-all">
+        <div className="mt-1.5 pl-5">
+          <div className="font-mono text-[10px] text-gray-600 bg-white/70 rounded p-1.5 break-all leading-relaxed">
             {entry.type}
           </div>
           <button

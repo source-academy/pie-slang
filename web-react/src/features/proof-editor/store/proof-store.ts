@@ -39,6 +39,7 @@ const initialState: ProofState = {
   edges: [],
   rootGoalId: null,
   isProofComplete: false,
+  isComplete: false,
   sessionId: null,
   lastSyncedState: null,
   proofTreeData: null,
@@ -57,6 +58,7 @@ const initialState: ProofState = {
  * Syncs with the proof worker for tactic application.
  */
 export const useProofStore = create<ProofStore>()(
+
   subscribeWithSelector(
     immer((set, get) => ({
       ...initialState,
@@ -269,6 +271,10 @@ export const useProofStore = create<ProofStore>()(
               sourceHandle = "lemma-output";
               targetHandle = "context-input";
               break;
+            case "lemma-to-goal":
+              sourceHandle = "lemma-output";
+              targetHandle = "goal-input";
+              break;
           }
 
           const edge: ProofEdge = {
@@ -345,6 +351,7 @@ export const useProofStore = create<ProofStore>()(
 
           // Invalidate proof state
           state.isProofComplete = false;
+          state.isComplete = false;
           state.proofTreeData = null;
         });
       },
@@ -381,7 +388,7 @@ export const useProofStore = create<ProofStore>()(
                 kind: "lemma",
                 name: thm.name,
                 type: thm.type,
-                source: thm.kind as any,
+                source: thm.kind === "theorem" ? "proven" : thm.kind as "definition" | "claim",
               },
             } as ProofNode;
           });
@@ -480,6 +487,7 @@ export const useProofStore = create<ProofStore>()(
           state.sessionId = sessionId;
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
+          state.isComplete = proofTree.isComplete;
           state.lastSyncedState = { nodes: mergedNodes, edges: mergedEdges };
           state.proofTreeData = proofTree;
           if (claimName) {
@@ -511,7 +519,6 @@ export const useProofStore = create<ProofStore>()(
               // Only auto-collapse if not already expanded by user
               if (!state.collapsedBranches.has(id)) {
                 state.collapsedBranches.add(id);
-                console.log(`[syncFromWorker] Auto-collapsing completed subtree: ${id}`);
               }
             });
           }
@@ -522,6 +529,10 @@ export const useProofStore = create<ProofStore>()(
         set((state) => {
           state.claimName = name;
         });
+      },
+
+      getProofTreeForWorker: () => {
+        return get().proofTreeData;
       },
 
       // ================================================
@@ -910,6 +921,11 @@ function getConnectionData(
     return { kind: "goal-to-lemma" };
   }
 
+  // Lemma → Goal (Direct Application)
+  if (source.type === "lemma" && target.type === "goal") {
+    return { kind: "lemma-to-goal" };
+  }
+
   // Invalid connection
   return null;
 }
@@ -967,6 +983,14 @@ export function isValidConnection(
     );
   }
 
+  // Lemma → Goal (Direct Application)
+  if (sourceNode.type === "lemma" && targetNode.type === "goal") {
+    return (
+      connection.sourceHandle === "lemma-output" &&
+      connection.targetHandle === "goal-input"
+    );
+  }
+
   // All other combinations are invalid
   return false;
 }
@@ -1008,3 +1032,6 @@ export const useGeneratedProofScript = () =>
     if (!s.proofTreeData || !s.claimName) return null;
     return generateProofScript(s.proofTreeData, s.claimName);
   });
+
+
+

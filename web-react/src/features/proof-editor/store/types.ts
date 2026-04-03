@@ -14,8 +14,10 @@ export interface ContextEntry {
   id: string;
   name: string; // Variable name (e.g., "n")
   type: string; // Type expression (e.g., "Nat")
-  origin: "inherited" | "introduced";
+  origin: "definition" | "free" | "inductive-hypothesis" | "inherited" | "introduced";
   introducedBy?: string; // Tactic node ID that introduced this
+  scopeDepth?: number; // 0 = top-level, increments per nested goal
+  isNew?: boolean; // true if this entry was introduced at THIS goal (not inherited from parent)
 }
 
 // ============================================
@@ -60,6 +62,9 @@ export interface GoalNodeData {
   parentGoalId?: string; // For scope inheritance
   completedBy?: string; // Tactic that solved this goal
   isSubtreeComplete?: boolean; // For collapse eligibility
+  depth?: number; // Scope depth in the proof tree (0 = root, increments per tactic)
+  lastTacticError?: ErrorDetail; // Most recent tactic error on this goal
+  lastFailedTactic?: string; // Which tactic produced the error (e.g., "exact (same n)")
   [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
@@ -72,6 +77,11 @@ export interface GoalNodeData {
  */
 export type TacticNodeStatus = "incomplete" | "ready" | "applied" | "error";
 
+export type ErrorDetail =
+  | { kind: "type-mismatch"; expected: string; got: string; message: string }
+  | { kind: "pi-type-hint"; lemmaName: string; paramCount: number; message: string }
+  | { kind: "generic"; message: string };
+
 export interface TacticNodeData {
   kind: "tactic";
   tacticType: TacticType;
@@ -80,6 +90,7 @@ export interface TacticNodeData {
   status: TacticNodeStatus;
   connectedGoalId?: string; // Which goal this tactic is connected to
   errorMessage?: string; // Error message when status is 'error'
+  errorDetail?: ErrorDetail; // Structured error info for richer display
   [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
@@ -112,9 +123,11 @@ export interface ProofEdgeData {
   | "lemma-to-tactic"
   | "context-to-tactic"
   | "goal-to-lemma"
+  | "lemma-to-goal"
   | "context-to-lemma";
   outputIndex?: number; // Which output port of tactic
   contextVarId?: string; // Which context variable (for context-to-tactic edges)
+  paramName?: string; // Which lemma parameter (for context-to-lemma edges)
   [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
@@ -152,6 +165,7 @@ export interface ProofState {
   // Proof metadata
   rootGoalId: string | null;
   isProofComplete: boolean;
+  isComplete: boolean;
 
   // Session tracking (for worker sync)
   sessionId: string | null;
@@ -214,6 +228,9 @@ export interface ProofActions {
 
   // Set claim name (used when starting a session)
   setClaimName: (name: string) => void;
+
+  // Retrieve current worker proof tree data for script export
+  getProofTreeForWorker: () => import("@/workers/proof-worker").ProofTreeData | null;
 
   // History
   saveSnapshot: () => void;

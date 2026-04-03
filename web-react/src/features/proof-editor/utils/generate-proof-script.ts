@@ -14,15 +14,18 @@ export function generateProofScript(
 
   // Start the define-tactically block
   lines.push(`(define-tactically ${claimName}`);
+  lines.push(`  (`);
 
   // Generate tactics from the tree
-  const tacticsBlock = generateTacticsFromNode(proofTree.root, 1);
+  const tacticsBlock = generateTacticsFromNode(proofTree.root, 2); // indent one level deeper
 
   if (tacticsBlock.trim()) {
     lines.push(tacticsBlock);
   } else {
-    lines.push('  ; No tactics applied yet');
+    lines.push('    ; No tactics applied yet');
   }
+
+  lines.push('  )');
 
   lines.push(')');
 
@@ -69,21 +72,19 @@ function generateTacticsFromNode(
         lines.push(childTactics);
       }
     } else {
-      // Multiple children - need a 'then' block
+      // Multiple children (e.g. elim-Nat, elim-Either) — one (then ...) block per branch
       lines.push(`${indent}${wrapTactic(node.appliedTactic)}`);
-      lines.push(`${indent}(then`);
 
       for (const child of node.children) {
         const childTactics = generateTacticsFromNode(child, indentLevel + 1);
+        lines.push(`${indent}(then`);
         if (childTactics.trim()) {
           lines.push(childTactics);
         } else {
-          // If no tactics yet for this branch, add a placeholder comment
           lines.push(`${'  '.repeat(indentLevel + 1)}; TODO: complete this branch`);
         }
+        lines.push(`${indent})`);
       }
-
-      lines.push(`${indent})`);
     }
   }
 
