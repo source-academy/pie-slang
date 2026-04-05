@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
-import type { GlobalContextEntry } from '@/workers/proof-worker';
+import type { GlobalEntry } from '@pie/protocol';
 
 interface DefinitionsPanelProps {
-  definitions: GlobalContextEntry[];
-  theorems: GlobalContextEntry[];
+  definitions: GlobalEntry[];
+  theorems: GlobalEntry[];
   onSelect?: (name: string) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -192,7 +192,7 @@ function TheoremBlock({
   isSelected,
   onClick,
 }: {
-  entry: GlobalContextEntry;
+  entry: GlobalEntry;
   isSelected: boolean;
   onClick: () => void;
 }) {

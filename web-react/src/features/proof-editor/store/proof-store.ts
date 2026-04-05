@@ -28,7 +28,7 @@ import type {
 } from "./types";
 import { convertProofTreeToReactFlow } from "../utils/convert-proof-tree";
 import { generateProofScript } from "../utils/generate-proof-script";
-import type { ProofTreeData } from "@/workers/proof-worker";
+import type { ProofTree, GlobalEntry } from "@pie/protocol";
 
 // Track positions during drag (outside store to avoid re-renders)
 const draggingPositions = new Map<string, { x: number; y: number }>();
@@ -144,13 +144,13 @@ export const useProofStore = create<ProofStore>()(
             (e) => e.source !== id && e.target !== id,
           );
 
-          // If we removed an applied tactic, the proof is no longer valid
-          // Mark proof as incomplete and clear proof tree data
+          // If we removed an applied tactic, mark proof as incomplete.
+          // Reset only the directly connected parent goal to pending.
+          // The next syncFromWorker() call will re-establish correct status.
           if (isAppliedTactic) {
             state.isProofComplete = false;
             state.proofTreeData = null;
 
-            // 1. Reset ONLY the specific goal connected to this tactic
             if (parentGoalIdToReset) {
               const parentGoal = state.nodes.find(
                 (n) => n.id === parentGoalIdToReset,
@@ -159,84 +159,6 @@ export const useProofStore = create<ProofStore>()(
                 const goalData = parentGoal.data as GoalNodeData;
                 goalData.status = "pending";
                 goalData.completedBy = undefined;
-              }
-            }
-
-            // 2. Propagate status changes UP the tree (Negative & Positive propagation)
-            // If a child becomes pending, the parent must become pending.
-            // If all children become done, the parent becomes completed.
-            let changed = true;
-            // Limit iterations to prevent infinite loops in case of cycles (though trees strictly acyclic here)
-            let iterations = 0;
-            while (changed && iterations < 50) {
-              changed = false;
-              iterations++;
-
-              for (const node of state.nodes) {
-                if (node.type !== "goal") continue;
-                const goalData = node.data as GoalNodeData;
-
-                // Skip explicitly marked 'todo' roots (they are "done" by definition locally)
-                if (goalData.status === "todo") continue;
-
-                // Find applied tactic
-                const tacticEdge = state.edges.find(
-                  (e) =>
-                    e.source === node.id && e.data?.kind === "goal-to-tactic",
-                );
-
-                if (!tacticEdge) {
-                  // No tactic? Should be pending.
-                  if (goalData.status !== "pending") {
-                    goalData.status = "pending";
-                    changed = true;
-                  }
-                  continue;
-                }
-
-                const tacticId = tacticEdge.target;
-                const tacticNode = state.nodes.find((n) => n.id === tacticId);
-                // If tactic missing or not applied -> pending
-                // (Unless it's a incomplete tactic node... but status check handles that)
-                if (
-                  !tacticNode ||
-                  (tacticNode.data as TacticNodeData).status !== "applied"
-                ) {
-                  if (goalData.status !== "pending") {
-                    goalData.status = "pending";
-                    changed = true;
-                  }
-                  continue;
-                }
-
-                // Check subgoals
-                const childEdges = state.edges.filter(
-                  (e) =>
-                    e.source === tacticId && e.data?.kind === "tactic-to-goal",
-                );
-
-                if (childEdges.length > 0) {
-                  const allChildrenDone = childEdges.every((edge) => {
-                    const childNode = state.nodes.find(
-                      (n) => n.id === edge.target,
-                    );
-                    const s = (childNode?.data as GoalNodeData)?.status;
-                    return s === "completed" || s === "todo";
-                  });
-
-                  if (allChildrenDone) {
-                    if (goalData.status !== "completed") {
-                      goalData.status = "completed";
-                      changed = true;
-                    }
-                  } else {
-                    if (goalData.status === "completed") {
-                      goalData.status = "pending";
-                      changed = true;
-                    }
-                  }
-                }
-                // (If childEdges.length === 0, it's a leaf tactic like 'exact', status remains as set by worker/logic)
               }
             }
           }
@@ -354,6 +276,9 @@ export const useProofStore = create<ProofStore>()(
           state.isComplete = false;
           state.proofTreeData = null;
         });
+
+        // Save snapshot AFTER deletion so redo can restore the post-deletion state
+        get().saveSnapshot();
       },
 
       // ================================================
@@ -361,10 +286,10 @@ export const useProofStore = create<ProofStore>()(
       // ================================================
 
       syncFromWorker: (
-        proofTree: ProofTreeData,
+        proofTree: ProofTree,
         sessionId: string,
         claimName?: string,
-        theorems?: import("@/workers/proof-worker").GlobalContextEntry[],
+        theorems?: GlobalEntry[],
       ) => {
         const { nodes, edges } = convertProofTreeToReactFlow(proofTree);
         const { manualPositions } = get();
@@ -578,143 +503,6 @@ export const useProofStore = create<ProofStore>()(
       // ================================================
       // Proof State
       // ================================================
-
-      checkProofComplete: () => {
-        set((state) => {
-          // Helper to recursively check if a goal and all its descendants are done (completed or todo)
-          const isGoalDone = (goalId: string): boolean => {
-            const goal = state.nodes.find(
-              (n) => n.id === goalId && n.type === "goal",
-            );
-            if (!goal) return true; // Should not happen
-
-            const goalData = goal.data as GoalNodeData;
-
-            // Base case: If explicitly completed or todo, it's personally done
-            // BUT we must also check if it relies on subgoals (e.g. if it was completed by a tactic that has subgoals)
-
-            // Find the tactic connected to this goal
-            const tacticEdge = state.edges.find(
-              (e) => e.source === goalId && e.data?.kind === "goal-to-tactic",
-            );
-            if (!tacticEdge) {
-              // No tactic applied? Then it's only done if explicitly marked todo
-              // (Ideally 'completed' status implies a tactic was applied, but 'todo' might be standalone)
-              return (
-                goalData.status === "completed" || goalData.status === "todo"
-              );
-            }
-
-            const tacticId = tacticEdge.target;
-            const tacticNode = state.nodes.find((n) => n.id === tacticId);
-
-            // If the tactic is a 'todo' tactic, this branch is done
-            if (
-              tacticNode &&
-              (tacticNode.data as TacticNodeData).tacticType === "todo"
-            ) {
-              return true;
-            }
-
-            // Otherwise, check all subgoals generated by this tactic
-            const subgoalEdges = state.edges.filter(
-              (e) => e.source === tacticId && e.data?.kind === "tactic-to-goal",
-            );
-
-            if (subgoalEdges.length === 0) {
-              // No subgoals -> leaf node. Is it completed?
-              return goalData.status === "completed";
-            }
-
-            // Recursive step: All subgoals must be done
-            const allSubgoalsDone = subgoalEdges.every((edge) =>
-              isGoalDone(edge.target),
-            );
-
-            // If all subgoals are done, we can mark this goal as completed (if not already)
-            // Note: In Redux/Immer we can mutate 'goal' here to propagate status!
-            if (
-              allSubgoalsDone &&
-              goalData.status !== "completed" &&
-              goalData.status !== "todo"
-            ) {
-              // Determine if we should mark as 'completed' (fully solved) or something else?
-              // The request says "if a goal has all subgoals either marked as todo or completed then that goal is completed"
-              // We will update the state here to reflect that propagation.
-              goalData.status = "completed";
-            }
-
-            return allSubgoalsDone;
-          };
-
-          // Re-evaluate the root goal (or all top-level goals)
-          // We'll iterate all goals to propagate, starting from leaves effectively by recursion
-          // But since we can't easily topologically sort, let's just re-check "completeness" of the whole proof
-          // The request specifically asks to propagate info upwards.
-
-          // A simpler approach for the store property is:
-          // A proof is complete if ALL pending goals are gone.
-          // BUT we now have 'todo' goals which are "done" in terms of blocking, but valid logic?
-          // The requirements:
-          // 1. "if a goal has all subgoals either marked as todo or completed then that goal is completed"
-
-          // We need to implement a bottom-up propagation or repeated passes.
-          // Let's do a multi-pass propagation until stable, since the tree depth is small.
-          let changed = true;
-          while (changed) {
-            changed = false;
-            for (const node of state.nodes) {
-              if (node.type === "goal") {
-                const goalData = node.data as GoalNodeData;
-                if (
-                  goalData.status === "completed" ||
-                  goalData.status === "todo"
-                )
-                  continue;
-
-                // Find applied tactic
-                const tacticEdge = state.edges.find(
-                  (e) =>
-                    e.source === node.id && e.data?.kind === "goal-to-tactic",
-                );
-                if (!tacticEdge) continue; // No tactic, still pending
-
-                const tacticId = tacticEdge.target;
-                const childEdges = state.edges.filter(
-                  (e) =>
-                    e.source === tacticId && e.data?.kind === "tactic-to-goal",
-                );
-
-                if (childEdges.length > 0) {
-                  const allChildrenDone = childEdges.every((edge) => {
-                    const childNode = state.nodes.find(
-                      (n) => n.id === edge.target,
-                    );
-                    const childStatus = (childNode?.data as GoalNodeData)
-                      ?.status;
-                    return (
-                      childStatus === "completed" || childStatus === "todo"
-                    );
-                  });
-
-                  if (allChildrenDone) {
-                    goalData.status = "completed";
-                    changed = true;
-                  }
-                }
-              }
-            }
-          }
-
-          // Finally, check if the entire proof is arguably "complete" (no pending goals remained)
-          // We consider 'todo' as valid termination for "completing" the interaction, even if logically incomplete.
-          const pendingGoals = state.nodes.filter(
-            (n): n is GoalNode =>
-              n.type === "goal" && n.data.status === "pending",
-          );
-          state.isProofComplete = pendingGoals.length === 0;
-        });
-      },
 
       reset: () => {
         set(() => ({

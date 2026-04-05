@@ -7,7 +7,7 @@ import {
   type TacticInfo,
   type TacticCategory,
 } from '../../data/tactics';
-import type { GlobalContextEntry } from '@/workers/proof-worker';
+import type { GlobalEntry } from '@pie/protocol';
 
 /**
  * LeftSidebar Component
@@ -19,8 +19,8 @@ import type { GlobalContextEntry } from '@/workers/proof-worker';
  */
 
 interface LeftSidebarProps {
-  definitions: GlobalContextEntry[];
-  theorems: GlobalContextEntry[];
+  definitions: GlobalEntry[];
+  theorems: GlobalEntry[];
 }
 
 export function LeftSidebar({ definitions, theorems }: LeftSidebarProps) {
@@ -287,7 +287,7 @@ function ContextItemDraggable({
   entry,
   canApply = false,
 }: {
-  entry: GlobalContextEntry;
+  entry: GlobalEntry;
   canApply?: boolean;
 }) {
   const [showType, setShowType] = useState(false);

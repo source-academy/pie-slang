@@ -5,9 +5,10 @@ import { Lightbulb, Loader2, Sparkles, ChevronRight, ChevronDown, X, AlertTriang
 import type {
   GoalNode as GoalNodeType,
   ContextEntry,
-  TacticType,
   ErrorDetail,
 } from "../../store/types";
+import type { TacticType } from "@pie/protocol";
+import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import {
   useUIStore,
   useGoalHintState,
@@ -135,16 +136,10 @@ export const GoalNode = memo(function GoalNode({
       const tacticInfo = TACTICS.find((t) => t.type === tacticType);
       if (!tacticInfo) return;
 
-      // Check if tactic needs parameters
-      const needsVariable = [
-        "elimNat",
-        "elimList",
-        "elimEither",
-        "elimAbsurd",
-        "elimVec",
-        "elimEqual",
-      ].includes(tacticType);
-      const needsExpression = ["exact", "exists"].includes(tacticType);
+      // Check if tactic needs parameters (derived from protocol)
+      const reqs = TACTIC_REQUIREMENTS[tacticType as TacticType];
+      const needsVariable = reqs?.variableName === true;
+      const needsExpression = reqs?.expression === true;
 
       if (needsVariable) {
         setPendingTactic({ type: tacticType, needsParam: "variable" });

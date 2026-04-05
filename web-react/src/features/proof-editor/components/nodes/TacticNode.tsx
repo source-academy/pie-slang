@@ -4,24 +4,18 @@ import { cn } from "@/shared/lib/utils";
 import { useProofStore } from "../../store";
 import type {
   TacticNode as TacticNodeType,
-  TacticType,
   TacticNodeStatus,
 } from "../../store/types";
+import type { TacticType } from "@pie/protocol";
+import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import { applyTactic as triggerApplyTactic } from "../../utils/tactic-callback";
 
-// Tactics that require a context variable input
-const CONTEXT_INPUT_TACTICS: TacticType[] = [
-  "elimNat",
-  "elimList",
-  "elimVec",
-  "elimEither",
-  "elimEqual",
-  "elimAbsurd",
-  "apply",
-];
+// Derive tactic categories from TACTIC_REQUIREMENTS (protocol.ts)
+const CONTEXT_INPUT_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
+  .filter(t => TACTIC_REQUIREMENTS[t].variableName === true);
 
-// Tactics that don't need any parameters (immediately ready)
-const PARAMETERLESS_TACTICS: TacticType[] = ["split", "left", "right", "todo"];
+const PARAMETERLESS_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
+  .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
 
 // Status-based styling
 const STATUS_STYLES: Record<

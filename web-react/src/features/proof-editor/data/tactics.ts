@@ -1,4 +1,4 @@
-import type { TacticType } from "../store/types";
+import type { TacticType } from "@pie/protocol";
 
 /**
  * Tactic metadata for the palette
@@ -128,6 +128,9 @@ export const TACTICS: TacticInfo[] = [
     requiresContextVar: true,
   },
 ];
+
+// Completeness check: every TacticType from the protocol must appear in TACTICS.
+// Enforced at test time by frontend-architecture.test.ts.
 
 /**
  * Get tactics grouped by category

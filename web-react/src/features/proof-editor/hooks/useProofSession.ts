@@ -5,12 +5,11 @@ import { useMetadataStore } from "../store/metadata-store";
 import { useExampleStore } from "../store/example-store";
 import { generateProofScript } from "../utils/generate-proof-script";
 import type {
-  TacticParameters,
+  TacticParams,
   StartSessionResponse,
-  TacticAppliedResponse,
-  SerializableLemma,
-  GlobalContext,
-} from "@/workers/proof-worker";
+  ApplyTacticResponse,
+} from "@pie/protocol";
+import type { SerializableLemma, GlobalContext } from "@/workers/proof-worker";
 
 /** Walk forward from startIndex balancing parens, returns index of closing ')'. */
 function findClosingParen(source: string, startIndex: number): number {
@@ -146,8 +145,8 @@ export function useProofSession() {
     async (
       goalId: string,
       tacticType: string,
-      params: TacticParameters,
-    ): Promise<TacticAppliedResponse> => {
+      params: TacticParams,
+    ): Promise<ApplyTacticResponse> => {
       if (!sessionId) {
         const errorMessage =
           "No active proof session. Call startSession first.";
@@ -284,9 +283,9 @@ export function useProofSession() {
 
 // Re-export types for convenience
 export type {
-  TacticParameters,
+  TacticParams,
   StartSessionResponse,
-  TacticAppliedResponse,
+  ApplyTacticResponse,
   SerializableLemma,
   GlobalContext,
 };

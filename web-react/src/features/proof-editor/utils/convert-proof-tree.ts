@@ -4,14 +4,14 @@ import type {
   GoalNode,
   TacticNode,
   GoalNodeData,
-  TacticNodeData,
+  TacticParameters,
   ContextEntry,
 } from "../store/types";
 import type {
-  ProofTreeData,
-  SerializableGoalNode,
-  SerializableContextEntry,
-} from "@/workers/proof-worker";
+  ProofTree,
+  GoalNode as ProtoGoalNode,
+  ContextEntry as ProtoContextEntry,
+} from "@pie/protocol";
 import { nanoid } from "nanoid";
 
 // Layout constants
@@ -26,7 +26,7 @@ interface ConversionResult {
 }
 
 /**
- * Convert a ProofTreeData from the worker to React Flow nodes and edges.
+ * Convert a ProofTree from the protocol to React Flow nodes and edges.
  *
  * This function traverses the proof tree and creates:
  * - GoalNode for each goal
@@ -34,7 +34,7 @@ interface ConversionResult {
  * - Edges connecting goals to tactics and tactics to subgoals
  */
 export function convertProofTreeToReactFlow(
-  proofTree: ProofTreeData,
+  proofTree: ProofTree,
 ): ConversionResult {
   const nodes: ProofNode[] = [];
   const edges: ProofEdge[] = [];
@@ -59,7 +59,7 @@ export function convertProofTreeToReactFlow(
  * Returns a map from goal ID to position.
  */
 function calculateTreeLayout(
-  root: SerializableGoalNode,
+  root: ProtoGoalNode,
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
 
@@ -77,7 +77,7 @@ function calculateTreeLayout(
  * Calculate the width of each subtree (for horizontal spacing)
  */
 function calculateSubtreeWidths(
-  node: SerializableGoalNode,
+  node: ProtoGoalNode,
   widths: Map<string, number>,
 ): number {
   if (node.children.length === 0) {
@@ -103,7 +103,7 @@ function calculateSubtreeWidths(
  * Assign positions to nodes based on their subtree widths
  */
 function assignPositions(
-  node: SerializableGoalNode,
+  node: ProtoGoalNode,
   x: number,
   y: number,
   widths: Map<string, number>,
@@ -151,7 +151,7 @@ function assignPositions(
  * Traverse the tree and create React Flow nodes and edges
  */
 function traverseTree(
-  node: SerializableGoalNode,
+  node: ProtoGoalNode,
   nodes: ProofNode[],
   edges: ProofEdge[],
   positions: Map<string, { x: number; y: number }>,
@@ -163,12 +163,9 @@ function traverseTree(
 
   // Determine goal status
   let status: GoalNodeData["status"] = "pending";
-  if (node.completedBy && node.completedBy.toLowerCase().includes("todo")) {
+  if (node.completedBy?.tacticType === "todo") {
     status = "todo";
-  } else if (
-    node.appliedTactic &&
-    node.appliedTactic.toLowerCase().includes("todo")
-  ) {
+  } else if (node.appliedTactic?.tacticType === "todo") {
     status = "todo";
   } else if (node.goal.isComplete) {
     status = "completed";
@@ -198,8 +195,8 @@ function traverseTree(
       expandedGoalType: node.goal.expandedType, // Full expanded type (if different)
       context,
       status,
-      parentGoalId: node.goal.parentId,
-      completedBy: node.completedBy,
+      parentGoalId: undefined,
+      completedBy: node.completedBy?.displayString,
       isSubtreeComplete: node.isSubtreeComplete,
       depth,
     },
@@ -220,9 +217,9 @@ function traverseTree(
       position: tacticPosition,
       data: {
         kind: "tactic",
-        tacticType: parseTacticType(node.appliedTactic),
-        displayName: node.appliedTactic,
-        parameters: {}, // Parameters would need to be serialized from worker
+        tacticType: node.appliedTactic.tacticType,
+        displayName: node.appliedTactic.displayString,
+        parameters: node.appliedTactic.params as TacticParameters,
         status: "applied",
         connectedGoalId: node.goal.id,
       },
@@ -262,9 +259,9 @@ function traverseTree(
       position: tacticPosition,
       data: {
         kind: "tactic",
-        tacticType: parseTacticType(node.completedBy),
-        displayName: node.completedBy,
-        parameters: {},
+        tacticType: node.completedBy.tacticType,
+        displayName: node.completedBy.displayString,
+        parameters: node.completedBy.params as TacticParameters,
         status: "applied",
         connectedGoalId: node.goal.id,
       },
@@ -288,7 +285,7 @@ function traverseTree(
 /**
  * Convert a serializable context entry to internal format
  */
-function classifyContextOrigin(entry: SerializableContextEntry): ContextEntry["origin"] {
+function classifyContextOrigin(entry: ProtoContextEntry): ContextEntry["origin"] {
   if (!entry.introducedBy) {
     // No tactic introduced it — it's a global definition or pre-existing context
     return "definition";
@@ -307,8 +304,6 @@ function classifyContextOrigin(entry: SerializableContextEntry): ContextEntry["o
 
   // Heuristic: if variable name is commonly used for inductive hypotheses,
   // or its type is an equality type (= ...), classify as inductive-hypothesis.
-  // This handles cases where `ih` is introduced by `intro` after `elimNat`
-  // creates a Π-type step goal.
   const nameLC = entry.name.toLowerCase();
   const isIHName = nameLC === "ih" || nameLC.startsWith("ih-") || nameLC.startsWith("ih_");
   const isEqualityType = entry.type.startsWith("(=") || entry.type.startsWith("(= ");
@@ -320,9 +315,9 @@ function classifyContextOrigin(entry: SerializableContextEntry): ContextEntry["o
   return "free";
 }
 
-function convertContextEntry(entry: SerializableContextEntry): ContextEntry {
+function convertContextEntry(entry: ProtoContextEntry): ContextEntry {
   return {
-    id: entry.id || `ctx-${entry.name}`,
+    id: `ctx-${entry.name}`,
     name: entry.name,
     type: entry.type,
     origin: classifyContextOrigin(entry),
@@ -330,33 +325,3 @@ function convertContextEntry(entry: SerializableContextEntry): ContextEntry {
   };
 }
 
-/**
- * Parse a tactic name string to TacticType
- */
-function parseTacticType(tacticName: string): TacticNodeData["tacticType"] {
-  const normalized = tacticName.toLowerCase().replace(/[^a-z]/g, "");
-  const tacticTypes: TacticNodeData["tacticType"][] = [
-    "intro",
-    "exact",
-    "split",
-    "left",
-    "right",
-    "elimNat",
-    "elimList",
-    "elimVec",
-    "elimEither",
-    "elimEqual",
-    "elimAbsurd",
-    "apply",
-    "todo",
-  ];
-
-  for (const type of tacticTypes) {
-    if (normalized.includes(type.toLowerCase())) {
-      return type;
-    }
-  }
-
-  // Default to 'exact' if unknown
-  return "exact";
-}

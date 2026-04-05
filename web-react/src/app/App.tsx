@@ -15,7 +15,7 @@ import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proo
 import { generateProofScript } from '@/features/proof-editor/utils/generate-proof-script';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
 import { ProofPicker } from '@/features/proof-editor/components/ProofPicker';
-import { type GlobalContextEntry } from '@/workers/proof-worker';
+import type { GlobalEntry } from '@pie/protocol';
 
 function AppContent() {
   const { applyTactic, startSession, scan, error, sessionId } = useProofSession();
@@ -26,11 +26,11 @@ function AppContent() {
   const setManualPosition = useProofStore((s) => s.setManualPosition);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
-  const [foundClaims, setFoundClaims] = useState<GlobalContextEntry[]>([]);
-  const [foundTheorems, setFoundTheorems] = useState<GlobalContextEntry[]>([]);
+  const [foundClaims, setFoundClaims] = useState<GlobalEntry[]>([]);
+  const [foundTheorems, setFoundTheorems] = useState<GlobalEntry[]>([]);
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
   // Track previous claims list (used by scan effect)
-  const prevFoundClaimsRef = useRef<GlobalContextEntry[]>([]);
+  const prevFoundClaimsRef = useRef<GlobalEntry[]>([]);
 
   // Use keyboard shortcuts hook
   useKeyboardShortcuts();

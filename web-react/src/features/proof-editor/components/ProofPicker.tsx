@@ -1,8 +1,8 @@
-import { type GlobalContextEntry } from "@/workers/proof-worker";
+import type { GlobalEntry } from "@pie/protocol";
 
 interface ProofPickerProps {
-    claims: GlobalContextEntry[];
-    theorems: GlobalContextEntry[];
+    claims: GlobalEntry[];
+    theorems: GlobalEntry[];
     selectedClaim: string | null;
     onSelect: (claimName: string) => void;
 }
