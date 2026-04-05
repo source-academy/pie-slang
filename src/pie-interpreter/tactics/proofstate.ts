@@ -5,6 +5,7 @@ import { Location } from '../utils/locations';
 import { fresh, go, Perhaps } from '../types/utils';
 import { Renaming } from '../typechecker/utils';
 import { sugarType } from '../unparser/sugar';
+import type { AppliedTactic } from '../protocol';
 
 type GoalId = string;
 
@@ -122,8 +123,8 @@ export class GoalNode {
   public parent: GoalNode | null = null;
   public isComplete: boolean = false;
   public childFocusIndex: number = -1;
-  public appliedTactic?: string;  // Tactic that was applied to create children
-  public completedBy?: string;    // Tactic that directly solved this goal (for leaf nodes)
+  public appliedTactic?: AppliedTactic;  // Tactic that was applied to create children
+  public completedBy?: AppliedTactic;    // Tactic that directly solved this goal (for leaf nodes)
   // Term builder: takes child terms and produces the term for this node
   public termBuilder?: TermBuilder;
 
@@ -199,7 +200,7 @@ export class GoalNode {
       : new Set<string>();
 
     // Get the tactic that created this goal (from parent's appliedTactic)
-    const introducingTactic = this.parent?.appliedTactic;
+    const introducingTactic = this.parent?.appliedTactic?.displayString;
 
     return {
       goal: this.goal.toSerializableWithIntroducedBy(this.isComplete, isCurrent, parentContextNames, introducingTactic),
@@ -412,8 +413,8 @@ export interface SerializableGoal {
 export interface SerializableGoalNode {
   goal: SerializableGoal;
   children: SerializableGoalNode[];
-  appliedTactic?: string;
-  completedBy?: string;  // Tactic that directly solved this leaf goal
+  appliedTactic?: AppliedTactic;
+  completedBy?: AppliedTactic;  // Tactic that directly solved this leaf goal
 }
 
 export interface ProofTreeData {

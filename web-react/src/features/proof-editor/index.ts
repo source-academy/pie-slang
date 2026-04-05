@@ -4,9 +4,9 @@ export * from './store';
 // Hook exports
 export { useProofSession } from './hooks/useProofSession';
 export type {
-  TacticParameters,
+  TacticParams,
   StartSessionResponse,
-  TacticAppliedResponse,
+  ApplyTacticResponse,
   SerializableLemma,
 } from './hooks/useProofSession';
 

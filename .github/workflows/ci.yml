@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, visualization]
+  push:
+    branches: [main, visualization]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Test (including architecture tests)
+        run: yarn test --ci --forceExit
+
+      - name: Frontend tests
+        run: cd web-react && npx vitest run

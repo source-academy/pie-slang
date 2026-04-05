@@ -1,21 +1,14 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
+import type { GlobalEntry } from "@pie/protocol";
 
 // ============================================
 // Metadata Store Types
 // ============================================
 
 export interface GlobalContext {
-  definitions: Array<{
-    name: string;
-    type: string;
-    kind: "definition" | "claim" | "theorem";
-  }>;
-  theorems: Array<{
-    name: string;
-    type: string;
-    kind: "definition" | "claim" | "theorem";
-  }>;
+  definitions: GlobalEntry[];
+  theorems: GlobalEntry[];
 }
 
 export interface MetadataState {

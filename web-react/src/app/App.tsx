@@ -13,6 +13,8 @@ import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
+import { ProofPicker } from '@/features/proof-editor/components/ProofPicker';
+import type { GlobalEntry } from '@pie/protocol';
 
 function AppContent() {
   const { applyTactic, error } = useProofSession();
@@ -21,6 +23,9 @@ function AppContent() {
   const setManualPosition = useProofStore((s) => s.setManualPosition);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
+  const [foundClaims, setFoundClaims] = useState<GlobalEntry[]>([]);
+  const [foundTheorems, setFoundTheorems] = useState<GlobalEntry[]>([]);
+  const [selectedProof, setSelectedProof] = useState<string | null>(null);
 
   // Use keyboard shortcuts hook
   useKeyboardShortcuts();

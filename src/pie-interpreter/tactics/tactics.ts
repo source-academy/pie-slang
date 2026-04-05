@@ -11,6 +11,7 @@ import { fresh } from '../types/utils';
 import { Variable } from '../types/neutral';
 import { convert, extendRenaming, Renaming} from '../typechecker/utils';
 import { Location } from '../utils/locations';
+import type { TacticType, TacticParams, AppliedTactic } from '../protocol';
 import * as V from '../types/value';
 import * as C from '../types/core';
 
@@ -21,22 +22,32 @@ export abstract class Tactic {
 
   abstract toString(): string;
 
+  /** The protocol tactic type identifier. */
+  abstract get tacticType(): TacticType;
+
+  /** The structured parameters for this tactic. */
+  abstract get tacticParams(): TacticParams;
+
+  /** Build a structured AppliedTactic for protocol serialization. */
+  toAppliedTactic(): AppliedTactic {
+    return {
+      tacticType: this.tacticType,
+      params: this.tacticParams,
+      displayString: this.toString(),
+    };
+  }
+
   // Check if branches are pending and this tactic is not allowed
   protected requiresNoBranches(): boolean {
     return true; // Most tactics require no pending branches
   }
 
-  // Wrapper to check pending branches before applying
+  // Wrapper to handle pending branches before applying.
+  // When branches are pending (e.g. after elim-Nat), auto-consume one
+  // so tactics can be applied flat without requiring explicit 'then' blocks.
   protected checkPendingBranches(state: ProofState): Perhaps<null> {
     if (this.requiresNoBranches() && state.pendingBranches > 0) {
-      return new stop(
-        this.location,
-        new Message([
-          `Expected 'then' block to handle subgoal branch. ` +
-          `${state.pendingBranches} branch(es) remaining. ` +
-          `Use (then ...) to group tactics for each subgoal.`
-        ])
-      );
+      state.pendingBranches--;
     }
     return new go(null);
   }
@@ -49,6 +60,9 @@ export class IntroTactic extends Tactic {
   ) {
     super(location);
   }
+
+  get tacticType(): TacticType { return "intro"; }
+  get tacticParams(): TacticParams { return { variableName: this.varName }; }
 
   getName(): string {
     return "intro";
@@ -103,6 +117,9 @@ export class ExactTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "exact"; }
+  get tacticParams(): TacticParams { return { expression: this.term.prettyPrint() }; }
+
   toString(): string {
     return `exact ${this.term.prettyPrint()}`;
   }
@@ -127,7 +144,7 @@ export class ExactTactic extends Tactic {
     state.currentGoal.goal.term = (result as go<Core>).result;
 
     state.currentGoal.isComplete = true;
-    state.currentGoal.completedBy = this.toString();
+    state.currentGoal.completedBy = this.toAppliedTactic();
 
     state.nextGoal()
 
@@ -144,8 +161,11 @@ export class ExistsTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "exists"; }
+  get tacticParams(): TacticParams { return { expression: this.value.prettyPrint(), variableName: this.varName }; }
+
   toString(): string {
-    return `exists ${this.varName || ""}`;
+    return `exists ${this.value.prettyPrint()} ${this.varName || ""}`.trim();
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -206,8 +226,11 @@ export class EliminateNatTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "elimNat"; }
+  get tacticParams(): TacticParams { return { variableName: this.target }; }
+
   toString(): string {
-    return `ind-nat ${this.target}`;
+    return `elim-Nat ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -319,10 +342,13 @@ export class EliminateListTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "elimList"; }
+  get tacticParams(): TacticParams { return { variableName: this.target }; }
+
   toString(): string {
     return this.motive
-      ? `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`
-      : `ind-list ${this.target}`;
+      ? `elim-List ${this.target} to prove ${this.motive.prettyPrint()}`
+      : `elim-List ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -453,8 +479,11 @@ export class EliminateVecTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "elimVec"; }
+  get tacticParams(): TacticParams { return { variableName: this.target }; }
+
   toString(): string {
-    return `ind-list ${this.target} to prove ${this.motive.prettyPrint()}`;
+    return `elim-Vec ${this.target} to prove ${this.motive.prettyPrint()}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -559,10 +588,13 @@ export class EliminateEqualTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "elimEqual"; }
+  get tacticParams(): TacticParams { return { variableName: this.target }; }
+
   toString(): string {
     return this.motive
-      ? `ind-equal ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-equal ${this.target}`;
+      ? `elim-Equal ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `elim-Equal ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -655,6 +687,9 @@ export class LeftTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "left"; }
+  get tacticParams(): TacticParams { return {}; }
+
   toString(): string {
     return `go-Left`;
   }
@@ -696,6 +731,9 @@ export class RightTactic extends Tactic {
   ) {
     super(location);
   }
+
+  get tacticType(): TacticType { return "right"; }
+  get tacticParams(): TacticParams { return {}; }
 
   toString(): string {
     return `go-Right`;
@@ -741,10 +779,13 @@ export class EliminateEitherTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "elimEither"; }
+  get tacticParams(): TacticParams { return { variableName: this.target }; }
+
   toString(): string {
     return this.motive
-      ? `ind-Either ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-Either ${this.target}`;
+      ? `elim-Either ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `elim-Either ${this.target}`;
   }
 
   public apply(state: ProofState): Perhaps<ProofState> {
@@ -866,7 +907,10 @@ export class SpiltTactic extends Tactic {
     location: Location
   ) {
     super(location);
-  } 
+  }
+
+  get tacticType(): TacticType { return "split"; }
+  get tacticParams(): TacticParams { return {}; }
 
   toString(): string {
     return `split-Pair`;
@@ -929,10 +973,13 @@ export class EliminateAbsurdTactic extends Tactic {
     super(location);
   }
 
+  get tacticType(): TacticType { return "elimAbsurd"; }
+  get tacticParams(): TacticParams { return { variableName: this.target }; }
+
   toString(): string {
     return this.motive
-      ? `ind-Absurd ${this.target} with motive ${this.motive.prettyPrint()}`
-      : `ind-Absurd ${this.target}`;
+      ? `elim-Absurd ${this.target} with motive ${this.motive.prettyPrint()}`
+      : `elim-Absurd ${this.target}`;
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -987,7 +1034,7 @@ export class EliminateAbsurdTactic extends Tactic {
     );
     
     state.currentGoal.isComplete = true;
-    state.currentGoal.completedBy = this.toString();
+    state.currentGoal.completedBy = this.toAppliedTactic();
     state.nextGoal()
 
     return new go(state);
@@ -1009,6 +1056,10 @@ export class ThenTactic extends Tactic {
   ) {
     super(location);
   }
+
+  // ThenTactic delegates to its first inner tactic for protocol type
+  get tacticType(): TacticType { return this.tactics[0]?.tacticType ?? "exact"; }
+  get tacticParams(): TacticParams { return this.tactics[0]?.tacticParams ?? {}; }
 
   // ThenTactic doesn't require no branches - it handles them
   protected requiresNoBranches(): boolean {
@@ -1064,6 +1115,9 @@ export class ApplyTactic extends Tactic {
   ) {
     super(location);
   }
+
+  get tacticType(): TacticType { return "apply"; }
+  get tacticParams(): TacticParams { return { expression: this.funcExpr.prettyPrint() }; }
 
   toString(): string {
     return `apply ${this.funcExpr.prettyPrint()}`;

@@ -18,11 +18,12 @@ import { setRequestHintCallback } from "./nodes/GoalNode";
 import { edgeTypes, getEdgeStyle } from "./edges";
 import type {
   ProofNode,
-  TacticType,
   GoalNode,
   TacticNode,
   TacticNodeData,
 } from "../store/types";
+import type { TacticType } from "@pie/protocol";
+import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import type { GhostTacticNodeData } from "./nodes/GhostTacticNode";
 import { useDemoData } from "../hooks/useDemoData";
 import { useHintSystem } from "../hooks/useHintSystem";
@@ -308,8 +309,9 @@ export function ProofCanvas() {
     event.dataTransfer.dropEffect = "copy";
   }, []);
 
-  // Parameterless tactics are immediately ready (no params needed)
-  const PARAMETERLESS_TACTICS = ["split", "left", "right", "todo"];
+  // Derive parameterless tactics from protocol (no variableName, no expression)
+  const PARAMETERLESS_TACTICS = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
+    .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
 
   // Handle drop to create a new tactic node
   const onDrop = useCallback(

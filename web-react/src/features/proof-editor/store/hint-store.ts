@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { HintLevel, ProgressiveHintResponse } from '@/workers/proof-worker';
+import type { HintLevel, HintResponse } from '@pie/protocol';
 
 /**
  * Ghost node representing a hint suggestion
@@ -9,7 +9,7 @@ export interface GhostNode {
   id: string;
   goalId: string;
   position: { x: number; y: number };
-  hint: ProgressiveHintResponse;
+  hint: HintResponse;
   isLoading: boolean;
 }
 
@@ -19,7 +19,7 @@ export interface GhostNode {
 export interface GoalHintState {
   goalId: string;
   currentLevel: HintLevel;
-  hints: ProgressiveHintResponse[]; // History of hints at each level
+  hints: HintResponse[]; // History of hints at each level
   ghostNode: GhostNode | null;
   isLoading: boolean;
   error: string | null;
@@ -50,7 +50,7 @@ export interface HintActions {
   setLoading: (goalId: string, isLoading: boolean) => void;
 
   // Update hint for a goal (called when worker responds)
-  updateHint: (goalId: string, hint: ProgressiveHintResponse) => void;
+  updateHint: (goalId: string, hint: HintResponse) => void;
 
   // Set error for a goal
   setError: (goalId: string, error: string | null) => void;
@@ -138,7 +138,7 @@ export const useHintStore = create<HintStore>()(
       });
     },
 
-    updateHint: (goalId: string, hint: ProgressiveHintResponse) => {
+    updateHint: (goalId: string, hint: HintResponse) => {
       set((state) => {
         const newGoalHints = new Map(state.goalHints);
         const existing = newGoalHints.get(goalId);

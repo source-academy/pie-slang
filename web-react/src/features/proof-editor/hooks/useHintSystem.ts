@@ -2,9 +2,9 @@ import { useCallback, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { proofWorker } from '@/shared/lib/worker-client';
 import { useHintStore, useProofStore } from '../store';
-import type { HintLevel } from '@/workers/proof-worker';
+import type { HintLevel, TacticType } from '@pie/protocol';
+import { TACTIC_REQUIREMENTS } from '@pie/protocol';
 import type { GhostNode } from '../store/hint-store';
-import type { TacticType } from '../store/types';
 
 /**
  * Hook for managing the hint system
@@ -176,11 +176,12 @@ export function useHintSystem() {
 
     if (!goalNode) return;
 
-    // Determine initial status based on whether we have all parameters
+    // Determine initial status based on whether we have all parameters (derived from protocol)
     const tacticType = hint.tacticType!;
-    const needsVariable = ['elimNat', 'elimList', 'elimEither', 'elimAbsurd', 'elimVec', 'elimEqual'].includes(tacticType);
-    const needsExpression = ['exact', 'exists'].includes(tacticType);
-    const isParameterless = ['split', 'left', 'right'].includes(tacticType);
+    const reqs = TACTIC_REQUIREMENTS[tacticType as TacticType];
+    const needsVariable = reqs?.variableName === true;
+    const needsExpression = reqs?.expression === true;
+    const isParameterless = !reqs?.variableName && !reqs?.expression;
 
     let initialStatus: 'incomplete' | 'ready' = 'incomplete';
     if (isParameterless) {
