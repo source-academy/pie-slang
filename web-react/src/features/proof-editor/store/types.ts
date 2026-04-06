@@ -5,43 +5,35 @@ import type {
   EdgeChange,
   Connection,
 } from "@xyflow/react";
+import type {
+  TacticType,
+  TacticParams,
+  ContextEntry as ProtoContextEntry,
+  ProofTree,
+  GlobalEntry,
+} from "@pie/protocol";
+
+// Re-export protocol types used widely across the frontend
+export type { TacticType };
 
 // ============================================
 // Context & Scope Types
+// UI extends protocol ContextEntry with display-layer fields
 // ============================================
 
-export interface ContextEntry {
+export interface ContextEntry extends ProtoContextEntry {
   id: string;
-  name: string; // Variable name (e.g., "n")
-  type: string; // Type expression (e.g., "Nat")
   origin: "inherited" | "introduced";
-  introducedBy?: string; // Tactic node ID that introduced this
 }
 
 // ============================================
 // Tactic Types
+// UI extends protocol TacticParams with frontend-specific fields
 // ============================================
 
-export type TacticType =
-  | "intro"
-  | "exact"
-  | "split"
-  | "left"
-  | "right"
-  | "elimNat"
-  | "elimList"
-  | "elimVec"
-  | "elimEither"
-  | "elimEqual"
-  | "elimAbsurd"
-  | "apply"
-  | "todo";
-
-export interface TacticParameters {
-  variableName?: string; // For intro
-  targetContextId?: string; // For elim tactics
-  expression?: string; // For exact
-  lemmaId?: string; // For apply
+export interface TacticParameters extends TacticParams {
+  targetContextId?: string; // For elim tactics (UI: which context block was connected)
+  lemmaId?: string; // For apply (UI: which lemma node was connected)
   [key: string]: unknown; // Index signature for React Flow compatibility
 }
 
@@ -154,7 +146,7 @@ export interface ProofState {
   lastSyncedState: { nodes: ProofNode[]; edges: ProofEdge[] } | null;
 
   // Proof tree data for script generation
-  proofTreeData: import("@/workers/proof-worker").ProofTreeData | null;
+  proofTreeData: ProofTree | null;
   claimName: string | null;
 
   // History for undo/redo
@@ -202,9 +194,10 @@ export interface ProofActions {
 
   // Sync from worker
   syncFromWorker: (
-    proofTree: import("@/workers/proof-worker").ProofTreeData,
+    proofTree: ProofTree,
     sessionId: string,
     claimName?: string,
+    theorems?: GlobalEntry[],
   ) => void;
 
   // Set claim name (used when starting a session)
@@ -216,7 +209,6 @@ export interface ProofActions {
   redo: () => void;
 
   // Proof state
-  checkProofComplete: () => void;
   reset: () => void;
 
   // React Flow handlers

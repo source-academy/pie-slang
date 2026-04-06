@@ -1,4 +1,4 @@
-import type { SerializableGoalNode, ProofTreeData } from '@/workers/proof-worker';
+import type { GoalNode as ProtoGoalNode, ProofTree } from '@pie/protocol';
 
 /**
  * Generate a Pie proof script from a proof tree.
@@ -7,7 +7,7 @@ import type { SerializableGoalNode, ProofTreeData } from '@/workers/proof-worker
  * of the proof tactics that have been applied.
  */
 export function generateProofScript(
-  proofTree: ProofTreeData,
+  proofTree: ProofTree,
   claimName: string
 ): string {
   const lines: string[] = [];
@@ -47,7 +47,7 @@ function wrapTactic(tactic: string): string {
  * Returns the tactic script for this subtree.
  */
 function generateTacticsFromNode(
-  node: SerializableGoalNode,
+  node: ProtoGoalNode,
   indentLevel: number
 ): string {
   const indent = '  '.repeat(indentLevel);
@@ -55,7 +55,7 @@ function generateTacticsFromNode(
 
   // If this goal was completed directly (leaf node with completedBy)
   if (node.completedBy && node.children.length === 0) {
-    lines.push(`${indent}${wrapTactic(node.completedBy)}`);
+    lines.push(`${indent}${wrapTactic(node.completedBy.displayString)}`);
     return lines.join('\n');
   }
 
@@ -63,14 +63,14 @@ function generateTacticsFromNode(
   if (node.appliedTactic && node.children.length > 0) {
     // Single child - just the tactic followed by child tactics
     if (node.children.length === 1) {
-      lines.push(`${indent}${wrapTactic(node.appliedTactic)}`);
+      lines.push(`${indent}${wrapTactic(node.appliedTactic.displayString)}`);
       const childTactics = generateTacticsFromNode(node.children[0], indentLevel);
       if (childTactics.trim()) {
         lines.push(childTactics);
       }
     } else {
       // Multiple children - need a 'then' block
-      lines.push(`${indent}${wrapTactic(node.appliedTactic)}`);
+      lines.push(`${indent}${wrapTactic(node.appliedTactic.displayString)}`);
       lines.push(`${indent}(then`);
 
       for (const child of node.children) {
@@ -94,7 +94,7 @@ function generateTacticsFromNode(
  * Generate a minimal proof script showing just the tactics in order.
  * This is a flattened view without the full define-tactically structure.
  */
-export function generateFlatTacticList(proofTree: ProofTreeData): string[] {
+export function generateFlatTacticList(proofTree: ProofTree): string[] {
   const tactics: string[] = [];
   collectTactics(proofTree.root, tactics);
   return tactics;
@@ -103,16 +103,16 @@ export function generateFlatTacticList(proofTree: ProofTreeData): string[] {
 /**
  * Recursively collect all tactics from the tree in depth-first order.
  */
-function collectTactics(node: SerializableGoalNode, tactics: string[]): void {
+function collectTactics(node: ProtoGoalNode, tactics: string[]): void {
   // Add completing tactic for leaf nodes
   if (node.completedBy && node.children.length === 0) {
-    tactics.push(node.completedBy);
+    tactics.push(node.completedBy.displayString);
     return;
   }
 
   // Add applied tactic
   if (node.appliedTactic) {
-    tactics.push(node.appliedTactic);
+    tactics.push(node.appliedTactic.displayString);
   }
 
   // Process children

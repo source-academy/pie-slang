@@ -1,97 +1,47 @@
 import * as Comlink from "comlink";
 import { nanoid } from "nanoid";
+import {
+  type TacticType,
+  type TacticParams,
+  type AppliedTactic,
+  type Goal,
+  type GoalNode as ProtoGoalNode,
+  type ProofTree,
+  type ContextEntry,
+  type GlobalEntry,
+  type StartSessionResponse,
+  type ApplyTacticResponse,
+  type HintLevel,
+  type HintResponse,
+  type HintRequest,
+  type ScanFileResponse,
+  TACTIC_REQUIREMENTS,
+} from "@pie/protocol";
 
 console.log("[ProofWorker] Worker script starting...");
 
-// ============================================
-// Types - Must match what convert-proof-tree.ts expects
-// ============================================
+// Re-export protocol types so existing frontend imports still work
+export type {
+  TacticType,
+  TacticParams as TacticParameters,
+  Goal as SerializableGoal,
+  ProofTree as ProofTreeData,
+  ContextEntry as SerializableContextEntry,
+  GlobalEntry as GlobalEntry,
+  StartSessionResponse,
+  ApplyTacticResponse as TacticAppliedResponse,
+  HintLevel,
+  HintResponse as ProgressiveHintResponse,
+  HintRequest as GetHintRequest,
+};
+export type { GoalNode as SerializableGoalNode } from "@pie/protocol";
 
-export type TacticType =
-  | "intro"
-  | "split"
-  | "left"
-  | "right"
-  | "induction"
-  | "exact"
-  | "exists"
-  | "elimVec"
-  | "elimEqual"
-  | "todo";
-
-export interface TacticParameters {
-  variableName?: string;
-  expression?: string;
-}
-
-// These types match the Pie interpreter's proofstate.ts exports
-export interface SerializableContextEntry {
-  id?: string;
-  name: string;
-  type: string;
-  introducedBy?: string;
-}
-
-export interface SerializableGoal {
-  id: string;
-  type: string; // Display type (may be sugared if abbreviations available)
-  expandedType?: string; // Full expanded type (only set if different from type)
-  context: SerializableContextEntry[];
-  contextEntries?: SerializableContextEntry[]; // Alias for compatibility
-  isComplete: boolean;
-  isCurrent: boolean;
-  parentId?: string;
-}
-
-export interface SerializableGoalNode {
-  goal: SerializableGoal;
-  children: SerializableGoalNode[];
-  appliedTactic?: string;
-  completedBy?: string;
-  isSubtreeComplete?: boolean;
-}
-
-export interface ProofTreeData {
-  root: SerializableGoalNode;
-  isComplete: boolean;
-  currentGoalId: string | null;
-}
-
-export interface SerializableLemma {
-  name: string;
-  type: string;
-}
-
-/**
- * Global context entry - definitions and theorems from the source code
- */
-export interface GlobalContextEntry {
-  name: string;
-  type: string;
-  kind: "definition" | "claim" | "theorem"; // theorem = proved claim
-}
-
-/**
- * Global context - definitions and theorems available in the proof
- */
-export interface GlobalContext {
-  definitions: GlobalContextEntry[];
-  theorems: GlobalContextEntry[];
-}
-
-export interface StartSessionResponse {
-  sessionId: string;
-  proofTree: ProofTreeData;
-  availableLemmas: SerializableLemma[];
-  globalContext: GlobalContext; // NEW: separated global context
-  claimType: string;
-}
-
-export interface TacticAppliedResponse {
-  success: boolean;
-  proofTree: ProofTreeData;
-  error?: string;
-}
+// Re-export compound types for backward compatibility
+export type GlobalContext = {
+  definitions: GlobalEntry[];
+  theorems: GlobalEntry[];
+};
+export type SerializableLemma = { name: string; type: string };
 
 // ============================================
 // Session storage
@@ -99,8 +49,8 @@ export interface TacticAppliedResponse {
 
 interface ProofSession {
   id: string;
-  proofManager: any;
-  ctx: any;
+  proofManager: any; // ProofManager from @pie/tactics — dynamic import
+  ctx: any;          // Context from @pie/utils — dynamic import
   claimName: string;
   claimType: string;
 }
@@ -108,36 +58,67 @@ interface ProofSession {
 const sessions = new Map<string, ProofSession>();
 
 // ============================================
-// Worker API
+// Shared helpers
 // ============================================
 
 /**
- * Hint level for progressive hints
+ * Transform raw proof tree data from ProofManager into protocol-conformant GoalNode.
+ * Single implementation — used by both startSession and getProofTree.
  */
-export type HintLevel = "category" | "tactic" | "full";
+function transformGoalNode(node: any): ProtoGoalNode {
+  const computeIsSubtreeComplete = (n: any): boolean => {
+    const isComplete = n.goal?.isComplete || n.completedBy;
+    if (!isComplete) return false;
+    if (!n.children || n.children.length === 0) return true;
+    return n.children.every((child: any) => computeIsSubtreeComplete(child));
+  };
 
-/**
- * Progressive hint response
- */
-export interface ProgressiveHintResponse {
-  level: HintLevel;
-  category?: "introduction" | "elimination" | "constructor" | "application";
-  tacticType?: string;
-  parameters?: Record<string, string>;
-  explanation: string;
-  confidence: number;
+  const goal: Goal = {
+    id: node.goal.id,
+    type: node.goal.type,
+    expandedType: node.goal.expandedType,
+    context: (node.goal.contextEntries || []).map((e: any): ContextEntry => ({
+      name: e.name,
+      type: e.type,
+      introducedBy: e.introducedBy || undefined,
+    })),
+    isComplete: node.goal.isComplete,
+    isCurrent: node.goal.isCurrent,
+  };
+
+  return {
+    goal,
+    children: (node.children || []).map(transformGoalNode),
+    appliedTactic: node.appliedTactic as AppliedTactic | undefined,
+    completedBy: node.completedBy as AppliedTactic | undefined,
+    isSubtreeComplete: computeIsSubtreeComplete(node),
+  };
 }
 
-/**
- * Request for getting a hint
- */
-export interface GetHintRequest {
-  sessionId: string;
-  goalId: string;
-  currentLevel: HintLevel;
-  previousHint?: ProgressiveHintResponse;
-  apiKey?: string; // Optional: for AI-powered hints
+/** Build a ProofTree from raw ProofManager data. */
+function buildProofTree(rawData: any): ProofTree {
+  return {
+    root: transformGoalNode(rawData.root),
+    isComplete: rawData.isComplete,
+    currentGoalId: rawData.currentGoalId,
+  };
 }
+
+/** Create an empty proof tree for error responses. */
+function emptyProofTree(): ProofTree {
+  return {
+    root: {
+      goal: { id: "", type: "", context: [], isComplete: false, isCurrent: false },
+      children: [],
+    },
+    isComplete: false,
+    currentGoalId: null,
+  };
+}
+
+// ============================================
+// Worker API
+// ============================================
 
 export interface ProofWorkerAPI {
   test: () => string;
@@ -154,16 +135,12 @@ export interface ProofWorkerAPI {
     sessionId: string,
     goalId: string,
     tacticType: string,
-    params?: TacticParameters,
-  ) => Promise<TacticAppliedResponse>;
+    params?: TacticParams,
+  ) => Promise<ApplyTacticResponse>;
   closeSession: (sessionId: string) => void;
-  getProofTree: (sessionId: string) => ProofTreeData | null;
-  getHint: (request: GetHintRequest) => Promise<ProgressiveHintResponse>;
-  scanFile: (sourceCode: string) => Promise<{
-    definitions: GlobalContextEntry[];
-    theorems: GlobalContextEntry[];
-    claims: GlobalContextEntry[];
-  }>;
+  getProofTree: (sessionId: string) => ProofTree | null;
+  getHint: (request: HintRequest) => Promise<HintResponse>;
+  scanFile: (sourceCode: string) => Promise<ScanFileResponse>;
 }
 
 const proofWorkerAPI: ProofWorkerAPI = {
@@ -199,9 +176,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
       }
 
       let ctx = initCtx;
-      const definitions: GlobalContextEntry[] = [];
-      const theorems: GlobalContextEntry[] = [];
-      const claims: GlobalContextEntry[] = [];
+      const definitions: GlobalEntry[] = [];
+      const theorems: GlobalEntry[] = [];
+      const claims: GlobalEntry[] = [];
       const pendingClaims: Array<{ name: string; type: string }> = [];
 
       for (let i = 0; i < astList.length; i++) {
@@ -378,8 +355,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Build context and track definitions/claims for globalContext
       console.log("[ProofWorker] Building context...");
       let ctx = initCtx;
-      const globalDefinitions: GlobalContextEntry[] = [];
-      const globalTheorems: GlobalContextEntry[] = [];
+      const globalDefinitions: GlobalEntry[] = [];
+      const globalTheorems: GlobalEntry[] = [];
       const pendingClaims: Array<{ name: string; type: string }> = [];
 
       for (let i = 0; i < astList.length; i++) {
@@ -514,46 +491,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       }
       console.log("[ProofWorker] Got raw proof tree data");
 
-      // Transform the data to match our expected format
-      const transformGoalNode = (node: any): SerializableGoalNode => {
-        // Compute isSubtreeComplete recursively
-        const computeIsSubtreeComplete = (n: any): boolean => {
-          const isComplete = n.goal?.isComplete || n.completedBy;
-          if (!isComplete) return false;
-          if (!n.children || n.children.length === 0) return true;
-          return n.children.every((child: any) =>
-            computeIsSubtreeComplete(child),
-          );
-        };
-
-        const goal: SerializableGoal = {
-          id: node.goal.id,
-          type: node.goal.type,
-          context: (node.goal.contextEntries || []).map((e: any) => ({
-            id: e.id || nanoid(8),
-            name: e.name,
-            type: e.type,
-            // Include introducedBy to distinguish local (introduced by tactic) from global
-            introducedBy: e.introducedBy || e.origin || undefined,
-          })),
-          isComplete: node.goal.isComplete,
-          isCurrent: node.goal.isCurrent,
-        };
-
-        return {
-          goal,
-          children: (node.children || []).map(transformGoalNode),
-          appliedTactic: node.appliedTactic,
-          completedBy: node.completedBy,
-          isSubtreeComplete: computeIsSubtreeComplete(node),
-        };
-      };
-
-      const proofTree: ProofTreeData = {
-        root: transformGoalNode(rawProofTreeData.root),
-        isComplete: rawProofTreeData.isComplete,
-        currentGoalId: rawProofTreeData.currentGoalId,
-      };
+      const proofTree = buildProofTree(rawProofTreeData);
 
       // Get claim type
       const binding = ctx.get(claimName);
@@ -580,13 +518,12 @@ const proofWorkerAPI: ProofWorkerAPI = {
       return {
         sessionId,
         proofTree,
-        availableLemmas: [],
         globalContext: {
           definitions: globalDefinitions,
           theorems: globalTheorems,
         },
         claimType,
-      };
+      } satisfies StartSessionResponse;
     } catch (error) {
       console.error("[ProofWorker] Error:", error);
       throw error;
@@ -597,8 +534,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
     sessionId: string,
     goalId: string,
     tacticType: string,
-    params: TacticParameters = {},
-  ): Promise<TacticAppliedResponse> {
+    params: TacticParams = {},
+  ): Promise<ApplyTacticResponse> {
     console.log(
       "[ProofWorker] applyTactic() called:",
       tacticType,
@@ -645,20 +582,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         if (!goalSet) {
           return {
             success: false,
-            proofTree: this.getProofTree(sessionId) || {
-              root: {
-                goal: {
-                  id: "",
-                  type: "",
-                  context: [],
-                  isComplete: false,
-                  isCurrent: false,
-                },
-                children: [],
-              },
-              isComplete: false,
-              currentGoalId: null,
-            },
+            proofTree: this.getProofTree(sessionId) || emptyProofTree(),
             error: `Goal not found: ${goalId}`,
           };
         }
@@ -666,20 +590,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         if (pm.currentState.currentGoal.isComplete) {
           return {
             success: false,
-            proofTree: this.getProofTree(sessionId) || {
-              root: {
-                goal: {
-                  id: "",
-                  type: "",
-                  context: [],
-                  isComplete: false,
-                  isCurrent: false,
-                },
-                children: [],
-              },
-              isComplete: false,
-              currentGoalId: null,
-            },
+            proofTree: this.getProofTree(sessionId) || emptyProofTree(),
             error: "Cannot apply tactic to a completed goal",
           };
         }
@@ -868,20 +779,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         default:
           return {
             success: false,
-            proofTree: this.getProofTree(sessionId) || {
-              root: {
-                goal: {
-                  id: "",
-                  type: "",
-                  context: [],
-                  isComplete: false,
-                  isCurrent: false,
-                },
-                children: [],
-              },
-              isComplete: false,
-              currentGoalId: null,
-            },
+            proofTree: this.getProofTree(sessionId) || emptyProofTree(),
             error: `Unknown tactic type: ${tacticType}`,
           };
       }
@@ -967,54 +865,17 @@ const proofWorkerAPI: ProofWorkerAPI = {
     sessions.delete(sessionId);
   },
 
-  getProofTree(sessionId: string): ProofTreeData | null {
+  getProofTree(sessionId: string): ProofTree | null {
     const session = sessions.get(sessionId);
     if (!session) return null;
 
     const rawData = session.proofManager.getProofTreeData();
     if (!rawData) return null;
 
-    // Transform the data
-    const transformGoalNode = (node: any): SerializableGoalNode => {
-      // Compute isSubtreeComplete recursively
-      const computeIsSubtreeComplete = (n: any): boolean => {
-        const isComplete = n.goal?.isComplete || n.completedBy;
-        if (!isComplete) return false;
-        if (!n.children || n.children.length === 0) return true;
-        return n.children.every((child: any) =>
-          computeIsSubtreeComplete(child),
-        );
-      };
-
-      return {
-        goal: {
-          id: node.goal.id,
-          type: node.goal.type,
-          context: (node.goal.contextEntries || []).map((e: any) => ({
-            id: e.id || nanoid(8),
-            name: e.name,
-            type: e.type,
-            // Include introducedBy to distinguish local (introduced by tactic) from global
-            introducedBy: e.introducedBy || undefined,
-          })),
-          isComplete: node.goal.isComplete,
-          isCurrent: node.goal.isCurrent,
-        },
-        children: (node.children || []).map(transformGoalNode),
-        appliedTactic: node.appliedTactic,
-        completedBy: node.completedBy,
-        isSubtreeComplete: computeIsSubtreeComplete(node),
-      };
-    };
-
-    return {
-      root: transformGoalNode(rawData.root),
-      isComplete: rawData.isComplete,
-      currentGoalId: rawData.currentGoalId,
-    };
+    return buildProofTree(rawData);
   },
 
-  async getHint(request: GetHintRequest): Promise<ProgressiveHintResponse> {
+  async getHint(request: HintRequest): Promise<HintResponse> {
     console.log(
       "[ProofWorker] getHint() called for goal:",
       request.goalId,
@@ -1056,20 +917,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
       const hintRequest = {
         goalType: goal.goal.type,
         context: goal.goal.context.map((c) => ({ name: c.name, type: c.type })),
-        availableTactics: [
-          "intro",
-          "exact",
-          "split",
-          "left",
-          "right",
-          "elimNat",
-          "elimList",
-          "elimVec",
-          "elimEither",
-          "elimEqual",
-          "elimAbsurd",
-          "apply",
-        ],
+        availableTactics: (Object.keys(TACTIC_REQUIREMENTS) as TacticType[]).filter(
+          (t) => t !== "todo",
+        ),
         currentLevel: request.currentLevel,
         previousHint: request.previousHint,
       };
@@ -1114,9 +964,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
  * Helper to find a goal by ID in the proof tree
  */
 function findGoalById(
-  node: SerializableGoalNode,
+  node: ProtoGoalNode,
   goalId: string,
-): SerializableGoalNode | null {
+): ProtoGoalNode | null {
   if (node.goal.id === goalId) {
     return node;
   }

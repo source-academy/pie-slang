@@ -2,7 +2,7 @@ import { memo, useCallback } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
 import { ChevronRight, Check, X, Loader2, Sparkles, Cpu } from 'lucide-react';
-import type { HintLevel, ProgressiveHintResponse } from '@/workers/proof-worker';
+import type { HintLevel, HintResponse } from '@pie/protocol';
 import { useHintStore } from '../../store';
 
 /**
@@ -11,7 +11,7 @@ import { useHintStore } from '../../store';
 export interface GhostTacticNodeData {
   kind: 'ghost';
   goalId: string;
-  hint: ProgressiveHintResponse;
+  hint: HintResponse;
   isLoading: boolean;
   onAccept: () => void;
   onDismiss: () => void;

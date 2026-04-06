@@ -3,12 +3,11 @@ import { proofWorker } from "@/shared/lib/worker-client";
 import { useProofStore } from "../store";
 import { useMetadataStore } from "../store/metadata-store";
 import type {
-  TacticParameters,
+  TacticParams,
   StartSessionResponse,
-  TacticAppliedResponse,
-  SerializableLemma,
-  GlobalContext,
-} from "@/workers/proof-worker";
+  ApplyTacticResponse,
+} from "@pie/protocol";
+import type { SerializableLemma, GlobalContext } from "@/workers/proof-worker";
 
 /**
  * Hook for managing proof sessions with the proof worker.
@@ -98,8 +97,8 @@ export function useProofSession() {
     async (
       goalId: string,
       tacticType: string,
-      params: TacticParameters,
-    ): Promise<TacticAppliedResponse> => {
+      params: TacticParams,
+    ): Promise<ApplyTacticResponse> => {
       if (!sessionId) {
         const errorMessage =
           "No active proof session. Call startSession first.";
@@ -220,9 +219,9 @@ export function useProofSession() {
 
 // Re-export types for convenience
 export type {
-  TacticParameters,
+  TacticParams,
   StartSessionResponse,
-  TacticAppliedResponse,
+  ApplyTacticResponse,
   SerializableLemma,
   GlobalContext,
 };

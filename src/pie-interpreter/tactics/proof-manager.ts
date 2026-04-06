@@ -39,7 +39,7 @@ export class ProofManager {
 
     // Record which tactic was applied to create children
     if (previousGoalNode.children.length > 0) {
-      previousGoalNode.appliedTactic = tactic.toString();
+      previousGoalNode.appliedTactic = tactic.toAppliedTactic();
     }
 
     let response = `\nApplied tactic: ${tactic}`;
