@@ -41,7 +41,6 @@ function injectProofIntoSource(
   const defineIdx = src.indexOf(definePattern);
   if (defineIdx !== -1) {
     const end = findClosingParen(src, defineIdx);
-    // Also trim leading whitespace/newlines before the block
     const before = src.slice(0, defineIdx).trimEnd();
     const after = src.slice(end + 1);
     src = before + after;

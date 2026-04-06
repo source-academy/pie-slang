@@ -287,11 +287,9 @@ function traverseTree(
  */
 function classifyContextOrigin(entry: ProtoContextEntry): ContextEntry["origin"] {
   if (!entry.introducedBy) {
-    // No tactic introduced it — it's a global definition or pre-existing context
     return "definition";
   }
 
-  // Check if introduced by an elimination tactic (inductive hypothesis)
   const elimTactics = ["elimNat", "elimList", "elimVec", "elimEither", "elimEqual", "elimAbsurd",
                        "elim-Nat", "elim-List", "elim-Vec", "elim-Either", "elim-Equal", "elim-Absurd",
                        "induction"];
@@ -302,8 +300,6 @@ function classifyContextOrigin(entry: ProtoContextEntry): ContextEntry["origin"]
     }
   }
 
-  // Heuristic: if variable name is commonly used for inductive hypotheses,
-  // or its type is an equality type (= ...), classify as inductive-hypothesis.
   const nameLC = entry.name.toLowerCase();
   const isIHName = nameLC === "ih" || nameLC.startsWith("ih-") || nameLC.startsWith("ih_");
   const isEqualityType = entry.type.startsWith("(=") || entry.type.startsWith("(= ");
@@ -311,7 +307,6 @@ function classifyContextOrigin(entry: ProtoContextEntry): ContextEntry["origin"]
     return "inductive-hypothesis";
   }
 
-  // Introduced by intro or other tactic → free variable
   return "free";
 }
 
