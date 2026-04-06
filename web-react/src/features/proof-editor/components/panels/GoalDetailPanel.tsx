@@ -224,10 +224,10 @@ export function GoalDetailPanel() {
         )}
       </div>
 
-      {/* Scope / Environment — Global vs Local partitions */}
+      {/* Context — Global vs Local partitions */}
       <div className="p-4">
         <div className="mb-2 text-xs font-medium text-gray-500">
-          Scope ({data.context.length} binding
+          Context ({data.context.length} binding
           {data.context.length !== 1 ? "s" : ""})
         </div>
         {data.context.length === 0 ? (
