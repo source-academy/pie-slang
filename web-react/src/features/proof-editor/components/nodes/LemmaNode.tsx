@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { Handle, Position, useEdges, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
 import { Lock, BookOpen, ShieldCheck } from 'lucide-react';
 import type { LemmaNode as LemmaNodeType } from '../../store/types';
@@ -20,23 +20,6 @@ export function extractParameters(typeString: string): string[] {
   return params;
 }
 
-/**
- * Extract the result type (the part after all Pi binders).
- * e.g. "(Π ((n Nat)) (= Nat (+ n 0) n))" → "(= Nat (+ n 0) n)"
- */
-function extractResultType(typeString: string): string {
-  if (!typeString) return typeString;
-  // Strip outermost Pi layers iteratively
-  let s = typeString.trim();
-  // Match (Π ((var Type)) REST) pattern and extract REST
-  const piRegex = /^\((?:Pi|Π)\s+\(\(?[^)]+\)?\)\s+(.+)\)$/s;
-  let match = s.match(piRegex);
-  while (match) {
-    s = match[1].trim();
-    match = s.match(piRegex);
-  }
-  return s;
-}
 
 /**
  * LemmaNode Component
@@ -53,8 +36,6 @@ export const LemmaNode = memo(function LemmaNode({
   selected,
 }: NodeProps<LemmaNodeType>) {
   const [showTooltip, setShowTooltip] = useState(false);
-  const allEdges = useEdges();
-
   const sourceLabels: Record<string, string> = {
     definition: 'def',
     claim: 'claim',
@@ -68,17 +49,6 @@ export const LemmaNode = memo(function LemmaNode({
   };
 
   const colors = sourceColors[data.source] || sourceColors.proven;
-  const parameters = extractParameters(data.type);
-  const resultType = parameters.length > 0 ? extractResultType(data.type) : data.type;
-
-  // Check which parameters are bound (have incoming context-to-lemma edges)
-  const boundParams = new Map<string, string>(); // paramName → contextVarName
-  for (const edge of allEdges) {
-    if (edge.target === id && edge.data?.kind === 'context-to-lemma' && edge.targetHandle) {
-      const paramName = edge.targetHandle.replace('lemma-input-', '');
-      boundParams.set(paramName, (edge.data as any).contextVarId || '?');
-    }
-  }
 
   return (
     <div
@@ -101,46 +71,13 @@ export const LemmaNode = memo(function LemmaNode({
         </div>
       )}
 
-      {/* Target handles for parameterized arguments */}
-      {parameters.length > 0 ? (
-        <div className="absolute -top-3 left-0 w-full flex justify-evenly">
-          {parameters.map((param) => {
-            const isBound = boundParams.has(param);
-            return (
-              <div key={param} className="relative flex flex-col items-center group">
-                {/* Parameter label - always visible for Pi-type theorems */}
-                <span className={cn(
-                  "absolute -top-5 text-[10px] px-1 shadow-sm rounded whitespace-nowrap z-10 pointer-events-none transition-all",
-                  isBound
-                    ? "bg-green-100 text-green-700 font-semibold opacity-100"
-                    : "bg-white text-gray-500 opacity-70 group-hover:opacity-100"
-                )}>
-                  {param}{isBound ? ' ✓' : ''}
-                </span>
-                <Handle
-                  type="target"
-                  position={Position.Top}
-                  id={`lemma-input-${param}`}
-                  className={cn(
-                    "!h-3 !w-3 !border-2 relative !transform-none !top-0 !left-0",
-                    isBound
-                      ? "!border-green-500 !bg-green-200"
-                      : "!border-lemma !bg-white"
-                  )}
-                />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* Single input handle for direct application (0-argument theorems) */
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="lemma-input"
-          className={cn("!h-3 !w-3 !border-2 !bg-white", colors.border.replace('border-', '!border-'))}
-        />
-      )}
+      {/* Single input handle for connecting to this lemma */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="lemma-input"
+        className={cn("!h-3 !w-3 !border-2 !bg-white", colors.border.replace('border-', '!border-'))}
+      />
 
       {/* Header with source badge and scope isolation indicator */}
       <div className="mb-1 flex items-center justify-between mt-1">
@@ -171,33 +108,10 @@ export const LemmaNode = memo(function LemmaNode({
         </div>
       )}
 
-      {/* Type display: show result type compactly, parameters shown via handles */}
-      {parameters.length > 0 ? (
-        <div className="space-y-1">
-          {/* Parameter summary */}
-          <div className="flex flex-wrap gap-1">
-            {parameters.map((param) => {
-              const isBound = boundParams.has(param);
-              return (
-                <span key={param} className={cn(
-                  "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono",
-                  isBound ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                )}>
-                  {param}{isBound ? ' ✓' : ' ?'}
-                </span>
-              );
-            })}
-          </div>
-          {/* Result type */}
-          <div className="rounded bg-white/50 p-1.5 font-mono text-[10px] text-gray-700 break-all leading-tight">
-            → {resultType}
-          </div>
-        </div>
-      ) : (
-        <div className="rounded bg-white/50 p-1.5 font-mono text-[10px] text-gray-700 break-all leading-tight">
-          {data.type}
-        </div>
-      )}
+      {/* Type display: always show full Pi type; for parameterized types also show binding status */}
+      <div className="rounded bg-white/50 p-1.5 font-mono text-[10px] text-gray-700 break-all leading-tight">
+        {data.type}
+      </div>
 
       {/* Output handle (to goal for direct application) */}
       <Handle

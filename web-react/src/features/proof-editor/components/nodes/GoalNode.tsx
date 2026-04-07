@@ -514,17 +514,20 @@ function ScopeBinding({
   goalId: string;
   isSelected: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
   const tag = ORIGIN_TAG[entry.origin];
 
   return (
     <div
       className={cn(
-        "relative flex items-center gap-1.5 rounded px-1.5 py-0.5",
+        "group/binding relative flex items-center gap-1.5 rounded px-1.5 py-0.5",
         isNew
           ? "bg-emerald-50 border border-emerald-200"
           : "bg-gray-50/50",
         isSelected && "ring-1 ring-primary",
       )}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       {/* New indicator */}
       {isNew && (
@@ -556,14 +559,15 @@ function ScopeBinding({
         {entry.type}
       </span>
 
-      {/* Handle for connecting this variable to tactics */}
+      {/* Handle for connecting this variable to lemma params — only visible on hover */}
       <Handle
         type="source"
         position={Position.Right}
         id={`ctx-${entry.id}`}
         className={cn(
-          "!right-[-6px] !h-2 !w-2 !border-2",
+          "!right-[-6px] !h-2 !w-2 !border-2 !transition-opacity !duration-150",
           isNew ? "!border-emerald-400 !bg-emerald-100" : "!border-gray-300 !bg-gray-100",
+          hovered ? "!opacity-100" : "!opacity-0",
         )}
       />
     </div>
