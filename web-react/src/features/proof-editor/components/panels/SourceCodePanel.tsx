@@ -34,26 +34,20 @@ const SAMPLE_SOURCE = `; Define addition function
  */
 export function SourceCodePanel() {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [sourceCode, setSourceCode] = useState(SAMPLE_SOURCE);
-  const [claimName, setClaimName] = useState('reflexivity');
 
   // Get example from store
-  const exampleSource = useExampleStore((s) => s.exampleSource);
-  const exampleClaim = useExampleStore((s) => s.exampleClaim);
+  const selectedExample = useExampleStore((s) => s.selectedExample);
+  const sourceCode = useExampleStore((s) => s.exampleSource ?? SAMPLE_SOURCE);
+  const claimName = useExampleStore((s) => s.exampleClaim ?? 'reflexivity');
+  const setExampleSource = useExampleStore((s) => s.setExampleSource);
+  const setExampleClaim = useExampleStore((s) => s.setExampleClaim);
 
-  // Update source/claim when example is selected
+  // Expand panel when a new example is selected from the dropdown
   useEffect(() => {
-    if (exampleSource !== undefined) {
-      setSourceCode(exampleSource);
-      setIsExpanded(true); // Expand to show the loaded example
+    if (selectedExample) {
+      setIsExpanded(true);
     }
-  }, [exampleSource]);
-
-  useEffect(() => {
-    if (exampleClaim !== undefined) {
-      setClaimName(exampleClaim);
-    }
-  }, [exampleClaim]);
+  }, [selectedExample]);
 
   const {
     startSession,
@@ -122,7 +116,7 @@ export function SourceCodePanel() {
                 className="h-32 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Enter Pie source code (claims, definitions)..."
                 value={sourceCode}
-                onChange={(e) => setSourceCode(e.target.value)}
+                onChange={(e) => setExampleSource(e.target.value)}
                 disabled={isLoading}
               />
             </div>
@@ -138,7 +132,7 @@ export function SourceCodePanel() {
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="e.g., +zero-identity"
                   value={claimName}
-                  onChange={(e) => setClaimName(e.target.value)}
+                  onChange={(e) => setExampleClaim(e.target.value)}
                   disabled={isLoading}
                 />
               </div>

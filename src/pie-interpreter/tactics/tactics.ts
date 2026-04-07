@@ -69,7 +69,7 @@ export class IntroTactic extends Tactic {
   }
 
   toString(): string {
-    return `intro ${this.varName || ""}`;
+    return `intro ${this.varName || ""}`.trimEnd();
   }
 
   apply(state: ProofState): Perhaps<ProofState> {
@@ -83,6 +83,8 @@ export class IntroTactic extends Tactic {
     }
 
     const name = this.varName || goalType.argName || fresh(currentGoal.context, "x");
+    // Store the resolved name so toString() reflects the actual variable used
+    this.varName = name;
 
     const newRenaming = currentGoal.renaming
     if (name !== goalType.argName) {

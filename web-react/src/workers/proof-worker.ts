@@ -43,6 +43,12 @@ export type GlobalContext = {
 };
 export type SerializableLemma = { name: string; type: string };
 
+// Extended error detail for type mismatch visualization (UI-only, not in protocol)
+export type ErrorDetail =
+  | { kind: "type-mismatch"; expected: string; got: string; message: string }
+  | { kind: "pi-type-hint"; lemmaName: string; paramCount: number; message: string }
+  | { kind: "generic"; message: string };
+
 // ============================================
 // Session storage
 // ============================================
@@ -217,30 +223,41 @@ const proofWorkerAPI: ProofWorkerAPI = {
               type: typeStr,
               kind: "definition",
             });
+            // A (define ...) proves its paired (claim ...) — remove from pending claims
+            const claimIdx = pendingClaims.findIndex((c) => c.name === src.name);
+            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
           }
         } else if (src instanceof DefineTactically) {
-          const result = addDefineTacticallyToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.tactics,
-          );
-          if (result instanceof go) {
-            ctx = result.result.context;
-            const binding = ctx.get(src.name);
-            const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
-              : "unknown";
-            theorems.push({
-              name: src.name,
-              type: typeStr,
-              kind: "theorem",
-            });
-            // Remove from pending claims if it was there
-            const claimIdx = pendingClaims.findIndex(
-              (c) => c.name === src.name,
+          try {
+            const result = addDefineTacticallyToContext(
+              ctx,
+              src.name,
+              src.location,
+              src.tactics,
             );
-            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
+            if (result instanceof go) {
+              ctx = result.result.context;
+              const binding = ctx.get(src.name);
+              const typeStr = binding
+                ? binding.type.readBackType(ctx).prettyPrint()
+                : "unknown";
+              theorems.push({
+                name: src.name,
+                type: typeStr,
+                kind: "theorem",
+              });
+              // Remove from pending claims if it was there
+              const claimIdx = pendingClaims.findIndex(
+                (c) => c.name === src.name,
+              );
+              if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
+            } else if (result instanceof stop) {
+              // Tactic proof has errors — leave as a pending claim, don't add to theorems
+              console.warn(`[ProofWorker] scanFile: define-tactically '${src.name}' has errors: ${result.message}`);
+            }
+          } catch (tacticErr) {
+            // Parser-level error (unknown tactic, missing arg, etc.) — skip, keep as pending claim
+            console.warn(`[ProofWorker] scanFile: failed to process define-tactically '${src.name}': ${tacticErr}`);
           }
         }
       }
@@ -270,7 +287,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       const parser = await import("@pie/parser/parser");
       results.push(
         "   schemeParse: " +
-          (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
+        (typeof parser.schemeParse === "function" ? "OK" : "MISSING"),
       );
 
       results.push("2. Testing context imports...");
@@ -423,41 +440,65 @@ const proofWorkerAPI: ProofWorkerAPI = {
               type: typeStr,
               kind: "definition",
             });
+            // Remove from pending claims — a defined name is no longer pending
+            const claimIdx = pendingClaims.findIndex((c) => c.name === src.name);
+            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
           } else if (result instanceof stop) {
             throw new Error(`Definition error: ${result.message}`);
           }
         } else if (src instanceof DefineTactically) {
-          const result = addDefineTacticallyToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.tactics,
-          );
-          if (result instanceof go) {
-            ctx = result.result.context;
-            // This is a proved theorem
-            const binding = ctx.get(src.name);
-            const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
-              : "unknown";
-            globalTheorems.push({
-              name: src.name,
-              type: typeStr,
-              kind: "theorem",
-            });
-            // Remove from pending claims if it was there
-            const claimIdx = pendingClaims.findIndex(
-              (c) => c.name === src.name,
+          // If this is the claim we are currently trying to prove, 
+          // do NOT process its DefineTactically block, and stop building context.
+          // This allows us to re-prove a claim that has already been exported.
+          if (src.name === claimName) {
+            console.log(
+              `[ProofWorker] Target claim '${claimName}' already has a DefineTactically block. Skipping it to allow re-proving.`,
             );
-            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
-          } else if (result instanceof stop) {
-            throw new Error(`DefineTactically error: ${result.message}`);
+            // We just skip THIS block, but we must break the whole loop
+            // because this is the target claim (which we've already registered as a Claim above).
+            break;
+          }
+
+          try {
+            const result = addDefineTacticallyToContext(
+              ctx,
+              src.name,
+              src.location,
+              src.tactics,
+            );
+            if (result instanceof go) {
+              ctx = result.result.context;
+              // This is a proved theorem
+              const binding = ctx.get(src.name);
+              const typeStr = binding
+                ? binding.type.readBackType(ctx).prettyPrint()
+                : "unknown";
+              globalTheorems.push({
+                name: src.name,
+                type: typeStr,
+                kind: "theorem",
+              });
+              // Remove from pending claims if it was there
+              const claimIdx = pendingClaims.findIndex(
+                (c) => c.name === src.name,
+              );
+              if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
+              console.log(`[ProofWorker] Successfully added theorem ${src.name} to globalTheorems`);
+            } else if (result instanceof stop) {
+              // Tactic proof failed — log and skip, but don't crash the session.
+              // The claim will remain in pendingClaims and won't appear as a green lemma.
+              console.warn(`[ProofWorker] define-tactically '${src.name}' has errors: ${result.message}. Skipping.`);
+            }
+          } catch (tacticErr) {
+            // Parser-level error (e.g. unknown tactic name, missing argument).
+            // Skip this theorem so the rest of the session can continue.
+            console.warn(`[ProofWorker] Failed to process define-tactically '${src.name}': ${tacticErr}. Skipping.`);
           }
         }
 
-        // If we just processed the target claim, STOP building context.
-        // We don't want anything declared *after* the claim to be available.
-        if (isTargetClaim) {
+        // If we just processed the target claim (as a Claim, not DefineTactically), 
+        // STOP building context. We don't want anything declared *after* the claim to be available.
+        if (isTargetClaim && src instanceof Claim) {
           console.log(
             `[ProofWorker] Reached target claim '${claimName}', stopping context build.`,
           );
@@ -465,14 +506,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
         }
       }
 
-      // Add remaining unproved claims to theorems list (as claims)
-      for (const claim of pendingClaims) {
-        globalTheorems.push({
-          name: claim.name,
-          type: claim.type,
-          kind: "claim",
-        });
-      }
+      // Note: remaining pendingClaims are NOT added to globalTheorems.
+      // Only proven theorems (from define-tactically) belong in the theorems list.
+      console.log("[ProofWorker] Final globalTheorems length:", globalTheorems.length, "names:", globalTheorems.map(t => t.name));
 
       // Start proof
       console.log("[ProofWorker] Starting proof for:", claimName);
@@ -788,6 +824,57 @@ const proofWorkerAPI: ProofWorkerAPI = {
       const result = session.proofManager.applyTactic(tactic);
 
       if (result instanceof stop) {
+        const errorMsg = result.message.toString();
+        let errorDetail: ErrorDetail | undefined;
+
+        // Parse structured error info from the error message
+        if (tacticType === "exact" && params.expression) {
+          // Check if the lemma/expression has a Pi type (needs parameters)
+          const exprName = params.expression.trim();
+          // Look up expression in the current goal's context
+          const currentGoal = session.proofManager?.currentState?.getCurrentGoal?.();
+          if (currentGoal?.result?.context) {
+            const ctx = currentGoal.result.context;
+            const binding = ctx.get(exprName);
+            if (binding && binding.type) {
+              try {
+                const typeStr = binding.type.readBackType(ctx).prettyPrint();
+                if (typeStr.startsWith("(Π") || typeStr.startsWith("(Pi")) {
+                  // Count Pi-type parameters
+                  let paramCount = 0;
+                  const piRegex = /\(Π\b|\(Pi\b/g;
+                  let m;
+                  while ((m = piRegex.exec(typeStr)) !== null) paramCount++;
+                  errorDetail = {
+                    kind: "pi-type-hint",
+                    lemmaName: exprName,
+                    paramCount,
+                    message: errorMsg,
+                  };
+                }
+              } catch { /* ignore readBack errors */ }
+            }
+          }
+
+          // Detect type mismatch from error message patterns
+          if (!errorDetail) {
+            const expectedMatch = errorMsg.match(/Expected\s+(.*?)(?:\s+but|\s*,)/i);
+            const gotMatch = errorMsg.match(/(?:but\s+got|got)\s+(.*)/i);
+            if (expectedMatch && gotMatch) {
+              errorDetail = {
+                kind: "type-mismatch",
+                expected: expectedMatch[1].trim(),
+                got: gotMatch[1].trim(),
+                message: errorMsg,
+              };
+            }
+          }
+        }
+
+        if (!errorDetail) {
+          errorDetail = { kind: "generic", message: errorMsg };
+        }
+
         return {
           success: false,
           proofTree: this.getProofTree(sessionId) || {
@@ -804,7 +891,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
             isComplete: false,
             currentGoalId: null,
           },
-          error: result.message.toString(),
+          error: errorMsg,
+          errorDetail,
         };
       }
 

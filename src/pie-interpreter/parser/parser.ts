@@ -505,46 +505,54 @@ export class Parser {
 
   public static parseToTactics(element: Element): Tactic {
     const parsee = getValue(element);
+    const elems = (element as Extended.List).elements;
+
+    const requireArg = (tactic: string, index: number): Atomic.Symbol => {
+      const arg = elems[index] as Atomic.Symbol | undefined;
+      if (!arg || arg.value === undefined) {
+        throw new Error(`Tactic '${tactic}' requires a variable name as argument ${index}`);
+      }
+      return arg;
+    };
+
     if (parsee === 'exact') {
       return Maker.makeExact(
         locationToSyntax('exact', element.location),
-        this.parseElements((element as Extended.List).elements[1] as Element)
+        this.parseElements(elems[1] as Element)
       );
     } else if (parsee === 'intro') {
       return Maker.makeIntro(
         locationToSyntax('intro', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value
+        requireArg('intro', 1).value
       );
     } else if (parsee === 'exists') {
       return Maker.makeExists(
         locationToSyntax('exists', element.location),
-        this.parseElements((element as Extended.List).elements[1] as Element),
-        ((element as Extended.List).elements[2] as Atomic.Symbol).value
+        this.parseElements(elems[1] as Element),
+        requireArg('exists', 2).value
       );
     } else if (parsee === 'elim-Nat') {
       return Maker.makeElimNat(
         locationToSyntax('elim-Nat', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value
+        requireArg('elim-Nat', 1).value
       );
     } else if (parsee === 'elim-List') {
-      const listElem = element as Extended.List;
       return Maker.makeElimList(
         locationToSyntax('elim-List', element.location),
-        (listElem.elements[1] as Atomic.Symbol).value,
-        listElem.elements[2] ? this.parseElements(listElem.elements[2] as Element) : undefined
+        requireArg('elim-List', 1).value,
+        elems[2] ? this.parseElements(elems[2] as Element) : undefined
       );
     } else if (parsee === 'elim-Vec') {
       return Maker.makeElimVec(
         locationToSyntax('elim-Vec', element.location),
-        ((element as Extended.List).elements[1] as Atomic.Symbol).value,
-        this.parseElements((element as Extended.List).elements[2] as Element),
-        this.parseElements((element as Extended.List).elements[3] as Element))
+        requireArg('elim-Vec', 1).value,
+        this.parseElements(elems[2] as Element),
+        this.parseElements(elems[3] as Element));
     } else if (parsee === 'elim-Equal') {
-      const equalElem = element as Extended.List;
       return Maker.makeElimEqual(
         locationToSyntax('elim-Equal', element.location),
-        (equalElem.elements[1] as Atomic.Symbol).value,
-        equalElem.elements[2] ? this.parseElements(equalElem.elements[2] as Element) : undefined
+        requireArg('elim-Equal', 1).value,
+        elems[2] ? this.parseElements(elems[2] as Element) : undefined
       );
     } else if (parsee === 'go-Left') {
       return Maker.makeLeftTactic(
@@ -555,27 +563,23 @@ export class Parser {
         locationToSyntax('go-Right', element.location)
       );
     } else if (parsee === 'elim-Either') {
-      const eitherElem = element as Extended.List;
       return Maker.makeElimEither(
         locationToSyntax('elim-Either', element.location),
-        (eitherElem.elements[1] as Atomic.Symbol).value,
-        eitherElem.elements[2] ? this.parseElements(eitherElem.elements[2] as Element) : undefined
+        requireArg('elim-Either', 1).value,
+        elems[2] ? this.parseElements(elems[2] as Element) : undefined
       );
     } else if (parsee === 'split-Pair') {
       return Maker.makeSplit(
         locationToSyntax('split-Pair', element.location)
       );
     } else if (parsee === 'elim-Absurd') {
-      const absurdElem = element as Extended.List;
       return Maker.makeElimAbsurd(
         locationToSyntax('elim-Absurd', element.location),
-        (absurdElem.elements[1] as Atomic.Symbol).value,
-        absurdElem.elements[2] ? this.parseElements(absurdElem.elements[2] as Element) : undefined
+        requireArg('elim-Absurd', 1).value,
+        elems[2] ? this.parseElements(elems[2] as Element) : undefined
       );
     } else if (parsee === 'then') {
-      const thenElem = element as Extended.List;
-      // Parse all tactics inside the then block (elements[1], elements[2], ...)
-      const innerTactics = thenElem.elements.slice(1).map((x: Expression) => this.parseToTactics(x as Element));
+      const innerTactics = elems.slice(1).map((x: Expression) => this.parseToTactics(x as Element));
       return Maker.makeThenTactic(
         locationToSyntax('then', element.location),
         innerTactics
@@ -583,10 +587,10 @@ export class Parser {
     } else if (parsee === 'apply') {
       return Maker.makeApplyTactic(
         locationToSyntax('apply', element.location),
-        this.parseElements((element as Extended.List).elements[1] as Element)
+        this.parseElements(elems[1] as Element)
       );
     }
-    throw new Error('Unexpected tactic: ' + element);
+    throw new Error(`Unexpected tactic: '${parsee}'. Valid tactics: intro, exact, exists, elim-Nat, elim-List, elim-Vec, elim-Equal, elim-Either, elim-Absurd, go-Left, go-Right, split-Pair, apply, then`);
   }
 }
 

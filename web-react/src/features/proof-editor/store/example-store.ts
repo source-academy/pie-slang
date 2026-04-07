@@ -15,6 +15,8 @@ export interface ExampleState {
 export interface ExampleActions {
   selectExample: (exampleId: string) => void;
   clearExample: () => void;
+  setExampleSource: (source: string) => void;
+  setExampleClaim: (claim: string) => void;
 }
 
 export type ExampleStore = ExampleState & ExampleActions;
@@ -66,6 +68,14 @@ export const useExampleStore = create<ExampleStore>()(
      */
     clearExample: () => {
       set(initialState);
+    },
+
+    setExampleSource: (source: string) => {
+      set({ exampleSource: source });
+    },
+
+    setExampleClaim: (claim: string) => {
+      set({ exampleClaim: claim });
     },
   }))
 );

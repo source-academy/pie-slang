@@ -156,6 +156,8 @@ function traverseTree(
   edges: ProofEdge[],
   positions: Map<string, { x: number; y: number }>,
   currentGoalId: string | null,
+  depth: number = 0,
+  parentContextNames: Set<string> = new Set(),
 ): void {
   const position = positions.get(node.goal.id) || { x: 0, y: 0 };
 
@@ -171,8 +173,16 @@ function traverseTree(
     status = "in-progress";
   }
 
-  // Convert context entries
-  const context: ContextEntry[] = node.goal.context.map(convertContextEntry);
+  // Convert context entries with scope depth, marking new entries
+  const rawContext = node.goal.context || [];
+  const context: ContextEntry[] = rawContext.map((entry) => ({
+    ...convertContextEntry(entry),
+    scopeDepth: depth,
+    isNew: !parentContextNames.has(entry.name),
+  }));
+
+  // Build current context names set for children
+  const currentContextNames = new Set(rawContext.map((e) => e.name));
 
   // Create goal node
   const goalNode: GoalNode = {
@@ -188,6 +198,7 @@ function traverseTree(
       parentGoalId: undefined,
       completedBy: node.completedBy?.displayString,
       isSubtreeComplete: node.isSubtreeComplete,
+      depth,
     },
   };
   nodes.push(goalNode);
@@ -265,21 +276,46 @@ function traverseTree(
     });
   }
 
-  // Recursively process children
+  // Recursively process children, passing current context for isNew detection
   for (const child of node.children) {
-    traverseTree(child, nodes, edges, positions, currentGoalId);
+    traverseTree(child, nodes, edges, positions, currentGoalId, depth + 1, currentContextNames);
   }
 }
 
 /**
  * Convert a serializable context entry to internal format
  */
+function classifyContextOrigin(entry: ProtoContextEntry): ContextEntry["origin"] {
+  if (!entry.introducedBy) {
+    return "definition";
+  }
+
+  const elimTactics = ["elimNat", "elimList", "elimVec", "elimEither", "elimEqual", "elimAbsurd",
+                       "elim-Nat", "elim-List", "elim-Vec", "elim-Either", "elim-Equal", "elim-Absurd",
+                       "induction"];
+  const introducedByLower = entry.introducedBy.toLowerCase();
+  for (const et of elimTactics) {
+    if (introducedByLower.includes(et.toLowerCase())) {
+      return "inductive-hypothesis";
+    }
+  }
+
+  const nameLC = entry.name.toLowerCase();
+  const isIHName = nameLC === "ih" || nameLC.startsWith("ih-") || nameLC.startsWith("ih_");
+  const isEqualityType = entry.type.startsWith("(=") || entry.type.startsWith("(= ");
+  if (isIHName || (isEqualityType && entry.introducedBy === "intro")) {
+    return "inductive-hypothesis";
+  }
+
+  return "free";
+}
+
 function convertContextEntry(entry: ProtoContextEntry): ContextEntry {
   return {
     id: `ctx-${entry.name}`,
     name: entry.name,
     type: entry.type,
-    origin: entry.introducedBy ? "introduced" : "inherited",
+    origin: classifyContextOrigin(entry),
     introducedBy: entry.introducedBy,
   };
 }

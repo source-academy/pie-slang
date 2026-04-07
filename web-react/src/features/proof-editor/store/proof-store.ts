@@ -39,6 +39,7 @@ const initialState: ProofState = {
   edges: [],
   rootGoalId: null,
   isProofComplete: false,
+  isComplete: false,
   sessionId: null,
   lastSyncedState: null,
   proofTreeData: null,
@@ -57,6 +58,7 @@ const initialState: ProofState = {
  * Syncs with the proof worker for tactic application.
  */
 export const useProofStore = create<ProofStore>()(
+
   subscribeWithSelector(
     immer((set, get) => ({
       ...initialState,
@@ -191,6 +193,10 @@ export const useProofStore = create<ProofStore>()(
               sourceHandle = "lemma-output";
               targetHandle = "context-input";
               break;
+            case "lemma-to-goal":
+              sourceHandle = "lemma-output";
+              targetHandle = "goal-input";
+              break;
           }
 
           const edge: ProofEdge = {
@@ -267,6 +273,7 @@ export const useProofStore = create<ProofStore>()(
 
           // Invalidate proof state
           state.isProofComplete = false;
+          state.isComplete = false;
           state.proofTreeData = null;
         });
 
@@ -306,7 +313,7 @@ export const useProofStore = create<ProofStore>()(
                 kind: "lemma",
                 name: thm.name,
                 type: thm.type,
-                source: thm.kind === "theorem" ? "proven" : thm.kind,
+                source: thm.kind === "theorem" ? "proven" : thm.kind as "definition" | "claim",
               },
             } as ProofNode;
           });
@@ -347,7 +354,7 @@ export const useProofStore = create<ProofStore>()(
         });
 
         // Apply manual positions and offset children
-        const mergedNodes = nodes.map((node) => {
+        const dynamicNodes = nodes.map((node) => {
           const manualPos = manualPositions.get(node.id);
           if (manualPos) {
             return { ...node, position: manualPos };
@@ -386,6 +393,9 @@ export const useProofStore = create<ProofStore>()(
           return node;
         });
 
+        const mergedNodes = [...lemmaNodes, ...dynamicNodes];
+        const mergedEdges = [...existingLemmaEdges, ...edges];
+
         set((state) => {
           // Clear stale collapsedBranches when starting a new proof session.
           // A new session is indicated by a new claimName being provided that
@@ -398,11 +408,12 @@ export const useProofStore = create<ProofStore>()(
           }
 
           state.nodes = mergedNodes;
-          state.edges = edges;
+          state.edges = mergedEdges;
           state.sessionId = sessionId;
           state.rootGoalId = proofTree.root.goal.id;
           state.isProofComplete = proofTree.isComplete;
-          state.lastSyncedState = { nodes: mergedNodes, edges };
+          state.isComplete = proofTree.isComplete;
+          state.lastSyncedState = { nodes: mergedNodes, edges: mergedEdges };
           state.proofTreeData = proofTree;
           if (claimName) {
             state.claimName = claimName;
@@ -433,7 +444,6 @@ export const useProofStore = create<ProofStore>()(
               // Only auto-collapse if not already expanded by user
               if (!state.collapsedBranches.has(id)) {
                 state.collapsedBranches.add(id);
-                console.log(`[syncFromWorker] Auto-collapsing completed subtree: ${id}`);
               }
             });
           }
@@ -444,6 +454,10 @@ export const useProofStore = create<ProofStore>()(
         set((state) => {
           state.claimName = name;
         });
+      },
+
+      getProofTreeForWorker: () => {
+        return get().proofTreeData;
       },
 
       // ================================================
@@ -680,6 +694,26 @@ function getConnectionData(
     return { kind: "lemma-to-tactic" };
   }
 
+  // Goal → Lemma (Direct Application or Context binding)
+  if (source.type === "goal" && target.type === "lemma") {
+    if (connection.sourceHandle?.startsWith("ctx-")) {
+      const contextVarId = connection.sourceHandle.replace("ctx-", "");
+      // Get the parameter name from the target handle (e.g., lemma-input-x -> x)
+      const paramName = connection.targetHandle?.replace("lemma-input-", "") || "";
+      return {
+        kind: "context-to-lemma",
+        contextVarId,
+        paramName
+      };
+    }
+    return { kind: "goal-to-lemma" };
+  }
+
+  // Lemma → Goal (Direct Application)
+  if (source.type === "lemma" && target.type === "goal") {
+    return { kind: "lemma-to-goal" };
+  }
+
   // Invalid connection
   return null;
 }
@@ -726,6 +760,25 @@ export function isValidConnection(
     );
   }
 
+  // Goal → Lemma (Direct Application & Context Binding)
+  if (sourceNode.type === "goal" && targetNode.type === "lemma") {
+    if (connection.sourceHandle?.startsWith("ctx-")) {
+      return connection.targetHandle?.startsWith("lemma-input-") ?? false;
+    }
+    return (
+      connection.sourceHandle === "goal-output" &&
+      connection.targetHandle === "lemma-input"
+    );
+  }
+
+  // Lemma → Goal (Direct Application)
+  if (sourceNode.type === "lemma" && targetNode.type === "goal") {
+    return (
+      connection.sourceHandle === "lemma-output" &&
+      connection.targetHandle === "goal-input"
+    );
+  }
+
   // All other combinations are invalid
   return false;
 }
@@ -767,3 +820,6 @@ export const useGeneratedProofScript = () =>
     if (!s.proofTreeData || !s.claimName) return null;
     return generateProofScript(s.proofTreeData, s.claimName);
   });
+
+
+

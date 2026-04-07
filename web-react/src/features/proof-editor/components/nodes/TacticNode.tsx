@@ -184,10 +184,31 @@ export const TacticNode = memo(function TacticNode({
         </div>
       )}
 
-      {/* Error message */}
-      {data.status === "error" && data.errorMessage && (
-        <div className="mt-1 rounded bg-red-100 p-1 text-xs text-red-600">
-          {data.errorMessage}
+      {/* Error message with structured detail */}
+      {data.status === "error" && (data.errorDetail || data.errorMessage) && (
+        <div className="mt-1 rounded bg-red-100 p-1.5 text-xs text-red-600">
+          {data.errorDetail?.kind === "pi-type-hint" ? (
+            <div>
+              <div className="font-medium text-red-700 mb-0.5">
+                Theorem needs {data.errorDetail.paramCount} parameter{data.errorDetail.paramCount > 1 ? "s" : ""}
+              </div>
+              <div className="text-[10px] text-red-500">
+                Wire context variables to <span className="font-mono font-semibold">{data.errorDetail.lemmaName}</span>'s input handles
+              </div>
+            </div>
+          ) : data.errorDetail?.kind === "type-mismatch" ? (
+            <div>
+              <div className="font-medium text-red-700 mb-0.5">Type mismatch</div>
+              <div className="text-[10px] space-y-0.5">
+                <div><span className="text-red-400">expected:</span> <span className="font-mono">{data.errorDetail.expected}</span></div>
+                <div><span className="text-red-400">got:</span> <span className="font-mono">{data.errorDetail.got}</span></div>
+              </div>
+            </div>
+          ) : (
+            <div className="truncate" title={data.errorMessage}>
+              {data.errorMessage}
+            </div>
+          )}
         </div>
       )}
 

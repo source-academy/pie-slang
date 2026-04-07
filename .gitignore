@@ -35,3 +35,4 @@ dist
 dist-*
 /coordination
 /web-react/tsconfig.tsbuildinfo
+.claude/
