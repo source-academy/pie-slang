@@ -196,6 +196,8 @@ export interface HintRequest {
   previousHint?: HintResponse;
   /** API key for AI-powered hints (optional). */
   apiKey?: string;
+  /** URL of the local LoRA tactic prediction server (optional). */
+  loraServerUrl?: string;
 }
 
 export interface HintResponse {
@@ -205,6 +207,8 @@ export interface HintResponse {
   parameters?: Record<string, string>;
   explanation: string;
   confidence: number;
+  /** Where the tactic prediction came from. */
+  source?: "lora" | "gemini" | "rule-based";
 }
 
 // ============================================================================

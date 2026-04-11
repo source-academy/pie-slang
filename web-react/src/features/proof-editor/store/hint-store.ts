@@ -37,6 +37,9 @@ export interface HintState {
 
   // API key for AI-powered hints (optional)
   apiKey: string | null;
+
+  // URL of the local LoRA tactic prediction server (optional)
+  loraServerUrl: string | null;
 }
 
 /**
@@ -70,6 +73,9 @@ export interface HintActions {
   // Set API key
   setApiKey: (key: string | null) => void;
 
+  // Set local LoRA server URL
+  setLoraServerUrl: (url: string | null) => void;
+
   // Clear all hints
   clearAllHints: () => void;
 
@@ -86,6 +92,7 @@ const initialState: HintState = {
   goalHints: new Map(),
   activeGhostNodeId: null,
   apiKey: null,
+  loraServerUrl: null,
 };
 
 /**
@@ -246,6 +253,10 @@ export const useHintStore = create<HintStore>()(
 
     setApiKey: (key: string | null) => {
       set({ apiKey: key });
+    },
+
+    setLoraServerUrl: (url: string | null) => {
+      set({ loraServerUrl: url });
     },
 
     clearAllHints: () => {

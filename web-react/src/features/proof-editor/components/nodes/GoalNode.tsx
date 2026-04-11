@@ -1,7 +1,7 @@
 import { memo, useCallback, useState } from "react";
 import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { cn } from "@/shared/lib/utils";
-import { Lightbulb, Loader2, Sparkles, ChevronRight, ChevronDown } from "lucide-react";
+import { Lightbulb, Loader2, Sparkles, ChevronRight, ChevronDown, Languages } from "lucide-react";
 import type {
   GoalNode as GoalNodeType,
   ContextEntry,
@@ -14,6 +14,8 @@ import {
   useHintStore,
   useProofStore,
 } from "../../store";
+import { useGoalDescriptionStore } from "../../store/goal-description-store";
+import { describeGoalBrowser } from "../../lib/describeGoalBrowser";
 import { TACTICS } from "../../data/tactics";
 import { applyTactic as triggerApplyTactic } from "../../utils/tactic-callback";
 
@@ -65,6 +67,14 @@ export const GoalNode = memo(function GoalNode({
   const selectedNodeId = useUIStore((s) => s.selectedNodeId);
   const hintState = useGoalHintState(id);
   const hasApiKey = useHintStore((s) => !!s.apiKey);
+  const apiKey = useHintStore((s) => s.apiKey);
+
+  // Goal description (translation) state
+  const descEntry = useGoalDescriptionStore((s) => s.descriptions.get(id));
+  const setDescLoading = useGoalDescriptionStore((s) => s.setLoading);
+  const setDescText = useGoalDescriptionStore((s) => s.setDescription);
+  const setDescError = useGoalDescriptionStore((s) => s.setError);
+  const [showTranslation, setShowTranslation] = useState(false);
 
   const { getNode } = useReactFlow(); // Helper to access node properties like position
 
@@ -94,6 +104,39 @@ export const GoalNode = memo(function GoalNode({
       triggerRequestHint(id);
     },
     [id],
+  );
+
+  // Handle translate button click
+  const handleTranslateClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!apiKey) return;
+
+      // If already translated, just toggle the view
+      if (descEntry?.text) {
+        setShowTranslation((v) => !v);
+        return;
+      }
+
+      // Fetch translation
+      setDescLoading(id);
+      setShowTranslation(true);
+      try {
+        const contextEntries = data.context.map((c) => ({
+          name: c.name,
+          type: c.type,
+        }));
+        const text = await describeGoalBrowser(
+          data.goalType,
+          contextEntries,
+          apiKey,
+        );
+        setDescText(id, text);
+      } catch (err) {
+        setDescError(id, err instanceof Error ? err.message : String(err));
+      }
+    },
+    [apiKey, id, data.goalType, data.context, descEntry?.text, setDescLoading, setDescText, setDescError],
   );
 
   // Handle drag over
@@ -335,30 +378,55 @@ export const GoalNode = memo(function GoalNode({
             <span className="text-xs font-medium text-gray-500">Goal</span>
             {/* Hint button - only show for non-completed goals */}
             {data.status !== "completed" && data.status !== "todo" && (
-              <button
-                onClick={handleHintClick}
-                className={cn(
-                  "flex items-center justify-center gap-0.5 rounded-full px-1.5 py-1",
-                  hasApiKey
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
-                    : "bg-purple-100 text-purple-600 hover:bg-purple-200",
-                  "transition-all duration-150",
-                  hintState?.isLoading && "animate-pulse",
+              <>
+                <button
+                  onClick={handleHintClick}
+                  className={cn(
+                    "flex items-center justify-center gap-0.5 rounded-full px-1.5 py-1",
+                    hasApiKey
+                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
+                      : "bg-purple-100 text-purple-600 hover:bg-purple-200",
+                    "transition-all duration-150",
+                    hintState?.isLoading && "animate-pulse",
+                  )}
+                  title={
+                    hasApiKey
+                      ? "Get AI hint"
+                      : "Get hint (configure API key for AI hints)"
+                  }
+                >
+                  {hintState?.isLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : hasApiKey ? (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  ) : (
+                    <Lightbulb className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                {hasApiKey && (
+                  <button
+                    onClick={handleTranslateClick}
+                    className={cn(
+                      "flex items-center justify-center rounded-full px-1.5 py-1 transition-all duration-150",
+                      showTranslation && descEntry?.text
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-blue-100 text-blue-600 hover:bg-blue-200",
+                      descEntry?.isLoading && "animate-pulse",
+                    )}
+                    title={
+                      showTranslation && descEntry?.text
+                        ? "Show Pie syntax"
+                        : "Translate to natural language"
+                    }
+                  >
+                    {descEntry?.isLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Languages className="h-3.5 w-3.5" />
+                    )}
+                  </button>
                 )}
-                title={
-                  hasApiKey
-                    ? "Get AI hint"
-                    : "Get hint (configure API key for AI hints)"
-                }
-              >
-                {hintState?.isLoading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : hasApiKey ? (
-                  <Sparkles className="h-3.5 w-3.5" />
-                ) : (
-                  <Lightbulb className="h-3.5 w-3.5" />
-                )}
-              </button>
+              </>
             )}
           </div>
           <span
@@ -371,9 +439,61 @@ export const GoalNode = memo(function GoalNode({
           </span>
         </div>
 
-        {/* Goal type */}
-        <div className="rounded bg-white/50 p-2 font-mono text-sm break-all">
-          {data.goalType}
+        {/* Goal type — with optional natural language toggle */}
+        <div className={cn("rounded bg-white/50 p-2 text-sm", showTranslation && descEntry?.text ? "break-words" : "break-all")}>
+          {showTranslation && descEntry?.text ? (
+            <>
+              <div className="text-gray-700 leading-relaxed">
+                {descEntry.text}
+              </div>
+              <div className="mt-1.5 flex items-center justify-between">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowTranslation(false);
+                  }}
+                  className="text-[10px] text-blue-500 hover:text-blue-700 font-medium"
+                >
+                  Show Pie syntax
+                </button>
+              </div>
+            </>
+          ) : showTranslation && descEntry?.isLoading ? (
+            <div className="flex items-center gap-1.5 text-xs text-blue-500">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Translating…
+            </div>
+          ) : showTranslation && descEntry?.error ? (
+            <div>
+              <div className="text-xs text-red-500">{descEntry.error}</div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowTranslation(false);
+                }}
+                className="mt-1 text-[10px] text-blue-500 hover:text-blue-700 font-medium"
+              >
+                Show Pie syntax
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="font-mono">{data.goalType}</div>
+              {descEntry?.text && (
+                <div className="mt-1.5">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowTranslation(true);
+                    }}
+                    className="text-[10px] text-blue-500 hover:text-blue-700 font-medium"
+                  >
+                    Show translation
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Collapsed branch indicator */}

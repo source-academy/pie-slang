@@ -33,6 +33,7 @@ export function useHintSystem() {
     const sessionId = proofStore.sessionId;
     const nodes = proofStore.nodes;
     const apiKey = hintStore.apiKey;
+    const loraServerUrl = hintStore.loraServerUrl;
 
     console.log('[useHintSystem] requestHint called for goalId:', goalId, 'sessionId:', sessionId);
 
@@ -80,6 +81,7 @@ export function useHintSystem() {
         currentLevel,
         previousHint,
         apiKey: apiKey || undefined,
+        loraServerUrl: loraServerUrl || undefined,
       });
 
       // Update hint state
@@ -115,6 +117,7 @@ export function useHintSystem() {
 
     const sessionId = proofStore.sessionId;
     const apiKey = hintStore.apiKey;
+    const loraServerUrl = hintStore.loraServerUrl;
 
     if (!sessionId) return;
 
@@ -137,6 +140,7 @@ export function useHintSystem() {
         currentLevel: nextLevel,
         previousHint,
         apiKey: apiKey || undefined,
+        loraServerUrl: loraServerUrl || undefined,
       });
 
       // Update hint state

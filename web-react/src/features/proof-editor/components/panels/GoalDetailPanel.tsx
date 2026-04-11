@@ -2,7 +2,6 @@ import { useCallback, useEffect } from "react";
 import { useProofStore, useUIStore } from "../../store";
 import { useHintStore } from "../../store/hint-store";
 import { useGoalDescriptionStore } from "../../store/goal-description-store";
-import { useMetadataStore } from "../../store/metadata-store";
 import { describeGoalBrowser } from "../../lib/describeGoalBrowser";
 import type { GoalNode } from "../../store/types";
 import { cn } from "@/shared/lib/utils";
@@ -38,8 +37,6 @@ export function GoalDetailPanel() {
 
   // AI / description state
   const apiKey = useHintStore((s) => s.apiKey);
-  const sourceCode = useMetadataStore((s) => s.sourceCode);
-  const claimName = useMetadataStore((s) => s.claimName);
   const setLoading = useGoalDescriptionStore((s) => s.setLoading);
   const setDescription = useGoalDescriptionStore((s) => s.setDescription);
   const setError = useGoalDescriptionStore((s) => s.setError);
@@ -53,27 +50,35 @@ export function GoalDetailPanel() {
   );
 
   // ---------------------------------------------------------------------------
-  // Description fetching — uses the full session source code and the claim
-  // name being proved, so the LLM has full context.
+  // Description fetching — translates the specific subgoal type + context
+  // into plain English via Gemini.
   // ---------------------------------------------------------------------------
   const fetchDescription = useCallback(
     async (nodeId: string) => {
-      if (!apiKey || !sourceCode || !claimName) return;
+      if (!apiKey || !selectedNode) return;
       setLoading(nodeId);
       try {
-        const text = await describeGoalBrowser(sourceCode, claimName, apiKey);
+        const contextEntries = selectedNode.data.context.map((c) => ({
+          name: c.name,
+          type: c.type,
+        }));
+        const text = await describeGoalBrowser(
+          selectedNode.data.goalType,
+          contextEntries,
+          apiKey,
+        );
         setDescription(nodeId, text);
       } catch (e) {
         setError(nodeId, e instanceof Error ? e.message : String(e));
       }
     },
-    [apiKey, sourceCode, claimName, setLoading, setDescription, setError],
+    [apiKey, selectedNode, setLoading, setDescription, setError],
   );
 
   // Lazily trigger on first open of this goal's panel
   useEffect(() => {
     if (!selectedNodeId || !selectedNode) return;
-    if (!apiKey || !sourceCode || !claimName) return;
+    if (!apiKey) return;
     // Only auto-fetch if we have no cached entry for this node yet
     if (!descEntry) {
       fetchDescription(selectedNodeId);
@@ -82,8 +87,6 @@ export function GoalDetailPanel() {
     selectedNodeId,
     selectedNode,
     apiKey,
-    sourceCode,
-    claimName,
     descEntry,
     fetchDescription,
   ]);
@@ -199,9 +202,9 @@ export function GoalDetailPanel() {
             Configure a Gemini API key in AI Settings to enable goal
             descriptions.
           </p>
-        ) : !sourceCode || !claimName ? (
+        ) : !selectedNode ? (
           <p className="text-xs text-gray-400 italic">
-            Start a proof session to generate a description.
+            Select a goal to generate a description.
           </p>
         ) : descEntry?.isLoading ? (
           <div className="flex items-center gap-2 text-xs text-purple-600">

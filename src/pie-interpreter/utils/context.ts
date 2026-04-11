@@ -216,9 +216,6 @@ export async function addDefineTacticallyInteractive(
   maxSteps: number = 100,
   maxRetries: number = 3,
 ): Promise<Perhaps<TacticalResult>> {
-  // Dynamic import to avoid circular dependency (training-data-extractor → context)
-  const { serializeContext, serializeGoal } = await import('../tactics/training-data-extractor');
-
   const proofManager = new ProofManager();
   let message = '';
 
@@ -248,8 +245,23 @@ export async function addDefineTacticallyInteractive(
     }
 
     const goal = goalResult.result;
-    const { globalContext, localContext } = serializeContext(goal.context);
-    const goalStr = serializeGoal(goal);
+    // Inline serialization (avoids dependency on training-data-extractor)
+    const contextEntries = Array.from(goal.context.entries())
+      .filter(([n]) => !n.startsWith('_'))
+      .map(([n, binder]) => ({
+        name: n,
+        type: binder.type.readBackType(goal.context).prettyPrint(),
+      }));
+    // Split into global (Define) and local (Free) entries
+    const globalContext = contextEntries.filter((_e, i) => {
+      const [, binder] = Array.from(goal.context.entries())[i];
+      return binder instanceof Define;
+    });
+    const localContext = contextEntries.filter((_e, i) => {
+      const [, binder] = Array.from(goal.context.entries())[i];
+      return binder instanceof Free;
+    });
+    const goalStr = goal.type.readBackType(goal.context).prettyPrint();
 
     let lastError: string | undefined;
     let applied = false;

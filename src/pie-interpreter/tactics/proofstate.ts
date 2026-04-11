@@ -58,7 +58,7 @@ export class Goal {
     const contextEntries: SerializableContextEntry[] = Array.from(this.context.entries())
       .map(([name, binder]) => ({
         name,
-        type: binder.type.readBackType(this.context).prettyPrint()
+        type: sugarType(binder.type.readBackType(this.context), this.context)
       }));
 
     const typeCore = this.type.readBackType(this.context);
@@ -98,7 +98,7 @@ export class Goal {
     const contextEntries: SerializableContextEntry[] = Array.from(this.context.entries())
       .map(([name, binder]) => ({
         name,
-        type: binder.type.readBackType(this.context).prettyPrint(),
+        type: sugarType(binder.type.readBackType(this.context), this.context),
         // Mark as introduced if not in parent's context
         introducedBy: parentContextNames.has(name) ? undefined : introducingTactic
       }));

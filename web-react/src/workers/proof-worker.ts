@@ -53,9 +53,27 @@ interface ProofSession {
   ctx: any;          // Context from @pie/utils — dynamic import
   claimName: string;
   claimType: string;
+  /** Global definitions available before the proof started (for LoRA context) */
+  globalDefinitions: GlobalEntry[];
+  /** Global theorems available before the proof started (for LoRA context) */
+  globalTheorems: GlobalEntry[];
 }
 
 const sessions = new Map<string, ProofSession>();
+
+// ============================================
+// LoRA prediction cache
+// ============================================
+
+interface LoraPrediction {
+  tactic: string;
+  tacticHead: string;
+  category: string;
+  validated: boolean;
+}
+
+/** Cache of validated LoRA predictions, keyed by goalId */
+const loraPredictions = new Map<string, LoraPrediction>();
 
 // ============================================
 // Shared helpers
@@ -317,6 +335,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       const { ProofManager } = await import("@pie/tactics/proof-manager");
       const { Location, Syntax } = await import("@pie/utils/locations");
       const { Position } = await import("@scheme/transpiler/types/location");
+      const { sugarType } = await import("@pie/unparser/sugar");
 
       // Create a dummy location
       const pos = new Position(1, 0);
@@ -413,16 +432,21 @@ const proofWorkerAPI: ProofWorkerAPI = {
           );
           if (result instanceof go) {
             ctx = result.result;
-            // Track definition
+            // Track definition — use sugarType to match training data format
             const binding = ctx.get(src.name);
             const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
+              ? sugarType(binding.type.readBackType(ctx), ctx)
               : "unknown";
             globalDefinitions.push({
               name: src.name,
               type: typeStr,
               kind: "definition",
             });
+            // Remove from pending claims (claim is now fulfilled by this definition)
+            const claimIdx = pendingClaims.findIndex(
+              (c) => c.name === src.name,
+            );
+            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
           } else if (result instanceof stop) {
             throw new Error(`Definition error: ${result.message}`);
           }
@@ -435,10 +459,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
           );
           if (result instanceof go) {
             ctx = result.result.context;
-            // This is a proved theorem
+            // This is a proved theorem — use sugarType to match training data format
             const binding = ctx.get(src.name);
             const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
+              ? sugarType(binding.type.readBackType(ctx), ctx)
               : "unknown";
             globalTheorems.push({
               name: src.name,
@@ -507,6 +531,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
         ctx,
         claimName,
         claimType,
+        globalDefinitions,
+        globalTheorems,
       });
 
       console.log("[ProofWorker] Session created:", sessionId);
@@ -913,18 +939,136 @@ const proofWorkerAPI: ProofWorkerAPI = {
         };
       }
 
-      // Build hint request
+      const context = goal.goal.context.map((c) => ({
+        name: c.name,
+        type: c.type,
+      }));
+
+      // Build proof state text matching LoRA training format for Gemini context
+      const globalNames = new Set<string>();
+      const defLines: string[] = [];
+      for (const entry of [
+        ...session.globalDefinitions,
+        ...session.globalTheorems,
+      ]) {
+        if (!globalNames.has(entry.name)) {
+          globalNames.add(entry.name);
+          defLines.push(`  ${entry.name} : ${entry.type}`);
+        }
+      }
+      const localLines = context
+        .filter(
+          (c) => !globalNames.has(c.name) && c.name !== session.claimName,
+        )
+        .map((c) => `  ${c.name} : ${c.type}`);
+      const proofStateParts: string[] = [];
+      if (defLines.length > 0)
+        proofStateParts.push("Definitions:\n" + defLines.join("\n"));
+      if (localLines.length > 0)
+        proofStateParts.push("Local variables:\n" + localLines.join("\n"));
+      proofStateParts.push(`Goal: ${goal.goal.type}`);
+      const proofStateText = proofStateParts.join("\n");
+
+      // ── LoRA path: predict → validate → cache → Gemini explain ──
+
+      // Try to get LoRA prediction (only on first hint request for this goal)
+      let loraPrediction: LoraPrediction | undefined =
+        loraPredictions.get(request.goalId);
+
+      if (!loraPrediction && request.loraServerUrl) {
+        loraPrediction = (await fetchAndValidateLoraPrediction(
+          request.loraServerUrl,
+          request.sessionId,
+          request.goalId,
+          goal.goal.type,
+          goal.goal.context,
+          session,
+        )) ?? undefined;
+        if (loraPrediction) {
+          loraPredictions.set(request.goalId, loraPrediction);
+          console.log(
+            "[ProofWorker] LoRA prediction cached:",
+            loraPrediction.tactic,
+            "validated:",
+            loraPrediction.validated,
+          );
+        }
+      }
+
+      // If we have a validated LoRA prediction, use Gemini to explain it
+      if (loraPrediction?.validated && request.apiKey) {
+        try {
+          const { explainTactic } = await import(
+            "@pie/solver/hint-generator"
+          );
+          const explainRequest = {
+            predictedTactic: loraPrediction.tactic,
+            tacticCategory: loraPrediction.category,
+            goalType: goal.goal.type,
+            context,
+            level: request.currentLevel,
+            proofStateText,
+          };
+          console.log(
+            "[ProofWorker] 📤 Sending to Gemini explainTactic:",
+            JSON.stringify(explainRequest, null, 2),
+          );
+          const hint = await explainTactic(request.apiKey, explainRequest);
+          console.log(
+            "[ProofWorker] 📥 Gemini explainTactic returned:",
+            JSON.stringify(hint, null, 2),
+          );
+          const finalHint = { ...hint, source: "lora" as const };
+          console.log(
+            "[ProofWorker] 🎯 Final hint to frontend:",
+            JSON.stringify(finalHint, null, 2),
+          );
+          return finalHint;
+        } catch (explainError) {
+          console.warn(
+            "[ProofWorker] Gemini explanation failed, using fallback:",
+            explainError,
+          );
+          // Fall through to LoRA-without-Gemini path
+        }
+      }
+
+      // If we have a validated LoRA prediction but no Gemini API key (or Gemini failed),
+      // provide a simple structured hint from the prediction using the built-in fallback
+      if (loraPrediction?.validated) {
+        const { explainTactic } = await import("@pie/solver/hint-generator");
+        const explainRequest = {
+          predictedTactic: loraPrediction.tactic,
+          tacticCategory: loraPrediction.category,
+          goalType: goal.goal.type,
+          context,
+          level: request.currentLevel,
+          proofStateText,
+        };
+        console.log(
+          "[ProofWorker] 📤 Sending to fallback explainTactic (no API key):",
+          JSON.stringify(explainRequest, null, 2),
+        );
+        const hint = await explainTactic("", explainRequest);
+        console.log(
+          "[ProofWorker] 📥 Fallback explainTactic returned:",
+          JSON.stringify(hint, null, 2),
+        );
+        return { ...hint, source: "lora" };
+      }
+
+      // ── Legacy path: Gemini-only or rule-based ──
+
       const hintRequest = {
         goalType: goal.goal.type,
-        context: goal.goal.context.map((c) => ({ name: c.name, type: c.type })),
-        availableTactics: (Object.keys(TACTIC_REQUIREMENTS) as TacticType[]).filter(
-          (t) => t !== "todo",
-        ),
+        context,
+        availableTactics: (
+          Object.keys(TACTIC_REQUIREMENTS) as TacticType[]
+        ).filter((t) => t !== "todo"),
         currentLevel: request.currentLevel,
         previousHint: request.previousHint,
       };
 
-      // Import hint generator
       const { generateProgressiveHint, generateRuleBasedHint } =
         await import("@pie/solver/hint-generator");
 
@@ -935,8 +1079,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
             request.apiKey,
             hintRequest,
           );
-          console.log("[ProofWorker] AI hint generated:", hint);
-          return hint;
+          console.log("[ProofWorker] Gemini-only hint generated:", hint);
+          return { ...hint, source: "gemini" };
         } catch (aiError) {
           console.warn(
             "[ProofWorker] AI hint failed, falling back to rule-based:",
@@ -948,7 +1092,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Fallback to rule-based hints
       const hint = generateRuleBasedHint(hintRequest);
       console.log("[ProofWorker] Rule-based hint generated:", hint);
-      return hint;
+      return { ...hint, source: "rule-based" };
     } catch (error) {
       console.error("[ProofWorker] Error generating hint:", error);
       return {
@@ -959,6 +1103,124 @@ const proofWorkerAPI: ProofWorkerAPI = {
     }
   },
 };
+
+/**
+ * Fetch a tactic prediction from the local LoRA server and validate it
+ * by dry-running the tactic against the proof state.
+ *
+ * Returns null if the server is unreachable or the prediction is invalid.
+ */
+async function fetchAndValidateLoraPrediction(
+  loraServerUrl: string,
+  _sessionId: string,
+  _goalId: string,
+  goalType: string,
+  goalContext: ContextEntry[],
+  session: ProofSession,
+): Promise<LoraPrediction | null> {
+  // 1. Fetch prediction from LoRA server
+  let tactic: string;
+  let tacticHead: string;
+  let category: string;
+
+  try {
+    const url = loraServerUrl.replace(/\/+$/, "");
+
+    // Global context: definitions + theorems from session (deduplicated).
+    // Types are already sugared via sugarType in startSession.
+    const globalNames = new Set<string>();
+    const globalCtx: Array<{ name: string; type: string }> = [];
+    for (const entry of [
+      ...session.globalDefinitions,
+      ...session.globalTheorems,
+    ]) {
+      if (!globalNames.has(entry.name)) {
+        globalNames.add(entry.name);
+        globalCtx.push({ name: entry.name, type: entry.type });
+      }
+    }
+
+    // Local context: only entries NOT in global context and NOT the claim being proved.
+    // Types are now sugared at the source (proofstate.ts uses sugarType).
+    const localCtx = goalContext
+      .filter(
+        (c) => !globalNames.has(c.name) && c.name !== session.claimName,
+      )
+      .map((c) => ({ name: c.name, type: c.type }));
+
+    const requestBody = {
+      goal: goalType,
+      globalContext: globalCtx,
+      localContext: localCtx,
+    };
+    console.log(
+      "[ProofWorker] 📤 LoRA request:",
+      JSON.stringify(requestBody, null, 2),
+    );
+
+    const resp = await fetch(`${url}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!resp.ok) {
+      console.warn(
+        "[ProofWorker] LoRA server returned",
+        resp.status,
+        resp.statusText,
+      );
+      return null;
+    }
+
+    const data = await resp.json();
+    console.log(
+      "[ProofWorker] 📥 LoRA response:",
+      JSON.stringify(data, null, 2),
+    );
+    tactic = data.tactic.trim();
+    tacticHead = data.tactic_head;
+    category = data.category;
+
+    // Sanitize: if the model produced multi-line output or a very long
+    // "exact" expression (full proof term), it's not a useful single-step
+    // tactic hint. Reject it so we fall back to Gemini.
+    if (tactic.includes("\n") || tactic.length > 100) {
+      console.warn(
+        "[ProofWorker] LoRA output too complex for hint, rejecting:",
+        tactic.slice(0, 80) + "...",
+      );
+      return null;
+    }
+  } catch (error) {
+    console.warn("[ProofWorker] LoRA server unreachable:", error);
+    return null;
+  }
+
+  // 2. Validate by parsing the tactic string.
+  //    We verify the tactic parses correctly and has a recognized type.
+  //    Full type-checking (dry-run) would require cloning the proof state,
+  //    which ProofManager doesn't support. Parse validation catches most
+  //    LoRA errors (malformed output, unknown tactic names).
+  let validated = false;
+  try {
+    const { schemeParse, Parser } = await import("@pie/parser/parser");
+
+    // Parse the tactic string
+    const wrapped = tactic.trim().startsWith("(") ? tactic : `(${tactic})`;
+    const parsed = schemeParse(wrapped);
+    Parser.parseToTactics(parsed[0]);
+
+    // If parsing succeeded, the tactic is structurally valid
+    validated = true;
+    console.log("[ProofWorker] LoRA prediction parsed successfully:", tactic);
+  } catch (error) {
+    console.warn("[ProofWorker] LoRA prediction parse error:", error);
+    validated = false;
+  }
+
+  return { tactic, tacticHead, category, validated };
+}
 
 /**
  * Helper to find a goal by ID in the proof tree

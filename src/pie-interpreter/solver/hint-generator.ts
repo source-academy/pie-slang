@@ -704,3 +704,276 @@ export function getNextHintLevel(current: HintLevel): HintLevel {
       return "full"; // Already at max level
   }
 }
+
+// ============================================
+// LoRA-powered hint explanation (Gemini explains a known tactic)
+// ============================================
+
+/**
+ * Request for explaining a LoRA-predicted tactic at a specific level.
+ */
+/**
+ * Map LoRA output tactic names (kebab-case) to protocol TacticType (camelCase).
+ * LoRA outputs e.g. "elim-Nat" but the protocol uses "elimNat".
+ */
+const TACTIC_NAME_TO_PROTOCOL: Record<string, string> = {
+  "elim-Nat": "elimNat",
+  "elim-List": "elimList",
+  "elim-Vec": "elimVec",
+  "elim-Either": "elimEither",
+  "elim-Equal": "elimEqual",
+  "elim-Absurd": "elimAbsurd",
+  "ind-Nat": "elimNat",
+  "ind-nat": "elimNat",
+  "ind-List": "elimList",
+  "ind-list": "elimList",
+  "ind-Vec": "elimVec",
+  "ind-Either": "elimEither",
+  "ind-equal": "elimEqual",
+  "ind-Equal": "elimEqual",
+  "ind-Absurd": "elimAbsurd",
+  "go-Left": "left",
+  "go-Right": "right",
+};
+
+/** Normalize a tactic head to protocol TacticType format. */
+function toProtocolTacticType(head: string): string {
+  return TACTIC_NAME_TO_PROTOCOL[head] || head;
+}
+
+export interface ExplainTacticRequest {
+  /** The full tactic string predicted by LoRA (e.g. "elim-Nat n") */
+  predictedTactic: string;
+  /** The tactic category (derived from tactic head) */
+  tacticCategory: string;
+  /** Goal type being proved */
+  goalType: string;
+  /** Context variables */
+  context: Array<{ name: string; type: string }>;
+  /** Which level of explanation to produce */
+  level: HintLevel;
+  /** Formatted proof state matching LoRA training format (Definitions + Local variables + Goal) */
+  proofStateText?: string;
+}
+
+/**
+ * Explain a LoRA-predicted tactic using Gemini.
+ *
+ * Gemini sees the full prediction at every level but is prompted to
+ * reveal information progressively:
+ * - category: explain why this category of approach is appropriate
+ * - tactic: reveal and explain the specific tactic type
+ * - full: reveal and explain the complete tactic with parameters
+ */
+export async function explainTactic(
+  apiKey: string,
+  request: ExplainTacticRequest,
+): Promise<ProgressiveHint> {
+  if (!apiKey) {
+    // No API key — return a simple fallback explanation
+    return buildFallbackExplanation(request);
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const contextSummary =
+    request.context.length > 0
+      ? request.context.map((c) => `${c.name} : ${c.type}`).join("\n")
+      : "No context variables";
+
+  const prompt = buildExplainPrompt(request, contextSummary);
+  console.log("[HintGenerator] 📤 Gemini explain prompt:\n", prompt);
+
+  try {
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    if (!result.text) {
+      throw new Error("No response from Gemini API");
+    }
+
+    console.log("[HintGenerator] 📥 Gemini raw response:", result.text);
+    const parsed = parseExplainResponse(result.text, request);
+    console.log("[HintGenerator] 📦 Parsed hint:", JSON.stringify(parsed, null, 2));
+    return parsed;
+  } catch (error: unknown) {
+    console.warn("[HintGenerator] ⚠️ Gemini failed, using fallback:", error);
+    // Fall back to a simple explanation without Gemini
+    return buildFallbackExplanation(request);
+  }
+}
+
+function buildExplainPrompt(
+  request: ExplainTacticRequest,
+  contextSummary: string,
+): string {
+  const { predictedTactic, tacticCategory, goalType, level, proofStateText } = request;
+
+  const proofStateSection = proofStateText
+    ? `Current proof state:\n${proofStateText}`
+    : `Goal type: ${goalType}\nContext variables:\n${contextSummary}`;
+
+  const base =
+    `You are an educational proof assistant for Pie (from "The Little Typer").\n` +
+    `A student who is NEW to type theory is working on a proof and needs a hint.\n` +
+    `The correct next tactic is: ${predictedTactic}\n\n` +
+    `${proofStateSection}\n\n` +
+    `IMPORTANT: The student may not know Pie syntax or type theory jargon.\n` +
+    `Always explain in PLAIN ENGLISH first, then connect to Pie syntax.\n` +
+    `Use phrases like "for all", "there exists", "either...or", "equals"\n` +
+    `instead of "Pi type", "Sigma type", "Either type", "equality type".\n\n`;
+
+  switch (level) {
+    case "category":
+      return (
+        base +
+        `Your job: explain only the CATEGORY of approach needed.\n` +
+        `Do NOT reveal the specific tactic name or its parameters.\n\n` +
+        `Categories:\n` +
+        `- introduction: we need to assume a variable or provide a direct value\n` +
+        `- elimination: we need to analyze or break down something we already know\n` +
+        `- constructor: we need to build a compound value (a pair, or choose left/right)\n` +
+        `- application: we need to use a known fact or function\n\n` +
+        `Start by saying what the goal means in plain English, then suggest the approach.\n` +
+        `Example: "This goal says 'for all natural numbers n, ...' — it makes a universal\n` +
+        `claim. To prove a universal claim, we assume we have an arbitrary n and prove the\n` +
+        `rest. In Pie, this is an introduction step."\n\n` +
+        `Respond with JSON only:\n` +
+        `{"category": "${tacticCategory}", "explanation": "<1-2 sentences, plain English first>", "confidence": <0.0-1.0>}`
+      );
+
+    case "tactic": {
+      const tacticHead = predictedTactic.trim().split(/\s+/)[0];
+      return (
+        base +
+        `The student already knows the category is "${tacticCategory}".\n` +
+        `Now reveal the specific tactic "${tacticHead}" (but do NOT reveal its parameters).\n\n` +
+        `Explain the concept in plain English FIRST, then name the Pie tactic. Examples:\n` +
+        `- "We need to prove this by induction on n — handling the base case (n = 0) and the\n` +
+        `  step case separately. In Pie, this is the elim-Nat tactic."\n` +
+        `- "Since this is a universal statement ('for all n...'), we introduce n as a given.\n` +
+        `  In Pie, this is the intro tactic."\n` +
+        `- "We have a value that is 'either A or B', so we consider both cases.\n` +
+        `  In Pie, this is elim-Either."\n\n` +
+        `Respond with JSON only:\n` +
+        `{"tacticType": "${tacticHead}", "explanation": "<1-2 sentences, concept first then Pie syntax>", "confidence": <0.0-1.0>}`
+      );
+    }
+
+    case "full":
+      return (
+        base +
+        `Now reveal the complete tactic with parameters: ${predictedTactic}\n\n` +
+        `Explain what each part means in plain English. Reference the proof state to\n` +
+        `explain WHY specific arguments are used. Examples:\n` +
+        `- "exact (add1-even->odd n-1 x)": "We already proved that adding 1 to an even\n` +
+        `  number gives an odd number (add1-even->odd). We apply it to n-1 (our natural\n` +
+        `  number) and x (our proof that n-1 is even). In Pie: exact (add1-even->odd n-1 x)."\n` +
+        `- "elim-Nat n": "We prove this by induction on n. The base case handles n = 0,\n` +
+        `  and the step case assumes the result for n-1 and proves it for n + 1.\n` +
+        `  In Pie: elim-Nat n."\n\n` +
+        `Respond with JSON only:\n` +
+        `{"tacticType": "<name>", "parameters": {<params as key-value>}, ` +
+        `"explanation": "<2-3 sentences: plain English meaning, then Pie syntax>", "confidence": <0.0-1.0>}`
+      );
+  }
+}
+
+function parseExplainResponse(
+  response: string,
+  request: ExplainTacticRequest,
+): ProgressiveHint {
+  try {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const tacticHead = request.predictedTactic.trim().split(/\s+/)[0];
+    const tacticArgs = request.predictedTactic.trim().split(/\s+/).slice(1).join(" ");
+
+    const hint: ProgressiveHint = {
+      level: request.level,
+      explanation: parsed.explanation || "Consider this approach.",
+      confidence:
+        typeof parsed.confidence === "number" ? parsed.confidence : 0.9,
+    };
+
+    // Always set category (derived from LoRA, not from Gemini's text)
+    hint.category = request.tacticCategory as TacticCategory;
+
+    if (request.level === "tactic" || request.level === "full") {
+      hint.tacticType = toProtocolTacticType(tacticHead);
+    }
+
+    if (request.level === "full" && tacticArgs) {
+      // Always derive parameters from the LoRA tactic string (authoritative),
+      // not from Gemini's JSON which may use arbitrary key names like "proofTerm".
+      // The protocol expects "expression" for exact/exists, "variableName" for others.
+      if (tacticHead === "exact" || tacticHead === "exists") {
+        hint.parameters = { expression: tacticArgs };
+      } else if (tacticHead === "intro" || tacticHead === "elimNat" || tacticHead === "elim-Nat" ||
+          tacticHead === "elimList" || tacticHead === "elim-List" ||
+          tacticHead === "elimEither" || tacticHead === "elim-Either" ||
+          tacticHead === "elimAbsurd" || tacticHead === "elim-Absurd") {
+        hint.parameters = { variableName: tacticArgs };
+      }
+    }
+
+    return hint;
+  } catch {
+    return buildFallbackExplanation(request);
+  }
+}
+
+/**
+ * Build a simple explanation when Gemini is unavailable.
+ * Uses the LoRA prediction to provide a structured hint.
+ */
+function buildFallbackExplanation(
+  request: ExplainTacticRequest,
+): ProgressiveHint {
+  const tacticHead = request.predictedTactic.trim().split(/\s+/)[0];
+  const protocolType = toProtocolTacticType(tacticHead);
+  const tacticArgs = request.predictedTactic.trim().split(/\s+/).slice(1).join(" ");
+  const category = request.tacticCategory as TacticCategory;
+
+  switch (request.level) {
+    case "category":
+      return {
+        level: "category",
+        category,
+        explanation: CATEGORY_DESCRIPTIONS[category] || `Consider a ${category} approach.`,
+        confidence: 0.9,
+      };
+    case "tactic":
+      return {
+        level: "tactic",
+        category,
+        tacticType: protocolType,
+        explanation: `Use the ${protocolType} tactic for this goal.`,
+        confidence: 0.9,
+      };
+    case "full": {
+      const params: Record<string, string> = {};
+      if (tacticArgs) {
+        if (protocolType === "exact" || protocolType === "exists") {
+          params.expression = tacticArgs;
+        } else {
+          params.variableName = tacticArgs;
+        }
+      }
+      return {
+        level: "full",
+        category,
+        tacticType: protocolType,
+        parameters: params,
+        explanation: `Apply ${request.predictedTactic}.`,
+        confidence: 0.9,
+      };
+    }
+  }
+}

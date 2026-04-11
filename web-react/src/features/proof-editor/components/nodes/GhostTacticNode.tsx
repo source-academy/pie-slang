@@ -71,7 +71,8 @@ export const GhostTacticNode = memo(function GhostTacticNode({
 }: NodeProps<GhostTacticNode>) {
   const { hint, isLoading, onAccept, onDismiss, onMoreDetail } = data as GhostTacticNodeData;
   const hasApiKey = useHintStore((s) => !!s.apiKey);
-  const isAIPowered = hasApiKey;
+  const hintSource = hint.source || (hasApiKey ? 'gemini' : 'rule-based');
+  const isAIPowered = hintSource === 'lora' || hintSource === 'gemini';
 
   const handleAccept = useCallback(() => {
     onAccept();
@@ -118,22 +119,26 @@ export const GhostTacticNode = memo(function GhostTacticNode({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-purple-200 px-3 py-2">
         <div className="flex items-center gap-2">
-          {isAIPowered ? (
+          {hintSource === 'lora' ? (
+            <Cpu className="h-4 w-4 text-green-600" />
+          ) : isAIPowered ? (
             <Sparkles className="h-4 w-4 text-purple-500" />
           ) : (
-            <Cpu className="h-4 w-4 text-purple-500" />
+            <Cpu className="h-4 w-4 text-gray-500" />
           )}
           <span className="text-xs font-medium text-purple-700">
             {getLevelDisplay(hint.level)}
           </span>
-          {/* AI/Rule badge */}
+          {/* Source badge */}
           <span className={cn(
             'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
-            isAIPowered
-              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-              : 'bg-gray-200 text-gray-600'
+            hintSource === 'lora'
+              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+              : hintSource === 'gemini'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                : 'bg-gray-200 text-gray-600'
           )}>
-            {isAIPowered ? 'AI' : 'Rule'}
+            {hintSource === 'lora' ? 'Local AI' : hintSource === 'gemini' ? 'AI' : 'Rule'}
           </span>
         </div>
         <span className={cn('text-[10px] font-medium', confidenceColor)}>
