@@ -164,67 +164,23 @@ causes wrong predictions because the model has never seen that format.
 
 ## Gemini Explanation Prompts
 
-Gemini sees the **full LoRA prediction** at every level. The prompt restricts what it reveals.
+Gemini sees the **full LoRA prediction** at every level. The prompt restricts what it reveals. The prompt includes a `proofStateText` field with the full proof state (Definitions + Local variables + Goal) so Gemini can explain WHY specific arguments are used.
 
-### Category Level Prompt
+**Key design decision: natural-language-first.** Explanations start with what the goal means conceptually (in plain English), then connect to Pie syntax. Students may not know what "elim-Nat" means, so the prompt instructs Gemini to explain the mathematical concept first.
 
-```
-You are an educational proof assistant for Pie (from "The Little Typer").
+### Category Level
 
-A student is working on a proof and needs a hint. You know the correct next
-tactic is: {tactic} (applied to goal: {goalType})
+Gemini reveals only the category of approach (introduction, elimination, constructor, application) with a natural-language explanation of why it's appropriate. Does not reveal the tactic name.
 
-Context variables:
-{context}
+### Tactic Level
 
-Your job: explain only the CATEGORY of approach needed. Do NOT reveal the
-specific tactic name or parameters. Categories:
-- introduction: introducing a variable or providing a direct value
-- elimination: performing case analysis or induction on a value
-- constructor: building a pair, sigma, or either value
-- application: applying a function or lemma
+Gemini reveals the specific tactic type (e.g., "elim-Nat") but NOT the parameters. Explains the concept first ("we need to do induction on a natural number"), then names the tactic.
 
-Write 1-2 sentences explaining WHY this category of approach is appropriate
-for this goal. Be Socratic — guide the student's thinking.
+### Full Level
 
-Respond with JSON:
-{"category": "<category>", "explanation": "<1-2 educational sentences>", "confidence": <0.0-1.0>}
-```
+Gemini reveals the complete tactic with parameters and explains what each parameter means. Tactic parameters in the `HintResponse` are derived from the LoRA prediction string (not from Gemini's JSON), ensuring correct protocol keys (`expression` for exact/exists, `variableName` for eliminators/intro).
 
-### Tactic Level Prompt
-
-```
-You are an educational proof assistant for Pie.
-
-The student's goal is: {goalType}
-Context: {context}
-The correct tactic is: {tactic}
-You previously hinted the category: {category}
-
-Now reveal the specific tactic type (e.g. "elim-Nat", "intro", "exact") but
-do NOT reveal the parameters. Explain why this particular tactic is the right
-tool. Be educational — connect it to the goal structure.
-
-Respond with JSON:
-{"tacticType": "<tactic-name>", "explanation": "<1-2 educational sentences>", "confidence": <0.0-1.0>}
-```
-
-### Full Level Prompt
-
-```
-You are an educational proof assistant for Pie.
-
-The student's goal is: {goalType}
-Context: {context}
-The correct tactic with parameters is: {tactic}
-
-Now reveal the complete tactic including parameters. Explain what each
-parameter means and what subgoals this tactic will produce. Help the student
-understand not just WHAT to do but WHY it works.
-
-Respond with JSON:
-{"tacticType": "<name>", "parameters": {<params>}, "explanation": "<2-3 educational sentences>", "confidence": <0.0-1.0>}
-```
+See `src/pie-interpreter/solver/hint-generator.ts` (`buildExplainPrompt`) for the actual prompt templates.
 
 ## Validation: Dry-Run Tactic Before Showing Hint
 
@@ -323,7 +279,13 @@ All phases are implemented. Files changed:
 - `web-react/src/features/proof-editor/components/panels/AISettingsPanel.tsx` — local model URL input + health check indicator
 - `web-react/src/features/proof-editor/components/nodes/GhostTacticNode.tsx` — hint source badge (Local AI / AI / Rule)
 
-### Phase 5: Testing — TODO
+### Phase 5: Goal Translation — DONE
+- `web-react/src/features/proof-editor/lib/describeGoalBrowser.ts` — Gemini-based goal type → plain English translator (per-subgoal, with context)
+- `web-react/src/features/proof-editor/store/goal-description-store.ts` — Cache translations per goal node ID
+- `web-react/src/features/proof-editor/components/nodes/GoalNode.tsx` — Translate button (globe icon) + Pie syntax ↔ natural language toggle
+- `web-react/src/features/proof-editor/components/panels/GoalDetailPanel.tsx` — Overview section in detail panel
+
+### Phase 6: Testing — TODO
 - Unit test: `serve.py` with holdout data via curl
 - Integration test: proof-worker with mock LoRA server
 - E2E: full flow with real LoRA server running
@@ -331,4 +293,4 @@ All phases are implemented. Files changed:
 ### Known Limitations
 - Validation is parse-only (not type-checked against proof state) because ProofManager lacks undo/clone support
 - LoRA server must be started manually before using hints
-- Global context is not yet populated in LoRA requests (TODO in fetchAndValidateLoraPrediction)
+- LoRA prediction cache is cleared on each new session start; within a session, predictions are cached by goalId

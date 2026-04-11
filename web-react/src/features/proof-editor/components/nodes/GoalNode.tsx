@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { cn } from "@/shared/lib/utils";
 import { Lightbulb, Loader2, Sparkles, ChevronRight, ChevronDown, Languages } from "lucide-react";
@@ -75,6 +75,14 @@ export const GoalNode = memo(function GoalNode({
   const setDescText = useGoalDescriptionStore((s) => s.setDescription);
   const setDescError = useGoalDescriptionStore((s) => s.setError);
   const [showTranslation, setShowTranslation] = useState(false);
+  const translateAbortRef = useRef<AbortController | null>(null);
+
+  // Cleanup in-flight translation request on unmount
+  useEffect(() => {
+    return () => {
+      translateAbortRef.current?.abort();
+    };
+  }, []);
 
   const { getNode } = useReactFlow(); // Helper to access node properties like position
 
@@ -118,6 +126,11 @@ export const GoalNode = memo(function GoalNode({
         return;
       }
 
+      // Abort any in-flight request before starting a new one
+      translateAbortRef.current?.abort();
+      const abortController = new AbortController();
+      translateAbortRef.current = abortController;
+
       // Fetch translation
       setDescLoading(id);
       setShowTranslation(true);
@@ -131,8 +144,11 @@ export const GoalNode = memo(function GoalNode({
           contextEntries,
           apiKey,
         );
+        // Don't update state if this request was aborted (component unmounted or new request started)
+        if (abortController.signal.aborted) return;
         setDescText(id, text);
       } catch (err) {
+        if (abortController.signal.aborted) return;
         setDescError(id, err instanceof Error ? err.message : String(err));
       }
     },

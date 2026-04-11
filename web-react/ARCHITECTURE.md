@@ -46,7 +46,7 @@ The interpreter runs in a Web Worker (`src/workers/proof-worker.ts`) exposed via
 
 - **`startSession(sourceCode, claimName)`** — Parse source, build context, initialize ProofManager
 - **`applyTactic(sessionId, goalId, tacticType, params)`** — Apply tactic, return updated ProofTree
-- **`getHint(request)`** — Generate progressive hint (rule-based or AI-powered)
+- **`getHint(request)`** — Generate progressive hint (LoRA prediction → Gemini explanation → rule-based fallback)
 - **`scanFile(sourceCode)`** — Scan for claims, theorems, definitions (multi-proof support)
 
 The worker dynamically imports `@pie/*` modules to keep the main thread free. Session state is stored in a `Map<string, ProofSession>` inside the worker.
@@ -72,15 +72,28 @@ The hint system provides progressive assistance:
 
 Implementation:
 - `useHintSystem` hook manages the hint lifecycle
-- `hint-store` tracks current hint level, ghost nodes, and loading state
+- `hint-store` tracks current hint level, ghost nodes, and loading state per goal
 - Ghost nodes are semi-transparent tactic nodes rendered on the canvas
-- Two backends: rule-based (pattern matching on goal type) and AI-powered (Google Gemini API)
+- Three backends, tried in order:
+  1. **LoRA model** — Fine-tuned qwen2.5-coder-7b predicts tactics from proof state. Served via FastAPI (`training/serve.py`). Predictions are validated by parsing the tactic string. Cached per goal, cleared on new session.
+  2. **Gemini explanation** — When LoRA provides a validated prediction, Gemini generates a natural-language-first explanation at the requested hint level. The raw proof state (definitions + local vars + goal) is included in the prompt so Gemini can explain why specific arguments are used.
+  3. **Rule-based fallback** — Pattern matching on goal type when no AI backends are available.
+- AI Settings panel (`AISettingsPanel`) configures Gemini API key and local model URL with health check.
+
+## Goal Translation
+
+GoalNode includes a translate button (globe icon) that translates the Pie goal type into plain English via Gemini:
+
+- Uses `describeGoalBrowser(goalType, context, apiKey)` to call Gemini with few-shot examples
+- Translations are cached in `goal-description-store` keyed by goal node ID
+- A toggle link switches between Pie syntax and natural language display on the node
+- Each subgoal gets its own translation with its specific free variables in scope
 
 ## React Flow Node Types
 
 Three custom node types registered with React Flow:
 
-- **GoalNode** — Proof obligation with type, context, status badge
+- **GoalNode** — Proof obligation with type, context, status badge, hint button, translate button
 - **TacticNode** — Applied tactic with type label and parameters
 - **GhostTacticNode** — Transparent hint preview (clickable to apply)
 - **LemmaNode** — Available theorem/definition for `apply` tactic
@@ -105,7 +118,7 @@ web-react/src/
 │   └── proof-editor/
 │       ├── components/     # React components (canvas, nodes, panels)
 │       │   ├── nodes/      # GoalNode, TacticNode, GhostTacticNode
-│       │   └── panels/     # LeftSidebar, DefinitionsPanel
+│       │   └── panels/     # LeftSidebar, DefinitionsPanel, GoalDetailPanel, AISettingsPanel
 │       ├── data/           # Static tactic catalog
 │       ├── hooks/          # useProofSession, useHintSystem
 │       ├── store/          # Zustand stores

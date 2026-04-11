@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useProofStore, useUIStore } from "../../store";
 import { useHintStore } from "../../store/hint-store";
 import { useGoalDescriptionStore } from "../../store/goal-description-store";
@@ -53,9 +53,23 @@ export function GoalDetailPanel() {
   // Description fetching — translates the specific subgoal type + context
   // into plain English via Gemini.
   // ---------------------------------------------------------------------------
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cleanup in-flight request on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   const fetchDescription = useCallback(
     async (nodeId: string) => {
       if (!apiKey || !selectedNode) return;
+
+      abortRef.current?.abort();
+      const abortController = new AbortController();
+      abortRef.current = abortController;
+
       setLoading(nodeId);
       try {
         const contextEntries = selectedNode.data.context.map((c) => ({
@@ -67,8 +81,10 @@ export function GoalDetailPanel() {
           contextEntries,
           apiKey,
         );
+        if (abortController.signal.aborted) return;
         setDescription(nodeId, text);
       } catch (e) {
+        if (abortController.signal.aborted) return;
         setError(nodeId, e instanceof Error ? e.message : String(e));
       }
     },

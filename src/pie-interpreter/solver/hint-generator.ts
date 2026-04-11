@@ -5,6 +5,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { SerializableContext } from "../utils/context";
 import type { TacticCategory } from "./hint-types";
+import { Parser } from "../parser/parser";
+import { Pi } from "../types/source";
 
 const MISSING_API_KEY_ERROR = new Error(
   "GOOGLE_API_KEY is not set. " +
@@ -588,9 +590,16 @@ export function generateRuleBasedHint(
 
       switch (tacticType) {
         case "intro": {
-          // Try to extract variable name from Pi type
-          const piMatch = goalType.match(/\(Π\s*\(\[([^\]]+)\s+/);
-          const varName = piMatch ? piMatch[1] : "x";
+          // Extract variable name from Pi type using the parser
+          let varName = "x";
+          try {
+            const parsed = Parser.parsePie(goalType);
+            if (parsed instanceof Pi && parsed.binders.length > 0) {
+              varName = parsed.binders[0].binder.varName;
+            }
+          } catch {
+            // If parsing fails, fall back to default "x"
+          }
           parameters = { variableName: varName };
           explanation = `Introduce "${varName}" into the context.`;
           break;

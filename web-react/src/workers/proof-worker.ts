@@ -186,6 +186,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       } = await import("@pie/utils/context");
       const { go, stop } = await import("@pie/types/utils");
       const { Position } = await import("@scheme/transpiler/types/location");
+      const { sugarType } = await import("@pie/unparser/sugar");
 
       // Parse source code
       const astList = schemeParse(sourceCode);
@@ -213,7 +214,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const srcType = src.type as any;
             const typeStr = srcType.readBackType
-              ? srcType.readBackType(ctx).prettyPrint()
+              ? sugarType(srcType.readBackType(ctx), ctx)
               : String(src.type);
             pendingClaims.push({ name: src.name, type: typeStr });
           }
@@ -228,7 +229,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
             ctx = result.result;
             const binding = ctx.get(src.name);
             const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
+              ? sugarType(binding.type.readBackType(ctx), ctx)
               : "unknown";
             definitions.push({
               name: src.name,
@@ -247,7 +248,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
             ctx = result.result.context;
             const binding = ctx.get(src.name);
             const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
+              ? sugarType(binding.type.readBackType(ctx), ctx)
               : "unknown";
             theorems.push({
               name: src.name,
@@ -314,6 +315,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
     claimName: string,
   ): Promise<StartSessionResponse> {
     console.log("[ProofWorker] startSession() called for:", claimName);
+
+    // Clear stale LoRA prediction cache from previous sessions
+    loraPredictions.clear();
 
     try {
       // Dynamically import Pie modules
@@ -408,7 +412,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const srcType = src.type as any;
             const typeStr = srcType.readBackType
-              ? srcType.readBackType(ctx).prettyPrint()
+              ? sugarType(srcType.readBackType(ctx), ctx)
               : String(src.type);
 
             // If this is the target claim, we don't treat it as "pending" for the global list
@@ -520,7 +524,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // Get claim type
       const binding = ctx.get(claimName);
       const claimType = binding
-        ? binding.type.readBackType(ctx).prettyPrint()
+        ? sugarType(binding.type.readBackType(ctx), ctx)
         : "unknown";
 
       // Save session

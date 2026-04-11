@@ -122,14 +122,35 @@ Users can also apply tactics by connecting nodes via drag-wires:
 ```
 User clicks "Hint" on a GoalNode
   → hint-store.requestHint(goalId, level)
-  → proofWorker.getHint({ sessionId, goalId, currentLevel, apiKey? })
-  → Worker: rule-based analysis or Gemini API call
-  → Returns HintResponse { level, tacticType?, parameters?, explanation }
-  → hint-store creates ghost tactic node on canvas
+  → proofWorker.getHint({ sessionId, goalId, currentLevel, apiKey?, loraServerUrl? })
+  → Worker tries backends in order:
+      1. LoRA model (if loraServerUrl configured):
+         → Build proof state text (Definitions + Local variables + Goal)
+         → POST to LoRA server → get predicted tactic string
+         → Validate by parsing the tactic → cache per goal (cleared on new session)
+      2. Gemini explanation (if LoRA prediction valid + apiKey):
+         → Send predicted tactic + proof state to Gemini
+         → Gemini returns natural-language-first explanation at requested level
+         → At "full" level, tactic parameters are derived from LoRA string
+      3. Rule-based fallback (no API keys needed):
+         → Pattern match on goal type → suggest tactic category/type
+  → Returns HintResponse { level, tacticType?, parameters?, explanation, source }
+  → hint-store creates ghost tactic node on canvas (badge: "Local AI" / "AI" / "Rule")
   → User clicks ghost node → triggers applyTactic
 ```
 
 Progressive levels: category → tactic → full (with params)
+
+## Stage 10b: Goal Translation
+
+```
+User clicks translate button (globe icon) on a GoalNode
+  → GoalNode.handleTranslateClick()
+  → describeGoalBrowser(goalType, context, apiKey) → Gemini API
+  → goal-description-store.setDescription(nodeId, text)
+  → GoalNode toggles display: Pie syntax ↔ natural language
+  → Cached per nodeId — subsequent clicks toggle without re-fetching
+```
 
 ## Stage 11: Undo/Redo
 
