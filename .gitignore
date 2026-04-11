@@ -35,3 +35,7 @@ dist
 dist-*
 /coordination
 /web-react/tsconfig.tsbuildinfo
+
+# Claude Code config (per-user, not shared)
+CLAUDE.md
+.claude/

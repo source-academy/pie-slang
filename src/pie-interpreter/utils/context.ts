@@ -10,6 +10,7 @@ import { Variable } from '../types/neutral';
 import { ProofManager } from '../tactics/proof-manager';
 import { Tactic } from '../tactics/tactics';
 import { ProofTreeData } from '../tactics/proofstate';
+import { schemeParse, Parser } from '../parser/parser';
 
 /*
     ## Contexts ##
@@ -196,6 +197,156 @@ export function addDefineTacticallyToContext(
       new Message([`Proof incomplete. Cannot extract proof term for '${name}'.`])
     );
   }
+}
+
+/**
+ * Interactive version of addDefineTacticallyToContext.
+ * Instead of applying hardcoded tactics, calls a provider callback
+ * for each proof step to get the next tactic from an external source (e.g. an LLM).
+ *
+ * The provider receives the serialized proof state and returns a tactic string,
+ * or null to abort the proof. On failure (parse error or tactic rejection),
+ * the provider is called again with the error message so it can retry.
+ */
+export async function addDefineTacticallyInteractive(
+  ctx: Context,
+  name: string,
+  location: Location,
+  tacticProvider: (state: InteractiveProofState) => Promise<string | null>,
+  maxSteps: number = 100,
+  maxRetries: number = 3,
+): Promise<Perhaps<TacticalResult>> {
+  // Dynamic import to avoid circular dependency (training-data-extractor → context)
+  const { serializeContext, serializeGoal } = await import('../tactics/training-data-extractor');
+
+  const proofManager = new ProofManager();
+  let message = '';
+
+  // Start the proof
+  const startResult = proofManager.startProof(name, ctx, location);
+  if (startResult instanceof stop) {
+    return startResult;
+  }
+
+  // Get theorem type from claim
+  const claim = ctx.get(name);
+  if (!(claim instanceof Claim)) {
+    return new stop(location, new Message([`${name} is not a valid claim`]));
+  }
+  const theoremType = claim.type.readBackType(ctx).prettyPrint();
+
+  // Interactive tactic loop
+  let step = 0;
+  while (step < maxSteps) {
+    if (!proofManager.currentState || proofManager.currentState.isComplete()) {
+      break;
+    }
+
+    const goalResult = proofManager.currentState.getCurrentGoal();
+    if (!(goalResult instanceof go)) {
+      break;
+    }
+
+    const goal = goalResult.result;
+    const { globalContext, localContext } = serializeContext(goal.context);
+    const goalStr = serializeGoal(goal);
+
+    let lastError: string | undefined;
+    let applied = false;
+
+    for (let retry = 0; retry <= maxRetries; retry++) {
+      // Ask the provider for the next tactic
+      const tacticStr = await tacticProvider({
+        theoremName: name,
+        theoremType,
+        step,
+        globalContext,
+        localContext,
+        goal: goalStr,
+        complete: false,
+        pendingBranches: proofManager.currentState.pendingBranches,
+        error: lastError,
+      });
+
+      if (tacticStr === null) {
+        return new stop(location, new Message([`Proof aborted by tactic provider at step ${step}`]));
+      }
+
+      // Parse the tactic
+      const wrapped = tacticStr.trim().startsWith('(') ? tacticStr : `(${tacticStr})`;
+      let tactic: Tactic;
+      try {
+        const parsed = schemeParse(wrapped);
+        tactic = Parser.parseToTactics(parsed[0]);
+      } catch (e: any) {
+        lastError = `Parse error for "${tacticStr}": ${e.message}`;
+        continue;
+      }
+
+      // Apply the tactic
+      const tacticResult = proofManager.applyTactic(tactic);
+      if (tacticResult instanceof stop) {
+        lastError = `Tactic "${tacticStr}" failed: ${tacticResult.message}`;
+        continue;
+      }
+
+      message += (tacticResult as go<string>).result;
+      applied = true;
+      break;
+    }
+
+    if (!applied) {
+      return new stop(location, new Message([
+        `Failed after ${maxRetries} retries at step ${step}. Last error: ${lastError}`
+      ]));
+    }
+
+    step++;
+  }
+
+  // Check if proof is complete
+  if (!proofManager.currentState || !proofManager.currentState.isComplete()) {
+    const currentGoal = proofManager.currentState?.getCurrentGoal();
+    let goalInfo = '';
+    if (currentGoal instanceof go) {
+      const goal = currentGoal.result;
+      goalInfo = `\n\n${goal.prettyPrintWithContext()}`;
+    }
+    return new stop(
+      location,
+      new Message([`Proof incomplete after ${step} steps (max ${maxSteps}).${goalInfo}`])
+    );
+  }
+
+  // Proof complete — extract proof term and add definition
+  const type = claim.type;
+  const goalTree = proofManager.currentState?.goalTree;
+  const proofTerm = goalTree?.extractTerm();
+
+  if (proofTerm) {
+    const proofValue = valInContext(ctx, proofTerm);
+    const newCtx = bindVal(removeClaimFromContext(ctx, name), name, type, proofValue);
+    return new go({ context: newCtx, message });
+  } else {
+    return new stop(
+      location,
+      new Message([`Failed to extract proof term for '${name}'.`])
+    );
+  }
+}
+
+/** State passed to the interactive tactic provider. */
+export interface InteractiveProofState {
+  theoremName: string;
+  theoremType: string;
+  step: number;
+  globalContext: Array<{ name: string; type: string }>;
+  localContext: Array<{ name: string; type: string }>;
+  goal: string;
+  complete: boolean;
+  pendingBranches: number;
+  /** If the previous tactic attempt failed, this contains the error message. */
+  error?: string;
 }
 
 export function contextToEnvironment(ctx: Context): Environment {

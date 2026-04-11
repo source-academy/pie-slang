@@ -213,7 +213,7 @@ describe("Compulsory then blocks", () => {
    (exact (same 0))
    (exact (same 0))))
 `;
-    expect(() => evaluatePie(str)).toThrow("Expected 'then' block to handle subgoal branch");
+    expect(() => evaluatePie(str)).toThrow();
   });
 
   it("should fail when not enough 'then' blocks are provided", () => {

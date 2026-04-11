@@ -70,15 +70,22 @@ export class TypeSugarer {
 
                 // Normalize the result to Core using readBackType
                 // This expands definitions like 'double' to 'iter-Nat'
+                // Skip multi-parameter type definitions (e.g. Le : Nat → Nat → U)
+                // where the result is a Lambda, not a type.
                 const normalizedCtx = bindFree(ctx, paramName, argType);
-                const normalizedTemplate = resultValue.readBackType(normalizedCtx);
+                try {
+                  const normalizedTemplate = resultValue.readBackType(normalizedCtx);
 
-                this.typeDefinitions.push({
-                  name,
-                  type: binder.type,
-                  paramName,
-                  bodyTemplate: normalizedTemplate,
-                });
+                  this.typeDefinitions.push({
+                    name,
+                    type: binder.type,
+                    paramName,
+                    bodyTemplate: normalizedTemplate,
+                  });
+                } catch {
+                  // resultValue is not a type (e.g. Lambda for multi-param definitions)
+                  // — skip this definition, it won't be sugared
+                }
               }
             }
           }

@@ -504,7 +504,19 @@ export class Parser {
   }
 
   public static parseToTactics(element: Element): Tactic {
-    const parsee = getValue(element);
+    let parsee = getValue(element);
+    // Normalise ind-* aliases used in training data to the elim-* names the parser expects
+    const indToElim: Record<string, string> = {
+      'ind-Either': 'elim-Either',
+      'ind-Absurd': 'elim-Absurd',
+      'ind-nat': 'elim-Nat',
+      'ind-Nat': 'elim-Nat',
+      'ind-list': 'elim-List',
+      'ind-List': 'elim-List',
+      'ind-equal': 'elim-Equal',
+      'ind-Equal': 'elim-Equal',
+    };
+    if (parsee in indToElim) parsee = indToElim[parsee];
     if (parsee === 'exact') {
       return Maker.makeExact(
         locationToSyntax('exact', element.location),
@@ -586,7 +598,7 @@ export class Parser {
         this.parseElements((element as Extended.List).elements[1] as Element)
       );
     }
-    throw new Error('Unexpected tactic: ' + element);
+    throw new Error('Unexpected tactic: ' + JSON.stringify(element));
   }
 }
 
@@ -674,7 +686,7 @@ export class pieDeclarationParser {
       return new DefineTactically(
         syntaxToLocation(elementToSyntax(elements[0] as Element, ast.location)),
         name,
-        (elements[2] as Extended.List).elements.map((x: Expression) => Parser.parseToTactics(x as Element))
+        ((elements[2] as Extended.List).elements ?? []).map((x: Expression) => Parser.parseToTactics(x as Element))
       );
     } else if (parsee === 'data') {
       const elements = (ast as Extended.List).elements;

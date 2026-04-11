@@ -1328,8 +1328,18 @@ export class Same extends Source {
     return this.type.findNames();
   }
 
-  protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
-    throw new Error('Method not implemented.');
+  protected synthHelper(ctx: Context, renames: Renaming): Perhaps<C.The> {
+    // (same e) synthesizes to (= A e e) where A is the type of e
+    const eout = new PerhapsM<C.The>("eout");
+    return goOn(
+      [[eout, () => this.type.synth(ctx, renames)]],
+      () => new go(
+        new C.The(
+          new C.Equal(eout.value.type, eout.value.expr, eout.value.expr),
+          new C.Same(eout.value.expr)
+        )
+      )
+    );
   }
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
