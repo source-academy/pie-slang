@@ -1,4 +1,4 @@
-import type { Datum } from "../types/tokens/datum";
+import { Datum } from "../types/tokens/datum";
 import { Token } from "../types/tokens/token";
 import { Position } from "estree";
 
