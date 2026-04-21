@@ -90,8 +90,6 @@ export const useEditorStore = create<EditorStore>()(
       setEditorValue: (value: string) => {
         set((state) => {
           state.editorValue = value;
-          state.dirtySinceLastSync = true;
-          state.syncStatus = 'dirty';
         });
       },
 
