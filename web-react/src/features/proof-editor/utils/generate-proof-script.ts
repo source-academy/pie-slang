@@ -120,3 +120,30 @@ function collectTactics(node: ProtoGoalNode, tactics: string[]): void {
     collectTactics(child, tactics);
   }
 }
+
+export const GENERATED_FROM_CANVAS_COMMENT = '; --- Generated from Canvas ---';
+
+export function ensureGeneratedCanvasComment(source: string): string {
+  if (source.includes(GENERATED_FROM_CANVAS_COMMENT)) return source;
+  return source + '\n\n' + GENERATED_FROM_CANVAS_COMMENT + '\n';
+}
+
+export function extractPreamble(source: string, claimName: string): string {
+  const marker = `(define-tactically ${claimName}`;
+  const idx = source.indexOf(marker);
+  if (idx === -1) return source;
+
+  const beforeMarker = source.slice(0, idx);
+  const bannerIdx = beforeMarker.lastIndexOf(GENERATED_FROM_CANVAS_COMMENT);
+
+  if (bannerIdx !== -1) {
+    const afterBanner = beforeMarker.slice(
+      bannerIdx + GENERATED_FROM_CANVAS_COMMENT.length
+    );
+    if (/^\s*$/.test(afterBanner)) {
+      return beforeMarker.slice(0, bannerIdx).trimEnd();
+    }
+  }
+
+  return beforeMarker.trimEnd();
+}

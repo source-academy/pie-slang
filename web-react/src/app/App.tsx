@@ -9,25 +9,24 @@ import { AISettingsPanel } from '@/features/proof-editor/components/panels/AISet
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
 import { useKeyboardShortcuts } from '@/features/proof-editor/hooks/useKeyboardShortcuts';
 import { useProofStore } from '@/features/proof-editor/store';
+import { useHistoryStore } from '@/features/proof-editor/store/history-store';
 import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
+import { useEditorStore } from '@/features/proof-editor/store/editor-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
-import { ProofPicker } from '@/features/proof-editor/components/ProofPicker';
-import type { GlobalEntry } from '@pie/protocol';
 
 function AppContent() {
   const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
-  const nodes = useProofStore((s) => s.nodes);
-  const setManualPosition = useProofStore((s) => s.setManualPosition);
+  const undo = useProofStore((s) => s.undo);
+  const redo = useProofStore((s) => s.redo);
+  const historyIndex = useHistoryStore((s) => s.historyIndex);
+  const historyLength = useHistoryStore((s) => s.history.length);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
-  const [foundClaims, setFoundClaims] = useState<GlobalEntry[]>([]);
-  const [foundTheorems, setFoundTheorems] = useState<GlobalEntry[]>([]);
-  const [selectedProof, setSelectedProof] = useState<string | null>(null);
 
-  // Use keyboard shortcuts hook
+  // Use keyboard shortcuts hook (registers global keydown handler)
   useKeyboardShortcuts();
 
   // Use example store
@@ -43,15 +42,12 @@ function AppContent() {
     console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params, 'tacticNodeId:', tacticNodeId);
     setTacticError(null);
 
-    // Transfer tactic node position to the new tactic ID before sync
-    // The new tactic will be created with ID "tactic-for-{goalId}"
-    if (tacticNodeId) {
-      const tacticNode = nodes.find(n => n.id === tacticNodeId);
-      if (tacticNode) {
-        const newTacticId = `tactic-for-${goalId}`;
-        console.log(`[App] Transferring position from ${tacticNodeId} to ${newTacticId}:`, tacticNode.position);
-        setManualPosition(newTacticId, { ...tacticNode.position });
-      }
+    // Conflict guard: if the editor has unsaved edits, surface the conflict modal
+    // via the editor store (no window globals). triggerConflictGuard calls the
+    // callback registered by SourceCodePanel, or runs the action directly if clean.
+    if (useEditorStore.getState().dirtySinceLastSync) {
+      useEditorStore.getState().triggerConflictGuard(() => handleApplyTactic(options));
+      return;
     }
 
     try {
@@ -88,7 +84,7 @@ function AppContent() {
         });
       }
     }
-  }, [applyTactic, updateNode, nodes, setManualPosition]);
+  }, [applyTactic, updateNode]);
 
   // Register the callback when component mounts
   useEffect(() => {
@@ -118,7 +114,7 @@ function AppContent() {
             id="example-select"
             value={selectedExample}
             onChange={(e) => selectExample(e.target.value)}
-            className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary h-8"
+            className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">-- Select --</option>
             {EXAMPLES.map((ex) => (
@@ -127,6 +123,26 @@ function AppContent() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Canvas undo/redo buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            title="Canvas undo (Ctrl/Cmd+Z when outside editor)"
+            className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
+            onClick={undo}
+            disabled={historyIndex <= 0}
+          >
+            ↩ Undo
+          </button>
+          <button
+            title="Canvas redo (Ctrl/Cmd+Shift+Z when outside editor)"
+            className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
+            onClick={redo}
+            disabled={historyIndex >= historyLength - 1}
+          >
+            ↪ Redo
+          </button>
         </div>
 
         {/* Show tactic error in header */}
