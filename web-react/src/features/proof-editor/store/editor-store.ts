@@ -25,7 +25,7 @@ export interface EditorActions {
   setSyncStatus: (status: SyncStatus) => void;
   setSyncError: (error: string | null) => void;
   setConflict: (hasConflict: boolean) => void;
-  setPreamble: (preamble: string) => void;
+  setPreamble: (preamble: string | null) => void;
   reset: () => void;
 }
 
@@ -125,7 +125,7 @@ export const useEditorStore = create<EditorStore>()(
         });
       },
 
-      setPreamble: (preamble: string) => {
+      setPreamble: (preamble: string | null) => {
         set((state) => {
           state.preamble = preamble;
         });

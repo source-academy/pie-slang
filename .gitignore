@@ -31,8 +31,10 @@ compiled
 node_modules
 /conductor
 /.vscode/
+.claude/
 dist
 dist-*
 /coordination
-tsconfig.tsbuildinfo
-web-react/tsconfig.tsbuildinfo
+dist-standalone
+coverage
+*.tsbuildinfo

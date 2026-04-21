@@ -117,6 +117,19 @@ export interface SyncFromSourceResponse {
   diagnostics?: Array<{ message: string; severity: 'error' | 'warning' }>;
 }
 
+export interface SourceDiagnostic {
+  message: string;
+  severity: 'error' | 'warning';
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+}
+
+export interface CheckSourceResponse {
+  diagnostics: SourceDiagnostic[];
+}
+
 // ============================================
 // Session storage
 // ============================================
@@ -177,6 +190,7 @@ export interface ProofWorkerAPI {
   getProofTree: (sessionId: string) => ProofTreeData | null;
   getHint: (request: GetHintRequest) => Promise<ProgressiveHintResponse>;
   syncFromSource: (sourceCode: string, claimName: string) => Promise<SyncFromSourceResponse>;
+  checkSource: (sourceCode: string) => Promise<CheckSourceResponse>;
 }
 
 const proofWorkerAPI: ProofWorkerAPI = {
@@ -673,6 +687,103 @@ const proofWorkerAPI: ProofWorkerAPI = {
         diagnostics: [{ message, severity: 'error' }],
       };
     }
+  },
+
+  async checkSource(sourceCode: string): Promise<CheckSourceResponse> {
+    const diagnostics: SourceDiagnostic[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const locRange = (loc: any): Pick<SourceDiagnostic, 'startLine' | 'startColumn' | 'endLine' | 'endColumn'> => {
+      if (loc && loc.syntax && loc.syntax.start && loc.syntax.end) {
+        return {
+          startLine: loc.syntax.start.line + 1,
+          startColumn: loc.syntax.start.column + 1,
+          endLine: loc.syntax.end.line + 1,
+          endColumn: loc.syntax.end.column + 1,
+        };
+      }
+      return { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 };
+    };
+
+    let astList: unknown[];
+    try {
+      astList = schemeParse(sourceCode) as unknown[];
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const loc = (e as any)?.location;
+      diagnostics.push({
+        message: `Parse error: ${msg}`,
+        severity: 'error',
+        ...locRange(loc),
+      });
+      return { diagnostics };
+    }
+
+    if (!Array.isArray(astList)) return { diagnostics };
+
+    let ctx = initCtx;
+    for (const ast of astList) {
+      let src: unknown;
+      try {
+        src = pieDeclarationParser.parseDeclaration(ast);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        diagnostics.push({
+          message: `Parse error: ${msg}`,
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...locRange((ast as any)?.location),
+        });
+        continue;
+      }
+
+      try {
+        if (src instanceof Claim) {
+          const result = addClaimToContext(ctx, src.name, src.location, src.type);
+          if (result instanceof go) ctx = result.result;
+          else if (result instanceof stop) {
+            diagnostics.push({
+              message: String(result.message),
+              severity: 'error',
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ...locRange((result as any).where ?? src.location),
+            });
+          }
+        } else if (src instanceof Definition) {
+          const result = addDefineToContext(ctx, src.name, src.location, src.expr);
+          if (result instanceof go) ctx = result.result;
+          else if (result instanceof stop) {
+            diagnostics.push({
+              message: String(result.message),
+              severity: 'error',
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ...locRange((result as any).where ?? src.location),
+            });
+          }
+        } else if (src instanceof DefineTactically) {
+          const result = addDefineTacticallyToContext(ctx, src.name, src.location, src.tactics);
+          if (result instanceof go) ctx = result.result.context;
+          else if (result instanceof stop) {
+            diagnostics.push({
+              message: String(result.message),
+              severity: 'error',
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ...locRange((result as any).where ?? src.location),
+            });
+          }
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        diagnostics.push({
+          message: msg,
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...locRange((src as any)?.location),
+        });
+      }
+    }
+
+    return { diagnostics };
   },
 
   async getHint(request: GetHintRequest): Promise<ProgressiveHintResponse> {

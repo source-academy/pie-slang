@@ -21,8 +21,8 @@ function AppContent() {
   const updateNode = useProofStore((s) => s.updateNode);
   const undo = useProofStore((s) => s.undo);
   const redo = useProofStore((s) => s.redo);
-  const canUndo = useHistoryStore((s) => s.canUndo);
-  const canRedo = useHistoryStore((s) => s.canRedo);
+  const historyIndex = useHistoryStore((s) => s.historyIndex);
+  const historyLength = useHistoryStore((s) => s.history.length);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
 
@@ -134,7 +134,7 @@ function AppContent() {
             title="Canvas undo (Ctrl/Cmd+Z when outside editor)"
             className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
             onClick={undo}
-            disabled={!canUndo()}
+            disabled={historyIndex <= 0}
           >
             ↩ Undo
           </button>
@@ -142,7 +142,7 @@ function AppContent() {
             title="Canvas redo (Ctrl/Cmd+Shift+Z when outside editor)"
             className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
             onClick={redo}
-            disabled={!canRedo()}
+            disabled={historyIndex >= historyLength - 1}
           >
             ↪ Redo
           </button>

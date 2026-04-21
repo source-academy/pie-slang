@@ -520,6 +520,9 @@ export function ProofCanvas() {
           animated: false,
         }}
         connectionLineStyle={{ stroke: '#94a3b8', strokeWidth: 2 }}
+        panActivationKeyCode={null}
+        selectionKeyCode={null}
+        zoomActivationKeyCode={null}
         proOptions={{
           hideAttribution: true,
         }}

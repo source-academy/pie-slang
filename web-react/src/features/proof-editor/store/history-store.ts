@@ -70,10 +70,11 @@ export const useHistoryStore = create<HistoryStore>()(
        */
       undo: () => {
         const state = get();
-        if (state.historyIndex >= 0 && state.historyIndex < state.history.length) {
-          const snapshot = state.history[state.historyIndex];
+        if (state.historyIndex > 0 && state.historyIndex < state.history.length) {
+          const nextIndex = state.historyIndex - 1;
+          const snapshot = state.history[nextIndex];
           set((s) => {
-            s.historyIndex -= 1;
+            s.historyIndex = nextIndex;
           });
           return {
             nodes: JSON.parse(JSON.stringify(snapshot.nodes)) as ProofNode[],
@@ -91,11 +92,11 @@ export const useHistoryStore = create<HistoryStore>()(
       redo: () => {
         const state = get();
         if (state.historyIndex < state.history.length - 1) {
+          const nextIndex = state.historyIndex + 1;
+          const snapshot = state.history[nextIndex];
           set((s) => {
-            s.historyIndex += 1;
+            s.historyIndex = nextIndex;
           });
-          const newState = get();
-          const snapshot = newState.history[newState.historyIndex];
           return {
             nodes: JSON.parse(JSON.stringify(snapshot.nodes)) as ProofNode[],
             edges: JSON.parse(JSON.stringify(snapshot.edges)) as ProofEdge[],
@@ -110,7 +111,7 @@ export const useHistoryStore = create<HistoryStore>()(
        */
       canUndo: () => {
         const state = get();
-        return state.historyIndex >= 0;
+        return state.historyIndex > 0;
       },
 
       /**

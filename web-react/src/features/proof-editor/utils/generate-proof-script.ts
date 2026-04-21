@@ -1,5 +1,16 @@
 import type { SerializableGoalNode, ProofTreeData } from '@/workers/proof-worker';
 
+export const GENERATED_FROM_CANVAS_COMMENT =
+  '; the following code is generated from canvas';
+
+export function ensureGeneratedCanvasComment(script: string): string {
+  const trimmedStart = script.trimStart();
+  if (trimmedStart.startsWith(GENERATED_FROM_CANVAS_COMMENT)) {
+    return script;
+  }
+  return `${GENERATED_FROM_CANVAS_COMMENT}\n${script}`;
+}
+
 /**
  * Generate a Pie proof script from a proof tree.
  *
@@ -26,7 +37,7 @@ export function generateProofScript(
 
   lines.push(')');
 
-  return lines.join('\n');
+  return ensureGeneratedCanvasComment(lines.join('\n'));
 }
 
 /**
@@ -99,7 +110,20 @@ export function extractPreamble(source: string, claimName: string): string {
   const marker = `(define-tactically ${claimName}`;
   const idx = source.indexOf(marker);
   if (idx === -1) return source;
-  return source.slice(0, idx).trimEnd();
+
+  const beforeMarker = source.slice(0, idx);
+  const bannerIdx = beforeMarker.lastIndexOf(GENERATED_FROM_CANVAS_COMMENT);
+
+  if (bannerIdx !== -1) {
+    const afterBanner = beforeMarker.slice(
+      bannerIdx + GENERATED_FROM_CANVAS_COMMENT.length
+    );
+    if (/^\s*$/.test(afterBanner)) {
+      return beforeMarker.slice(0, bannerIdx).trimEnd();
+    }
+  }
+
+  return beforeMarker.trimEnd();
 }
 
 /**
