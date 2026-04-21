@@ -22,8 +22,7 @@ import type {
   TacticNode,
   TacticNodeData,
 } from "../store/types";
-import type { TacticType } from "@pie/protocol";
-import { TACTIC_REQUIREMENTS } from "@pie/protocol";
+import { TACTIC_REQUIREMENTS, type TacticType } from "@pie/protocol";
 import type { GhostTacticNodeData } from "./nodes/GhostTacticNode";
 import { useDemoData } from "../hooks/useDemoData";
 import { useHintSystem } from "../hooks/useHintSystem";
@@ -86,10 +85,8 @@ export function ProofCanvas() {
 
   // Register hint callback for GoalNode
   useEffect(() => {
-    console.log("[ProofCanvas] Registering hint callback");
     setRequestHintCallback(requestHint);
     return () => {
-      console.log("[ProofCanvas] Unregistering hint callback");
       setRequestHintCallback(null);
     };
   }, [requestHint]);
@@ -218,10 +215,6 @@ export function ProofCanvas() {
           });
 
           // Now trigger application since the tactic is ready
-          console.log(
-            "[ProofCanvas] Context edge connected, applying tactic:",
-            tacticNode.data.tacticType,
-          );
           await triggerApplyTactic(
             goalNode.id,
             tacticNode.data.tacticType,
@@ -253,7 +246,6 @@ export function ProofCanvas() {
 
         // If no session (e.g. demo mode), don't try to call backend
         if (!sessionId) {
-          console.log("[ProofCanvas] Todo tactic applied locally (no session)");
           return;
         }
       }
@@ -263,10 +255,6 @@ export function ProofCanvas() {
         tacticNode.data.status === "ready" ||
         tacticNode.data.tacticType === "todo"
       ) {
-        console.log(
-          "[ProofCanvas] Edge connected to ready tactic, applying:",
-          tacticNode.data.tacticType,
-        );
         await triggerApplyTactic(
           goalNode.id,
           tacticNode.data.tacticType,
@@ -309,10 +297,6 @@ export function ProofCanvas() {
     event.dataTransfer.dropEffect = "copy";
   }, []);
 
-  // Derive parameterless tactics from protocol (no variableName, no expression)
-  const PARAMETERLESS_TACTICS = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
-    .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
-
   // Handle drop to create a new tactic node
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -333,9 +317,11 @@ export function ProofCanvas() {
         y: event.clientY,
       });
 
-      // Parameterless tactics start as 'ready', others start as 'incomplete'
-      const isParameterless = PARAMETERLESS_TACTICS.includes(tacticType);
-      const initialStatus = isParameterless ? "ready" : "incomplete";
+      const requirements = TACTIC_REQUIREMENTS[tacticType];
+      const protocolParameterless =
+        !requirements.variableName && !requirements.expression;
+      const initialStatus =
+        tacticType !== "intro" && protocolParameterless ? "ready" : "incomplete";
 
       // Create the tactic node
       const newNodeId = addTacticNode(
@@ -458,13 +444,14 @@ export function ProofCanvas() {
   }, [edges, collapsedBranches]);
 
   // Combine regular nodes with ghost nodes and apply hidden property
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allNodes = useMemo(() => {
     const visibleNodes = nodes.map(node => ({
       ...node,
       hidden: hiddenNodeIds.has(node.id)
     }));
-    return [...visibleNodes, ...ghostNodes] as any[];
+    return [...visibleNodes, ...ghostNodes] as Array<
+      ProofNode | Node<GhostTacticNodeData>
+    >;
   }, [nodes, ghostNodes, hiddenNodeIds]);
 
   // Create ghost edges connecting goals to ghost nodes

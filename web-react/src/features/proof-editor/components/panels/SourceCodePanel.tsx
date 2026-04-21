@@ -12,6 +12,7 @@ import { proofWorker } from '@/shared/lib/worker-client';
 import { useProofStore } from '../../store';
 import { useMetadataStore } from '../../store/metadata-store';
 import { diagnosticsWorker } from '@/shared/lib/worker-client';
+import type { Diagnostic as WorkerDiagnostic } from '@/workers/diagnostics-worker';
 
 // ============================================
 // Pie language registration helpers
@@ -60,6 +61,28 @@ function registerPieLanguage(monaco: Monaco) {
         [/"/, 'string', '@pop'],
       ],
     },
+  });
+
+  monaco.languages.setLanguageConfiguration('pie', {
+    comments: {
+      lineComment: ';',
+    },
+    brackets: [
+      ['(', ')'],
+      ['[', ']'],
+    ],
+    autoClosingPairs: [
+      { open: '(', close: ')' },
+      { open: '[', close: ']' },
+      { open: '"', close: '"' },
+    ],
+    surroundingPairs: [
+      { open: '(', close: ')' },
+      { open: '[', close: ']' },
+      { open: '"', close: '"' },
+    ],
+    // Pie identifiers commonly include symbolic characters like `+`, `-`, `:` and `=`.
+    wordPattern: /[^\s()[\]"]+/g,
   });
 
   monaco.editor.defineTheme('pie-dark', {
@@ -264,12 +287,9 @@ export function SourceCodePanel() {
   const generatedScript = useGeneratedProofScript();
 
   // Proof store — for atomic sync-from-source updates
-  const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const proofSessionId = useProofStore((s) => s.sessionId);
   const activeProofClaimName = useProofStore((s) => s.claimName);
   const setMetadataClaimName = useMetadataStore((s) => s.setClaimName);
-  const setMetadataGlobalContext = useMetadataStore((s) => s.setGlobalContext);
-  const saveSnapshot = useProofStore((s) => s.saveSnapshot);
 
   // ----------------------------------------
   // Update editor value when example is loaded
@@ -309,9 +329,7 @@ export function SourceCodePanel() {
   // Keep editor-store generated script in sync
   // ----------------------------------------
   useEffect(() => {
-    setGeneratedScript(
-      generatedScript ? ensureGeneratedCanvasComment(generatedScript) : null
-    );
+    setGeneratedScript(generatedScript ?? null);
   }, [generatedScript, setGeneratedScript]);
 
   // ----------------------------------------
@@ -344,13 +362,23 @@ export function SourceCodePanel() {
 
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  const editorDisposablesRef = useRef<Array<{ dispose(): void }>>([]);
   const [isEditorReady, setIsEditorReady] = useState(false);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
     monaco.editor.setTheme('pie-dark');
+    editorDisposablesRef.current.forEach((disposable) => disposable.dispose());
+    editorDisposablesRef.current = [];
     setIsEditorReady(true);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      editorDisposablesRef.current.forEach((disposable) => disposable.dispose());
+      editorDisposablesRef.current = [];
+    };
   }, []);
 
   // ----------------------------------------
@@ -366,30 +394,32 @@ export function SourceCodePanel() {
       if (!model) return;
       try {
         const result = await diagnosticsWorker.checkSource(editorValue);
-        // Assuming diagnostics are in result.diagnostics for backward compatibility or using result
         const diagnostics = result.diagnostics || [];
         if (isCancelled) return;
-        const markers = diagnostics.map((d: any) => ({
+        const markers = diagnostics.map((d: WorkerDiagnostic) => ({
           severity:
             d.severity === 'error'
               ? monaco.MarkerSeverity.Error
               : monaco.MarkerSeverity.Warning,
           message: d.message,
-          startLineNumber: d.startLine,
-          startColumn: d.startColumn,
-          endLineNumber: d.endLine,
-          endColumn: d.endColumn,
+          startLineNumber: d.range.startLine,
+          startColumn: d.range.startColumn,
+          endLineNumber: d.range.endLine,
+          endColumn: d.range.endColumn,
         }));
         monaco.editor.setModelMarkers(model, 'pie', markers);
         setLiveDiagnostics(
-          diagnostics.map((d: any) => ({
+          diagnostics.map((d: WorkerDiagnostic) => ({
             message: d.message,
-            severity: d.severity,
-            startLine: d.startLine,
+            severity: d.severity === 'error' ? 'error' : 'warning',
+            startLine: d.range.startLine,
           }))
         );
-      } catch (e) {
-        console.warn('[SourceCodePanel] checkSource failed:', e);
+      } catch {
+        if (!isCancelled) {
+          monaco.editor.setModelMarkers(model, 'pie', []);
+          setLiveDiagnostics([]);
+        }
       }
     }, 400);
     return () => {
@@ -446,9 +476,8 @@ export function SourceCodePanel() {
       setSyncStatus('synced');
       setIsExpanded(false);
     } catch (e) {
-      console.error('Failed to start proof:', e);
       setSyncStatus('error');
-      setSyncError(e instanceof Error ? e.message : String(e));
+      setSyncError(e instanceof Error ? e.message : 'Failed to start proof');
     }
   }, [
     editorValue,
@@ -496,7 +525,7 @@ export function SourceCodePanel() {
       setConflict(false);
       setIsExpanded(false);
     } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
+      const errMsg = e instanceof Error ? e.message : 'Failed to sync source to canvas';
       setSyncStatus('error');
       setSyncError(errMsg);
     }

@@ -124,8 +124,9 @@ function collectTactics(node: ProtoGoalNode, tactics: string[]): void {
 export const GENERATED_FROM_CANVAS_COMMENT = '; --- Generated from Canvas ---';
 
 export function ensureGeneratedCanvasComment(source: string): string {
-  if (source.includes(GENERATED_FROM_CANVAS_COMMENT)) return source;
-  return source + '\n\n' + GENERATED_FROM_CANVAS_COMMENT + '\n';
+  const trimmedStart = source.trimStart();
+  if (trimmedStart.startsWith(GENERATED_FROM_CANVAS_COMMENT)) return source;
+  return `${GENERATED_FROM_CANVAS_COMMENT}\n${source}`;
 }
 
 export function extractPreamble(source: string, claimName: string): string {

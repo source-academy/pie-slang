@@ -7,9 +7,7 @@ import { SourceCodePanel } from '@/features/proof-editor/components/panels/Sourc
 import { DefinitionsPanel } from '@/features/proof-editor/components/panels/DefinitionsPanel';
 import { AISettingsPanel } from '@/features/proof-editor/components/panels/AISettingsPanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
-import { useKeyboardShortcuts } from '@/features/proof-editor/hooks/useKeyboardShortcuts';
 import { useProofStore } from '@/features/proof-editor/store';
-import { useHistoryStore } from '@/features/proof-editor/store/history-store';
 import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
 import { useEditorStore } from '@/features/proof-editor/store/editor-store';
@@ -19,15 +17,8 @@ import { EXAMPLES } from '@/features/proof-editor/data/examples';
 function AppContent() {
   const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
-  const undo = useProofStore((s) => s.undo);
-  const redo = useProofStore((s) => s.redo);
-  const historyIndex = useHistoryStore((s) => s.historyIndex);
-  const historyLength = useHistoryStore((s) => s.history.length);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
-
-  // Use keyboard shortcuts hook (registers global keydown handler)
-  useKeyboardShortcuts();
 
   // Use example store
   const selectedExample = useExampleStore((s) => s.selectedExample);
@@ -39,7 +30,6 @@ function AppContent() {
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
     const { goalId, tacticType, params, tacticNodeId } = options;
-    console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params, 'tacticNodeId:', tacticNodeId);
     setTacticError(null);
 
     // Conflict guard: if the editor has unsaved edits, surface the conflict modal
@@ -54,14 +44,12 @@ function AppContent() {
       const result = await applyTactic(goalId, tacticType, params);
 
       if (result.success) {
-        // Success: syncFromWorker already called in useProofSession
-        // The proof tree will be updated with new goals
-        console.log('[App] Tactic succeeded');
+        // Success: syncFromWorker already called in useProofSession.
+        // The proof tree will be updated with new goals.
       } else {
         // Failure: update tactic node with error status
         const errorMsg = result.error || 'Tactic application failed';
         setTacticError(errorMsg);
-        console.error('[App] Tactic failed:', errorMsg);
 
         // If we have a tactic node ID, update its status to error
         if (tacticNodeId) {
@@ -72,9 +60,8 @@ function AppContent() {
         }
       }
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : String(e);
+      const errorMsg = e instanceof Error ? e.message : 'Unexpected tactic error';
       setTacticError(errorMsg);
-      console.error('[App] Tactic error:', e);
 
       // If we have a tactic node ID, update its status to error
       if (tacticNodeId) {
@@ -123,26 +110,6 @@ function AppContent() {
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Canvas undo/redo buttons */}
-        <div className="flex items-center gap-1">
-          <button
-            title="Canvas undo (Ctrl/Cmd+Z when outside editor)"
-            className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
-            onClick={undo}
-            disabled={historyIndex <= 0}
-          >
-            ↩ Undo
-          </button>
-          <button
-            title="Canvas redo (Ctrl/Cmd+Shift+Z when outside editor)"
-            className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 hover:bg-muted"
-            onClick={redo}
-            disabled={historyIndex >= historyLength - 1}
-          >
-            ↪ Redo
-          </button>
         </div>
 
         {/* Show tactic error in header */}
