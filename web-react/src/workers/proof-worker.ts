@@ -130,6 +130,10 @@ export interface CheckSourceResponse {
   diagnostics: SourceDiagnostic[];
 }
 
+function cleanDiagnosticMessage(message: string): string {
+  return message.replace(/^Error:\s*/i, '').trim();
+}
+
 // ============================================
 // Session storage
 // ============================================
@@ -680,11 +684,12 @@ const proofWorkerAPI: ProofWorkerAPI = {
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      const cleanedMessage = cleanDiagnosticMessage(message);
       console.error('[ProofWorker] syncFromSource failed:', message);
       return {
         success: false,
-        error: message,
-        diagnostics: [{ message, severity: 'error' }],
+        error: cleanedMessage,
+        diagnostics: [{ message: cleanedMessage, severity: 'error' }],
       };
     }
   },
@@ -712,7 +717,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const loc = (e as any)?.location;
       diagnostics.push({
-        message: `Parse error: ${msg}`,
+        message: `Parse: ${cleanDiagnosticMessage(msg)}`,
         severity: 'error',
         ...locRange(loc),
       });
@@ -729,7 +734,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         diagnostics.push({
-          message: `Parse error: ${msg}`,
+          message: `Parse: ${cleanDiagnosticMessage(msg)}`,
           severity: 'error',
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...locRange((ast as any)?.location),
@@ -743,7 +748,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
           if (result instanceof go) ctx = result.result;
           else if (result instanceof stop) {
             diagnostics.push({
-              message: String(result.message),
+              message: `Claim: ${cleanDiagnosticMessage(String(result.message))}`,
               severity: 'error',
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ...locRange((result as any).where ?? src.location),
@@ -754,7 +759,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
           if (result instanceof go) ctx = result.result;
           else if (result instanceof stop) {
             diagnostics.push({
-              message: String(result.message),
+              message: `Definition: ${cleanDiagnosticMessage(String(result.message))}`,
               severity: 'error',
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ...locRange((result as any).where ?? src.location),
@@ -765,7 +770,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
           if (result instanceof go) ctx = result.result.context;
           else if (result instanceof stop) {
             diagnostics.push({
-              message: String(result.message),
+              message: `Define-tactically: ${cleanDiagnosticMessage(String(result.message))}`,
               severity: 'error',
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ...locRange((result as any).where ?? src.location),
@@ -775,7 +780,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         diagnostics.push({
-          message: msg,
+          message: cleanDiagnosticMessage(msg),
           severity: 'error',
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...locRange((src as any)?.location),
