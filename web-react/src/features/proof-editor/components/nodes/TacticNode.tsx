@@ -14,9 +14,6 @@ import { applyTactic as triggerApplyTactic } from "../../utils/tactic-callback";
 const CONTEXT_INPUT_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
   .filter(t => TACTIC_REQUIREMENTS[t].variableName === true);
 
-const PARAMETERLESS_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
-  .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
-
 // Status-based styling
 const STATUS_STYLES: Record<
   TacticNodeStatus,
@@ -66,7 +63,9 @@ export const TacticNode = memo(function TacticNode({
   selected,
 }: NodeProps<TacticNodeType>) {
   const needsContextInput = CONTEXT_INPUT_TACTICS.includes(data.tacticType);
-  const isParameterless = PARAMETERLESS_TACTICS.includes(data.tacticType);
+  const requirements = TACTIC_REQUIREMENTS[data.tacticType];
+  const protocolParameterless =
+    !requirements.variableName && !requirements.expression;
   const isTodo = data.tacticType === "todo";
 
   const styles = isTodo
@@ -79,7 +78,9 @@ export const TacticNode = memo(function TacticNode({
 
   // Show inline input when incomplete and not a context-requiring or parameterless tactic
   const showInlineInput =
-    data.status === "incomplete" && !needsContextInput && !isParameterless;
+    data.status === "incomplete" &&
+    !needsContextInput &&
+    (!protocolParameterless || data.tacticType === "intro");
 
   return (
     <div
@@ -232,7 +233,6 @@ function IntroParamInput({
 
       // If already connected to a goal, trigger application
       if (connectedGoalId) {
-        console.log("[TacticNode] Params set and connected, applying intro");
         await triggerApplyTactic(connectedGoalId, "intro", params, nodeId);
       }
     }
@@ -292,7 +292,6 @@ function ExactParamInput({
 
       // If already connected to a goal, trigger application
       if (connectedGoalId) {
-        console.log("[TacticNode] Params set and connected, applying exact");
         await triggerApplyTactic(connectedGoalId, "exact", params, nodeId);
       }
     }

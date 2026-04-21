@@ -7,28 +7,18 @@ import { SourceCodePanel } from '@/features/proof-editor/components/panels/Sourc
 import { DefinitionsPanel } from '@/features/proof-editor/components/panels/DefinitionsPanel';
 import { AISettingsPanel } from '@/features/proof-editor/components/panels/AISettingsPanel';
 import { useProofSession } from '@/features/proof-editor/hooks/useProofSession';
-import { useKeyboardShortcuts } from '@/features/proof-editor/hooks/useKeyboardShortcuts';
 import { useProofStore } from '@/features/proof-editor/store';
 import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
+import { useEditorStore } from '@/features/proof-editor/store/editor-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
-import { ProofPicker } from '@/features/proof-editor/components/ProofPicker';
-import type { GlobalEntry } from '@pie/protocol';
 
 function AppContent() {
   const { applyTactic, error } = useProofSession();
   const updateNode = useProofStore((s) => s.updateNode);
-  const nodes = useProofStore((s) => s.nodes);
-  const setManualPosition = useProofStore((s) => s.setManualPosition);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
-  const [foundClaims, setFoundClaims] = useState<GlobalEntry[]>([]);
-  const [foundTheorems, setFoundTheorems] = useState<GlobalEntry[]>([]);
-  const [selectedProof, setSelectedProof] = useState<string | null>(null);
-
-  // Use keyboard shortcuts hook
-  useKeyboardShortcuts();
 
   // Use example store
   const selectedExample = useExampleStore((s) => s.selectedExample);
@@ -40,32 +30,26 @@ function AppContent() {
   // Set up the global callback for tactic application
   const handleApplyTactic = useCallback(async (options: ApplyTacticOptions) => {
     const { goalId, tacticType, params, tacticNodeId } = options;
-    console.log('[App] Applying tactic:', tacticType, 'to goal:', goalId, 'params:', params, 'tacticNodeId:', tacticNodeId);
     setTacticError(null);
 
-    // Transfer tactic node position to the new tactic ID before sync
-    // The new tactic will be created with ID "tactic-for-{goalId}"
-    if (tacticNodeId) {
-      const tacticNode = nodes.find(n => n.id === tacticNodeId);
-      if (tacticNode) {
-        const newTacticId = `tactic-for-${goalId}`;
-        console.log(`[App] Transferring position from ${tacticNodeId} to ${newTacticId}:`, tacticNode.position);
-        setManualPosition(newTacticId, { ...tacticNode.position });
-      }
+    // Conflict guard: if the editor has unsaved edits, surface the conflict modal
+    // via the editor store (no window globals). triggerConflictGuard calls the
+    // callback registered by SourceCodePanel, or runs the action directly if clean.
+    if (useEditorStore.getState().dirtySinceLastSync) {
+      useEditorStore.getState().triggerConflictGuard(() => handleApplyTactic(options));
+      return;
     }
 
     try {
       const result = await applyTactic(goalId, tacticType, params);
 
       if (result.success) {
-        // Success: syncFromWorker already called in useProofSession
-        // The proof tree will be updated with new goals
-        console.log('[App] Tactic succeeded');
+        // Success: syncFromWorker already called in useProofSession.
+        // The proof tree will be updated with new goals.
       } else {
         // Failure: update tactic node with error status
         const errorMsg = result.error || 'Tactic application failed';
         setTacticError(errorMsg);
-        console.error('[App] Tactic failed:', errorMsg);
 
         // If we have a tactic node ID, update its status to error
         if (tacticNodeId) {
@@ -76,9 +60,8 @@ function AppContent() {
         }
       }
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : String(e);
+      const errorMsg = e instanceof Error ? e.message : 'Unexpected tactic error';
       setTacticError(errorMsg);
-      console.error('[App] Tactic error:', e);
 
       // If we have a tactic node ID, update its status to error
       if (tacticNodeId) {
@@ -88,7 +71,7 @@ function AppContent() {
         });
       }
     }
-  }, [applyTactic, updateNode, nodes, setManualPosition]);
+  }, [applyTactic, updateNode]);
 
   // Register the callback when component mounts
   useEffect(() => {
@@ -118,7 +101,7 @@ function AppContent() {
             id="example-select"
             value={selectedExample}
             onChange={(e) => selectExample(e.target.value)}
-            className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary h-8"
+            className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">-- Select --</option>
             {EXAMPLES.map((ex) => (
