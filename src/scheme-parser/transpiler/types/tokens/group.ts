@@ -5,7 +5,7 @@
 import { Token } from "./token";
 import { TokenType } from "./token-type";
 import { Location, Position } from "../location";
-import type { Datum } from "./datum";
+import { Datum } from "./datum";
 import { isGroup, isToken } from ".";
 import { ExpectedFormError } from "../../parser/parser-error";
 
