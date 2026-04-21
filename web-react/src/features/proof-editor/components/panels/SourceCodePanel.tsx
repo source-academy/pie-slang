@@ -242,7 +242,13 @@ export function SourceCodePanel() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [liveDiagnostics, setLiveDiagnostics] = useState<
-    Array<{ message: string; severity: 'error' | 'warning'; startLine: number }>
+    Array<{
+      message: string;
+      severity: 'error' | 'warning';
+      startLine: number;
+      startColumn: number;
+      source: 'parser' | 'typechecker';
+    }>
   >([]);
   const [pendingCanvasAction, setPendingCanvasAction] = useState<(() => void) | null>(null);
 
@@ -413,6 +419,8 @@ export function SourceCodePanel() {
             message: d.message,
             severity: d.severity === 'error' ? 'error' : 'warning',
             startLine: d.range.startLine,
+            startColumn: d.range.startColumn,
+            source: d.source,
           }))
         );
       } catch {
@@ -709,10 +717,16 @@ export function SourceCodePanel() {
                           <p className="mb-1 text-xs font-semibold text-destructive">
                             ✗ {liveDiagnostics.length} problem{liveDiagnostics.length > 1 ? 's' : ''} in source
                           </p>
-                          <ul className="max-h-24 space-y-0.5 overflow-auto text-xs text-destructive">
+                          <ul className="max-h-24 space-y-1 overflow-auto text-xs text-destructive">
                             {liveDiagnostics.slice(0, 5).map((d, i) => (
-                              <li key={i} className="font-mono">
-                                line {d.startLine}: {d.message}
+                              <li key={i} className="rounded border border-destructive/20 bg-background/60 px-2 py-1">
+                                <span className="mr-2 font-semibold uppercase tracking-wide text-[10px]">
+                                  {d.source}
+                                </span>
+                                <span className="mr-2 font-mono text-[11px]">
+                                  {d.startLine}:{d.startColumn}
+                                </span>
+                                <span className="break-words">{d.message}</span>
                               </li>
                             ))}
                             {liveDiagnostics.length > 5 && (
@@ -801,10 +815,16 @@ export function SourceCodePanel() {
                     <p className="mb-1 text-xs font-semibold text-destructive">
                       ✗ {liveDiagnostics.length} problem{liveDiagnostics.length > 1 ? 's' : ''} in source
                     </p>
-                    <ul className="space-y-0.5 text-xs text-destructive">
+                    <ul className="space-y-1 text-xs text-destructive">
                       {liveDiagnostics.slice(0, 5).map((d, i) => (
-                        <li key={i} className="font-mono">
-                          line {d.startLine}: {d.message}
+                        <li key={i} className="rounded border border-destructive/20 bg-background/60 px-2 py-1">
+                          <span className="mr-2 font-semibold uppercase tracking-wide text-[10px]">
+                            {d.source}
+                          </span>
+                          <span className="mr-2 font-mono text-[11px]">
+                            {d.startLine}:{d.startColumn}
+                          </span>
+                          <span className="break-words">{d.message}</span>
                         </li>
                       ))}
                       {liveDiagnostics.length > 5 && (

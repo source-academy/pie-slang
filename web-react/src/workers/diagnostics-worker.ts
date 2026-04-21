@@ -64,6 +64,40 @@ export interface CompletionItem {
   insertText?: string;
 }
 
+function cleanDiagnosticMessage(message: string): string {
+  return message
+    .replace(/^Error:\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function rangeFromLocation(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  location: any,
+): Range {
+  if (location?.syntax?.start && location?.syntax?.end) {
+    return {
+      startLine: location.syntax.start.line + 1,
+      startColumn: location.syntax.start.column + 1,
+      endLine: location.syntax.end.line + 1,
+      endColumn: location.syntax.end.column + 1,
+    };
+  }
+
+  return {
+    startLine: 1,
+    startColumn: 1,
+    endLine: 1,
+    endColumn: 2,
+  };
+}
+
+function resultMessageToText(message: { toString(): string } | string): string {
+  return cleanDiagnosticMessage(
+    typeof message === 'string' ? message : message.toString(),
+  );
+}
+
 // ============================================
 // Built-in Pie keywords and types
 // ============================================
@@ -193,13 +227,210 @@ function getTokenAtCursor(sourceCode: string, line: number, column: number): str
 }
 
 const diagnosticsWorkerAPI: DiagnosticsWorkerAPI = {
-  async checkSource(_sourceCode) {
-    // TODO: Integrate with Pie interpreter for real diagnostics
-    return {
-      diagnostics: [],
-      parseSuccessful: true,
-      typeCheckSuccessful: true,
-    };
+  async checkSource(sourceCode) {
+    try {
+      const [
+        parserModule,
+        contextModule,
+        typesModule,
+      ] = await Promise.all([
+        import('@pie/parser/parser'),
+        import('@pie/utils/context'),
+        import('@pie/types/utils'),
+      ]);
+
+      const {
+        schemeParse,
+        pieDeclarationParser,
+        Claim,
+        Definition,
+        DefineTactically,
+      } = parserModule;
+      const {
+        initCtx,
+        addClaimToContext,
+        addDefineToContext,
+        addDefineTacticallyToContext,
+      } = contextModule;
+      const { go, stop } = typesModule;
+
+      let astList: unknown[];
+      try {
+        astList = schemeParse(sourceCode) as unknown[];
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to parse source';
+        return {
+          diagnostics: [
+            {
+              severity: 'error',
+              message: cleanDiagnosticMessage(message),
+              range: rangeFromLocation(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (error as any)?.location,
+              ),
+              source: 'parser',
+            },
+          ],
+          parseSuccessful: false,
+          typeCheckSuccessful: false,
+        };
+      }
+
+      if (!Array.isArray(astList)) {
+        return {
+          diagnostics: [],
+          parseSuccessful: false,
+          typeCheckSuccessful: false,
+        };
+      }
+
+      const diagnostics: Diagnostic[] = [];
+      let parseSuccessful = true;
+      let typeCheckSuccessful = true;
+      let ctx = initCtx;
+
+      for (const ast of astList) {
+        let sourceDeclaration: unknown;
+
+        try {
+          sourceDeclaration =
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            pieDeclarationParser.parseDeclaration(ast as any);
+        } catch (error) {
+          parseSuccessful = false;
+          typeCheckSuccessful = false;
+          const message =
+            error instanceof Error ? error.message : 'Failed to parse declaration';
+          diagnostics.push({
+            severity: 'error',
+            message: cleanDiagnosticMessage(message),
+            range: rangeFromLocation(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (ast as any)?.location,
+            ),
+            source: 'parser',
+          });
+          continue;
+        }
+
+        try {
+          if (sourceDeclaration instanceof Claim) {
+            const result = addClaimToContext(
+              ctx,
+              sourceDeclaration.name,
+              sourceDeclaration.location,
+              sourceDeclaration.type,
+            );
+
+            if (result instanceof go) {
+              ctx = result.result;
+            } else if (result instanceof stop) {
+              typeCheckSuccessful = false;
+              diagnostics.push({
+                severity: 'error',
+                message: resultMessageToText(result.message),
+                range: rangeFromLocation(
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (result as any).where ?? sourceDeclaration.location,
+                ),
+                source: 'typechecker',
+              });
+            }
+          } else if (sourceDeclaration instanceof Definition) {
+            const result = addDefineToContext(
+              ctx,
+              sourceDeclaration.name,
+              sourceDeclaration.location,
+              sourceDeclaration.expr,
+            );
+
+            if (result instanceof go) {
+              ctx = result.result;
+            } else if (result instanceof stop) {
+              typeCheckSuccessful = false;
+              diagnostics.push({
+                severity: 'error',
+                message: resultMessageToText(result.message),
+                range: rangeFromLocation(
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (result as any).where ?? sourceDeclaration.location,
+                ),
+                source: 'typechecker',
+              });
+            }
+          } else if (sourceDeclaration instanceof DefineTactically) {
+            const result = addDefineTacticallyToContext(
+              ctx,
+              sourceDeclaration.name,
+              sourceDeclaration.location,
+              sourceDeclaration.tactics,
+            );
+
+            if (result instanceof go) {
+              ctx = result.result.context;
+            } else if (result instanceof stop) {
+              typeCheckSuccessful = false;
+              diagnostics.push({
+                severity: 'error',
+                message: resultMessageToText(result.message),
+                range: rangeFromLocation(
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (result as any).where ?? sourceDeclaration.location,
+                ),
+                source: 'typechecker',
+              });
+            }
+          }
+        } catch (error) {
+          typeCheckSuccessful = false;
+          const message =
+            error instanceof Error ? error.message : 'Failed to check declaration';
+          diagnostics.push({
+            severity: 'error',
+            message: cleanDiagnosticMessage(message),
+            range: rangeFromLocation(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (sourceDeclaration as any)?.location,
+            ),
+            source: 'typechecker',
+          });
+        }
+      }
+
+      diagnostics.sort((a, b) => {
+        if (a.range.startLine !== b.range.startLine) {
+          return a.range.startLine - b.range.startLine;
+        }
+        return a.range.startColumn - b.range.startColumn;
+      });
+
+      return {
+        diagnostics,
+        parseSuccessful,
+        typeCheckSuccessful,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to check source';
+      return {
+        diagnostics: [
+          {
+            severity: 'error',
+            message: cleanDiagnosticMessage(message),
+            range: {
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 2,
+            },
+            source: 'typechecker',
+          },
+        ],
+        parseSuccessful: false,
+        typeCheckSuccessful: false,
+      };
+    }
   },
 
   async getHoverInfo(_sourceCode, _line, _column) {
