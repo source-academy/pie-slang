@@ -30,9 +30,9 @@ function getGlyph(tactic: TacticInfo): string {
   return TACTIC_GLYPH[tactic.type] ?? tactic.displayName.charAt(0).toUpperCase();
 }
 
-function getTag(tactic: TacticInfo): string {
+function getTag(tactic: TacticInfo): string | null {
   if (tactic.requiresContextVar) return 'ctx';
-  return '—';
+  return null;
 }
 
 export function TacticPalette() {
@@ -89,9 +89,9 @@ function DraggableTactic({ tactic }: { tactic: TacticInfo }) {
       title={tactic.description}
       className={`pe-t-item${tactic.requiresContextVar ? ' ctx' : ''}`}
     >
-      <span className="pe-t-glyph">{getGlyph(tactic)}</span>
+      <span className={`pe-t-glyph cat-${tactic.category}`}>{getGlyph(tactic)}</span>
       <span className="pe-t-nm">{tactic.displayName}</span>
-      <span className="pe-t-tag">{getTag(tactic)}</span>
+      {getTag(tactic) && <span className="pe-t-tag">{getTag(tactic)}</span>}
     </div>
   );
 }

@@ -155,7 +155,7 @@ export function SourceCodePanel({ onCollapse }: SourceCodePanelProps) {
             onClick={onCollapse}
             title="Collapse source panel"
             aria-label="Collapse source panel"
-            style={{ marginRight: -4, marginLeft: -4 }}
+            style={{ marginLeft: -4, marginRight: 0, flexShrink: 0 }}
           >
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <path d="M9 3L6 7l3 4" />
@@ -168,9 +168,6 @@ export function SourceCodePanel({ onCollapse }: SourceCodePanelProps) {
           {syncLabel}
         </span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontFamily: 'var(--pe-mono-font)', fontSize: 11, color: 'var(--pe-faint)' }}>
-          Pie · UTF-8
-        </span>
       </div>
 
       {/* Claim bar */}
@@ -201,7 +198,6 @@ export function SourceCodePanel({ onCollapse }: SourceCodePanelProps) {
 
       {/* Monaco editor — fills remaining height */}
       <div className="pe-editor-frame">
-        <span className="pe-gutter-info">Pie · UTF-8 · LF</span>
         <Editor
           height="100%"
           language="pie"

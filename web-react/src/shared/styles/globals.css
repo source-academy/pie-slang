@@ -276,7 +276,7 @@
 }
 
 .pe-main.source-collapsed {
-  grid-template-columns: 36px 170px minmax(0, 1fr) 260px;
+  grid-template-columns: 20px 170px minmax(0, 1fr) 260px;
 }
 
 .pe-main.source-collapsed > section.pe-source {
@@ -285,11 +285,11 @@
 
 @media (max-width: 1240px) {
   .pe-main { grid-template-columns: 300px 160px minmax(0, 1fr) 240px; }
-  .pe-main.source-collapsed { grid-template-columns: 36px 160px minmax(0, 1fr) 240px; }
+  .pe-main.source-collapsed { grid-template-columns: 20px 160px minmax(0, 1fr) 240px; }
 }
 
 @media (max-width: 1100px) {
-  .pe-main { grid-template-columns: 36px 160px minmax(0, 1fr) 240px; }
+  .pe-main { grid-template-columns: 20px 160px minmax(0, 1fr) 240px; }
   .pe-main > section.pe-source { display: none; }
   .pe-source-stub { display: flex !important; }
 }
@@ -305,14 +305,18 @@
   display: none;
   background: var(--pe-surface);
   border-right: 1px solid var(--pe-line);
-  padding: 10px 0;
+  padding: 0;
   cursor: pointer;
   color: var(--pe-muted);
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 0;
   min-width: 0;
   border: none;
+  width: 20px;
+  /* top padding matches panel-head height so icon lands at same y as < button */
+  padding-top: 9px;
 }
 
 .pe-source-stub:hover {
@@ -665,10 +669,31 @@
   flex-shrink: 0;
 }
 
-.pe-t-item.ctx .pe-t-glyph {
-  background: color-mix(in oklab, var(--pe-accent) 10%, white);
-  color: var(--pe-accent);
-  border-color: color-mix(in oklab, var(--pe-accent) 22%, white);
+/* Category colours for glyph badges */
+.pe-t-glyph.cat-introduction {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+.pe-t-glyph.cat-constructor {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+.pe-t-glyph.cat-elimination {
+  background: #faf5ff;
+  color: #7c3aed;
+  border-color: #e9d5ff;
+}
+.pe-t-glyph.cat-application {
+  background: #fff7ed;
+  color: #ea580c;
+  border-color: #fed7aa;
+}
+.pe-t-glyph.cat-placeholder {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #cbd5e1;
 }
 
 .pe-t-nm {

@@ -140,15 +140,10 @@ function AppContent() {
         )}
 
         <div className="pe-tb-right">
-          {displayError ? (
+          {displayError && (
             <span className="pe-error-pill">
               <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--pe-err)', flexShrink: 0 }} />
               {displayError.length > 60 ? displayError.slice(0, 60) + '…' : displayError}
-            </span>
-          ) : (
-            <span className="pe-auto-indicator" title="Source and canvas stay in sync automatically">
-              <span className="pe-pulse" />
-              Auto-sync on
             </span>
           )}
         </div>
@@ -167,10 +162,6 @@ function AppContent() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
             <path d="M5 3l3 4-3 4" />
           </svg>
-          <span className="pe-stub-label">Source</span>
-          <span className="pe-stub-sync">
-            <span style={{ display: 'block', width: 6, height: 6, borderRadius: 3, background: hasSession ? 'var(--pe-ok)' : 'var(--pe-faint)' }} />
-          </span>
         </button>
 
         {/* Source rail */}
@@ -190,10 +181,6 @@ function AppContent() {
           <div className="pe-canvas-head">
             <div className="pe-breadcrumb">
               <span>proof</span>
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#aaa" strokeWidth="1.6">
-                <path d="M3.5 2l3 3-3 3" />
-              </svg>
-              <span className="cur">{activeClaimName || '—'}</span>
               {openGoals > 0 && (
                 <>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#aaa" strokeWidth="1.6">
@@ -205,18 +192,6 @@ function AppContent() {
             </div>
             <div style={{ flex: 1 }} />
             <div className="pe-canvas-actions">
-              <button className="pe-icon-btn" title="Auto-layout" id="pe-canvas-autolayout">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="1" y="1" width="4" height="4" /><rect x="8" y="1" width="4" height="4" />
-                  <rect x="4.5" y="8" width="4" height="4" />
-                  <path d="M3 5v1.5h6.5V5M6.5 6.5V8" />
-                </svg>
-              </button>
-              <button className="pe-icon-btn" title="Fit view" id="pe-canvas-fit">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M1 4V1h3M12 4V1H9M1 9v3h3M12 9v3H9" />
-                </svg>
-              </button>
               <button
                 className="pe-icon-btn"
                 title="AI Hints settings"
@@ -236,24 +211,6 @@ function AppContent() {
             <ProofCanvas />
           </div>
 
-          <div className="pe-canvas-status">
-            {hasSession ? (
-              <>
-                <span className="pe-cs-item">
-                  <span className="pe-cs-dot" />
-                  {nodes.length} nodes · {edges.length} edges
-                </span>
-                {openGoals > 0 && (
-                  <span className="pe-cs-item">{openGoals} open goal{openGoals !== 1 ? 's' : ''}</span>
-                )}
-                {appliedTactics > 0 && (
-                  <span className="pe-cs-item">{appliedTactics} applied tactic{appliedTactics !== 1 ? 's' : ''}</span>
-                )}
-              </>
-            ) : (
-              <span className="pe-cs-item" style={{ color: 'var(--pe-faint)' }}>No active session · select an example or start a proof</span>
-            )}
-          </div>
         </section>
 
         {/* Detail rail */}
