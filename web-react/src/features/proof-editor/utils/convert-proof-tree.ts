@@ -1,3 +1,4 @@
+import dagre from "@dagrejs/dagre";
 import type {
   ProofNode,
   ProofEdge,
@@ -14,11 +15,11 @@ import type {
 } from "@pie/protocol";
 import { nanoid } from "nanoid";
 
-// Layout constants
-const NODE_WIDTH = 200;
-const NODE_HEIGHT = 120;
-const HORIZONTAL_SPACING = 50;
-const VERTICAL_SPACING = 150;
+// Node size estimates (dagre needs dimensions upfront)
+const GOAL_WIDTH = 220;
+const GOAL_HEIGHT = 130;
+const TACTIC_WIDTH = 160;
+const TACTIC_HEIGHT = 52;
 
 interface ConversionResult {
   nodes: ProofNode[];
@@ -55,96 +56,53 @@ export function convertProofTreeToReactFlow(
 }
 
 /**
- * Calculate positions for all nodes in the tree using a simple layout algorithm.
- * Returns a map from goal ID to position.
+ * Calculate positions for all nodes in the tree using dagre.
+ * Returns a map from node ID to top-left position (React Flow convention).
  */
 function calculateTreeLayout(
   root: ProtoGoalNode,
 ): Map<string, { x: number; y: number }> {
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: "TB", ranksep: 60, nodesep: 40, edgesep: 10 });
+
+  // Collect all nodes and edges from the tree
+  function collectNodes(node: ProtoGoalNode) {
+    g.setNode(node.goal.id, { width: GOAL_WIDTH, height: GOAL_HEIGHT });
+
+    if (node.appliedTactic && node.children.length > 0) {
+      const tacticId = `tactic-for-${node.goal.id}`;
+      g.setNode(tacticId, { width: TACTIC_WIDTH, height: TACTIC_HEIGHT });
+      g.setEdge(node.goal.id, tacticId);
+      for (const child of node.children) {
+        g.setEdge(tacticId, child.goal.id);
+        collectNodes(child);
+      }
+    } else if (node.completedBy && node.children.length === 0) {
+      const tacticId = `tactic-completing-${node.goal.id}`;
+      g.setNode(tacticId, { width: TACTIC_WIDTH, height: TACTIC_HEIGHT });
+      g.setEdge(node.goal.id, tacticId);
+    } else {
+      for (const child of node.children) {
+        g.setEdge(node.goal.id, child.goal.id);
+        collectNodes(child);
+      }
+    }
+  }
+
+  collectNodes(root);
+  dagre.layout(g);
+
+  // Dagre positions are node centers — convert to top-left for React Flow
   const positions = new Map<string, { x: number; y: number }>();
-
-  // First pass: calculate subtree widths
-  const widths = new Map<string, number>();
-  calculateSubtreeWidths(root, widths);
-
-  // Second pass: assign positions
-  assignPositions(root, 0, 0, widths, positions);
+  g.nodes().forEach((id) => {
+    const n = g.node(id);
+    if (n) {
+      positions.set(id, { x: n.x - n.width / 2, y: n.y - n.height / 2 });
+    }
+  });
 
   return positions;
-}
-
-/**
- * Calculate the width of each subtree (for horizontal spacing)
- */
-function calculateSubtreeWidths(
-  node: ProtoGoalNode,
-  widths: Map<string, number>,
-): number {
-  if (node.children.length === 0) {
-    const width = NODE_WIDTH;
-    widths.set(node.goal.id, width);
-    return width;
-  }
-
-  let totalWidth = 0;
-  for (const child of node.children) {
-    totalWidth += calculateSubtreeWidths(child, widths);
-  }
-  // Add spacing between children
-  totalWidth += (node.children.length - 1) * HORIZONTAL_SPACING;
-
-  // Width is at least the node width
-  const width = Math.max(NODE_WIDTH, totalWidth);
-  widths.set(node.goal.id, width);
-  return width;
-}
-
-/**
- * Assign positions to nodes based on their subtree widths
- */
-function assignPositions(
-  node: ProtoGoalNode,
-  x: number,
-  y: number,
-  widths: Map<string, number>,
-  positions: Map<string, { x: number; y: number }>,
-): void {
-  const nodeWidth = widths.get(node.goal.id) || NODE_WIDTH;
-
-  // Center this node within its allocated space
-  const nodeX = x + nodeWidth / 2 - NODE_WIDTH / 2;
-  positions.set(node.goal.id, { x: nodeX, y });
-
-  if (node.children.length === 0) return;
-
-  // Position children below, with tactic node in between
-  const tacticY = y + NODE_HEIGHT + VERTICAL_SPACING / 2;
-  const childrenY = y + NODE_HEIGHT + VERTICAL_SPACING;
-
-  // Calculate starting x for children
-  let childX = x;
-  const totalChildrenWidth =
-    node.children.reduce(
-      (sum, child) => sum + (widths.get(child.goal.id) || NODE_WIDTH),
-      0,
-    ) +
-    (node.children.length - 1) * HORIZONTAL_SPACING;
-
-  // Center children under parent
-  childX = x + (nodeWidth - totalChildrenWidth) / 2;
-
-  // Store tactic position (centered between this node and children)
-  if (node.appliedTactic) {
-    const tacticId = `tactic-for-${node.goal.id}`;
-    positions.set(tacticId, { x: nodeX, y: tacticY });
-  }
-
-  // Position each child
-  for (const child of node.children) {
-    const childWidth = widths.get(child.goal.id) || NODE_WIDTH;
-    assignPositions(child, childX, childrenY, widths, positions);
-    childX += childWidth + HORIZONTAL_SPACING;
-  }
 }
 
 /**
@@ -197,7 +155,7 @@ function traverseTree(
     const tacticId = `tactic-for-${node.goal.id}`;
     const tacticPosition = positions.get(tacticId) || {
       x: position.x,
-      y: position.y + NODE_HEIGHT + VERTICAL_SPACING / 2,
+      y: position.y + GOAL_HEIGHT + 40,
     };
 
     const tacticNode: TacticNode = {
@@ -239,7 +197,7 @@ function traverseTree(
     const tacticId = `tactic-completing-${node.goal.id}`;
     const tacticPosition = {
       x: position.x,
-      y: position.y + NODE_HEIGHT + 50,
+      y: position.y + GOAL_HEIGHT + 40,
     };
 
     const tacticNode: TacticNode = {
