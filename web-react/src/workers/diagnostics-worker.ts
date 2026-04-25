@@ -176,15 +176,55 @@ function extractUserSymbols(sourceCode: string): CompletionItem[] {
   return items;
 }
 
-async function buildContext(sourceCode: string) {
-  const [parserModule, contextModule, utilsModule, representModule, typeDefinitionModule] =
-    await Promise.all([
+let pieModulesPromise: ReturnType<typeof loadPieModules> | null = null;
+
+function loadPieModules() {
+  if (!pieModulesPromise) {
+    pieModulesPromise = Promise.all([
       import('@pie/parser/parser'),
       import('@pie/utils/context'),
       import('@pie/types/utils'),
       import('@pie/typechecker/represent'),
       import('@pie/typechecker/type-definition'),
-    ]);
+    ]).then(([
+      parserModule,
+      contextModule,
+      utilsModule,
+      representModule,
+      typeDefinitionModule,
+    ]) => ({
+      parserModule,
+      contextModule,
+      utilsModule,
+      representModule,
+      typeDefinitionModule,
+    }));
+  }
+
+  return pieModulesPromise;
+}
+
+let cachedSourceCode: string | null = null;
+let cachedBuildContext: ReturnType<typeof buildContextUncached> | null = null;
+
+function buildContext(sourceCode: string) {
+  if (cachedSourceCode === sourceCode && cachedBuildContext) {
+    return cachedBuildContext;
+  }
+
+  cachedSourceCode = sourceCode;
+  cachedBuildContext = buildContextUncached(sourceCode);
+  return cachedBuildContext;
+}
+
+async function buildContextUncached(sourceCode: string) {
+  const {
+    parserModule,
+    contextModule,
+    utilsModule,
+    representModule,
+    typeDefinitionModule,
+  } = await loadPieModules();
 
   const {
     schemeParse,
@@ -204,7 +244,7 @@ async function buildContext(sourceCode: string) {
   const { checkSame } = representModule;
   const { TypeDefinition } = typeDefinitionModule;
 
-  let ctx = initCtx;
+  let ctx = new Map(initCtx);
   let renaming = new Map<string, string>();
   const diagnostics: Diagnostic[] = [];
   let parseSuccessful = true;
