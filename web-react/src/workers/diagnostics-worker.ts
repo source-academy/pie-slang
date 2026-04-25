@@ -77,11 +77,14 @@ function rangeFromLocation(location: any): Range {
   const end = location?.syntax?.end ?? location?.end;
 
   if (start && end) {
+    const startColumn = start.column;
+    const endColumn = end.column;
+
     return {
-      startLine: start.line + 1,
-      startColumn: start.column + 1,
-      endLine: end.line + 1,
-      endColumn: end.column + 1,
+      startLine: start.line,
+      startColumn,
+      endLine: end.line,
+      endColumn: Math.max(endColumn + 1, startColumn + 1),
     };
   }
 
@@ -241,7 +244,7 @@ async function buildContextUncached(sourceCode: string) {
     addDefineTacticallyToContext,
   } = contextModule;
   const { go, stop } = utilsModule;
-  const { checkSame } = representModule;
+  const { checkSame, represent } = representModule;
   const { TypeDefinition } = typeDefinitionModule;
 
   let ctx = new Map(initCtx);
@@ -309,6 +312,8 @@ async function buildContextUncached(sourceCode: string) {
         const normalized = declaration.normalizeConstructor(ctx, renaming);
         ctx = normalized[0];
         renaming = normalized[1];
+      } else {
+        result = represent(ctx, declaration as Parameters<typeof represent>[1]);
       }
 
       if (result instanceof stop) {

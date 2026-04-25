@@ -957,8 +957,7 @@ export class SpiltTactic extends Tactic {
       )
     );
 
-    state.currentGoal.onChildComplete = (parent, completedChildIndex) => {
-      if (completedChildIndex !== 0) return;
+    state.currentGoal.refreshChildGoals = (parent) => {
       const carTerm = parent.children[0]?.extractTerm();
       const cdrGoal = parent.children[1]?.goal;
       if (!carTerm || !cdrGoal) return;
