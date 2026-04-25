@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useProofStore, useUIStore } from "../../store";
 import { useHintStore } from "../../store/hint-store";
 import { useGoalDescriptionStore } from "../../store/goal-description-store";
@@ -25,6 +25,17 @@ function parseErrorMessage(raw: string): string {
   return raw;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
 /**
  * GoalDetailPanel Component
  *
@@ -43,7 +54,7 @@ export function GoalDetailPanel() {
   const setLoading = useGoalDescriptionStore((s) => s.setLoading);
   const setDescription = useGoalDescriptionStore((s) => s.setDescription);
   const setError = useGoalDescriptionStore((s) => s.setError);
-  const descEntry = useGoalDescriptionStore((s) =>
+  const rawDescEntry = useGoalDescriptionStore((s) =>
     selectedNodeId ? s.descriptions.get(selectedNodeId) : undefined,
   );
 
@@ -52,19 +63,47 @@ export function GoalDetailPanel() {
     (n): n is GoalNode => n.id === selectedNodeId && n.type === "goal",
   );
 
+  const descriptionSignature = useMemo(() => {
+    if (!selectedNode || !sourceCode || !claimName) return null;
+
+    return JSON.stringify({
+      sourceCode,
+      claimName,
+      goalType: selectedNode.data.goalType,
+      context: selectedNode.data.context.map((entry) => ({
+        name: entry.name,
+        type: entry.type,
+      })),
+    });
+  }, [selectedNode, sourceCode, claimName]);
+
+  const descEntry =
+    rawDescEntry?.signature === descriptionSignature ? rawDescEntry : undefined;
+
   // ---------------------------------------------------------------------------
-  // Description fetching — uses the full session source code and the claim
-  // name being proved, so the LLM has full context.
+  // Description fetching uses the full source as background, then asks the LLM
+  // to describe the currently selected proof goal and its local context.
   // ---------------------------------------------------------------------------
   const fetchDescription = useCallback(
-    async (nodeId: string) => {
+    async (nodeId: string, goal: GoalNode["data"], signature: string) => {
       if (!apiKey || !sourceCode || !claimName) return;
-      setLoading(nodeId);
+      setLoading(nodeId, signature);
       try {
-        const text = await describeGoalBrowser(sourceCode, claimName, apiKey);
-        setDescription(nodeId, text);
+        const text = await describeGoalBrowser(
+          {
+            pieCode: sourceCode,
+            claimName,
+            goalType: goal.goalType,
+            context: goal.context.map((entry) => ({
+              name: entry.name,
+              type: entry.type,
+            })),
+          },
+          apiKey,
+        );
+        setDescription(nodeId, signature, text);
       } catch (e) {
-        setError(nodeId, e instanceof Error ? e.message : String(e));
+        setError(nodeId, signature, getErrorMessage(e));
       }
     },
     [apiKey, sourceCode, claimName, setLoading, setDescription, setError],
@@ -74,9 +113,10 @@ export function GoalDetailPanel() {
   useEffect(() => {
     if (!selectedNodeId || !selectedNode) return;
     if (!apiKey || !sourceCode || !claimName) return;
+    if (!descriptionSignature) return;
     // Only auto-fetch if we have no cached entry for this node yet
     if (!descEntry) {
-      fetchDescription(selectedNodeId);
+      fetchDescription(selectedNodeId, selectedNode.data, descriptionSignature);
     }
   }, [
     selectedNodeId,
@@ -84,6 +124,7 @@ export function GoalDetailPanel() {
     apiKey,
     sourceCode,
     claimName,
+    descriptionSignature,
     descEntry,
     fetchDescription,
   ]);
@@ -173,7 +214,11 @@ export function GoalDetailPanel() {
           </div>
           {apiKey && (
             <button
-              onClick={() => selectedNodeId && fetchDescription(selectedNodeId)}
+              onClick={() =>
+                selectedNodeId &&
+                descriptionSignature &&
+                fetchDescription(selectedNodeId, data, descriptionSignature)
+              }
               disabled={descEntry?.isLoading}
               title="Refresh description"
               className={cn(
