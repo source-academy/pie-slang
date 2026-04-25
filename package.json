@@ -14,7 +14,7 @@
     "url": "https://github.com/source-academy/"
   },
   "license": "Apache-2.0",
-  "main": "dist/index.ts",
+  "main": "dist/index.js",
   "files": [
     "dist/index.js"
   ],

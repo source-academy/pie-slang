@@ -932,7 +932,7 @@ export class SpiltTactic extends Tactic {
     const pairType = currentGoal.type.now() as V.Sigma;
     const carType = pairType.carType.now();
     const cdrType = pairType.cdrType.valOfClosure(
-      pairType
+      new Neutral(carType, new Variable(pairType.carName))
     );
 
     // Set term builder: combine car and cdr into cons
@@ -940,26 +940,33 @@ export class SpiltTactic extends Tactic {
       return new C.Cons(childTerms[0], childTerms[1]);
     };
 
-    state.addGoal(
-      [
-        new GoalNode(
-          new Goal(
-            state.generateGoalId(),
-            carType,
-            currentGoal.context,
-            currentGoal.renaming
-          )
-        ),
-        new GoalNode(
-          new Goal(
-            state.generateGoalId(),
-            cdrType,
-            currentGoal.context,
-            currentGoal.renaming
-          )
-        )
-      ]
-    )
+    const carGoalNode = new GoalNode(
+      new Goal(
+        state.generateGoalId(),
+        carType,
+        currentGoal.context,
+        currentGoal.renaming
+      )
+    );
+    const cdrGoalNode = new GoalNode(
+      new Goal(
+        state.generateGoalId(),
+        cdrType,
+        currentGoal.context,
+        currentGoal.renaming
+      )
+    );
+
+    state.currentGoal.onChildComplete = (parent, completedChildIndex) => {
+      if (completedChildIndex !== 0) return;
+      const carTerm = parent.children[0]?.extractTerm();
+      const cdrGoal = parent.children[1]?.goal;
+      if (!carTerm || !cdrGoal) return;
+      const carValue = carTerm.valOf(contextToEnvironment(currentGoal.context));
+      cdrGoal.type = pairType.cdrType.valOfClosure(carValue);
+    };
+
+    state.addGoal([carGoalNode, cdrGoalNode])
     return new go(state);
   }
 }

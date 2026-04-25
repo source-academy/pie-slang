@@ -311,7 +311,7 @@ export function ProofCanvas() {
 
   // Derive parameterless tactics from protocol (no variableName, no expression)
   const PARAMETERLESS_TACTICS = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
-    .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
+    .filter(t => t !== "intro" && !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
 
   // Handle drop to create a new tactic node
   const onDrop = useCallback(

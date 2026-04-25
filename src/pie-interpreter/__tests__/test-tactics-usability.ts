@@ -245,6 +245,24 @@ describe("Tactic Usability Tests", () => {
       expect(output).toContain("10: Nat");
       expect(output).toContain("20: Nat");
     });
+
+    it("updates dependent cdr goal from the proven car term", () => {
+      const str = `
+(claim dependent-pair-proof
+  (Σ ((x Nat))
+    (= Nat x x)))
+
+(define-tactically dependent-pair-proof
+  ((split-Pair)
+   (then (exact 0))
+   (then (exact (same 0)))))
+
+(car dependent-pair-proof)
+`;
+      const output = evaluatePie(str);
+      expect(output).toContain("dependent-pair-proof");
+      expect(output).toContain("0: Nat");
+    });
   });
 
   describe("EliminateListTactic", () => {

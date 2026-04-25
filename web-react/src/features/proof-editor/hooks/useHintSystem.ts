@@ -179,9 +179,9 @@ export function useHintSystem() {
     // Determine initial status based on whether we have all parameters (derived from protocol)
     const tacticType = hint.tacticType!;
     const reqs = TACTIC_REQUIREMENTS[tacticType as TacticType];
-    const needsVariable = reqs?.variableName === true;
+    const needsVariable = reqs?.variableName === true || tacticType === 'intro';
     const needsExpression = reqs?.expression === true;
-    const isParameterless = !reqs?.variableName && !reqs?.expression;
+    const isParameterless = tacticType !== 'intro' && !reqs?.variableName && !reqs?.expression;
 
     let initialStatus: 'incomplete' | 'ready' = 'incomplete';
     if (isParameterless) {

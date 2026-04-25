@@ -1,4 +1,4 @@
-import { Claim, Context, extendContext } from '../utils/context';
+import { Claim, Context, Define, extendContext } from '../utils/context';
 import { Core } from '../types/core';
 import { Value } from '../types/value';
 import { Location } from '../utils/locations';
@@ -65,7 +65,6 @@ export class Goal {
     const expandedType = typeCore.prettyPrint();
 
     // Debug: Check what's in the context
-    const { Define } = require('../utils/context');
     const contextDefines = Array.from(this.context.entries())
       .filter(([_, binder]) => binder instanceof Define)
       .map(([name]) => name);
@@ -125,6 +124,7 @@ export class GoalNode {
   public childFocusIndex: number = -1;
   public appliedTactic?: AppliedTactic;  // Tactic that was applied to create children
   public completedBy?: AppliedTactic;    // Tactic that directly solved this goal (for leaf nodes)
+  public onChildComplete?: (parent: GoalNode, completedChildIndex: number) => void;
   // Term builder: takes child terms and produces the term for this node
   public termBuilder?: TermBuilder;
 
@@ -315,7 +315,9 @@ export class ProofState {
         return this.nextGoalAux(curParent.parent);
       }
     } else {
+      const completedChildIndex = curParent.childFocusIndex;
       curParent.childFocusIndex += 1;
+      curParent.onChildComplete?.(curParent, completedChildIndex);
       return curParent.children[curParent.childFocusIndex];
     }
   }
