@@ -392,13 +392,13 @@ describe("Atom and Pair tests", () => {
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  it("normalizes reflexive Nat equality", () => {
     const src = normalize(`(the (= Nat 0 0) (same 0))`);
     const actual = `(the (= Nat 0 0) (same 0))`
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  it("normalizes Nat equality symmetry via replace", () => {
     const src = normalize(`(the (Pi ((n Nat)
                                           (m Nat))
                                          (-> (= Nat n m)
@@ -422,7 +422,7 @@ describe("Atom and Pair tests", () => {
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  it("normalizes replace on reflexive equality", () => {
     const src = normalize(`(replace (the (= Nat 4 4) (same 4))
                                          (lambda (k)
                                            (= Nat k 4))
@@ -431,7 +431,7 @@ describe("Atom and Pair tests", () => {
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  it("normalizes iter-Nat with successor step", () => {
     const src = normalize(`(iter-Nat 2
                                           3
                                           (λ (ih)
@@ -440,7 +440,7 @@ describe("Atom and Pair tests", () => {
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  it("normalizes iter-Nat inside a binary function", () => {
     const src = normalize(`(the (-> Nat Nat
                                  Nat)
                              (lambda (x y)
@@ -461,7 +461,7 @@ describe("Atom and Pair tests", () => {
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  it("normalizes rec-Nat inside a binary function", () => {
     const src = normalize(`(the (-> Nat Nat Nat)
                              (lambda (x y)
                                (rec-Nat x
@@ -482,7 +482,7 @@ describe("Atom and Pair tests", () => {
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
   });
 
-  it("", () => {
+  it("normalizes direct rec-Nat addition", () => {
     const src = normalize(`(rec-Nat 2 3 (λ (n-1 ih) (add1 ih)))`);
     const actual = `(the Nat 5)`;
     expect(normalize((represent(initCtx, parsePie(src)) as go<C.Core>).result.prettyPrint())).toEqual(actual.replace(/\s+/g, ' ').trim());
