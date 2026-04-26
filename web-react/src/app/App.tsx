@@ -13,8 +13,6 @@ import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
-import { ProofPicker } from '@/features/proof-editor/components/ProofPicker';
-import type { GlobalEntry } from '@pie/protocol';
 
 function AppContent() {
   const { applyTactic, error } = useProofSession();
@@ -23,9 +21,6 @@ function AppContent() {
   const setManualPosition = useProofStore((s) => s.setManualPosition);
   const [tacticError, setTacticError] = useState<string | null>(null);
   const [definitionsPanelCollapsed, setDefinitionsPanelCollapsed] = useState(false);
-  const [foundClaims, setFoundClaims] = useState<GlobalEntry[]>([]);
-  const [foundTheorems, setFoundTheorems] = useState<GlobalEntry[]>([]);
-  const [selectedProof, setSelectedProof] = useState<string | null>(null);
 
   // Use keyboard shortcuts hook
   useKeyboardShortcuts();
@@ -140,11 +135,11 @@ function AppContent() {
       <SourceCodePanel />
       {/* AI Settings panel (collapsible) */}
       <AISettingsPanel />
-      <main className="flex flex-1 overflow-hidden">
+      <main className="flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
         {/* Tactic palette (left) */}
         <TacticPalette />
         {/* Main canvas area */}
-        <div className="flex-1">
+        <div className="min-h-0 min-w-[480px] flex-1">
           <ProofCanvas />
         </div>
         {/* Definitions panel (right sidebar) */}

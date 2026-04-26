@@ -35,7 +35,7 @@ export function TacticDetailPanel() {
   );
 
   return (
-    <div className="w-80 border-l bg-white overflow-y-auto">
+    <div className="w-80 shrink-0 border-l bg-white overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between border-b p-4">
         <h2 className="font-semibold">Tactic Details</h2>

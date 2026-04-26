@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import { proofWorker } from "@/shared/lib/worker-client";
 import { useProofStore } from "../store";
+import { useHintStore } from "../store/hint-store";
+import { useGoalDescriptionStore } from "../store/goal-description-store";
 import { useMetadataStore } from "../store/metadata-store";
 import type {
   TacticParams,
@@ -35,6 +37,8 @@ export function useProofSession() {
   const syncFromWorker = useProofStore((s) => s.syncFromWorker);
   const saveSnapshot = useProofStore((s) => s.saveSnapshot);
   const sessionId = useProofStore((s) => s.sessionId);
+  const clearHints = useHintStore((s) => s.clearAllHints);
+  const clearGoalDescriptions = useGoalDescriptionStore((s) => s.clearAll);
 
   /**
    * Start a new proof session.
@@ -54,6 +58,9 @@ export function useProofSession() {
       try {
         const result = await proofWorker.startSession(sourceCode, claimName);
 
+        clearHints();
+        clearGoalDescriptions();
+
         // Sync the proof tree to the store (include claimName for script generation)
         syncFromWorker(result.proofTree, result.sessionId, claimName);
         saveSnapshot();
@@ -64,8 +71,6 @@ export function useProofSession() {
         setGlobalContext(result.globalContext);
         setMetadataClaimName(claimName); // Store claim name in metadata store
         setSourceCode(sourceCode); // Store source code for goal descriptions
-
-        setMetadataClaimName(claimName); // Store claim name in metadata store
 
         return result;
       } catch (e) {
@@ -82,6 +87,8 @@ export function useProofSession() {
       setGlobalContext,
       setMetadataClaimName,
       setSourceCode,
+      clearHints,
+      clearGoalDescriptions,
     ],
   );
 
@@ -149,11 +156,19 @@ export function useProofSession() {
       setClaimType(null);
       setGlobalContext({ definitions: [], theorems: [] });
       setMetadataClaimName(null);
+      clearHints();
+      clearGoalDescriptions();
       setError(null);
     } catch (e) {
       console.error("Failed to close session:", e);
     }
-  }, [sessionId, setGlobalContext, setMetadataClaimName]);
+  }, [
+    sessionId,
+    setGlobalContext,
+    setMetadataClaimName,
+    clearHints,
+    clearGoalDescriptions,
+  ]);
 
   /**
    * Clear any error state.

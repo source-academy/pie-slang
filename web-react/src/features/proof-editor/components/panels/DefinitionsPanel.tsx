@@ -34,7 +34,7 @@ export function DefinitionsPanel({
 
   if (collapsed) {
     return (
-      <div className="w-10 border-l bg-gray-50 flex flex-col items-center pt-2">
+      <div className="w-10 shrink-0 border-l bg-gray-50 flex flex-col items-center pt-2">
         <button
           onClick={onToggleCollapse}
           className="p-2 rounded hover:bg-gray-200"
@@ -49,7 +49,7 @@ export function DefinitionsPanel({
   }
 
   return (
-    <div className="w-64 border-l bg-gray-50 flex flex-col overflow-hidden">
+    <div className="w-64 shrink-0 border-l bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b bg-white p-3">
         <h2 className="font-semibold text-sm">Context</h2>
