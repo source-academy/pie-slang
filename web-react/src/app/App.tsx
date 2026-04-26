@@ -100,7 +100,7 @@ function AppContent() {
   }, [tacticError]);
 
   return (
-    <div className="flex h-screen w-screen flex-col">
+    <div className="flex h-screen w-screen flex-col overflow-y-auto">
       <header className="flex h-12 items-center border-b px-4 gap-4">
         <h1 className="text-lg font-semibold">Pie Proof Editor</h1>
 
@@ -135,7 +135,7 @@ function AppContent() {
       <SourceCodePanel />
       {/* AI Settings panel (collapsible) */}
       <AISettingsPanel />
-      <main className="flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+      <main className="flex min-h-[420px] flex-1 overflow-x-auto overflow-y-hidden">
         {/* Tactic palette (left) */}
         <TacticPalette />
         {/* Main canvas area */}

@@ -202,9 +202,13 @@ export const GhostTacticNode = memo(function GhostTacticNode({
             {/* Accept button - only show when we have a tactic */}
             {hint.tacticType && (
               <button
-                onClick={handleAccept}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleAccept();
+                }}
                 className={cn(
-                  'flex items-center gap-1 rounded px-2 py-1',
+                  'nodrag nopan flex items-center gap-1 rounded px-2 py-1',
                   'bg-green-500 text-white text-xs font-medium',
                   'hover:bg-green-600 transition-colors'
                 )}
@@ -217,9 +221,13 @@ export const GhostTacticNode = memo(function GhostTacticNode({
             {/* More detail button */}
             {canShowMore && (
               <button
-                onClick={handleMoreDetail}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleMoreDetail();
+                }}
                 className={cn(
-                  'flex items-center gap-1 rounded px-2 py-1',
+                  'nodrag nopan flex items-center gap-1 rounded px-2 py-1',
                   'bg-purple-500 text-white text-xs font-medium',
                   'hover:bg-purple-600 transition-colors'
                 )}
@@ -232,9 +240,13 @@ export const GhostTacticNode = memo(function GhostTacticNode({
 
           {/* Dismiss button */}
           <button
-            onClick={handleDismiss}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleDismiss();
+            }}
             className={cn(
-              'flex items-center gap-1 rounded px-2 py-1',
+              'nodrag nopan flex items-center gap-1 rounded px-2 py-1',
               'bg-gray-200 text-gray-600 text-xs',
               'hover:bg-gray-300 transition-colors'
             )}
