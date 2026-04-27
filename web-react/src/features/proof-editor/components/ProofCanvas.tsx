@@ -26,6 +26,7 @@ import type { TacticType } from "@pie/protocol";
 import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import type { GhostTacticNodeData } from "./nodes/GhostTacticNode";
 import { useHintSystem } from "../hooks/useHintSystem";
+import { useAutoLayout } from "../hooks/useAutoLayout";
 import { TACTICS } from "../data/tactics";
 import { applyTactic as triggerApplyTactic } from "../utils/tactic-callback";
 
@@ -36,6 +37,10 @@ import { applyTactic as triggerApplyTactic } from "../utils/tactic-callback";
  * Renders the proof tree with custom goal, tactic, and lemma nodes.
  */
 export function ProofCanvas() {
+  // Second-pass layout: reposition nodes using actual measured sizes once
+  // React Flow has rendered them (fires after every syncFromWorker call)
+  useAutoLayout();
+
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, fitView } = useReactFlow();
 

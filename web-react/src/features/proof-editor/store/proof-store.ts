@@ -514,6 +514,17 @@ export const useProofStore = create<ProofStore>()(
         });
       },
 
+      setLayoutPositions: (positions: Map<string, { x: number; y: number }>) => {
+        set((state) => {
+          for (const node of state.nodes) {
+            const pos = positions.get(node.id);
+            if (pos) {
+              node.position = { ...pos };
+            }
+          }
+        });
+      },
+
       // ================================================
       // Branch Collapse Management
       // ================================================
