@@ -10,9 +10,11 @@ import type { TacticType } from "@pie/protocol";
 import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import { applyTactic as triggerApplyTactic } from "../../utils/tactic-callback";
 
-// Derive tactic categories from TACTIC_REQUIREMENTS (protocol.ts)
+// Tactics whose variableName parameter is chosen from an existing goal context.
+// `intro` also has a variableName parameter, but it introduces a fresh name
+// through inline text input instead of connecting to a context handle.
 const CONTEXT_INPUT_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
-  .filter(t => TACTIC_REQUIREMENTS[t].variableName === true);
+  .filter(t => t !== "intro" && TACTIC_REQUIREMENTS[t].variableName === true);
 
 const PARAMETERLESS_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
   .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
