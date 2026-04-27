@@ -308,7 +308,7 @@ export function ProofCanvas() {
 
   // Derive parameterless tactics from protocol (no variableName, no expression)
   const PARAMETERLESS_TACTICS = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
-    .filter(t => t !== "intro" && !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
+    .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
 
   // Handle drop to create a new tactic node
   const onDrop = useCallback(
@@ -436,6 +436,7 @@ export function ProofCanvas() {
     [ghostNodes],
   );
 
+  // Fit the full canvas when a new proof session starts.
   useEffect(() => {
     if (!sessionId || !rootGoalId || nodes.length === 0) return;
 
@@ -444,7 +445,18 @@ export function ProofCanvas() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [fitView, nodes.length, rootGoalId, sessionId, viewportSignature]);
+  }, [fitView, rootGoalId, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Gently re-fit when ghost hint nodes appear or change level.
+  useEffect(() => {
+    if (!sessionId || !viewportSignature) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      void fitView({ padding: 0.3, maxZoom: 1.2, duration: 200 });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [fitView, sessionId, viewportSignature]);
 
   // Compute which nodes should be hidden due to branch collapse
   const hiddenNodeIds = useMemo(() => {

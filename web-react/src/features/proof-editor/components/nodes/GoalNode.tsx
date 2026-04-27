@@ -137,7 +137,7 @@ export const GoalNode = memo(function GoalNode({
 
       // Check if tactic needs parameters (derived from protocol)
       const reqs = TACTIC_REQUIREMENTS[tacticType as TacticType];
-      const needsVariable = reqs?.variableName === true || tacticType === "intro";
+      const needsVariable = reqs?.variableName === true;
       const needsExpression = reqs?.expression === true;
 
       if (needsVariable) {

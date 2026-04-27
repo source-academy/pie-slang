@@ -15,7 +15,7 @@ const CONTEXT_INPUT_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as
   .filter(t => TACTIC_REQUIREMENTS[t].variableName === true);
 
 const PARAMETERLESS_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
-  .filter(t => t !== "intro" && !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
+  .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
 
 // Status-based styling
 const STATUS_STYLES: Record<

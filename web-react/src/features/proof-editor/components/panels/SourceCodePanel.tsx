@@ -24,122 +24,119 @@ const SAMPLE_SOURCE = `; Define addition function
     (= Nat n n)))
 `;
 
-const PIE_LANGUAGE_GUARD = '__pieLanguageRegistered';
-const PIE_COMPLETION_GUARD = '__pieCompletionRegistered';
-const PIE_HOVER_GUARD = '__pieHoverRegistered';
+function once(monaco: Monaco, key: string, fn: () => void) {
+  const m = monaco as Monaco & Record<string, boolean>;
+  if (m[key]) return;
+  m[key] = true;
+  fn();
+}
 
 function registerPieLanguage(monaco: Monaco) {
-  const guarded = monaco as Monaco & Record<string, boolean>;
-  if (guarded[PIE_LANGUAGE_GUARD]) return;
-  guarded[PIE_LANGUAGE_GUARD] = true;
-
-  monaco.languages.register({ id: 'pie' });
-  monaco.languages.setMonarchTokensProvider('pie', {
-    tokenizer: {
-      root: [
-        [/;.*$/, 'comment'],
-        [/\d+/, 'number'],
-        [
-          /\b(claim|define|define-tactically|lambda|Pi|Sigma|the|then)\b/,
-          'keyword',
+  once(monaco, '__pieLanguageRegistered', () => {
+    monaco.languages.register({ id: 'pie' });
+    monaco.languages.setMonarchTokensProvider('pie', {
+      tokenizer: {
+        root: [
+          [/;.*$/, 'comment'],
+          [/\d+/, 'number'],
+          [
+            /\b(claim|define|define-tactically|lambda|Pi|Sigma|the|then)\b/,
+            'keyword',
+          ],
+          [
+            /\b(Nat|Atom|Trivial|Absurd|U|Pair|Either|List|Vec)\b|->|=/,
+            'type',
+          ],
+          [
+            /\b(zero|add1|same|sole|nil|cons|car|cdr|left|right|intro|exact|exists|apply|split-Pair|elim-Nat|elim-List|elim-Vec|elim-Either|elim-Equal|elim-Absurd)\b/,
+            'variable',
+          ],
+          [/[()[\]]/, 'delimiter'],
+          [/[^\s()[\]"]+/, 'identifier'],
         ],
-        [
-          /\b(Nat|Atom|Trivial|Absurd|U|Pair|Either|List|Vec)\b|->|=/,
-          'type',
-        ],
-        [
-          /\b(zero|add1|same|sole|nil|cons|car|cdr|left|right|intro|exact|exists|apply|split-Pair|elim-Nat|elim-List|elim-Vec|elim-Either|elim-Equal|elim-Absurd)\b/,
-          'variable',
-        ],
-        [/[()[\]]/, 'delimiter'],
-        [/[^\s()[\]"]+/, 'identifier'],
+      },
+    });
+    monaco.languages.setLanguageConfiguration('pie', {
+      comments: { lineComment: ';' },
+      brackets: [
+        ['(', ')'],
+        ['[', ']'],
       ],
-    },
-  });
-  monaco.languages.setLanguageConfiguration('pie', {
-    comments: { lineComment: ';' },
-    brackets: [
-      ['(', ')'],
-      ['[', ']'],
-    ],
-    autoClosingPairs: [
-      { open: '(', close: ')' },
-      { open: '[', close: ']' },
-      { open: '"', close: '"' },
-    ],
-    wordPattern: /[^\s()[\]"]+/g,
+      autoClosingPairs: [
+        { open: '(', close: ')' },
+        { open: '[', close: ']' },
+        { open: '"', close: '"' },
+      ],
+      wordPattern: /[^\s()[\]"]+/g,
+    });
   });
 }
 
 function registerPieCompletions(monaco: Monaco) {
-  const guarded = monaco as Monaco & Record<string, boolean>;
-  if (guarded[PIE_COMPLETION_GUARD]) return;
-  guarded[PIE_COMPLETION_GUARD] = true;
-
-  monaco.languages.registerCompletionItemProvider('pie', {
-    triggerCharacters: ['(', '-', '=', ':'],
-    async provideCompletionItems(model, position) {
-      const word = model.getWordUntilPosition(position);
-      const range = {
-        startLineNumber: position.lineNumber,
-        endLineNumber: position.lineNumber,
-        startColumn: word.startColumn,
-        endColumn: word.endColumn,
-      };
-
-      try {
-        const items = await diagnosticsWorker.getCompletions(
-          model.getValue(),
-          position.lineNumber,
-          position.column,
-        );
-        const kindMap = {
-          keyword: monaco.languages.CompletionItemKind.Keyword,
-          function: monaco.languages.CompletionItemKind.Function,
-          variable: monaco.languages.CompletionItemKind.Variable,
-          type: monaco.languages.CompletionItemKind.Class,
+  once(monaco, '__pieCompletionRegistered', () => {
+    monaco.languages.registerCompletionItemProvider('pie', {
+      triggerCharacters: ['(', '-', '=', ':'],
+      async provideCompletionItems(model, position) {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
         };
 
-        return {
-          suggestions: items.map((item) => ({
-            label: item.label,
-            kind: kindMap[item.kind],
-            detail: item.detail,
-            insertText: item.insertText ?? item.label,
-            insertTextRules: item.insertText
-              ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-              : undefined,
-            range,
-          })),
-        };
-      } catch {
-        return { suggestions: [] };
-      }
-    },
+        try {
+          const items = await diagnosticsWorker.getCompletions(
+            model.getValue(),
+            position.lineNumber,
+            position.column,
+          );
+          const kindMap = {
+            keyword: monaco.languages.CompletionItemKind.Keyword,
+            function: monaco.languages.CompletionItemKind.Function,
+            variable: monaco.languages.CompletionItemKind.Variable,
+            type: monaco.languages.CompletionItemKind.Class,
+          };
+
+          return {
+            suggestions: items.map((item) => ({
+              label: item.label,
+              kind: kindMap[item.kind],
+              detail: item.detail,
+              insertText: item.insertText ?? item.label,
+              insertTextRules: item.insertText
+                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                : undefined,
+              range,
+            })),
+          };
+        } catch {
+          return { suggestions: [] };
+        }
+      },
+    });
   });
 }
 
 function registerPieHover(monaco: Monaco) {
-  const guarded = monaco as Monaco & Record<string, boolean>;
-  if (guarded[PIE_HOVER_GUARD]) return;
-  guarded[PIE_HOVER_GUARD] = true;
+  once(monaco, '__pieHoverRegistered', () => {
+    monaco.languages.registerHoverProvider('pie', {
+      async provideHover(model, position) {
+        const hover = await diagnosticsWorker.getHoverInfo(
+          model.getValue(),
+          position.lineNumber,
+          position.column,
+        );
+        if (!hover) return null;
 
-  monaco.languages.registerHoverProvider('pie', {
-    async provideHover(model, position) {
-      const hover = await diagnosticsWorker.getHoverInfo(
-        model.getValue(),
-        position.lineNumber,
-        position.column,
-      );
-      if (!hover) return null;
-
-      return {
-        contents: [
-          { value: `**${hover.documentation ?? 'Pie symbol'}**` },
-          { value: `\`\`\`pie\n${hover.type}\n\`\`\`` },
-        ],
-      };
-    },
+        return {
+          contents: [
+            { value: `**${hover.documentation ?? 'Pie symbol'}**` },
+            { value: `\`\`\`pie\n${hover.type}\n\`\`\`` },
+          ],
+        };
+      },
+    });
   });
 }
 
@@ -325,8 +322,8 @@ export function SourceCodePanel() {
                     {liveDiagnostics.length} source problem{liveDiagnostics.length > 1 ? 's' : ''}
                   </p>
                   <ul className="space-y-1 text-xs text-destructive">
-                    {liveDiagnostics.slice(0, 4).map((diagnostic, index) => (
-                      <li key={index}>
+                    {liveDiagnostics.slice(0, 4).map((diagnostic) => (
+                      <li key={`${diagnostic.range.startLine}:${diagnostic.range.startColumn}:${diagnostic.message}`}>
                         <span className="font-mono">
                           {diagnostic.range.startLine}:{diagnostic.range.startColumn}
                         </span>{' '}

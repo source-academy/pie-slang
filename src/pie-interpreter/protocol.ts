@@ -112,7 +112,7 @@ export interface TacticParams {
  * Use this to validate before sending a request.
  */
 export const TACTIC_REQUIREMENTS: Record<TacticType, { variableName?: boolean; expression?: boolean }> = {
-  intro:       { variableName: false }, // optional: auto-generated if omitted
+  intro:       { variableName: true },
   exact:       { expression: true },
   exists:      { expression: true, variableName: false },
   split:       {},

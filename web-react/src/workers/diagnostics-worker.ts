@@ -163,17 +163,17 @@ const PIE_COMPLETIONS: CompletionItem[] = [
 
 function extractUserSymbols(sourceCode: string): CompletionItem[] {
   const items: CompletionItem[] = [];
-  const add = (label: string, detail: string) => {
+  const add = (label: string, kind: CompletionItem['kind'], detail: string) => {
     if (label && !items.some((item) => item.label === label)) {
-      items.push({ label, kind: 'function', detail });
+      items.push({ label, kind, detail });
     }
   };
 
   for (const match of sourceCode.matchAll(/\(\s*claim\s+([^\s()]+)/g)) {
-    add(match[1], 'User claim');
+    add(match[1], 'type', 'User claim');
   }
   for (const match of sourceCode.matchAll(/\(\s*define\s+([^\s()]+)/g)) {
-    add(match[1], 'User definition');
+    add(match[1], 'function', 'User definition');
   }
 
   return items;

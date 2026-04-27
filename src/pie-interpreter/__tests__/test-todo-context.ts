@@ -1,4 +1,3 @@
-import 'jest';
 import * as C from '../types/core';
 import { readBackContext, bindFree } from '../utils/context';
 import * as V from '../types/value';

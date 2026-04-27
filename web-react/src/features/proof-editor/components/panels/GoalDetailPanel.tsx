@@ -66,15 +66,10 @@ export function GoalDetailPanel() {
   const descriptionSignature = useMemo(() => {
     if (!selectedNode || !sourceCode || !claimName) return null;
 
-    return JSON.stringify({
-      sourceCode,
-      claimName,
-      goalType: selectedNode.data.goalType,
-      context: selectedNode.data.context.map((entry) => ({
-        name: entry.name,
-        type: entry.type,
-      })),
-    });
+    const contextKey = selectedNode.data.context
+      .map((e) => `${e.name}:${e.type}`)
+      .join(",");
+    return `${claimName}\x00${selectedNode.data.goalType}\x00${contextKey}\x00${sourceCode}`;
   }, [selectedNode, sourceCode, claimName]);
 
   const descEntry =
