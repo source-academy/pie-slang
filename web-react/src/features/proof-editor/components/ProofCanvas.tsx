@@ -550,6 +550,7 @@ export function ProofCanvas() {
           animated: false,
         }}
         connectionLineStyle={{ stroke: "#94a3b8", strokeWidth: 2 }}
+        connectionRadius={40}
         proOptions={{
           hideAttribution: true,
         }}

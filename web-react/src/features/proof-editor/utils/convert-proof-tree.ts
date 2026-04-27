@@ -15,10 +15,18 @@ import type {
 import { nanoid } from "nanoid";
 
 // Layout constants
-const NODE_WIDTH = 200;
-const NODE_HEIGHT = 120;
-const HORIZONTAL_SPACING = 50;
-const VERTICAL_SPACING = 150;
+// NODE_WIDTH/HEIGHT are estimates used for spacing calculations.
+// Goals can be 200–320px wide (wider when displaying longer types or context vars),
+// and 120–220px tall depending on how many context entries they show.
+// Using conservative over-estimates prevents sibling overlap at the cost of
+// slightly more whitespace.
+const NODE_WIDTH = 280;          // goal node width estimate
+const NODE_HEIGHT = 175;         // goal node height estimate (includes ~2 context vars)
+const TACTIC_NODE_WIDTH = 200;   // tactic node width estimate
+const TACTIC_NODE_HEIGHT = 80;   // tactic node height estimate
+const HORIZONTAL_SPACING = 80;   // gap between sibling subtrees
+const GOAL_TO_TACTIC_GAP = 30;   // gap from goal bottom to tactic top
+const TACTIC_TO_GOAL_GAP = 40;   // gap from tactic bottom to child goal tops
 
 interface ConversionResult {
   nodes: ProofNode[];
@@ -117,12 +125,11 @@ function assignPositions(
 
   if (node.children.length === 0) return;
 
-  // Position children below, with tactic node in between
-  const tacticY = y + NODE_HEIGHT + VERTICAL_SPACING / 2;
-  const childrenY = y + NODE_HEIGHT + VERTICAL_SPACING;
+  // Tactic sits below the goal with GOAL_TO_TACTIC_GAP clearance.
+  // Children sit below the tactic with TACTIC_TO_GOAL_GAP clearance.
+  const tacticY = y + NODE_HEIGHT + GOAL_TO_TACTIC_GAP;
+  const childrenY = tacticY + TACTIC_NODE_HEIGHT + TACTIC_TO_GOAL_GAP;
 
-  // Calculate starting x for children
-  let childX = x;
   const totalChildrenWidth =
     node.children.reduce(
       (sum, child) => sum + (widths.get(child.goal.id) || NODE_WIDTH),
@@ -130,13 +137,14 @@ function assignPositions(
     ) +
     (node.children.length - 1) * HORIZONTAL_SPACING;
 
-  // Center children under parent
-  childX = x + (nodeWidth - totalChildrenWidth) / 2;
+  // Center children span under the allocated space
+  let childX = x + (nodeWidth - totalChildrenWidth) / 2;
 
-  // Store tactic position (centered between this node and children)
+  // Center tactic over the children span (independent of goal width)
   if (node.appliedTactic) {
     const tacticId = `tactic-for-${node.goal.id}`;
-    positions.set(tacticId, { x: nodeX, y: tacticY });
+    const tacticX = x + nodeWidth / 2 - TACTIC_NODE_WIDTH / 2;
+    positions.set(tacticId, { x: tacticX, y: tacticY });
   }
 
   // Position each child
@@ -196,8 +204,8 @@ function traverseTree(
   if (node.appliedTactic && node.children.length > 0) {
     const tacticId = `tactic-for-${node.goal.id}`;
     const tacticPosition = positions.get(tacticId) || {
-      x: position.x,
-      y: position.y + NODE_HEIGHT + VERTICAL_SPACING / 2,
+      x: position.x + (NODE_WIDTH - TACTIC_NODE_WIDTH) / 2,
+      y: position.y + NODE_HEIGHT + GOAL_TO_TACTIC_GAP,
     };
 
     const tacticNode: TacticNode = {
@@ -220,6 +228,8 @@ function traverseTree(
       id: `edge-${nanoid(8)}`,
       source: node.goal.id,
       target: tacticId,
+      sourceHandle: "goal-output",
+      targetHandle: "goal-input",
       data: { kind: "goal-to-tactic" },
     });
 
@@ -229,6 +239,8 @@ function traverseTree(
         id: `edge-${nanoid(8)}`,
         source: tacticId,
         target: child.goal.id,
+        sourceHandle: "tactic-output",
+        targetHandle: "goal-input",
         data: { kind: "tactic-to-goal", outputIndex: index },
       });
     });
@@ -238,8 +250,8 @@ function traverseTree(
   if (node.completedBy && node.children.length === 0) {
     const tacticId = `tactic-completing-${node.goal.id}`;
     const tacticPosition = {
-      x: position.x,
-      y: position.y + NODE_HEIGHT + 50,
+      x: position.x + (NODE_WIDTH - TACTIC_NODE_WIDTH) / 2,
+      y: position.y + NODE_HEIGHT + GOAL_TO_TACTIC_GAP,
     };
 
     const tacticNode: TacticNode = {
@@ -261,6 +273,8 @@ function traverseTree(
       id: `edge-${nanoid(8)}`,
       source: node.goal.id,
       target: tacticId,
+      sourceHandle: "goal-output",
+      targetHandle: "goal-input",
       data: { kind: "goal-to-tactic" },
     });
   }
