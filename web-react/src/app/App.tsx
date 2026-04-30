@@ -12,6 +12,8 @@ import { useExampleStore } from '@/features/proof-editor/store/example-store';
 import { useMetadataStore } from '@/features/proof-editor/store/metadata-store';
 import { setApplyTacticCallback, type ApplyTacticOptions } from '@/features/proof-editor/utils/tactic-callback';
 import { EXAMPLES } from '@/features/proof-editor/data/examples';
+import { useOnboardingTour } from '@/features/onboarding/useOnboardingTour';
+import '@/features/onboarding/tour-styles.css';
 
 function readSourceCollapsed(): boolean {
   try { return localStorage.getItem('pie.sourceCollapsed') === '1'; } catch { return false; }
@@ -35,6 +37,9 @@ function AppContent() {
 
   // Use keyboard shortcuts hook
   useKeyboardShortcuts();
+
+  // Onboarding tour — auto-starts on first visit; Help button replays it.
+  const tour = useOnboardingTour();
 
   // Use example store
   const selectedExample = useExampleStore((s) => s.selectedExample);
@@ -120,6 +125,7 @@ function AppContent() {
             className="pe-select"
             value={selectedExample}
             onChange={(e) => selectExample(e.target.value)}
+            data-tour="example-select"
           >
             <option value="">-- Select --</option>
             {EXAMPLES.map((ex) => (
@@ -131,7 +137,7 @@ function AppContent() {
         {hasSession && (
           <>
             <div className="pe-sep" />
-            <div className="pe-session-chip">
+            <div className="pe-session-chip" data-tour="phase-chip">
               <span className="chip-dot" />
               <span className="chip-muted">proving</span>
               <span className="chip-claim">{activeClaimName || '—'}</span>
@@ -146,6 +152,20 @@ function AppContent() {
               {displayError.length > 60 ? displayError.slice(0, 60) + '…' : displayError}
             </span>
           )}
+          <button
+            className="pe-icon-btn"
+            title="Replay guided tour"
+            aria-label="Replay guided tour"
+            onClick={tour.start}
+            data-tour="help-btn"
+            style={{ marginLeft: 6 }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="6.5" cy="6.5" r="5.2" />
+              <path d="M4.8 5a1.7 1.7 0 1 1 2.5 1.5c-.5.3-.8.7-.8 1.2" />
+              <circle cx="6.5" cy="9.6" r="0.4" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -165,19 +185,19 @@ function AppContent() {
         </button>
 
         {/* Source rail */}
-        <section className="pe-source">
+        <section className="pe-source" data-tour="source-editor">
           <SourceCodePanel
             onCollapse={handleCollapseSource}
           />
         </section>
 
         {/* Tactic palette */}
-        <section className="pe-tactics">
+        <section className="pe-tactics" data-tour="tactic-palette">
           <TacticPalette />
         </section>
 
         {/* Canvas */}
-        <section className="pe-canvas-wrap">
+        <section className="pe-canvas-wrap" data-tour="canvas">
           <div className="pe-canvas-head">
             <div className="pe-breadcrumb">
               <span>proof</span>
@@ -214,7 +234,7 @@ function AppContent() {
         </section>
 
         {/* Detail rail */}
-        <section className="pe-detail">
+        <section className="pe-detail" data-tour="detail-panel">
           <DetailPanel
             definitions={globalContext.definitions}
             theorems={globalContext.theorems}

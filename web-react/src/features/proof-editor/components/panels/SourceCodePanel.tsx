@@ -186,6 +186,7 @@ export function SourceCodePanel({ onCollapse }: SourceCodePanelProps) {
           onClick={handleStartProof}
           disabled={isLoading || !sourceCode.trim() || !claimName.trim()}
           title={hasActiveSession ? 'Restart proof session' : 'Start proof session'}
+          data-tour="start-proof"
         >
           {isLoading ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
