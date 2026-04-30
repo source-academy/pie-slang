@@ -2,8 +2,8 @@ import { useCallback, useRef, useMemo, useEffect, useState } from "react";
 import {
   ReactFlow,
   Background,
-  Controls,
   MiniMap,
+  Panel,
   useReactFlow,
   type NodeMouseHandler,
   type NodeChange,
@@ -41,7 +41,7 @@ export function ProofCanvas() {
   useDemoData();
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
 
   // State for delete confirmation dialog
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -521,6 +521,7 @@ export function ProofCanvas() {
         defaultEdgeOptions={{
           type: "smoothstep",
           animated: false,
+          pathOptions: { borderRadius: 12, offset: 24 },
         }}
         connectionLineStyle={{ stroke: "#94a3b8", strokeWidth: 2 }}
         proOptions={{
@@ -528,55 +529,67 @@ export function ProofCanvas() {
         }}
       >
         <Background color="#e5e7eb" gap={16} />
-        <Controls />
-        {/* Control buttons - Reset Layout and Expand All */}
-        {(hasManualPositions || hasCollapsedBranches) && (
-          <div className="absolute bottom-4 left-4 z-10 flex gap-2">
+
+        {/* Bottom-left: zoom controls + optional Reset/Expand */}
+        <Panel position="bottom-left">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {/* Zoom toolbar */}
+            <div style={{ display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 6, boxShadow: '0 1px 4px rgba(0,0,0,0.12)', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+              <button
+                onClick={() => zoomIn({ duration: 200 })}
+                title="Zoom in"
+                style={{ padding: '6px 8px', border: 'none', background: 'none', cursor: 'pointer', color: '#374151', lineHeight: 1 }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+              >
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6.5 2v9M2 6.5h9" /></svg>
+              </button>
+              <div style={{ height: 1, background: '#e5e7eb' }} />
+              <button
+                onClick={() => zoomOut({ duration: 200 })}
+                title="Zoom out"
+                style={{ padding: '6px 8px', border: 'none', background: 'none', cursor: 'pointer', color: '#374151', lineHeight: 1 }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+              >
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 6.5h9" /></svg>
+              </button>
+              <div style={{ height: 1, background: '#e5e7eb' }} />
+              <button
+                onClick={() => fitView({ padding: 0.2, duration: 300 })}
+                title="Fit view"
+                style={{ padding: '6px 8px', border: 'none', background: 'none', cursor: 'pointer', color: '#374151', lineHeight: 1 }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+              >
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 4V1h3M12 4V1H9M1 9v3h3M12 9v3H9" /></svg>
+              </button>
+            </div>
+
+            {/* Reset Layout / Expand All — only when relevant */}
             {hasManualPositions && (
               <button
                 onClick={clearManualPositions}
-                className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 hover:bg-gray-50"
-                title="Reset nodes to auto-layout positions"
+                title="Reset to auto-layout"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 1px 4px rgba(0,0,0,0.12)', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#374151' }}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="h-3.5 w-3.5"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" /></svg>
                 Reset Layout
               </button>
             )}
             {hasCollapsedBranches && (
               <button
                 onClick={expandAllBranches}
-                className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 hover:bg-gray-50"
-                title="Expand all collapsed branches"
+                title="Expand all branches"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 1px 4px rgba(0,0,0,0.12)', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#374151' }}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="h-3.5 w-3.5"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
                 Expand All
               </button>
             )}
           </div>
-        )}
-        <MiniMap
+        </Panel>
+        {nodes.length > 8 && <MiniMap
           nodeStrokeColor={(node) => {
             if (node.type === "goal") {
               const data = node.data as { status?: string };
@@ -605,7 +618,7 @@ export function ProofCanvas() {
           }}
           maskColor="rgba(0, 0, 0, 0.1)"
           className="!bottom-24 !right-4"
-        />
+        />}
       </ReactFlow>
 
       {/* Delete confirmation dialog */}

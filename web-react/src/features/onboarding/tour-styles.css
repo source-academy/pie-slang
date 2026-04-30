@@ -1,0 +1,72 @@
+/* Override driver.js popover styling to match Pie design tokens. */
+.driver-popover.pie-tour,
+.driver-popover {
+  background: var(--pe-surface, #fff);
+  color: var(--pe-ink, #111);
+  border: 1px solid var(--pe-line, #e5e5e5);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  font-family: var(--pe-ui-font, Inter, system-ui, sans-serif);
+  font-size: 13px;
+  max-width: 340px;
+}
+
+.driver-popover-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--pe-ink, #111);
+  margin-bottom: 6px;
+}
+
+.driver-popover-description {
+  color: var(--pe-ink-soft, #555);
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.driver-popover-progress-text {
+  color: var(--pe-faint, #888);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.driver-popover-footer button.driver-popover-prev-btn,
+.driver-popover-footer button.driver-popover-next-btn,
+.driver-popover-footer button.driver-popover-close-btn {
+  background: var(--pe-surface, #fff);
+  color: var(--pe-ink, #111);
+  border: 1px solid var(--pe-line, #e5e5e5);
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  text-shadow: none;
+  cursor: pointer;
+}
+
+.driver-popover-footer button.driver-popover-next-btn {
+  background: var(--pe-accent, #3b6cf2);
+  color: #fff;
+  border-color: var(--pe-accent, #3b6cf2);
+}
+
+.driver-popover-footer button:hover {
+  filter: brightness(0.96);
+}
+
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--pe-surface, #fff);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--pe-surface, #fff);
+}
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--pe-surface, #fff);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--pe-surface, #fff);
+}
+
+.driver-popover-close-btn {
+  color: var(--pe-faint, #888) !important;
+}
