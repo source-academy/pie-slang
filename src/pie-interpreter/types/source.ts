@@ -2141,7 +2141,7 @@ export class GeneralTypeConstructor extends Source {
     for (let i = 0; i < this.params.length; i++) {
       const result = this.params[i].check(ctx, renames, paramTypes[i].now())
       if (result instanceof stop) {
-        return stop
+        return result
       }
       normalized_params.push((result as go<C.Core>).result)
     }
@@ -2149,7 +2149,7 @@ export class GeneralTypeConstructor extends Source {
     for (let i = 0; i < this.indices.length; i++) {
       const result = this.indices[i].check(ctx, renames, idxTypes[i].now())
       if (result instanceof stop) {
-        return stop
+        return result
       }
       normalized_indices.push((result as go<C.Core>).result)
     }

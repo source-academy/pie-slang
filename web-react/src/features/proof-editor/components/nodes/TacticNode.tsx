@@ -10,9 +10,11 @@ import type { TacticType } from "@pie/protocol";
 import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import { applyTactic as triggerApplyTactic } from "../../utils/tactic-callback";
 
-// Derive tactic categories from TACTIC_REQUIREMENTS (protocol.ts)
+// Tactics whose variableName parameter is chosen from an existing goal context.
+// `intro` also has a variableName parameter, but it introduces a fresh name
+// through inline text input instead of connecting to a context handle.
 const CONTEXT_INPUT_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
-  .filter(t => TACTIC_REQUIREMENTS[t].variableName === true);
+  .filter(t => t !== "intro" && TACTIC_REQUIREMENTS[t].variableName === true);
 
 const PARAMETERLESS_TACTICS: TacticType[] = (Object.keys(TACTIC_REQUIREMENTS) as TacticType[])
   .filter(t => !TACTIC_REQUIREMENTS[t].variableName && !TACTIC_REQUIREMENTS[t].expression);
@@ -137,14 +139,18 @@ export const TacticNode = memo(function TacticNode({
         />
       )}
 
-      {/* Inline parameter input for exact tactic */}
-      {showInlineInput && data.tacticType === "exact" && (
-        <ExactParamInput
-          nodeId={id}
-          currentExpr={data.parameters.expression}
-          connectedGoalId={data.connectedGoalId}
-        />
-      )}
+      {/* Inline parameter input for expression-based tactics */}
+      {showInlineInput &&
+        (data.tacticType === "exact" ||
+          data.tacticType === "exists" ||
+          data.tacticType === "apply") && (
+          <ExpressionParamInput
+            nodeId={id}
+            tacticType={data.tacticType}
+            currentExpr={data.parameters.expression}
+            connectedGoalId={data.connectedGoalId}
+          />
+        )}
 
       {/* Context input indicator for elim tactics (incomplete state) */}
       {data.status === "incomplete" &&
@@ -266,14 +272,16 @@ function IntroParamInput({
 }
 
 /**
- * Inline parameter input for exact tactic
+ * Inline parameter input for expression-based tactics
  */
-function ExactParamInput({
+function ExpressionParamInput({
   nodeId,
+  tacticType,
   currentExpr,
   connectedGoalId,
 }: {
   nodeId: string;
+  tacticType: "exact" | "exists" | "apply";
   currentExpr?: string;
   connectedGoalId?: string;
 }) {
@@ -292,11 +300,11 @@ function ExactParamInput({
 
       // If already connected to a goal, trigger application
       if (connectedGoalId) {
-        console.log("[TacticNode] Params set and connected, applying exact");
-        await triggerApplyTactic(connectedGoalId, "exact", params, nodeId);
+        console.log(`[TacticNode] Params set and connected, applying ${tacticType}`);
+        await triggerApplyTactic(connectedGoalId, tacticType, params, nodeId);
       }
     }
-  }, [nodeId, value, updateNode, connectedGoalId]);
+  }, [nodeId, tacticType, value, updateNode, connectedGoalId]);
 
   return (
     <div className="mt-1 nodrag">
@@ -310,7 +318,7 @@ function ExactParamInput({
             handleSubmit();
           }
         }}
-        placeholder="expression"
+        placeholder={tacticType === "exists" ? "witness expression" : "expression"}
         className="w-full rounded border border-gray-300 px-1.5 py-0.5 text-xs font-mono focus:border-blue-400 focus:outline-none"
         autoFocus
       />

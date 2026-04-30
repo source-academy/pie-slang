@@ -3,7 +3,15 @@ import { Source } from "../types/source";
 import { Application } from "../types/source";
 import { Core } from "../types/core";
 import { Location } from "../utils/locations";
-import { Context, SerializableContext } from "../utils/context";
+import {
+  bindFree,
+  bindVal,
+  Claim,
+  Context,
+  contextToEnvironment,
+  extendContext,
+  SerializableContext,
+} from "../utils/context";
 import { go, stop, Perhaps, Message } from "../types/utils";
 import { alphaEquiv } from "../utils/alpha-eqv";
 import { readBack } from "../evaluator/utils";
@@ -17,19 +25,34 @@ type What = 'definition'
   | ['TODO', SerializableContext, Core, Renaming];
 
 
-// TODO: Implement PieInfoHook
+export function deserializeSerializableContext(serializedCtx: SerializableContext): Context {
+  let ctx: Context = new Map();
+
+  for (const [name, entry] of serializedCtx) {
+    const env = contextToEnvironment(ctx);
+    const type = entry[1].valOf(env);
+
+    if (entry[0] === 'free') {
+      ctx = bindFree(ctx, name, type);
+    } else if (entry[0] === 'def') {
+      const value = entry[2].valOf(env);
+      ctx = bindVal(ctx, name, type, value);
+    } else {
+      ctx = extendContext(ctx, name, new Claim(type));
+    }
+  }
+
+  return ctx;
+}
 
 export function PieInfoHook(where: Location, what: What): void {
   if (Array.isArray(what) && what[0] === 'TODO') {
-    const [_, serializedCtx, expectedTypeCore, renaming] = what;
+    const [, serializedCtx, expectedTypeCore, renaming] = what;
 
-    // Reconstruct the actual Context from SerializableContext
-    // For now, we'll use a simpler approach - just pass empty context
-    // TODO: Properly deserialize SerializableContext to Context
-    const ctx = new Map();
+    const ctx = deserializeSerializableContext(serializedCtx);
 
     // Convert Core type to Value for storage
-    const expectedTypeValue = expectedTypeCore.valOf(new Map());
+    const expectedTypeValue = expectedTypeCore.valOf(contextToEnvironment(ctx));
 
     // Queue for processing with real objects
     todoQueue.push({

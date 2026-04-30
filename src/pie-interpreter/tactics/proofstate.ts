@@ -64,16 +64,7 @@ export class Goal {
     const typeCore = this.type.readBackType(this.context);
     const expandedType = typeCore.prettyPrint();
 
-    // Debug: Check what's in the context
-    const { Define } = require('../utils/context');
-    const contextDefines = Array.from(this.context.entries())
-      .filter(([_, binder]) => binder instanceof Define)
-      .map(([name]) => name);
-    console.log('[Goal.toSerializable] Context defines:', contextDefines);
-    console.log('[Goal.toSerializable] Type to sugar:', expandedType.substring(0, 100));
-
     const sugaredType = sugarType(typeCore, this.context);
-    console.log('[Goal.toSerializable] Sugared result:', sugaredType);
 
     return {
       id: this.id,
@@ -125,6 +116,7 @@ export class GoalNode {
   public childFocusIndex: number = -1;
   public appliedTactic?: AppliedTactic;  // Tactic that was applied to create children
   public completedBy?: AppliedTactic;    // Tactic that directly solved this goal (for leaf nodes)
+  public refreshChildGoals?: (parent: GoalNode) => void;
   // Term builder: takes child terms and produces the term for this node
   public termBuilder?: TermBuilder;
 
@@ -316,6 +308,7 @@ export class ProofState {
       }
     } else {
       curParent.childFocusIndex += 1;
+      curParent.refreshChildGoals?.(curParent);
       return curParent.children[curParent.childFocusIndex];
     }
   }
@@ -369,6 +362,7 @@ export class ProofState {
   setCurrentGoalById(goalId: string): boolean {
     const found = this.findGoalById(this.goalTree, goalId);
     if (found) {
+      found.parent?.refreshChildGoals?.(found.parent);
       this.currentGoal = found;
       return true;
     }

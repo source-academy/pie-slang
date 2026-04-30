@@ -13,6 +13,18 @@ interface FewShotExample {
   description: string;
 }
 
+export interface GoalOverviewContextEntry {
+  name: string;
+  type: string;
+}
+
+export interface GoalOverviewRequest {
+  pieCode: string;
+  claimName: string;
+  goalType: string;
+  context: GoalOverviewContextEntry[];
+}
+
 const FEW_SHOT_EXAMPLES: FewShotExample[] = [
   {
     pieCode: `
@@ -157,7 +169,15 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildPrompt(pieCode: string, goalName: string): string {
+function formatContext(context: GoalOverviewContextEntry[]): string {
+  if (context.length === 0) {
+    return "No local context bindings.";
+  }
+
+  return context.map((entry) => `- ${entry.name} : ${entry.type}`).join("\n");
+}
+
+export function buildGoalOverviewPrompt(request: GoalOverviewRequest): string {
   const fewShotSection = FEW_SHOT_EXAMPLES.map(
     (ex, i) =>
       `### Example ${i + 1}\n` +
@@ -169,10 +189,12 @@ function buildPrompt(pieCode: string, goalName: string): string {
   return (
     `You are an expert in dependently-typed programming languages, specifically Pie ` +
     `(the language from "The Little Typer" by Daniel P. Friedman and David Thrane Christiansen). ` +
-    `Your task is to read a snippet of Pie code and write a clear, accurate natural-language description ` +
-    `of what a specific named goal (claim) means and asserts.\n\n` +
+    `Your task is to read a snippet of Pie code and write a clear, accurate natural-language overview ` +
+    `of the selected proof goal inside one named claim.\n\n` +
     `A good description:\n` +
-    `- Explains what the type of the goal asserts in plain English\n` +
+    `- Focuses on the selected proof goal type, not only the top-level claim\n` +
+    `- Explains what the current goal asserts in plain English\n` +
+    `- Uses the local proof context to explain what assumptions or variables are available\n` +
     `- Mentions key type-theoretic concepts (dependent types, induction, equality, etc.) where relevant\n` +
     `- Is precise but accessible to someone learning type theory\n` +
     `- Does NOT include code examples or Pie syntax in the reply\n` +
@@ -182,9 +204,11 @@ function buildPrompt(pieCode: string, goalName: string): string {
     fewShotSection +
     `\n\n---\n\n` +
     `## Your task\n\n` +
-    `**Pie code:**\n\`\`\`\n${pieCode}\n\`\`\`\n` +
-    `**Goal name:** \`${goalName}\`\n` +
-    `**Description:**`
+    `**Pie code for context:**\n\`\`\`\n${request.pieCode}\n\`\`\`\n` +
+    `**Claim being proved:** \`${request.claimName}\`\n` +
+    `**Selected proof goal type:**\n\`\`\`\n${request.goalType}\n\`\`\`\n` +
+    `**Local proof context:**\n${formatContext(request.context)}\n\n` +
+    `**Description of the selected proof goal:**`
   );
 }
 
@@ -195,26 +219,24 @@ function buildPrompt(pieCode: string, goalName: string): string {
 /**
  * Browser-compatible version of describeGoal.
  *
- * Queries Google Gemini to produce a natural-language description of a named
- * claim found inside a snippet of Pie code.
+ * Queries Google Gemini to produce a natural-language description of the
+ * currently selected proof goal.
  *
- * @param pieCode  - Pie source code containing at least the named claim.
- * @param goalName - The name of the `claim` to describe.
+ * @param request  - Pie source code, current claim, and selected goal details.
  * @param apiKey   - Google Gemini API key (from the user's settings).
  * @returns A promise resolving to the natural-language description.
  */
 export async function describeGoalBrowser(
-  pieCode: string,
-  goalName: string,
+  request: GoalOverviewRequest,
   apiKey: string,
 ): Promise<string> {
   // Validate that a claim with the given name exists in the code.
   const claimPattern = new RegExp(
-    `\\(\\s*claim\\s+${escapeRegExp(goalName)}\\s`,
+    `\\(\\s*claim\\s+${escapeRegExp(request.claimName)}\\s`,
   );
-  if (!claimPattern.test(pieCode)) {
+  if (!claimPattern.test(request.pieCode)) {
     throw new Error(
-      `No claim named '${goalName}' found in the provided Pie code.`,
+      `No claim named '${request.claimName}' found in the provided Pie code.`,
     );
   }
 
@@ -223,7 +245,7 @@ export async function describeGoalBrowser(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (genAI as any).models.generateContent({
     model: "gemini-2.5-flash",
-    contents: buildPrompt(pieCode, goalName),
+    contents: buildGoalOverviewPrompt(request),
   });
 
   if (!result.text) {

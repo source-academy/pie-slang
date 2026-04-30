@@ -25,8 +25,8 @@ import type {
 import type { TacticType } from "@pie/protocol";
 import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import type { GhostTacticNodeData } from "./nodes/GhostTacticNode";
-import { useDemoData } from "../hooks/useDemoData";
 import { useHintSystem } from "../hooks/useHintSystem";
+import { useAutoLayout } from "../hooks/useAutoLayout";
 import { TACTICS } from "../data/tactics";
 import { applyTactic as triggerApplyTactic } from "../utils/tactic-callback";
 
@@ -37,11 +37,12 @@ import { applyTactic as triggerApplyTactic } from "../utils/tactic-callback";
  * Renders the proof tree with custom goal, tactic, and lemma nodes.
  */
 export function ProofCanvas() {
-  // Initialize demo data for testing
-  useDemoData();
+  // Second-pass layout: reposition nodes using actual measured sizes once
+  // React Flow has rendered them (fires after every syncFromWorker call)
+  useAutoLayout();
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
 
   // State for delete confirmation dialog
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -56,6 +57,7 @@ export function ProofCanvas() {
   const nodes = useProofStore((s) => s.nodes);
   const edges = useProofStore((s) => s.edges);
   const sessionId = useProofStore((s) => s.sessionId);
+  const rootGoalId = useProofStore((s) => s.rootGoalId);
   const onNodesChange = useProofStore((s) => s.onNodesChange);
   const onEdgesChange = useProofStore((s) => s.onEdgesChange);
   const storeOnConnect = useProofStore((s) => s.onConnect);
@@ -431,6 +433,36 @@ export function ProofCanvas() {
     return ghosts;
   }, [goalHints, acceptGhostNode, dismissGhostNode, getMoreDetail]);
 
+  const viewportSignature = useMemo(
+    () =>
+      ghostNodes
+        .map((ghost) => `${ghost.id}:${ghost.data.hint.level}`)
+        .join("|"),
+    [ghostNodes],
+  );
+
+  // Fit the full canvas when a new proof session starts.
+  useEffect(() => {
+    if (!sessionId || !rootGoalId || nodes.length === 0) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      void fitView({ padding: 0.3, maxZoom: 1.2, duration: 200 });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [fitView, rootGoalId, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Gently re-fit when ghost hint nodes appear or change level.
+  useEffect(() => {
+    if (!sessionId || !viewportSignature) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      void fitView({ padding: 0.3, maxZoom: 1.2, duration: 200 });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [fitView, sessionId, viewportSignature]);
+
   // Compute which nodes should be hidden due to branch collapse
   const hiddenNodeIds = useMemo(() => {
     const hidden = new Set<string>();
@@ -523,6 +555,7 @@ export function ProofCanvas() {
           animated: false,
         }}
         connectionLineStyle={{ stroke: "#94a3b8", strokeWidth: 2 }}
+        connectionRadius={40}
         proOptions={{
           hideAttribution: true,
         }}
@@ -604,7 +637,7 @@ export function ProofCanvas() {
             return "#f3f4f6";
           }}
           maskColor="rgba(0, 0, 0, 0.1)"
-          className="!bottom-24 !right-4"
+          className="!bottom-4 !right-4 !h-24 !w-32"
         />
       </ReactFlow>
 

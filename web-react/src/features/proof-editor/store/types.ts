@@ -219,6 +219,8 @@ export interface ProofActions {
   // Position management
   setManualPosition: (nodeId: string, position: { x: number; y: number }) => void;
   clearManualPositions: () => void;
+  // Apply auto-layout positions without recording them as manual overrides
+  setLayoutPositions: (positions: Map<string, { x: number; y: number }>) => void;
 
   // Branch collapse management
   toggleBranchCollapse: (goalId: string) => void;

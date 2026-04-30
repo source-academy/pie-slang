@@ -33,7 +33,7 @@ export function TacticPalette() {
   };
 
   return (
-    <div className="w-56 border-r bg-gray-50 overflow-y-auto">
+    <div className="w-56 shrink-0 border-r bg-gray-50 overflow-y-auto">
       {/* Header */}
       <div className="border-b bg-white p-3">
         <h2 className="font-semibold text-sm">Tactics</h2>

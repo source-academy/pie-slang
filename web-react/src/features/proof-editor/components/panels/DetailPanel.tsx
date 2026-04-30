@@ -18,7 +18,7 @@ export function DetailPanel() {
   // No selection - show placeholder
   if (!selectedNode) {
     return (
-      <div className="w-80 border-l bg-gray-50 p-4">
+      <div className="w-80 shrink-0 border-l bg-gray-50 p-4">
         <p className="text-sm text-gray-500">
           Click on a node to see details
         </p>
@@ -35,7 +35,7 @@ export function DetailPanel() {
     case 'lemma':
       // TODO: LemmaDetailPanel
       return (
-        <div className="w-80 border-l bg-gray-50 p-4">
+        <div className="w-80 shrink-0 border-l bg-gray-50 p-4">
           <p className="text-sm text-gray-500">
             Lemma details coming soon
           </p>
