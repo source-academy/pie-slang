@@ -23,7 +23,7 @@
     "url": "git+https://github.com/source-academy/pie-slang.git"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.0",
+    "@babel/core": "^8.0.1",
     "@babel/highlight": "^7.25.9",
     "@babel/preset-env": "^7.26.0",
     "@babel/preset-typescript": "^7.27.1",
