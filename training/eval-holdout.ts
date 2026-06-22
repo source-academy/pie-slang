@@ -7,7 +7,8 @@
  *
  * Usage:
  *   npx tsx training/eval-holdout.ts [--verbose]
- *   npx tsx training/eval-holdout.ts --extract-only   # verify proofs without server
+ *   npx tsx training/eval-holdout.ts --extract-only        # verify proofs without server
+ *   npx tsx training/eval-holdout.ts --kernel-validate     # + kernel validity + free-running completion
  *
  * Requires: LoRA server running on port 8000 (./training/launch.sh)
  */
@@ -35,6 +36,8 @@ interface StepRecord {
   exactMatch?: boolean;
   headMatch?: boolean;
   categoryMatch?: boolean;
+  kernelValid?: boolean;       // predicted tactic accepted by kernel
+  goldKernelValid?: boolean;   // gold tactic accepted by kernel (sanity check)
 }
 
 interface HoldoutTheorem {
@@ -745,6 +748,140 @@ function extractSteps(theorem: HoldoutTheorem, baseCtx: Context): StepRecord[] {
   return steps;
 }
 
+// ── Tactic parsing helper ────────────────────────────────────────────────────
+
+/** Parse a tactic string into a Tactic AST node. Returns null on parse failure. */
+function parseTactic(tacticStr: string): Tactic | null {
+  try {
+    const wrapped = tacticStr.trim().startsWith('(') ? tacticStr : `(${tacticStr})`;
+    const parsed = schemeParse(wrapped);
+    return Parser.parseToTactics(parsed[0]);
+  } catch {
+    return null;
+  }
+}
+
+/** Try to apply a tactic string to a ProofManager. Returns true if the kernel accepts it. */
+function tryApplyTactic(pm: ProofManager, tacticStr: string): boolean {
+  const tactic = parseTactic(tacticStr);
+  if (!tactic) return false;
+  try {
+    const result = pm.applyTactic(tactic);
+    return result instanceof go;
+  } catch {
+    return false;
+  }
+}
+
+// ── Kernel validation ────────────────────────────────────────────────────────
+
+interface TheoremContext {
+  theorem: HoldoutTheorem;
+  baseCtx: Context;
+}
+
+/**
+ * For each step in the holdout set, replay gold tactics to reach that step's
+ * proof state, then try applying the given tactic string through the kernel.
+ * Returns true if the kernel accepts it.
+ */
+function kernelValidateStep(
+  thmCtx: TheoremContext,
+  stepIndex: number,
+  tacticToTest: string,
+): boolean {
+  const { theorem, baseCtx } = thmCtx;
+  const pm = new ProofManager();
+  const startResult = pm.startProof(theorem.name, baseCtx, 'holdout-eval');
+  if (startResult instanceof stop) return false;
+
+  // Replay gold tactics up to (but not including) stepIndex
+  for (let i = 0; i < stepIndex; i++) {
+    const goldTactic = parseTactic(theorem.tactics[i]);
+    if (!goldTactic) return false;
+    const result = pm.applyTactic(goldTactic);
+    if (result instanceof stop) return false;
+  }
+
+  // Now try the tactic under test at this step
+  return tryApplyTactic(pm, tacticToTest);
+}
+
+/**
+ * Free-running proof completion: start fresh and greedily apply model predictions
+ * step by step until the proof closes, errors, or hits the step cap.
+ */
+async function freeRunningCompletion(
+  thmCtx: TheoremContext,
+  maxSteps: number,
+  verbose: boolean,
+): Promise<{ completed: boolean; steps: number; tactics: string[] }> {
+  const { theorem, baseCtx } = thmCtx;
+  const pm = new ProofManager();
+  const startResult = pm.startProof(theorem.name, baseCtx, 'holdout-eval');
+  if (startResult instanceof stop) {
+    return { completed: false, steps: 0, tactics: [] };
+  }
+
+  const appliedTactics: string[] = [];
+  for (let step = 0; step < maxSteps; step++) {
+    if (!pm.currentState || pm.currentState.isComplete()) {
+      return { completed: pm.currentState?.isComplete() ?? false, steps: step, tactics: appliedTactics };
+    }
+
+    const goalResult = pm.currentState.getCurrentGoal();
+    if (!(goalResult instanceof go)) break;
+
+    const goal = goalResult.result;
+
+    // Serialize current state for the model
+    const globalContext: { name: string; type: string }[] = [];
+    const localContext: { name: string; type: string }[] = [];
+    for (const [name, binder] of goal.context.entries()) {
+      if (name.startsWith('_')) continue;
+      const typeCore = binder.type.readBackType(goal.context);
+      const typeStr = sugarType(typeCore, goal.context);
+      const entry = { name, type: typeStr };
+      if (binder instanceof Define) {
+        globalContext.push(entry);
+      } else if (binder instanceof Free) {
+        localContext.push(entry);
+      }
+    }
+    const goalCore = goal.type.readBackType(goal.context);
+    const goalStr = sugarType(goalCore, goal.context);
+
+    // Query model
+    let predicted: string;
+    try {
+      const resp = await fetch('http://localhost:8000/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal: goalStr, globalContext, localContext }),
+      });
+      if (!resp.ok) break;
+      const data = await resp.json() as { tactic: string };
+      predicted = data.tactic;
+    } catch {
+      break;
+    }
+
+    if (verbose) {
+      console.log(`    step ${step}: goal=${goalStr}  pred=${predicted}`);
+    }
+
+    // Try to apply through kernel
+    if (!tryApplyTactic(pm, predicted)) {
+      if (verbose) console.log(`    REJECTED by kernel`);
+      return { completed: false, steps: step + 1, tactics: [...appliedTactics, predicted] };
+    }
+    appliedTactics.push(predicted);
+  }
+
+  const completed = pm.currentState?.isComplete() ?? false;
+  return { completed, steps: appliedTactics.length, tactics: appliedTactics };
+}
+
 // ── Query the LoRA server ────────────────────────────────────────────────────
 
 async function predict(step: StepRecord): Promise<string> {
@@ -789,6 +926,7 @@ function tacticCategory(t: string): string {
 async function main() {
   const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
   const extractOnly = process.argv.includes('--extract-only');
+  const kernelValidate = process.argv.includes('--kernel-validate');
 
   // Build all theorem groups
   const groups: TheoremGroup[] = [
@@ -802,13 +940,13 @@ async function main() {
   const totalTheorems = groups.reduce((s, g) => s + g.theorems.length, 0);
   console.log(`Built ${totalTheorems} holdout theorems across ${groups.length} groups\n`);
 
-  // Extract proof steps for all groups
+  // Extract proof steps for all groups, also collect theorem contexts for kernel validation
   console.log('Extracting proof steps...');
   const allSteps: StepRecord[] = [];
+  const theoremContexts = new Map<string, TheoremContext>();
   let errors = 0;
 
   for (const group of groups) {
-    // Build claim declarations
     const claimDecls = group.theorems.map(t => `(claim ${t.name} ${t.claim})`);
     const fullSource = group.preamble + '\n' + claimDecls.join('\n');
 
@@ -832,6 +970,7 @@ async function main() {
         console.error(`  WARN ${thm.name}: extracted ${steps.length}/${thm.tactics.length} steps`);
       }
       allSteps.push(...steps);
+      theoremContexts.set(thm.name, { theorem: thm, baseCtx: ctx });
     }
     console.log(`  ${group.name}: ${group.theorems.length} theorems`);
   }
@@ -840,7 +979,6 @@ async function main() {
 
   if (extractOnly) {
     console.log('--extract-only mode: skipping server predictions.');
-    // Show section distribution
     const sectionCounts = new Map<string, number>();
     for (const s of allSteps) {
       sectionCounts.set(s.section, (sectionCounts.get(s.section) || 0) + 1);
@@ -849,7 +987,6 @@ async function main() {
     for (const [sec, count] of [...sectionCounts.entries()].sort((a, b) => b[1] - a[1])) {
       console.log(`  ${sec.padEnd(24)} ${count} steps`);
     }
-    // Tactic distribution
     const tacCounts = new Map<string, number>();
     for (const s of allSteps) {
       const h = tacticHead(s.goldTactic);
@@ -875,7 +1012,7 @@ async function main() {
     process.exit(1);
   }
 
-  // Run predictions
+  // ── Run predictions ──
   console.log('Running predictions...\n');
   const t0 = Date.now();
 
@@ -903,7 +1040,107 @@ async function main() {
 
   const elapsed = (Date.now() - t0) / 1000;
 
-  // ── Aggregate results ──
+  // ── Kernel validation (if requested) ──
+  if (kernelValidate) {
+    console.log('\n── Kernel validation ──\n');
+
+    // Sanity check: gold tactics should all be kernel-valid
+    console.log('Sanity check: validating gold tactics...');
+    let goldValid = 0;
+    let goldInvalid = 0;
+    for (const step of allSteps) {
+      const thmCtx = theoremContexts.get(step.theoremName);
+      if (!thmCtx) { goldInvalid++; continue; }
+      const valid = kernelValidateStep(thmCtx, step.stepIndex, step.goldTactic);
+      step.goldKernelValid = valid;
+      if (valid) goldValid++;
+      else {
+        goldInvalid++;
+        console.error(`  GOLD INVALID: ${step.theoremName} step ${step.stepIndex}: "${step.goldTactic}"`);
+      }
+    }
+    console.log(`  Gold tactics: ${goldValid}/${allSteps.length} kernel-valid`);
+    if (goldInvalid > 0) {
+      console.error(`  WARNING: ${goldInvalid} gold tactics failed kernel validation! Fix the harness.`);
+    }
+
+    // Validate predicted tactics
+    console.log('\nValidating predicted tactics...');
+    let predValid = 0;
+    let predValidButNotExact = 0;
+    for (let i = 0; i < allSteps.length; i++) {
+      const step = allSteps[i];
+      const thmCtx = theoremContexts.get(step.theoremName);
+      if (!thmCtx || !step.predicted) {
+        step.kernelValid = false;
+        continue;
+      }
+      const valid = kernelValidateStep(thmCtx, step.stepIndex, step.predicted);
+      step.kernelValid = valid;
+      if (valid) {
+        predValid++;
+        if (!step.exactMatch) predValidButNotExact++;
+      }
+      if (verbose) {
+        const kStatus = valid ? 'VALID' : 'REJECT';
+        console.log(`  [${i + 1}/${allSteps.length}] [${kStatus}] ${step.theoremName} step ${step.stepIndex}: pred="${step.predicted}"`);
+      }
+    }
+
+    const total = allSteps.length;
+    const exact = allSteps.filter(s => s.exactMatch).length;
+    console.log(`\n  Kernel-valid:         ${predValid}/${total} (${(predValid / total * 100).toFixed(1)}%)`);
+    console.log(`  Exact-match:          ${exact}/${total} (${(exact / total * 100).toFixed(1)}%)`);
+    console.log(`  Valid but not exact:  ${predValidButNotExact}/${total} (${(predValidButNotExact / total * 100).toFixed(1)}%)`);
+    console.log(`  Lift over exact:      +${(predValidButNotExact / total * 100).toFixed(1)} pp`);
+
+    // Per-tactic kernel-valid breakdown
+    console.log('\n-- Per-tactic kernel-valid breakdown --');
+    const perTacKernel = new Map<string, { total: number; exact: number; kernelValid: number }>();
+    for (const step of allSteps) {
+      const h = tacticHead(step.goldTactic);
+      if (!perTacKernel.has(h)) perTacKernel.set(h, { total: 0, exact: 0, kernelValid: 0 });
+      const t = perTacKernel.get(h)!;
+      t.total++;
+      if (step.exactMatch) t.exact++;
+      if (step.kernelValid) t.kernelValid++;
+    }
+    for (const [tac, s] of [...perTacKernel.entries()].sort((a, b) => b[1].total - a[1].total)) {
+      const exactPct = (s.exact / s.total * 100).toFixed(1);
+      const kernelPct = (s.kernelValid / s.total * 100).toFixed(1);
+      const liftPct = ((s.kernelValid - s.exact) / s.total * 100).toFixed(1);
+      console.log(`  ${tac.padEnd(16)} n=${String(s.total).padStart(3)}  exact=${exactPct.padStart(5)}%  kernel=${kernelPct.padStart(5)}%  lift=+${liftPct.padStart(4)}pp`);
+    }
+
+    // ── Free-running completion ──
+    console.log('\n── Free-running proof completion ──\n');
+    const thmNames = [...theoremContexts.keys()];
+    let frCompleted = 0;
+    let frTotal = 0;
+    const frResults: { name: string; completed: boolean; goldLen: number; modelLen: number }[] = [];
+
+    for (const name of thmNames) {
+      const thmCtx = theoremContexts.get(name)!;
+      const goldLen = thmCtx.theorem.tactics.length;
+      const maxSteps = goldLen * 2;
+
+      if (verbose) console.log(`  ${name} (gold: ${goldLen} steps, cap: ${maxSteps}):`);
+      const result = await freeRunningCompletion(thmCtx, maxSteps, verbose);
+      frTotal++;
+      if (result.completed) frCompleted++;
+      frResults.push({ name, completed: result.completed, goldLen, modelLen: result.steps });
+
+      const status = result.completed ? 'PROVED' : 'FAIL  ';
+      if (verbose || !result.completed) {
+        console.log(`  [${status}] ${name.padEnd(36)} ${result.steps}/${maxSteps} steps`);
+      }
+    }
+
+    console.log(`\n  Free-running completion: ${frCompleted}/${frTotal} (${(frCompleted / frTotal * 100).toFixed(1)}%)`);
+    console.log(`  (Step cap: 2x gold length per theorem)`);
+  }
+
+  // ── Aggregate string-match results (always shown) ──
   const total = allSteps.length;
   const exact = allSteps.filter(s => s.exactMatch).length;
   const head = allSteps.filter(s => s.headMatch).length;
@@ -919,6 +1156,11 @@ async function main() {
   console.log(`  Tactic-head:  ${head}/${total} (${(head / total * 100).toFixed(1)}%)`);
   console.log(`  Category:     ${cat}/${total} (${(cat / total * 100).toFixed(1)}%)`);
 
+  if (kernelValidate) {
+    const kv = allSteps.filter(s => s.kernelValid).length;
+    console.log(`  Kernel-valid: ${kv}/${total} (${(kv / total * 100).toFixed(1)}%)`);
+  }
+
   // Per-section
   console.log(`\n-- Per-section breakdown --`);
   const sections = [...new Set(allSteps.map(s => s.section))];
@@ -926,19 +1168,22 @@ async function main() {
     const ss = allSteps.filter(s => s.section === sec);
     const se = ss.filter(s => s.exactMatch).length;
     const sh = ss.filter(s => s.headMatch).length;
-    console.log(`  ${sec.padEnd(24)} n=${String(ss.length).padStart(3)}  exact=${(se / ss.length * 100).toFixed(1).padStart(5)}%  head=${(sh / ss.length * 100).toFixed(1).padStart(5)}%`);
+    let line = `  ${sec.padEnd(24)} n=${String(ss.length).padStart(3)}  exact=${(se / ss.length * 100).toFixed(1).padStart(5)}%  head=${(sh / ss.length * 100).toFixed(1).padStart(5)}%`;
+    if (kernelValidate) {
+      const sk = ss.filter(s => s.kernelValid).length;
+      line += `  kernel=${(sk / ss.length * 100).toFixed(1).padStart(5)}%`;
+    }
+    console.log(line);
   }
 
   // Per-theorem completion
   console.log(`\n-- Per-theorem completion (all steps exact) --`);
   const theoremNames = [...new Set(allSteps.map(s => s.theoremName))];
   let proofsCompleted = 0;
-  let proofsFailed = 0;
   for (const name of theoremNames) {
     const ts = allSteps.filter(s => s.theoremName === name);
     const allCorrect = ts.every(s => s.exactMatch);
     if (allCorrect) proofsCompleted++;
-    else proofsFailed++;
     if (verbose || !allCorrect) {
       const correctCount = ts.filter(s => s.exactMatch).length;
       const status = allCorrect ? 'OK  ' : 'FAIL';
@@ -949,17 +1194,22 @@ async function main() {
 
   // Per-tactic breakdown
   console.log(`\n-- Per-tactic breakdown --`);
-  const perTactic = new Map<string, { total: number; exact: number; head: number }>();
+  const perTactic = new Map<string, { total: number; exact: number; head: number; kernelValid: number }>();
   for (const step of allSteps) {
     const h = tacticHead(step.goldTactic);
-    if (!perTactic.has(h)) perTactic.set(h, { total: 0, exact: 0, head: 0 });
+    if (!perTactic.has(h)) perTactic.set(h, { total: 0, exact: 0, head: 0, kernelValid: 0 });
     const t = perTactic.get(h)!;
     t.total++;
     if (step.exactMatch) t.exact++;
     if (step.headMatch) t.head++;
+    if (step.kernelValid) t.kernelValid++;
   }
   for (const [tac, s] of [...perTactic.entries()].sort((a, b) => b[1].total - a[1].total)) {
-    console.log(`  ${tac.padEnd(16)} n=${String(s.total).padStart(3)}  exact=${(s.exact / s.total * 100).toFixed(1).padStart(5)}%  head=${(s.head / s.total * 100).toFixed(1).padStart(5)}%`);
+    let line = `  ${tac.padEnd(16)} n=${String(s.total).padStart(3)}  exact=${(s.exact / s.total * 100).toFixed(1).padStart(5)}%  head=${(s.head / s.total * 100).toFixed(1).padStart(5)}%`;
+    if (kernelValidate) {
+      line += `  kernel=${(s.kernelValid / s.total * 100).toFixed(1).padStart(5)}%`;
+    }
+    console.log(line);
   }
 
   // Failures summary (first 30)
@@ -968,7 +1218,8 @@ async function main() {
     const showN = Math.min(30, failures.length);
     console.log(`\n-- Failures (showing ${showN}/${failures.length}) --`);
     for (const f of failures.slice(0, showN)) {
-      console.log(`  ${f.theoremName} step ${f.stepIndex}: gold="${f.goldTactic}" pred="${f.predicted}"`);
+      const kFlag = kernelValidate ? (f.kernelValid ? ' [kernel-valid]' : '') : '';
+      console.log(`  ${f.theoremName} step ${f.stepIndex}: gold="${f.goldTactic}" pred="${f.predicted}"${kFlag}`);
     }
   }
 
