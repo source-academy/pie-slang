@@ -64,6 +64,7 @@ export interface TodoInfo {
   context: Context;
   expectedType: Value;
   renaming: Renaming;
+  name?: string;
 }
 
 // The todoQueue is safe in any context - it's just an array

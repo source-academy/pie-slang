@@ -14,14 +14,14 @@ type What = 'definition'
   | ['binding-site', Core]
   | ['is-type', Core]
   | ['has-type', Core]
-  | ['TODO', SerializableContext, Core, Renaming];
+  | ['TODO', SerializableContext, Core, Renaming, string?];
 
 
 // TODO: Implement PieInfoHook
 
 export function PieInfoHook(where: Location, what: What): void {
   if (Array.isArray(what) && what[0] === 'TODO') {
-    const [_, serializedCtx, expectedTypeCore, renaming] = what;
+    const [_, serializedCtx, expectedTypeCore, renaming, name] = what;
 
     // Reconstruct the actual Context from SerializableContext
     // For now, we'll use a simpler approach - just pass empty context
@@ -36,7 +36,8 @@ export function PieInfoHook(where: Location, what: What): void {
       location: where,
       context: ctx,
       expectedType: expectedTypeValue,
-      renaming: renaming
+      renaming: renaming,
+      name: name
     });
   }
 }

@@ -1903,6 +1903,7 @@ export class IndEither extends Source {
 export class TODO extends Source {
   constructor(
     public location: Location,
+    public name?: string,
   ) { super(location); }
 
   protected synthHelper(_ctx: Context, _renames: Renaming): Perhaps<C.The> {
@@ -1915,12 +1916,12 @@ export class TODO extends Source {
 
   public checkOut(ctx: Context, renames: Renaming, type: V.Value): Perhaps<C.Core> {
     const typeVal = type.readBackType(ctx);
-    SendPieInfo(this.location, ['TODO', readBackContext(ctx), typeVal, renames]);
+    SendPieInfo(this.location, ['TODO', readBackContext(ctx), typeVal, renames, this.name]);
     return new go(new C.TODO(this.location.locationToSrcLoc(), typeVal));
   }
 
   public prettyPrint(): string {
-    return `TODO`;
+    return this.name ? `TODO-${this.name}` : `TODO`;
   }
 
   public toString(): string {

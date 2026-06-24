@@ -404,8 +404,10 @@ export class Parser {
         this.parseElements(elements[1] as Element),
         this.parseElements(elements[2] as Element),
       );
-    } else if (parsee === 'TODO') {
-      return Maker.makeTODO(locationToSyntax('TODO', element.location));
+    } else if (parsee === 'TODO' || parsee.startsWith('TODO-')) {
+      // Named hole: `TODO-<name>` carries a distinct name; bare `TODO` has none.
+      const holeName = parsee === 'TODO' ? undefined : parsee.substring('TODO-'.length);
+      return Maker.makeTODO(locationToSyntax(parsee, element.location), holeName);
     } else if (parsee.startsWith('ind-') && element instanceof Extended.List && element.elements[0] instanceof Atomic.Symbol) {
       // Eliminator application: (ind-TypeName target motive methods...)
       // Only match if first element is directly a symbol (not a nested list)

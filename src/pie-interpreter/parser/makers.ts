@@ -201,8 +201,8 @@ export function makeNatLiteral(stx: Syntax, num: string): S.Source {
   return new S.Number(syntaxToLocation(stx), Number(num));
 }
 
-export function makeTODO(stx: Syntax): S.Source {
-  return new S.TODO(syntaxToLocation(stx));
+export function makeTODO(stx: Syntax, name?: string): S.Source {
+  return new S.TODO(syntaxToLocation(stx), name);
 }
 
 export function makeIntro(stx: Syntax, name?: string): Tactic {
