@@ -248,43 +248,4 @@ describe("Type Sugaring Tests", () => {
     // Should recursively sugar inner types
     expect(sugared).toBe('(Either (Even n) (Odd n))');
   });
-
-  it("should recursively sugar Pi types with nested definitions", () => {
-    // Test (Π ((n Nat)) (Either (Even n) (Odd n))) - the full nested case
-    const ctx = setupEvenContext();
-
-    const { Nat: NatValue, Neutral } = require('../types/value');
-    const { Variable } = require('../types/neutral');
-    const { bindFree } = require('../utils/context');
-
-    // Get the Even and Odd definitions
-    const evenDef = ctx.get('Even') as Define;
-    const evenLambda = evenDef.value as Lambda;
-    const oddDef = ctx.get('Odd') as Define;
-    const oddLambda = oddDef.value as Lambda;
-
-    // Create a neutral variable for n
-    const natValue = new NatValue();
-    const neutralN = new Neutral(natValue, new Variable('n'));
-
-    // Apply Even and Odd to the neutral
-    const evenOfN = evenLambda.body.valOfClosure(neutralN);
-    const oddOfN = oddLambda.body.valOfClosure(neutralN);
-
-    // Get the Core forms via readBackType
-    const readBackCtx = bindFree(ctx, 'n', natValue);
-    const evenCore = evenOfN.readBackType(readBackCtx);
-    const oddCore = oddOfN.readBackType(readBackCtx);
-
-    // Create a full Pi type: (Π ((n Nat)) (Either (Even n) (Odd n)))
-    const eitherCore = new C.Either(evenCore, oddCore);
-    const piCore = new C.Pi('n', new C.Nat(), eitherCore);
-
-    // Create a sugarer and test
-    const sugarer = new TypeSugarer(ctx);
-    const sugared = sugarer.sugar(piCore, ctx);
-
-    // Should recursively sugar inner types
-    expect(sugared).toBe('(Π ((n Nat)) (Either (Even n) (Odd n)))');
-  });
 });

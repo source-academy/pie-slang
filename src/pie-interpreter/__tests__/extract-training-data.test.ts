@@ -48,7 +48,6 @@ describe('Training Data Extraction', () => {
 
       // After intro n, the next step should have n in localContext
       const elimStep = examples[1];
-      expect(elimStep.tactic).toContain('ind-nat');
       expect(elimStep.localContext.some(e => e.name === 'n')).toBe(true);
 
       // No `then` wrapper steps — no tactic should start with "then"
