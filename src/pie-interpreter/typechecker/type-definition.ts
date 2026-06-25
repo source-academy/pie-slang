@@ -27,6 +27,96 @@ function isRecursiveArgumentType(argType: S.Source, datatypeName: string): boole
   return false;
 }
 
+// Does `name` occur anywhere in `t`?
+//
+// Per spec this is `t.findNames().includes(name)`, but GeneralTypeConstructor's
+// findNames() is not implemented (it throws), and a constructor's type-being-defined
+// can appear as a GeneralTypeConstructor (e.g. an arrow domain `(Bad () ())`), so we
+// handle that node directly here and defer to findNames() for everything else.
+function occurs(t: S.Source, name: string): boolean {
+  if (t instanceof S.GeneralTypeConstructor) {
+    return t.name === name
+      || t.params.some(p => occurs(p, name))
+      || t.indices.some(i => occurs(i, name));
+  }
+  return t.findNames().includes(name);
+}
+
+// Does `name` appear to the left of an arrow inside `t`? Such an occurrence breaks
+// strict positivity and makes the logic unsound.
+function occursNegatively(t: S.Source, name: string): boolean {
+  if (t instanceof S.Arrow) {
+    // Curried arrow: arg1 -> arg2 -> ...args, where the last segment is the codomain.
+    // Every preceding segment is a domain (left of an arrow). Note: arg2 is a domain
+    // whenever args is non-empty, so we decompose over all segments rather than just
+    // [arg1, ...args.slice(0,-1)], which would drop arg2 for multi-argument arrows.
+    const segments = [t.arg1, t.arg2, ...t.args];
+    const codomain = segments[segments.length - 1];
+    const domains = segments.slice(0, -1);
+    return domains.some(d => occurs(d, name)) || occursNegatively(codomain, name);
+  }
+
+  if (t instanceof S.Pi) {
+    return t.binders.some(b => occurs(b.type, name)) || occursNegatively(t.body, name);
+  }
+
+  // Sigma / Pair components are not to the left of an arrow, so only a nested
+  // negative occurrence inside them counts.
+  if (t instanceof S.Sigma) {
+    return t.binders.some(b => occursNegatively(b.type, name)) || occursNegatively(t.body, name);
+  }
+
+  if (t instanceof S.Pair) {
+    return occursNegatively(t.first, name) || occursNegatively(t.second, name);
+  }
+
+  // The head being def.name at the top level is the GOOD recursive case (do not flag);
+  // only a negative occurrence buried in a parameter or index is a violation.
+  if (t instanceof S.GeneralTypeConstructor) {
+    return t.params.some(p => occursNegatively(p, name))
+      || t.indices.some(i => occursNegatively(i, name));
+  }
+
+  if (t instanceof S.Application) {
+    return [t.func, t.arg, ...t.args].some(s => occursNegatively(s, name));
+  }
+
+  if (t instanceof S.List) {
+    return occursNegatively(t.entryType, name);
+  }
+
+  if (t instanceof S.Vec) {
+    return occursNegatively(t.type, name) || occursNegatively(t.length, name);
+  }
+
+  if (t instanceof S.Either) {
+    return occursNegatively(t.left, name) || occursNegatively(t.right, name);
+  }
+
+  if (t instanceof S.Equal) {
+    return occursNegatively(t.type, name)
+      || occursNegatively(t.left, name)
+      || occursNegatively(t.right, name);
+  }
+
+  // S.Name and atomic leaves: no arrow, so no negative occurrence.
+  return false;
+}
+
+// Reject non-strictly-positive datatype declarations: a constructor argument whose
+// type mentions the type being defined to the left of an arrow lets one prove Absurd.
+// Returns the offending constructor/argument names, or null if the definition is sound.
+function checkStrictPositivity(def: TypeDefinition): { ctor: string; arg: string } | null {
+  for (const ctor of def.constructors) {
+    for (const arg of ctor.args) {
+      if (occursNegatively(arg.type, def.name)) {
+        return { ctor: ctor.name, arg: arg.binder.varName };
+      }
+    }
+  }
+  return null;
+}
+
 export class TypeDefinition {
   constructor(
     public location: Location,
@@ -38,6 +128,15 @@ export class TypeDefinition {
   ) { }
 
   normalizeConstructor(ctx: Context, rename: Renaming) {
+    // Reject non-strictly-positive definitions before anything is added to context.
+    const violation = checkStrictPositivity(this);
+    if (violation !== null) {
+      const { ctor: ctorName, arg: argName } = violation;
+      const s = new stop(this.location, new Message([
+        `Non strictly positive occurrence of '${this.name}' in argument '${argName}' of constructor '${ctorName}': the type being defined may not occur to the left of an arrow.`]));
+      throw new Error(s.message.toString());
+    }
+
     const validTypeTemp = (new S.GeneralType
       (this.location,
         this.name,

@@ -45,6 +45,17 @@ describe("Test datatype definition only", () => {
     `;
     expect(() => evaluatePie(input)).not.toThrow();
   });
+
+  it("Rejects non-strictly-positive definition", () => {
+    // 'Bad' occurs to the left of an arrow in mk's argument, which is unsound
+    // (it would let one prove Absurd), so the declaration must be rejected.
+    const input = `
+    (data Bad () ()
+      (mk ((f (-> (Bad () ()) Absurd))) (Bad () ()))
+      ind-Bad)
+    `;
+    expect(() => evaluatePie(input)).toThrow(/strictly positive|positive occurrence/i);
+  });
 })
 
 describe("Test subtyping", () => {
