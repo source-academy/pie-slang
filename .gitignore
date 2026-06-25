@@ -29,6 +29,9 @@ out
 compiled
 /doc
 node_modules
+
+# Generated tactic-training datasets live in the artifact bundle, not this repo
+*.jsonl
 /conductor
 /.vscode/
 dist
