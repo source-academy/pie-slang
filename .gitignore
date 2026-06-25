@@ -30,8 +30,10 @@ compiled
 /doc
 node_modules
 
-# Generated tactic-training datasets live in the artifact bundle, not this repo
-*.jsonl
+# Generated extract output (curated datasets are tracked under training/)
+/training-data.jsonl
+# LoRA adapter is large; it ships in the artifact bundle, not the repo
+training/output/
 /conductor
 /.vscode/
 dist

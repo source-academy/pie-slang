@@ -43,3 +43,21 @@ To get started with the Pie interpreter:
    ```
    For more information about the project, please visit our wiki pages.
    To learn more about the language, you may read the book The Little Typer. Our wiki also contains a brief overview of the language.
+
+## Tactic Predictor: Theorems, Fine-Tuning, and Evaluation
+
+The tactic predictor is fine-tuned on proofs written in Pie:
+
+- **Theorem corpus.** The hand-written theorems and their tactic proofs live under
+  `src/pie-interpreter/__tests__/tactics-math-tactic/` and
+  `src/pie-interpreter/__tests__/tactics-math-complex/`.
+- **Datasets.** `training/` holds the extracted training data
+  (`training-data-clean.jsonl`, `training-data-lora-*.jsonl`) and the held-out
+  test set (`test-proofs.jsonl`, 157 theorems / 706 steps).
+- **Fine-tuning and evaluation.** `training/train.py` fine-tunes a LoRA adapter over
+  a public base model; `training/eval-holdout.ts` and `training/evaluate_offline.py`
+  reproduce the held-out evaluation (see `training/HOLDOUT_EVAL.md`). A
+  `training/Dockerfile` rebuilds the inference image.
+
+The fine-tuned LoRA adapter is large and is not stored in this repository; it is
+distributed separately.

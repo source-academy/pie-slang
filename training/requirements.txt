@@ -1,0 +1,19 @@
+# Install in this order:
+# 1. conda create -n pie-train python=3.11 pytorch pytorch-cuda=12.1 -c pytorch -c nvidia -y
+# 2. conda run -n pie-train pip install -r requirements.txt
+
+unsloth
+unsloth_zoo
+trl==0.24.0
+datasets==4.3.0
+accelerate
+bitsandbytes
+peft
+safetensors
+sentencepiece
+protobuf
+torchao==0.7.0
+torchvision
+triton-windows  # Windows only; use triton on Linux
+pillow
+tyro
