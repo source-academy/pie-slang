@@ -642,10 +642,10 @@ export class SchemeReal {
       return SchemeReal.NEG_INFINITY;
     } else if (isNaN(value)) {
       return SchemeReal.NAN;
+    } else if (Object.is(value, -0)) {
+      return SchemeReal.INEXACT_NEG_ZERO;
     } else if (value === 0) {
       return SchemeReal.INEXACT_ZERO;
-    } else if (value === -0) {
-      return SchemeReal.INEXACT_NEG_ZERO;
     }
     return new SchemeReal(value);
   }
