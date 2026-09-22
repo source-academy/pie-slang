@@ -1,5 +1,5 @@
 import * as es from "estree";
-import { decode, encode } from "..";
+import { decode, encode } from "./identifier-encoding";
 import * as acornWalk from "acorn-walk";
 
 // full() walks ESTree structure; unlike Acorn's types, these ASTs need not

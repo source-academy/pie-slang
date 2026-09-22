@@ -58,7 +58,7 @@ test.each([
   ["`((a ,@xs) ,@ys)", 2],
 ] as const)("parsed quasiquote %s produces valid argument arrays", (source, count) => {
   const parsed = new SchemeParser(source, new SchemeLexer(source).scanTokens(), 2).parse();
-  // Deliberately test the AST layer directly: encode/decode remains unfixed.
+  // Test the AST layer directly; encoder integration is covered separately.
   const program = Transpiler.create().transpile(parsed);
   const calls = callsIn(program);
   expect(calls.filter(call => call.callee.type === "Identifier"
