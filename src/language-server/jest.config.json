@@ -1,0 +1,11 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "node",
+  "roots": ["<rootDir>/client/src", "<rootDir>/server/src"],
+  "moduleFileExtensions": ["ts", "js", "json", "node"],
+  "moduleNameMapper": {
+    "^\\.\\./\\.\\./out/src/pie-interpreter/main$": "<rootDir>/client/src/__tests__/fixtures/interpreter.ts"
+  },
+  "testMatch": ["**/__tests__/**/*.test.ts"],
+  "testPathIgnorePatterns": ["/node_modules/", "/out/"]
+}

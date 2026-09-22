@@ -73,9 +73,13 @@ The language server is a separate npm project with its own lockfile:
 
 ```bash
 npm ci --prefix src/language-server
+npm test --prefix src/language-server -- --runInBand
 npm run compile --prefix src/language-server
 ```
 
 Its compiler follows imports from the client and server entry points; the root
 type check also covers the unused legacy Scheme tools. A successful Rollup
 build is not a substitute for a successful type check.
+
+Root tests and language-server tests run separately with their respective Jest
+versions. Language-server unit tests do not require a running VS Code instance.

@@ -75,7 +75,7 @@ export class PieCommandHandler {
       throw new Error('evaluatePie function not found in module');
     } catch (error) {
       // If import fails, show error with helpful message
-      throw new Error(`Could not load Pie interpreter. Make sure the extension is compiled. Error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Could not load Pie interpreter. Make sure the extension is compiled. Error: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
   }
 
