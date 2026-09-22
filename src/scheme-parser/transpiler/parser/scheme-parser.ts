@@ -80,7 +80,7 @@ export class SchemeParser implements Parser {
    */
   private destructureList(
     list: Datum[],
-    verifier = (_x: any) => {}
+    verifier = (_x: Datum) => {}
   ): [Expression[], Expression | undefined] {
     // check if the list is an empty list
     if (list.length === 0) {
@@ -609,7 +609,7 @@ export class SchemeParser implements Parser {
           if (!isToken(formal)) {
             throw new ParserError.ExpectedFormError(
               this.source,
-              formal.pos,
+              formal.location.start,
               formal,
               "<identifier>"
             );
@@ -730,7 +730,7 @@ export class SchemeParser implements Parser {
           if (!isToken(formal)) {
             throw new ParserError.ExpectedFormError(
               this.source,
-              formal.pos,
+              formal.location.start,
               formal,
               "<identifier>"
             );
