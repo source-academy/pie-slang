@@ -32,7 +32,7 @@ export class Printer implements Visitor {
     process.stdout.write(" ".repeat(this.indentationLevel * 0));
   }
 
-  display(value: any): void {
+  display(value: string): void {
     process.stdout.write(value);
   }
 
@@ -137,7 +137,7 @@ export class Printer implements Visitor {
   visitSpliceMarker(node: Atomic.SpliceMarker): void {
     // this.indent();
     this.display(",@");
-    this.display(node.value);
+    node.value.accept(this);
     this.display(" ");
   }
 
