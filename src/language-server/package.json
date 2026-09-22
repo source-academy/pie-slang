@@ -102,7 +102,7 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
-		"compile": "tsc || true",
+		"compile": "tsc",
 		"watch": "tsc -w",
 		"lint": "eslint",
 		"test": "jest",

@@ -16,7 +16,10 @@ export default [
     },
     rules: {
       // Add custom rules here
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-console': 'warn',
     },
@@ -30,6 +33,12 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', '*.config.js'],
+    // Console output is the interface of these command-line tools and tests.
+    files: ['src/standalone.ts', 'src/pie-interpreter/solver/main.ts',
+      'src/scheme-parser/compile-libs.ts', '**/__tests__/**/*.ts'],
+    rules: { 'no-console': 'off' },
+  },
+  {
+    ignores: ['dist/**', '**/node_modules/**', '**/out/**', '**/*.d.ts', '*.config.js'],
   },
 ];

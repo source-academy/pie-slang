@@ -1,6 +1,9 @@
 {
   "preset": "ts-jest/presets/default-esm",
   "testEnvironment": "node",
+  "roots": ["<rootDir>/src"],
+  "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node"],
+  "testPathIgnorePatterns": ["/node_modules/", "/out/"],
   "extensionsToTreatAsEsm": [".ts"],
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
@@ -9,7 +12,8 @@
     "^.+\\.tsx?$": ["ts-jest", {
       "useESM": true,
       "tsconfig": {
-        "noImplicitAny": false
+        "noImplicitAny": false,
+        "types": ["node", "jest"]
       }
     }]
   },

@@ -89,7 +89,7 @@ export class Transpiler implements Visitor {
 
     // if other parts of the program want to optimize their code, eliminating
     // the iife sequence, they can see that this is a sequence with this flag
-    (iife as any).isSequence = true;
+    (iife as es.CallExpression & { isSequence?: boolean }).isSequence = true;
     return [iife];
   }
 
@@ -116,17 +116,17 @@ export class Transpiler implements Visitor {
   }
 
   visitLambda(node: Atomic.Lambda): [es.ArrowFunctionExpression] {
-    const parameters: any[] = node.params.flatMap(p => p.accept(this));
+    const parameters: (es.Identifier | es.RestElement)[] = node.params.flatMap(p => p.accept(this));
     const [fnBody] = node.body.accept(this);
 
     // if the inner body is a sequence, we can optimize it by removing the sequence
     // and making the arrow function expression return the last expression
     // we left a flag in the sequence to indicate that it is an iife
-    let finalBody = (fnBody as any).isSequence
+    let finalBody = (fnBody as es.Node & { isSequence?: boolean }).isSequence
       ? // then we know that body is a sequence, stored as a call expression to an
         // inner callee with an interior arrow function expression that takes no arguments
         // let's steal that arrow function expression's body and use it as ours
-        fnBody.callee.body
+        ((fnBody as es.CallExpression).callee as es.ArrowFunctionExpression).body
       : fnBody;
 
     if (!node.rest) {
@@ -394,26 +394,26 @@ export class Transpiler implements Visitor {
   // if any of these are called, its an error. the simplifier
   // should be called first.
   visitFunctionDefinition(
-    node: Extended.FunctionDefinition
+    _node: Extended.FunctionDefinition
   ): [es.VariableDeclaration] {
     throw new Error("The AST should be simplified!");
   }
-  visitLet(node: Extended.Let): [es.CallExpression] {
+  visitLet(_node: Extended.Let): [es.CallExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitCond(node: Extended.Cond): [es.ConditionalExpression] {
+  visitCond(_node: Extended.Cond): [es.ConditionalExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitBegin(node: Extended.Begin): [es.CallExpression] {
+  visitBegin(_node: Extended.Begin): [es.CallExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitDelay(node: Extended.Delay): [es.ArrowFunctionExpression] {
+  visitDelay(_node: Extended.Delay): [es.ArrowFunctionExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitDefineSyntax(node: Atomic.DefineSyntax) {
+  visitDefineSyntax(_node: Atomic.DefineSyntax) {
     throw new Error("This should not be called!");
   }
-  visitSyntaxRules(node: Atomic.SyntaxRules) {
+  visitSyntaxRules(_node: Atomic.SyntaxRules) {
     throw new Error("This should not be called!");
   }
 }

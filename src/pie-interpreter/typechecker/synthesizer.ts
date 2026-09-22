@@ -8,7 +8,6 @@ import {
   TypedBinder
 } from '../types/utils';
 import { bindFree, Context, contextToEnvironment, Define, valInContext, varType, getInductiveType, InductiveDatatypeBinder, ConstructorTypeBinder } from '../utils/context';
-import { Environment, extendEnvironment } from '../utils/environment';
 import { atomOk, convert, extendRenaming, makeApp, PieInfoHook, rename, Renaming, sameType } from "./utils";
 import { notForInfo } from "../utils/locations";
 import { doApp, doCar, indVecStepType } from "../evaluator/evaluator";
@@ -18,7 +17,7 @@ import { Location } from '../utils/locations';
 
 export class synthesizer {
 
-  public static synthNat(ctx: Context, r: Renaming): Perhaps<C.The> {
+  public static synthNat(_ctx: Context, _r: Renaming): Perhaps<C.The> {
     return new go(new C.The(
       new C.Universe(),
       new C.Nat()
@@ -159,7 +158,7 @@ export class synthesizer {
     }
   }
 
-  public static synthZero(context: Context, r: Renaming): Perhaps<C.The> {
+  public static synthZero(_context: Context, _r: Renaming): Perhaps<C.The> {
     return new go(
       new C.The(
         new C.Nat(),
@@ -368,7 +367,7 @@ export class synthesizer {
     );
   }
 
-  public static synthAtom(context: Context, r: Renaming): Perhaps<C.The> {
+  public static synthAtom(_context: Context, _r: Renaming): Perhaps<C.The> {
     return new go(
       new C.The(
         new C.Universe(),
@@ -510,7 +509,7 @@ export class synthesizer {
       () => {
         const val = valInContext(context, pout.value.type);
         if (val instanceof V.Sigma) {
-          const [x, A, clos] = [val.carName, val.carType, val.cdrType];
+          const [_x, _A, clos] = [val.carName, val.carType, val.cdrType];
           return new go(
             new C.The(
               clos.valOfClosure(
@@ -547,7 +546,7 @@ export class synthesizer {
     }
   }
 
-  public static synthTrivial(context: Context, r: Renaming): Perhaps<C.The> {
+  public static synthTrivial(_context: Context, _r: Renaming): Perhaps<C.The> {
     return new go(
       new C.The(
         new C.Universe(),
@@ -556,7 +555,7 @@ export class synthesizer {
     );
   }
 
-  public static synthSole(context: Context, r: Renaming): Perhaps<C.The> {
+  public static synthSole(_context: Context, _r: Renaming): Perhaps<C.The> {
     return new go(
       new C.The(
         new C.Trivial(),
@@ -763,7 +762,7 @@ export class synthesizer {
     );
   }
 
-  public static synthAbsurd(context: Context, r: Renaming, e: S.Absurd): Perhaps<C.The> {
+  public static synthAbsurd(_context: Context, _r: Renaming, _e: S.Absurd): Perhaps<C.The> {
     return new go(
       new C.The(
         new C.Universe(),
@@ -930,8 +929,8 @@ export class synthesizer {
         if (result1 instanceof V.Equal) {
           const [Av, fromv, tov] = [result1.type, result1.from, result1.to];
           if (result2 instanceof V.Pi) {
-            const [x, Bv, c] = [result2.argName, result2.argType, result2.resultType];
-            const ph = new PerhapsM<any>('ph');
+            const [_x, Bv, c] = [result2.argName, result2.argType, result2.resultType];
+            const ph = new PerhapsM<void>('ph');
             const Cv = new PerhapsM<V.Value>('Cv');
             const fv = new PerhapsM<V.Value>('fv');
             return goOn(
@@ -1178,7 +1177,7 @@ export class synthesizer {
           const [E, len2v] = [result.entryType, result.length];
           return goOn(
             [
-              [new PerhapsM<any>('_'), () => convert(context, location, new V.Nat(), lenv.value, len2v)],
+              [new PerhapsM<void>('_'), () => convert(context, location, new V.Nat(), lenv.value, len2v)],
               [motout, () => motive.check(
                 context,
                 r,
@@ -1355,7 +1354,7 @@ export class synthesizer {
       const binder = context.get(fun.name);
       if (binder instanceof ConstructorTypeBinder) {
         // This is a constructor application - convert to ConstructorApplication and handle it
-        const constructorApp = new S.ConstructorApplication(
+        const _constructorApp = new S.ConstructorApplication(
           location,
           fun.name,
           [arg, ...args]
@@ -1413,7 +1412,7 @@ export class synthesizer {
         () => {
           const result = valInContext(context, appout.value.type);
           if (result instanceof V.Pi) {
-            const [x, A, c] = [result.argName, result.argType, result.resultType];
+            const [_x, A, c] = [result.argName, result.argType, result.resultType];
             const argout = new PerhapsM<C.Core>('fout');
             return goOn(
               [[argout, () => args[args.length - 1].check(context, r, A)]],
@@ -1551,7 +1550,7 @@ export class synthesizer {
 
     // PHASE 3: Generate & Check Motive Type
     // Generate expected motive type: (Π [target : T] U)
-    let indexTypes = inductiveTypeValue.indexTypes
+    const indexTypes = inductiveTypeValue.indexTypes
     const buildMotive = (level: number, capturedIndices: V.Value[]): V.Value => {
       if (level >= indexTypes.length) {
         // Base case: build (Π [target : InductiveType(name, params, capturedIndices)] U)
@@ -1654,7 +1653,7 @@ export class synthesizer {
   private static getConstructorTypesForDatatype(ctx: Context, typeName: string): { core: C.ConstructorType, resultTypeValue: V.InductiveTypeConstructor }[] {
     const constructorTypes: { core: C.ConstructorType, resultTypeValue: V.InductiveTypeConstructor }[] = [];
 
-    for (const [name, binder] of ctx) {
+    for (const [_name, binder] of ctx) {
       if (binder instanceof ConstructorTypeBinder) {
         const ctor = binder.constructorType;
         if (ctor.type === typeName) {
@@ -1674,7 +1673,7 @@ export class synthesizer {
     ctx: Context,
     ctorType: C.ConstructorType,
     motive_core: C.Core,
-    typeParams: V.Value[]
+    _typeParams: V.Value[]
   ): C.Core {
     let cur_ret = motive_core
     for (const index of ctorType.resultType.indices) {
@@ -1724,7 +1723,7 @@ export class synthesizer {
   }
 }
 
-function extractIndicesFromValue(val: V.Value): V.Value[] {
+function _extractIndicesFromValue(val: V.Value): V.Value[] {
   if (val instanceof V.InductiveTypeConstructor) {
     return val.indices;
   }

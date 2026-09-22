@@ -27,9 +27,7 @@
 	},
 	"include": [
 		"client/src/**/*.ts",
-		"server/src/**/*.ts",
-		"../pie-interpreter/**/*.ts",
-		"../scheme-parser/**/*.ts"
+		"server/src/**/*.ts"
 	],
 	"exclude": [
 		"node_modules/**/*",

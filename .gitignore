@@ -12,7 +12,6 @@ web/lsp/*.js.map
 .travis.yml
 COPYING
 yarn.lock
-package-lock.json
 
 # Environment variables (contains API keys)
 .env

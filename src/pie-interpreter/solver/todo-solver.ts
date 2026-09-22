@@ -177,8 +177,8 @@ Do not include code fences, markdown, or explanations. Just the Pie expression.
       let parsed;
       try {
         parsed = Parser.parsePie(pieCode);
-      } catch (parseError: any) {
-        errorHistory += `\n\nAttempt ${attempts} failed - Parse error: ${parseError.message}\nYou generated: ${pieCode}\nPlease fix the syntax and try again.`;
+      } catch (parseError: unknown) {
+        errorHistory += `\n\nAttempt ${attempts} failed - Parse error: ${(parseError as Error).message}\nYou generated: ${pieCode}\nPlease fix the syntax and try again.`;
         continue;
       }
 
@@ -195,12 +195,12 @@ Do not include code fences, markdown, or explanations. Just the Pie expression.
 
         // Success! Return the expression
         return pieCode;
-      } catch (typecheckError: any) {
-        errorHistory += `\n\nAttempt ${attempts} failed - Typecheck error: ${typecheckError.message}\nYou generated: ${pieCode}\nPlease fix and try again.`;
+      } catch (typecheckError: unknown) {
+        errorHistory += `\n\nAttempt ${attempts} failed - Typecheck error: ${(typecheckError as Error).message}\nYou generated: ${pieCode}\nPlease fix and try again.`;
         continue;
       }
-    } catch (error: any) {
-      errorHistory += `\n\nAttempt ${attempts} failed - API error: ${error.message}`;
+    } catch (error: unknown) {
+      errorHistory += `\n\nAttempt ${attempts} failed - API error: ${(error as Error).message}`;
       // Wait a bit before retrying API errors
       await new Promise(resolve => setTimeout(resolve, 1000));
       continue;

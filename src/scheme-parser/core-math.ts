@@ -419,7 +419,7 @@ export class SchemeInteger {
     }
   }
 
-  equals(other: any): boolean {
+  equals(other: unknown): boolean {
     return other instanceof SchemeInteger && this.value === other.value;
   }
 
@@ -544,7 +544,7 @@ export class SchemeRational {
     }
   }
 
-  equals(other: any): boolean {
+  equals(other: unknown): boolean {
     return (
       other instanceof SchemeRational &&
       this.numerator === other.numerator &&
@@ -665,7 +665,7 @@ export class SchemeReal {
     }
   }
 
-  equals(other: any): boolean {
+  equals(other: unknown): boolean {
     return other instanceof SchemeReal && this.value === other.value;
   }
 
@@ -894,39 +894,39 @@ export function coerce_to_number(a: SchemeNumber): number {
 }
 
 // these functions deal with checking the type of a number.
-export function is_number(a: any): boolean {
+export function is_number(a: unknown): boolean {
   return (
-    a.numberType !== undefined &&
-    Object.values(NumberType).includes(a.numberType)
+    (a as SchemeNumber).numberType !== undefined &&
+    Object.values(NumberType).includes((a as SchemeNumber).numberType)
   );
 }
 
-export function is_integer(a: any): boolean {
-  return is_number(a) && a.numberType <= 1;
+export function is_integer(a: unknown): boolean {
+  return is_number(a) && (a as SchemeNumber).numberType <= 1;
 }
 
-export function is_rational(a: any): boolean {
-  return is_number(a) && a.numberType <= 2;
+export function is_rational(a: unknown): boolean {
+  return is_number(a) && (a as SchemeNumber).numberType <= 2;
 }
 
-export function is_real(a: any): boolean {
-  return is_number(a) && a.numberType <= 3;
+export function is_real(a: unknown): boolean {
+  return is_number(a) && (a as SchemeNumber).numberType <= 3;
 }
 
-export function is_complex(a: any): boolean {
-  return is_number(a) && a.numberType <= 4;
+export function is_complex(a: unknown): boolean {
+  return is_number(a) && (a as SchemeNumber).numberType <= 4;
 }
 
-export function is_exact(a: any): boolean {
+export function is_exact(a: unknown): boolean {
   // if the number is a complex number, we need to check both the real and imaginary parts
   return is_number(a)
-    ? a.numberType === 4
-      ? is_exact(a.real) && is_exact(a.imaginary)
-      : a.numberType <= 2
+    ? (a as SchemeNumber).numberType === 4
+      ? is_exact((a as { real: unknown }).real) && is_exact((a as { imaginary: unknown }).imaginary)
+      : (a as SchemeNumber).numberType <= 2
     : false;
 }
 
-export function is_inexact(a: any): boolean {
+export function is_inexact(a: unknown): boolean {
   // defined in terms of is_exact
   return is_number(a) && !is_exact(a);
 }
@@ -981,10 +981,19 @@ export function atomic_inverse(a: SchemeNumber): SchemeNumber {
   return a.multiplicativeInverse();
 }
 
+// equalify() guarantees both operands are at the same numeric level.
+// Express that method-call contract without changing dispatch or promotion.
+interface SameLevelOperations {
+  equals(other: SchemeNumber): boolean;
+  greaterThan(other: SchemeNumber): boolean;
+  add(other: SchemeNumber): SchemeNumber;
+  multiply(other: SchemeNumber): SchemeNumber;
+}
+
 export function atomic_equals(a: SchemeNumber, b: SchemeNumber): boolean {
   const [newA, newB] = equalify(a, b);
   // safe to cast as we are assured they are of the same type
-  return newA.equals(newB as any);
+  return (newA as SameLevelOperations).equals(newB);
 }
 
 export function atomic_less_than(a: SchemeNumber, b: SchemeNumber): boolean {
@@ -1001,7 +1010,7 @@ export function atomic_less_than_or_equals(
 export function atomic_greater_than(a: SchemeNumber, b: SchemeNumber): boolean {
   const [newA, newB] = equalify(a, b);
   // safe to cast as we are assured they are of the same type
-  return newA.greaterThan(newB as any);
+  return (newA as SameLevelOperations).greaterThan(newB);
 }
 
 export function atomic_greater_than_or_equals(
@@ -1014,7 +1023,7 @@ export function atomic_greater_than_or_equals(
 export function atomic_add(a: SchemeNumber, b: SchemeNumber): SchemeNumber {
   const [newA, newB] = equalify(a, b);
   // safe to cast as we are assured they are of the same type
-  return simplify(newA.add(newB as any));
+  return simplify((newA as SameLevelOperations).add(newB));
 }
 
 export function atomic_multiply(
@@ -1023,7 +1032,7 @@ export function atomic_multiply(
 ): SchemeNumber {
   const [newA, newB] = equalify(a, b);
   // safe to cast as we are assured they are of the same type
-  return simplify(newA.multiply(newB as any));
+  return simplify((newA as SameLevelOperations).multiply(newB));
 }
 
 export function atomic_subtract(

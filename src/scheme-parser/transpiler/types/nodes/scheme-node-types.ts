@@ -23,6 +23,7 @@ export interface Expression {
 /**
  * The namespace for all the atomic node types.
  */
+// eslint-disable-next-line @typescript-eslint/no-namespace -- Public runtime namespace; replacing it would change the AST API.
 export namespace Atomic {
   // Scheme chapter 1
 
@@ -61,7 +62,7 @@ export namespace Atomic {
    * A node that represents a Scheme literal.
    */
   export interface Literal extends Expression {
-    value: any;
+    value: unknown;
   }
 
   /**
@@ -582,6 +583,7 @@ export namespace Atomic {
  * Eventually, we won't need this namespace, as all the syntactic sugar
  * will be converted by a macro system.
  */
+// eslint-disable-next-line @typescript-eslint/no-namespace -- Public runtime namespace; replacing it would change the AST API.
 export namespace Extended {
   // Scheme chapter 1
 
@@ -830,4 +832,3 @@ export namespace Extended {
     }
   }
 }
-

@@ -7,41 +7,41 @@ import { Atomic, Extended } from "../types/nodes/scheme-node-types";
 
 export interface Visitor {
   // Atomic AST
-  visitSequence(node: Atomic.Sequence): any;
+  visitSequence(node: Atomic.Sequence): unknown;
 
-  visitNumericLiteral(node: Atomic.NumericLiteral): any;
-  visitBooleanLiteral(node: Atomic.BooleanLiteral): any;
-  visitStringLiteral(node: Atomic.StringLiteral): any;
-  visitLambda(node: Atomic.Lambda): any;
+  visitNumericLiteral(node: Atomic.NumericLiteral): unknown;
+  visitBooleanLiteral(node: Atomic.BooleanLiteral): unknown;
+  visitStringLiteral(node: Atomic.StringLiteral): unknown;
+  visitLambda(node: Atomic.Lambda): unknown;
 
-  visitIdentifier(node: Atomic.Identifier): any;
-  visitDefinition(node: Atomic.Definition): any;
+  visitIdentifier(node: Atomic.Identifier): unknown;
+  visitDefinition(node: Atomic.Definition): unknown;
 
-  visitApplication(node: Atomic.Application): any;
-  visitConditional(node: Atomic.Conditional): any;
+  visitApplication(node: Atomic.Application): unknown;
+  visitConditional(node: Atomic.Conditional): unknown;
 
-  visitPair(node: Atomic.Pair): any;
-  visitNil(node: Atomic.Nil): any;
-  visitSymbol(node: Atomic.Symbol): any;
-  visitSpliceMarker(node: Atomic.SpliceMarker): any;
+  visitPair(node: Atomic.Pair): unknown;
+  visitNil(node: Atomic.Nil): unknown;
+  visitSymbol(node: Atomic.Symbol): unknown;
+  visitSpliceMarker(node: Atomic.SpliceMarker): unknown;
 
-  visitReassignment(node: Atomic.Reassignment): any;
+  visitReassignment(node: Atomic.Reassignment): unknown;
 
-  visitImport(node: Atomic.Import): any;
-  visitExport(node: Atomic.Export): any;
+  visitImport(node: Atomic.Import): unknown;
+  visitExport(node: Atomic.Export): unknown;
 
-  visitVector(node: Atomic.Vector): any;
+  visitVector(node: Atomic.Vector): unknown;
 
-  visitSyntaxRules(node: Atomic.SyntaxRules): any;
-  visitDefineSyntax(node: Atomic.DefineSyntax): any;
+  visitSyntaxRules(node: Atomic.SyntaxRules): unknown;
+  visitDefineSyntax(node: Atomic.DefineSyntax): unknown;
 
   // Extended AST
-  visitFunctionDefinition(node: Extended.FunctionDefinition): any;
-  visitLet(node: Extended.Let): any;
-  visitCond(node: Extended.Cond): any;
+  visitFunctionDefinition(node: Extended.FunctionDefinition): unknown;
+  visitLet(node: Extended.Let): unknown;
+  visitCond(node: Extended.Cond): unknown;
 
-  visitList(node: Extended.List): any;
+  visitList(node: Extended.List): unknown;
 
-  visitBegin(node: Extended.Begin): any;
-  visitDelay(node: Extended.Delay): any;
+  visitBegin(node: Extended.Begin): unknown;
+  visitDelay(node: Extended.Delay): unknown;
 }

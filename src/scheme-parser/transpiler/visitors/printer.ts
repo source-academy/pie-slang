@@ -82,10 +82,10 @@ export class Printer implements Visitor {
     this.indent();
     this.display(") ");
   }
-  visitIdentifier(node: Atomic.Identifier): any {
+  visitIdentifier(node: Atomic.Identifier): void {
     this.display(node.name);
   }
-  visitDefinition(node: Atomic.Definition): any {
+  visitDefinition(node: Atomic.Definition): void {
     // this.indent();
     this.display("( define ");
     node.name.accept(this.increment());
@@ -94,7 +94,7 @@ export class Printer implements Visitor {
     this.display(") ");
   }
 
-  visitApplication(node: Atomic.Application): any {
+  visitApplication(node: Atomic.Application): void {
     // this.indent();
     this.display("( ");
     node.operator.accept(this.increment());
@@ -105,7 +105,7 @@ export class Printer implements Visitor {
     this.display(") ");
   }
 
-  visitConditional(node: Atomic.Conditional): any {
+  visitConditional(node: Atomic.Conditional): void {
     // this.indent();
     this.display("( if ");
     node.test.accept(this.increment());
@@ -116,7 +116,7 @@ export class Printer implements Visitor {
     this.display(")");
   }
 
-  visitPair(node: Atomic.Pair): any {
+  visitPair(node: Atomic.Pair): void {
     // this.indent();
     this.display("( cons ");
     node.car.accept(this.increment());
@@ -124,24 +124,24 @@ export class Printer implements Visitor {
     node.cdr.accept(this.increment());
     this.display(")");
   }
-  visitNil(node: Atomic.Nil): any {
+  visitNil(_node: Atomic.Nil): void {
     // this.indent();
     this.display("()");
   }
 
-  visitSymbol(node: Atomic.Symbol): any {
+  visitSymbol(node: Atomic.Symbol): void {
     // this.indent();
     this.display(node.value);
   }
 
-  visitSpliceMarker(node: Atomic.SpliceMarker): any {
+  visitSpliceMarker(node: Atomic.SpliceMarker): void {
     // this.indent();
     this.display(",@");
     this.display(node.value);
     this.display(" ");
   }
 
-  visitReassignment(node: Atomic.Reassignment): any {
+  visitReassignment(node: Atomic.Reassignment): void {
     // this.indent();
     this.display("( set! ");
     node.name.accept(this.increment());
@@ -149,10 +149,10 @@ export class Printer implements Visitor {
     this.display(")");
   }
 
-  visitImport(node: Atomic.Import): any {
+  visitImport(_node: Atomic.Import): void {
     throw new Error("Method not implemented.");
   }
-  visitExport(node: Atomic.Export): any {
+  visitExport(_node: Atomic.Export): void {
     throw new Error("Method not implemented.");
   }
   visitVector(node: Atomic.Vector) {
@@ -166,7 +166,7 @@ export class Printer implements Visitor {
   }
 
   // Extended AST
-  visitFunctionDefinition(node: Extended.FunctionDefinition): any {
+  visitFunctionDefinition(node: Extended.FunctionDefinition): void {
     // this.indent();
     this.display("( define ");
     this.display("( ");
@@ -186,15 +186,15 @@ export class Printer implements Visitor {
     this.display(") ");
   }
 
-  visitLet(node: Extended.Let): any {
+  visitLet(_node: Extended.Let): void {
     throw new Error("Method not implemented.");
   }
 
-  visitCond(node: Extended.Cond): any {
+  visitCond(_node: Extended.Cond): void {
     throw new Error("Method not implemented.");
   }
 
-  visitList(node: Extended.List): any {
+  visitList(node: Extended.List): void {
     // this.indent();
     this.display("( list ");
     node.elements.forEach(value => {
@@ -207,7 +207,7 @@ export class Printer implements Visitor {
     this.display(") ");
   }
 
-  visitBegin(node: Extended.Begin): any {
+  visitBegin(node: Extended.Begin): void {
     // this.indent();
     this.display("( begin ");
     node.expressions.forEach(expression => {
@@ -217,7 +217,7 @@ export class Printer implements Visitor {
     this.display(") ");
   }
 
-  visitDelay(node: Extended.Delay): any {
+  visitDelay(node: Extended.Delay): void {
     // this.indent();
     this.display("( delay ");
     node.expression.accept(this.increment());

@@ -16,7 +16,7 @@ export class Norm {
 }
 
 // Predicate function to check if an object is Norm
-export function isNorm(obj: any): obj is Norm {
+export function isNorm(obj: unknown): obj is Norm {
   return obj instanceof Norm;
 }
 
@@ -562,6 +562,6 @@ export class Application extends Neutral {
 }
 
 // Predicate function to check if an object is Neutral
-export function isNeutral(obj: any): obj is Neutral {
+export function isNeutral(obj: unknown): obj is Neutral {
   return obj instanceof Neutral;
 }

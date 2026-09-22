@@ -124,7 +124,7 @@ export class stop extends Perhaps<undefined> {
 
 export class PerhapsM<T> {
   // name is majorly for debugging use.
-  constructor(public name: string, public value: T = undefined as any) { }
+  constructor(public name: string, public value: T = undefined as T) { }
 }
 
 /*

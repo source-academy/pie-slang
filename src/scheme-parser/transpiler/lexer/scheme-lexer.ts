@@ -62,8 +62,8 @@ export class SchemeLexer implements Lexer {
   }
 
   private addToken(type: TokenType): void;
-  private addToken(type: TokenType, literal: any): void;
-  private addToken(type: TokenType, literal: any = null): void {
+  private addToken(type: TokenType, literal: string | boolean | null): void;
+  private addToken(type: TokenType, literal: string | boolean | null = null): void {
     const text = this.source.substring(this.start, this.current);
     this.tokens.push(
       new Token(

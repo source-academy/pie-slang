@@ -1,6 +1,6 @@
 import { solveTodo, todoQueue } from "./todo-solver";
 
-async function main() {
+async function _main() {
   // Run type checker to collect TODOs
   // Then solve each one
   for (const todo of todoQueue) {

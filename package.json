@@ -14,7 +14,7 @@
     "url": "https://github.com/source-academy/"
   },
   "license": "Apache-2.0",
-  "main": "dist/index.ts",
+  "main": "dist/index.js",
   "files": [
     "dist/index.js"
   ],
@@ -32,13 +32,15 @@
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/estree": "^1.0.6",
-    "@types/jest": "^29.5.14",
+    "@types/escodegen": "^0.0.10",
+    "@types/jest": "^30.0.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^25.0.10",
+    "@types/node": "^22.0.0",
     "babel-jest": "^30.2.0",
+    "acorn-walk": "^8.3.5",
     "esbuild": "^0.28.0",
+    "escodegen": "^2.1.0",
     "eslint": "^10.0.2",
-    "eslint-plugin-react": "^7.37.2",
     "globals": "^17.1.0",
     "jest": "^30.2.0",
     "monaco-editor": "^0.55.1",
@@ -46,7 +48,7 @@
     "resolve-cwd": "^3.0.0",
     "rollup": "^4.46.2",
     "to-fast-properties": "^4.0.0",
-    "ts-jest": "^29.2.5",
+    "ts-jest": "^29.4.12",
     "tslib": "^2.8.1",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.15.0",
@@ -56,15 +58,20 @@
   "dependencies": {
     "@google/genai": "^1.25.0",
     "@google/generative-ai": "^0.24.1",
-    "conductor": "https://github.com/source-academy/conductor.git#0.4.0",
+    "conductor": "git+https://github.com/source-academy/conductor.git#0.4.0",
     "dotenv": "^17.2.3",
     "js-base64": "^3.7.8"
   },
   "scripts": {
     "build": "rollup -c",
     "test": "jest",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix"
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "npm run lint -- --fix",
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node --experimental-vm-modules scripts/smoke-bundles.mjs"
+  },
+  "engines": {
+    "node": ">=22.13.0 <23"
   },
   "type": "module"
 }

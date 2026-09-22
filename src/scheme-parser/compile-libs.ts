@@ -2,7 +2,7 @@ import path from "path";
 import fs from "fs";
 import { schemeParse } from "./transpiler";
 import { estreeEncode } from "./utils/encoder-visitor";
-const escodegen = require("escodegen");
+import * as escodegen from "escodegen";
 
 function transpile(inputFilePath: string, outputFilePath: string) {
   fs.readFile(inputFilePath, "utf8", (err, data) => {

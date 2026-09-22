@@ -8,7 +8,7 @@ import { TokenType } from ".";
 export class Token {
   type: TokenType;
   lexeme: string;
-  literal: any;
+  literal: string | boolean | null;
   start: number;
   end: number;
   pos: Position;
@@ -16,8 +16,8 @@ export class Token {
 
   constructor(
     type: TokenType,
-    lexeme: any,
-    literal: any,
+    lexeme: string,
+    literal: string | boolean | null,
     start: number,
     end: number,
     line: number,

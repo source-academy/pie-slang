@@ -1,7 +1,8 @@
 {
     "compilerOptions": {
         "module": "ESNext",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
+        "types": ["node"],
         "target": "ES2020",
         "lib": ["ES2022", "DOM"],
         "sourceMap": true,
@@ -11,7 +12,6 @@
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "skipLibCheck": true,
-        "downlevelIteration": true,
         "resolveJsonModule": true,
         "declaration": true,
         "declarationMap": true
@@ -22,6 +22,7 @@
     "exclude": [
         "node_modules",
         "dist",
+        "src/language-server",
         "**/*.test.ts",
         "**/__tests__/**/*"
     ]

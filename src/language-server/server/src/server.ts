@@ -31,6 +31,7 @@ import { pieDeclarationParser, Declaration, Claim, Definition, DefineTactically,
 import { Context, initCtx, addClaimToContext, addDefineToContext } from '../../../pie-interpreter/utils/context';
 import { go, stop } from '../../../pie-interpreter/types/utils';
 import { ProofManager } from '../../../pie-interpreter/tactics/proof-manager';
+import type { Location as PieLocation } from '../../../pie-interpreter/utils/locations';
 
 
 // Interface for type checking results
@@ -659,7 +660,7 @@ function typeCheckPieDocument(document: TextDocument): TypeCheckResult {
 
         // Check if error has location information
         if (error && typeof error === 'object' && 'location' in error) {
-            range = locationToRange((error as any).location);
+            range = locationToRange((error as { location: PieLocation }).location);
         }
 
         const diagnostic: Diagnostic = {
@@ -691,7 +692,7 @@ function parsePieDeclarations(text: string): Declaration[] {
 }
 
 // Helper function to convert Pie location to VS Code range
-function locationToRange(location: any): { start: { line: number, character: number }, end: { line: number, character: number } } {
+function locationToRange(location: PieLocation | null | undefined): { start: { line: number, character: number }, end: { line: number, character: number } } {
     if (location && location.syntax) {
         return {
             start: { line: location.syntax.start.line, character: location.syntax.start.column },
@@ -722,7 +723,7 @@ function processDeclaration(decl: Declaration, context: Context, _document: Text
             newContext = processDefineTacticallyDeclaration(decl, context, diagnostics);
         } else {
             // Unknown declaration type or Source expression
-            const range = (decl as any).location ? locationToRange((decl as any).location) : locationToRange(null);
+            const range = decl.location ? locationToRange(decl.location) : locationToRange(null);
             const diagnostic: Diagnostic = {
                 severity: DiagnosticSeverity.Warning,
                 range,
@@ -732,7 +733,7 @@ function processDeclaration(decl: Declaration, context: Context, _document: Text
             diagnostics.push(diagnostic);
         }
     } catch (error) {
-        const range = (decl as any).location ? locationToRange((decl as any).location) : locationToRange(null);
+        const range = decl.location ? locationToRange(decl.location) : locationToRange(null);
         const diagnostic: Diagnostic = {
             severity: DiagnosticSeverity.Error,
             range,

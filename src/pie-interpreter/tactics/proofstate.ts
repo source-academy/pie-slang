@@ -244,11 +244,10 @@ export class ProofState {
     if (curParent.childFocusIndex === 0) {
       return curParent
     } else {
-      let isBottom = false
+      const isBottom = false
       let curNode = curParent.children[curParent.childFocusIndex - 1]
       while (!isBottom) {
         if (curNode.childFocusIndex === -1) {
-          isBottom = true
           return curNode
         } else {
           curNode = curNode.children[curNode.childFocusIndex]

@@ -4,6 +4,29 @@ import typescript from '@rollup/plugin-typescript';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// All distribution bundles run in the browser. Keep the Node-only solver
+// available to Node entry points, but use its existing browser adapter here.
+function workerTodoSolverStub() {
+  const dirname = path.dirname(fileURLToPath(import.meta.url));
+  const browserTodoSolverPath = path.resolve(dirname, 'src/pie-interpreter/solver/todo-solver.browser.ts');
+  const browserTodoSolverSpecifiers = new Set([
+    '../solver/todo-solver',
+    '../../solver/todo-solver',
+  ]);
+  return {
+    name: 'worker-todo-solver-stub',
+    resolveId(source) {
+      return browserTodoSolverSpecifiers.has(source) ? browserTodoSolverPath : null;
+    }
+  };
+}
+
+const browserTypeScriptExcludes = [
+  '**/node_modules/**', '**/out/**', '**/dist/**',
+  '**/__tests__/**', '**/*.test.ts', '**/*.spec.ts',
+  'src/language-server/**', 'web-react/**',
+];
+
 // Plugin to stub out Node.js built-in modules for browser bundles
 function stubNodeBuiltins() {
   const stubs = {
@@ -43,7 +66,7 @@ export default [
       format: 'iife',
       sourcemap: true
     },
-    plugins: [typescript(), nodeResolve(), terser()]
+    plugins: [workerTodoSolverStub(), typescript(), nodeResolve({ browser: true }), terser()]
   },
   // Web worker bundle for the playground
   {
@@ -54,29 +77,16 @@ export default [
       sourcemap: true
     },
     plugins: [
-      (function workerTodoSolverStub() {
-        const filename = fileURLToPath(import.meta.url);
-        const dirname = path.dirname(filename);
-        const browserTodoSolverPath = path.resolve(dirname, 'src/pie-interpreter/solver/todo_solver.browser.ts');
-        const browserTodoSolverSpecifiers = new Set([
-          '../solver/todo_solver',
-          '../../solver/todo_solver',
-        ]);
-        return {
-          name: 'worker-todo-solver-stub',
-          resolveId(source) {
-            if (browserTodoSolverSpecifiers.has(source)) {
-              return browserTodoSolverPath;
-            }
-            return null;
-          }
-        };
-      })(),
+      workerTodoSolverStub(),
       stubNodeBuiltins(), // Stub out Node.js modules before other plugins
       typescript({
         tsconfig: false,
+        exclude: browserTypeScriptExcludes,
         compilerOptions: {
           module: 'ESNext',
+          moduleResolution: 'bundler',
+          types: ['node'],
+          rootDir: '.',
           target: 'ES2020',
           lib: ['ES2022', 'DOM'],
           sourceMap: true,
@@ -104,29 +114,16 @@ export default [
       sourcemap: true
     },
     plugins: [
-      (function workerTodoSolverStub() {
-        const filename = fileURLToPath(import.meta.url);
-        const dirname = path.dirname(filename);
-        const browserTodoSolverPath = path.resolve(dirname, 'src/pie-interpreter/solver/todo_solver.browser.ts');
-        const browserTodoSolverSpecifiers = new Set([
-          '../solver/todo_solver',
-          '../../solver/todo_solver',
-        ]);
-        return {
-          name: 'worker-todo-solver-stub',
-          resolveId(source) {
-            if (browserTodoSolverSpecifiers.has(source)) {
-              return browserTodoSolverPath;
-            }
-            return null;
-          }
-        };
-      })(),
+      workerTodoSolverStub(),
       stubNodeBuiltins(), // Stub out Node.js modules before other plugins
       typescript({
         tsconfig: false,
+        exclude: browserTypeScriptExcludes,
         compilerOptions: {
           module: 'ESNext',
+          moduleResolution: 'bundler',
+          types: ['node'],
+          rootDir: '.',
           target: 'ES2020',
           lib: ['ES2022', 'DOM', 'WebWorker'],
           sourceMap: true,
@@ -157,8 +154,12 @@ export default [
       stubNodeBuiltins(),
       typescript({
         tsconfig: false,
+        exclude: browserTypeScriptExcludes,
         compilerOptions: {
           module: 'ESNext',
+          moduleResolution: 'bundler',
+          types: ['node'],
+          rootDir: '.',
           target: 'ES2020',
           lib: ['ES2022', 'DOM'],
           sourceMap: true,
