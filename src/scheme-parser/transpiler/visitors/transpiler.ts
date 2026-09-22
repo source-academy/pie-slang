@@ -279,7 +279,7 @@ export class Transpiler implements Visitor {
       node.location
     );
 
-    return [estreeBuilder.makeCallExpression(makeSplice, expr, node.location)];
+    return [estreeBuilder.makeCallExpression(makeSplice, [expr], node.location)];
   }
 
   // turns into expression that returns assigned value
