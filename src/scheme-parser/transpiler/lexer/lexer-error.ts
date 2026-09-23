@@ -18,7 +18,7 @@ export abstract class LexerError extends SyntaxError {
 export class UnexpectedCharacterError extends LexerError {
   char: string;
   constructor(line: number, col: number, char: string) {
-    super(`Unexpected character \'${char}\' (${line}:${col})`, line, col);
+    super(`Unexpected character '${char}' (${line}:${col})`, line, col);
     this.char = char;
     this.name = "UnexpectedCharacterError";
   }

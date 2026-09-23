@@ -124,7 +124,7 @@ export class Printer implements Visitor {
     node.cdr.accept(this.increment());
     this.display(")");
   }
-  visitNil(node: Atomic.Nil): any {
+  visitNil(_node: Atomic.Nil): any {
     // this.indent();
     this.display("()");
   }
@@ -149,10 +149,10 @@ export class Printer implements Visitor {
     this.display(")");
   }
 
-  visitImport(node: Atomic.Import): any {
+  visitImport(_node: Atomic.Import): any {
     throw new Error("Method not implemented.");
   }
-  visitExport(node: Atomic.Export): any {
+  visitExport(_node: Atomic.Export): any {
     throw new Error("Method not implemented.");
   }
   visitVector(node: Atomic.Vector) {
@@ -186,11 +186,11 @@ export class Printer implements Visitor {
     this.display(") ");
   }
 
-  visitLet(node: Extended.Let): any {
+  visitLet(_node: Extended.Let): any {
     throw new Error("Method not implemented.");
   }
 
-  visitCond(node: Extended.Cond): any {
+  visitCond(_node: Extended.Cond): any {
     throw new Error("Method not implemented.");
   }
 

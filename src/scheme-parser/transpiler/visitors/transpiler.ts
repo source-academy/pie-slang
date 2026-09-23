@@ -394,26 +394,26 @@ export class Transpiler implements Visitor {
   // if any of these are called, its an error. the simplifier
   // should be called first.
   visitFunctionDefinition(
-    node: Extended.FunctionDefinition
+    _node: Extended.FunctionDefinition
   ): [es.VariableDeclaration] {
     throw new Error("The AST should be simplified!");
   }
-  visitLet(node: Extended.Let): [es.CallExpression] {
+  visitLet(_node: Extended.Let): [es.CallExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitCond(node: Extended.Cond): [es.ConditionalExpression] {
+  visitCond(_node: Extended.Cond): [es.ConditionalExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitBegin(node: Extended.Begin): [es.CallExpression] {
+  visitBegin(_node: Extended.Begin): [es.CallExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitDelay(node: Extended.Delay): [es.ArrowFunctionExpression] {
+  visitDelay(_node: Extended.Delay): [es.ArrowFunctionExpression] {
     throw new Error("The AST should be simplified!");
   }
-  visitDefineSyntax(node: Atomic.DefineSyntax) {
+  visitDefineSyntax(_node: Atomic.DefineSyntax) {
     throw new Error("This should not be called!");
   }
-  visitSyntaxRules(node: Atomic.SyntaxRules) {
+  visitSyntaxRules(_node: Atomic.SyntaxRules) {
     throw new Error("This should not be called!");
   }
 }

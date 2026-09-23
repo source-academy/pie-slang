@@ -134,12 +134,13 @@ export class SchemeParser implements Parser {
       const c = this.advance();
       switch (c.type) {
         case TokenType.LEFT_PAREN:
-        case TokenType.LEFT_BRACKET:
+        case TokenType.LEFT_BRACKET: {
           // the next group is not empty, especially because it
           // has an open parenthesis
           const innerGroup = this.grouping(c) as Group;
           elements.push(innerGroup);
           break;
+        }
         case TokenType.RIGHT_PAREN:
         case TokenType.RIGHT_BRACKET:
           if (!inList) {
@@ -153,7 +154,7 @@ export class SchemeParser implements Parser {
         case TokenType.BACKTICK:
         case TokenType.COMMA:
         case TokenType.COMMA_AT:
-        case TokenType.HASH_VECTOR: // Vector syntax
+        case TokenType.HASH_VECTOR: { // Vector syntax
           // these cases modify only the next element
           // so we group up the next element and use this
           // token on it
@@ -163,6 +164,7 @@ export class SchemeParser implements Parser {
           } while (!nextGrouping);
           elements.push(this.affect(c, nextGrouping));
           break;
+        }
         case TokenType.QUOTE: // Quoting syntax
         case TokenType.QUASIQUOTE:
         case TokenType.UNQUOTE:
@@ -172,7 +174,6 @@ export class SchemeParser implements Parser {
         case TokenType.BOOLEAN:
         case TokenType.STRING:
         case TokenType.DOT:
-
         case TokenType.DEFINE: // Chapter 1
         case TokenType.IF:
         case TokenType.ELSE:
@@ -192,7 +193,9 @@ export class SchemeParser implements Parser {
           // a datum comment
           // get the next NON-EMPTY grouping
           // and ignore it
-          while (!this.grouping()) {}
+          while (!this.grouping()) {
+            // Skip empty groupings until a datum has been consumed.
+          }
           break;
         case TokenType.EOF:
           // We should be unable to reach this point at top level as parse()
@@ -322,7 +325,7 @@ export class SchemeParser implements Parser {
     // Safe to cast affector due to group invariants
     switch ((<Token>affector).type) {
       case TokenType.APOSTROPHE:
-      case TokenType.QUOTE:
+      case TokenType.QUOTE: {
         this.validateChapter(<Token>affector, QUOTING_CHAPTER);
         if (this.quoteMode !== QuoteMode.NONE) {
           const innerGroup = this.parseExpression(target);
@@ -339,8 +342,9 @@ export class SchemeParser implements Parser {
         const quotedExpression = this.parseExpression(target);
         this.quoteMode = QuoteMode.NONE;
         return quotedExpression;
+      }
       case TokenType.BACKTICK:
-      case TokenType.QUASIQUOTE:
+      case TokenType.QUASIQUOTE: {
         this.validateChapter(<Token>affector, QUOTING_CHAPTER);
         if (this.quoteMode !== QuoteMode.NONE) {
           const innerGroup = this.parseExpression(target);
@@ -357,8 +361,9 @@ export class SchemeParser implements Parser {
         const quasiquotedExpression = this.parseExpression(target);
         this.quoteMode = QuoteMode.NONE;
         return quasiquotedExpression;
+      }
       case TokenType.COMMA:
-      case TokenType.UNQUOTE:
+      case TokenType.UNQUOTE: {
         this.validateChapter(<Token>affector, QUOTING_CHAPTER);
         const preUnquoteMode = this.quoteMode;
         if (preUnquoteMode === QuoteMode.NONE) {
@@ -383,8 +388,9 @@ export class SchemeParser implements Parser {
         const unquotedExpression = this.parseExpression(target);
         this.quoteMode = preUnquoteMode;
         return unquotedExpression;
+      }
       case TokenType.COMMA_AT:
-      case TokenType.UNQUOTE_SPLICING:
+      case TokenType.UNQUOTE_SPLICING: {
         this.validateChapter(<Token>affector, QUOTING_CHAPTER);
         const preUnquoteSplicingMode = this.quoteMode;
         if (preUnquoteSplicingMode === QuoteMode.NONE) {
@@ -412,7 +418,8 @@ export class SchemeParser implements Parser {
           unquoteSplicedExpression.location
         );
         return new Atomic.SpliceMarker(newLocation, unquoteSplicedExpression);
-      case TokenType.HASH_VECTOR:
+      }
+      case TokenType.HASH_VECTOR: {
         // vectors quote over all elements inside.
         this.validateChapter(<Token>affector, VECTOR_CHAPTER);
         const preVectorQuoteMode = this.quoteMode;
@@ -420,6 +427,7 @@ export class SchemeParser implements Parser {
         const vector = this.parseVector(group);
         this.quoteMode = preVectorQuoteMode;
         return vector;
+      }
       default:
         throw new ParserError.UnexpectedFormError(
           this.source,

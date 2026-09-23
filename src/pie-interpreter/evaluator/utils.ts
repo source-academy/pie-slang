@@ -2,7 +2,7 @@ import * as V from "../types/value";
 import * as C from '../types/core';
 import * as N from '../types/neutral';
 import { fresh, extractVarNamesFromValue } from '../types/utils';
-import { bindFree, Context, ConstructorTypeBinder, valInContext, contextToEnvironment } from '../utils/context';
+import { bindFree, Context, ConstructorTypeBinder, contextToEnvironment } from '../utils/context';
 import { extendEnvironment } from '../utils/environment';
 import { doApp, doCar, doCdr } from "./evaluator";
 

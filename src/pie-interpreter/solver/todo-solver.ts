@@ -105,7 +105,7 @@ async function getProjectFiles(): Promise<Map<string, string>> {
 
 // Build and cache project context string
 async function getOrBuildProjectContext(): Promise<string> {
-  const { path: pathModule } = getNodeModules();
+  getNodeModules();
 
   if (cachedProjectContext) {
     return cachedProjectContext;
