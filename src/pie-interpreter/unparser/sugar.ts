@@ -1,7 +1,7 @@
 import * as C from '../types/core';
 import { Context, Define, bindFree } from '../utils/context';
 import { Value, Universe, Delay, Lambda, Pi, Neutral } from '../types/value';
-import { FirstOrderClosure, fresh } from '../types/utils';
+import { FirstOrderClosure } from '../types/utils';
 import { Variable } from '../types/neutral';
 
 /**

@@ -166,8 +166,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
         addDefineToContext,
         addDefineTacticallyToContext,
       } = await import("@pie/utils/context");
-      const { go, stop } = await import("@pie/types/utils");
-      const { Position } = await import("@scheme/transpiler/types/location");
+      const { go } = await import("@pie/types/utils");
+      await import("@scheme/transpiler/types/location");
 
       // Parse source code
       const astList = schemeParse(sourceCode);
@@ -613,7 +613,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
           tactic = new tactics.IntroTactic(loc, params.variableName);
           break;
 
-        case "exact":
+        case "exact": {
           if (!params.expression) {
             return {
               success: false,
@@ -637,8 +637,9 @@ const proofWorkerAPI: ProofWorkerAPI = {
           const exactTerm = Parser.parsePie(params.expression);
           tactic = new tactics.ExactTactic(loc, exactTerm);
           break;
+        }
 
-        case "exists":
+        case "exists": {
           if (!params.expression) {
             return {
               success: false,
@@ -666,6 +667,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
             params.variableName,
           );
           break;
+        }
 
         case "split":
           tactic = new tactics.SpiltTactic(loc); // Note: typo in original code

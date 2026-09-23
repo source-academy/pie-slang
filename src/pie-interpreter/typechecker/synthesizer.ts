@@ -1551,7 +1551,7 @@ export class synthesizer {
 
     // PHASE 3: Generate & Check Motive Type
     // Generate expected motive type: (Π [target : T] U)
-    let indexTypes = inductiveTypeValue.indexTypes
+    const indexTypes = inductiveTypeValue.indexTypes
     const buildMotive = (level: number, capturedIndices: V.Value[]): V.Value => {
       if (level >= indexTypes.length) {
         // Base case: build (Π [target : InductiveType(name, params, capturedIndices)] U)

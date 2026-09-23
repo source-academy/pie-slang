@@ -1,4 +1,4 @@
-import { Claim, Context, extendContext } from '../utils/context';
+import { Claim, Context, Define, extendContext } from '../utils/context';
 import { Core } from '../types/core';
 import { Value } from '../types/value';
 import { Location } from '../utils/locations';
@@ -65,7 +65,6 @@ export class Goal {
     const expandedType = typeCore.prettyPrint();
 
     // Debug: Check what's in the context
-    const { Define } = require('../utils/context');
     const contextDefines = Array.from(this.context.entries())
       .filter(([_, binder]) => binder instanceof Define)
       .map(([name]) => name);

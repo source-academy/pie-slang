@@ -2,9 +2,10 @@ import 'jest';
 import { evaluatePieAndGetContext } from '../main';
 import { TypeSugarer, sugarType } from '../unparser/sugar';
 import * as C from '../types/core';
-import { Context, Define } from '../utils/context';
-import { Lambda } from '../types/value';
+import { Context, Define, bindFree } from '../utils/context';
+import { Lambda, Nat as NatValue, Neutral, Zero as ZeroValue } from '../types/value';
 import { FirstOrderClosure } from '../types/utils';
+import { Variable } from '../types/neutral';
 
 describe("Type Sugaring Tests", () => {
 
@@ -72,10 +73,6 @@ describe("Type Sugaring Tests", () => {
     const lambda = evenDef.value as Lambda;
 
     // Create the parameter type value (Nat) and a neutral variable
-    const { Nat: NatValue, Neutral } = require('../types/value');
-    const { Variable } = require('../types/neutral');
-    const { bindFree } = require('../utils/context');
-
     const natValue = new NatValue();
     const neutralN = new Neutral(natValue, new Variable('n'));
 
@@ -114,10 +111,6 @@ describe("Type Sugaring Tests", () => {
     const evenDef = ctx.get('Even') as Define;
     const lambda = evenDef.value as Lambda;
 
-    const { Nat: NatValue, Neutral } = require('../types/value');
-    const { Variable } = require('../types/neutral');
-    const { bindFree } = require('../utils/context');
-
     const natValue = new NatValue();
     const neutralN = new Neutral(natValue, new Variable('n'));
     const evenOfN = lambda.body.valOfClosure(neutralN);
@@ -135,8 +128,6 @@ describe("Type Sugaring Tests", () => {
     // Get Even and apply it to the value zero
     const evenDef = ctx.get('Even') as Define;
     const lambda = evenDef.value as Lambda;
-
-    const { Zero: ZeroValue } = require('../types/value');
 
     // Apply Even to zero to get (Even 0) as a Value
     const zeroValue = new ZeroValue();
@@ -183,12 +174,9 @@ describe("Type Sugaring Tests", () => {
     const evenLambda = evenDef.value as Lambda;
 
     // Create the parameter type value (Nat)
-    const natValue = new (require('../types/value').Nat)();
+    const natValue = new NatValue();
 
     // Create a neutral variable to apply Even to
-    const { Neutral } = require('../types/value');
-    const { Variable } = require('../types/neutral');
-    const { bindFree } = require('../utils/context');
     const neutralN = new Neutral(natValue, new Variable('n'));
 
     // Apply Even to the neutral to get (Even n) as a Value
@@ -214,10 +202,6 @@ describe("Type Sugaring Tests", () => {
     // This tests the recursive sugaring: (Either (Even n) (Odd n))
     // The outer Either doesn't match any definition, but the inner types should be sugared
     const ctx = setupEvenContext();
-
-    const { Nat: NatValue, Neutral } = require('../types/value');
-    const { Variable } = require('../types/neutral');
-    const { bindFree } = require('../utils/context');
 
     // Get the Even and Odd definitions
     const evenDef = ctx.get('Even') as Define;
@@ -252,10 +236,6 @@ describe("Type Sugaring Tests", () => {
   it("should recursively sugar Pi types with nested definitions", () => {
     // Test (Π ((n Nat)) (Either (Even n) (Odd n))) - the full nested case
     const ctx = setupEvenContext();
-
-    const { Nat: NatValue, Neutral } = require('../types/value');
-    const { Variable } = require('../types/neutral');
-    const { bindFree } = require('../utils/context');
 
     // Get the Even and Odd definitions
     const evenDef = ctx.get('Even') as Define;
