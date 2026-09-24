@@ -33,10 +33,21 @@ export interface SessionBinding {
 export interface SessionResult {
   success: boolean;
   diagnostics: Diagnostic[];
+  /** Output for committed work only; rolled-back expression results are discarded. */
   output: string;
-  /** Checked context, including valid declarations preceding errors during analysis. */
+  /** The session's committed state after the operation, including on failure. */
   context: Context;
   bindings: SessionBinding[];
+}
+
+/** Speculative analysis only. These fields do not describe committed session state. */
+export interface SessionAnalysisResult {
+  success: boolean;
+  diagnostics: Diagnostic[];
+  checkedOutput: string;
+  /** May include valid declarations before and after errors when analysis recovers. */
+  checkedContext: Context;
+  checkedBindings: SessionBinding[];
 }
 
 export interface ExecutionOptions {
@@ -82,12 +93,17 @@ export class ProgramSession {
   execute(source: string, options: ExecutionOptions = {}): SessionResult {
     const working = new ProgramSession(this.snapshot());
     const result = working.run(source, false, options.verbose ?? false);
-    if (result.success || options.atomic === false) this.adopt(working);
-    return result;
+    if (result.success || options.atomic === false) {
+      this.adopt(working);
+      return this.executionResult(result);
+    }
+    // Keep the failed attempt's diagnostics, but never expose its discarded state
+    // or expression output as the execution result.
+    return this.executionResult(this.result('', result.diagnostics));
   }
 
   /** Check against this session without changing it; recover between declarations. */
-  analyze(source: string): SessionResult {
+  analyze(source: string): SessionAnalysisResult {
     return new ProgramSession(this.snapshot()).run(source, true, false);
   }
 
@@ -96,7 +112,7 @@ export class ProgramSession {
    * Preserve the proof editor's policy: unrelated, unimplemented claims are omitted,
    * and declarations after the target cannot contribute definitions to its proof.
    */
-  prepareProof(source: string, claimName: string): SessionResult {
+  prepareProof(source: string, claimName: string): SessionAnalysisResult {
     return new ProgramSession(this.snapshot()).run(source, false, false, claimName);
   }
 
@@ -108,7 +124,18 @@ export class ProgramSession {
     } catch (error) {
       diagnostics.push(diagnosticFromError(error, 'typechecker', declaration.location));
     }
-    return this.result(output, diagnostics);
+    return this.executionResult(this.result(output, diagnostics));
+  }
+
+  /** Only call with a result describing this session's committed state. */
+  private executionResult(result: SessionAnalysisResult): SessionResult {
+    return {
+      success: result.success,
+      diagnostics: result.diagnostics,
+      output: result.checkedOutput,
+      context: result.checkedContext,
+      bindings: result.checkedBindings,
+    };
   }
 
   private adopt(session: ProgramSession): void {
@@ -117,7 +144,7 @@ export class ProgramSession {
     this.bindingKinds = new Map(session.bindingKinds);
   }
 
-  private run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): SessionResult {
+  private run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): SessionAnalysisResult {
     const diagnostics: Diagnostic[] = [];
     const entries: ParsedEntry[] = [];
     try {
@@ -216,7 +243,7 @@ export class ProgramSession {
     return output;
   }
 
-  private result(output: string, diagnostics: Diagnostic[]): SessionResult {
+  private result(output: string, diagnostics: Diagnostic[]): SessionAnalysisResult {
     const bindings: SessionBinding[] = [];
     for (const [name, binder] of this.context) {
       const type = prettyPrintCore(binder.type.readBackType(this.context));
@@ -226,6 +253,12 @@ export class ProgramSession {
         output += `${name} = ${prettyPrintCore(readBack(this.context, binder.type, binder.value))}\n`;
       }
     }
-    return { success: diagnostics.length === 0, diagnostics, output, context: new Map(this.context), bindings };
+    return {
+      success: diagnostics.length === 0,
+      diagnostics,
+      checkedOutput: output,
+      checkedContext: new Map(this.context),
+      checkedBindings: bindings,
+    };
   }
 }

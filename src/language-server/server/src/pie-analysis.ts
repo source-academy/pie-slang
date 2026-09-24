@@ -5,7 +5,7 @@ export function analyzePieDocument(source: string) {
   const result = new ProgramSession().analyze(source);
   const severity = { error: 1, warning: 2, info: 3, hint: 4 } as const;
   return {
-    context: result.context,
+    context: result.checkedContext,
     diagnostics: result.diagnostics.map(diagnostic => ({
       severity: severity[diagnostic.severity],
       message: diagnostic.message,

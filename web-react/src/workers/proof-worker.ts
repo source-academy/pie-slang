@@ -1,6 +1,6 @@
 import * as Comlink from "comlink";
 import { nanoid } from "nanoid";
-import type { SessionResult } from "@pie/session";
+import type { SessionAnalysisResult } from "@pie/session";
 import {
   type TacticType,
   type TacticParams,
@@ -118,11 +118,11 @@ function emptyProofTree(): ProofTree {
 }
 
 /** Render checked bindings once; declarations no longer have a worker-specific checker. */
-function toScanFileResponse(result: SessionResult): ScanFileResponse {
+function toScanFileResponse(result: SessionAnalysisResult): ScanFileResponse {
   const definitions: GlobalEntry[] = [];
   const theorems: GlobalEntry[] = [];
   const claims: GlobalEntry[] = [];
-  for (const binding of result.bindings) {
+  for (const binding of result.checkedBindings) {
     const { name, type, kind } = binding;
     if (kind === "claim") claims.push({ name, type, kind });
     else if (kind === "theorem") theorems.push({ name, type, kind });
@@ -212,7 +212,7 @@ export const proofWorkerAPI: ProofWorkerAPI = {
     const result = new ProgramSession().prepareProof(sourceCode, claimName);
     if (!result.success) throw new ProgramSessionError(result.diagnostics);
 
-    const ctx = result.context;
+    const ctx = result.checkedContext;
     const pos = new Position(1, 0);
     const pm = new ProofManager();
     const startResult = pm.startProof(claimName, ctx, new Location(new Syntax(pos, pos, ""), false));
