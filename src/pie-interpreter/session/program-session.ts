@@ -11,18 +11,11 @@ import { go, stop, type Perhaps } from '../types/utils';
 import { prettyPrintCore } from '../unparser/pretty';
 import {
   addClaimToContext, addDefineToContext, addDefineTacticallyToContext,
-  Define, InductiveDatatypeBinder, ConstructorTypeBinder, type Context, type Binder,
+  Define, InductiveDatatypeBinder, ConstructorTypeBinder, type Context,
 } from '../utils/context';
 import { diagnosticFromError, type Diagnostic } from './diagnostic';
 
 export type BindingKind = 'claim' | 'definition' | 'theorem' | 'datatype' | 'constructor';
-
-/** In-process checkpoint. Kernel values are opaque; maps are defensively copied. */
-export interface SessionSnapshot {
-  readonly context: ReadonlyMap<string, Binder>;
-  readonly renaming: ReadonlyMap<string, string>;
-  readonly bindingKinds: ReadonlyMap<string, BindingKind>;
-}
 
 export interface SessionBinding {
   name: string;
@@ -33,14 +26,14 @@ export interface SessionBinding {
 export interface SessionResult {
   success: boolean;
   diagnostics: Diagnostic[];
-  /** Output for committed work only; rolled-back expression results are discarded. */
+  /** Output of a successful complete program; empty on failure. */
   output: string;
-  /** The session's committed state after the operation, including on failure. */
+  /** Context of a successful complete program; empty on failure. Never reused by later calls. */
   context: Context;
   bindings: SessionBinding[];
 }
 
-/** Speculative analysis only. These fields do not describe committed session state. */
+/** Partial checking results, not a successfully executed program or reusable session state. */
 export interface SessionAnalysisResult {
   success: boolean;
   diagnostics: Diagnostic[];
@@ -52,8 +45,6 @@ export interface SessionAnalysisResult {
 
 export interface ExecutionOptions {
   verbose?: boolean;
-  /** By default an unsuccessful input leaves the session unchanged. */
-  atomic?: boolean;
 }
 
 type ParsedEntry = { declaration: Declaration } | { diagnostic: Diagnostic };
@@ -64,87 +55,41 @@ function unwrap<T>(result: Perhaps<T>): T {
   throw new Error('Internal error: expected go/stop');
 }
 
-/** Owns top-level elaboration; all entry points use the same declaration dispatch. */
+/** Shared whole-source entry points. Every call starts with a fresh program context. */
 export class ProgramSession {
-  private context: Context;
-  private renaming: Renaming;
-  private bindingKinds: Map<string, BindingKind>;
-
-  constructor(snapshot?: SessionSnapshot) {
-    this.context = new Map(snapshot?.context);
-    this.renaming = new Map(snapshot?.renaming);
-    this.bindingKinds = new Map(snapshot?.bindingKinds);
-  }
-
-  snapshot(): SessionSnapshot {
+  execute(source: string, options: ExecutionOptions = {}): SessionResult {
+    const result = new ProgramRun().run(source, false, options.verbose ?? false);
     return {
-      context: new Map(this.context),
-      renaming: new Map(this.renaming),
-      bindingKinds: new Map(this.bindingKinds),
+      success: result.success,
+      diagnostics: result.diagnostics,
+      output: result.success ? result.checkedOutput : '',
+      context: result.success ? result.checkedContext : new Map(),
+      bindings: result.success ? result.checkedBindings : [],
     };
   }
 
-  reset(): void {
-    this.context = new Map();
-    this.renaming = new Map();
-    this.bindingKinds = new Map();
-  }
-
-  execute(source: string, options: ExecutionOptions = {}): SessionResult {
-    const working = new ProgramSession(this.snapshot());
-    const result = working.run(source, false, options.verbose ?? false);
-    if (result.success || options.atomic === false) {
-      this.adopt(working);
-      return this.executionResult(result);
-    }
-    // Keep the failed attempt's diagnostics, but never expose its discarded state
-    // or expression output as the execution result.
-    return this.executionResult(this.result('', result.diagnostics));
-  }
-
-  /** Check against this session without changing it; recover between declarations. */
+  /** Analyze the current source independently, recovering between declarations. */
   analyze(source: string): SessionAnalysisResult {
-    return new ProgramSession(this.snapshot()).run(source, true, false);
+    return new ProgramRun().run(source, true, false);
   }
 
   /**
-   * Build the context visible at a target claim, without changing this session.
+   * Build the context visible at a target claim in the current source.
    * Preserve the proof editor's policy: unrelated, unimplemented claims are omitted,
    * and declarations after the target cannot contribute definitions to its proof.
    */
   prepareProof(source: string, claimName: string): SessionAnalysisResult {
-    return new ProgramSession(this.snapshot()).run(source, false, false, claimName);
+    return new ProgramRun().run(source, false, false, claimName);
   }
+}
 
-  applyDeclaration(declaration: Declaration, options: ExecutionOptions = {}): SessionResult {
-    const diagnostics: Diagnostic[] = [];
-    let output = '';
-    try {
-      output = this.apply(declaration, options.verbose ?? false);
-    } catch (error) {
-      diagnostics.push(diagnosticFromError(error, 'typechecker', declaration.location));
-    }
-    return this.executionResult(this.result(output, diagnostics));
-  }
+/** Internal state for exactly one source-processing call; never retained by ProgramSession. */
+class ProgramRun {
+  private context: Context = new Map();
+  private renaming: Renaming = new Map();
+  private bindingKinds = new Map<string, BindingKind>();
 
-  /** Only call with a result describing this session's committed state. */
-  private executionResult(result: SessionAnalysisResult): SessionResult {
-    return {
-      success: result.success,
-      diagnostics: result.diagnostics,
-      output: result.checkedOutput,
-      context: result.checkedContext,
-      bindings: result.checkedBindings,
-    };
-  }
-
-  private adopt(session: ProgramSession): void {
-    this.context = new Map(session.context);
-    this.renaming = new Map(session.renaming);
-    this.bindingKinds = new Map(session.bindingKinds);
-  }
-
-  private run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): SessionAnalysisResult {
+  run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): SessionAnalysisResult {
     const diagnostics: Diagnostic[] = [];
     const entries: ParsedEntry[] = [];
     try {
@@ -207,7 +152,8 @@ export class ProgramSession {
   }
 
   private apply(declaration: Declaration, verbose: boolean): string {
-    // addDefineToContext deletes a claim in-place. Never pass the session's live map.
+    // Keep the checked prefix intact if a declaration fails during error recovery.
+    // addDefineToContext may delete a claim in-place; this is not a session snapshot.
     let context = new Map(this.context);
     let renaming = new Map(this.renaming);
     const kinds = new Map(this.bindingKinds);

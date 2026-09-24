@@ -2,7 +2,7 @@ import 'jest';
 import { ProgramSession, ProgramSessionError } from '../session';
 import { evaluatePie, evaluatePieAndGetContext } from '../main';
 import { Claim, Define, initCtx } from '../utils/context';
-import { pieDeclarationParser, schemeParse } from '../parser/parser';
+import { Zero } from '../types/value';
 import { analyzePieDocument } from '../../language-server/server/src/pie-analysis';
 
 const boolSource = `(data Bool () ()
@@ -11,84 +11,57 @@ const boolSource = `(data Bool () ()
   ind-Bool)`;
 
 describe('ProgramSession', () => {
-  it('keeps claims and definitions across inputs without sharing sessions or initCtx', () => {
+  it('shares declarations only within the current input, without modifying initCtx', () => {
     const session = new ProgramSession();
-    expect(session.execute('(claim n Nat)').success).toBe(true);
-    const result = session.execute('(define n 3) (add1 n)');
-    expect(result.success).toBe(true);
-    expect(result.output).toBe('4: Nat\nn : Nat\nn = 3\n');
-    expect(result.context).toEqual(session.snapshot().context);
-    expect(result.bindings).toEqual([{ name: 'n', type: 'Nat', kind: 'definition' }]);
-    expect(new ProgramSession().snapshot().context.has('n')).toBe(false);
+    const source = '(claim n Nat) (define n 3) (add1 n)';
+    const first = session.execute(source);
+    expect(first.success).toBe(true);
+    expect(first.output).toBe('4: Nat\nn : Nat\nn = 3\n');
+    expect(first.bindings).toEqual([{ name: 'n', type: 'Nat', kind: 'definition' }]);
+    expect(session.execute(source).output).toBe(first.output);
+    expect(session.execute('(add1 n)').success).toBe(false);
     expect(initCtx.has('n')).toBe(false);
   });
 
-  it('rolls back an entire failed input, including an earlier successful define', () => {
+  it('uses edited or deleted declarations from the current source only', () => {
     const session = new ProgramSession();
-    session.execute('(claim n Nat)');
-    const result = session.execute('(define n 3) (claim bad missing-type)');
-    expect(result.success).toBe(false);
-    expect(session.snapshot().context.get('n')).toBeInstanceOf(Claim);
-    expect(result.context.get('n')).toBeInstanceOf(Claim);
-    expect(result.bindings).toEqual([{ name: 'n', type: 'Nat', kind: 'claim' }]);
-    expect(result.output).toBe('n : Nat\n');
-    expect(session.execute('(define n 4)').success).toBe(true);
+    session.execute('(claim n Nat) (define n 3)');
+    expect(session.execute('(claim n Nat) (define n 7) n').output).toBe('7: Nat\nn : Nat\nn = 7\n');
+    expect(session.analyze('(add1 n)').success).toBe(false);
+    expect(session.execute('(define n 1)').success).toBe(false);
   });
 
-  it('does not return discarded declarations or expression output after rollback', () => {
+  it('does not expose a successful execution context for a failed input', () => {
     const session = new ProgramSession();
     const result = session.execute('(claim n Nat) (define n 3) (add1 n) (claim bad missing-type)');
     expect(result.success).toBe(false);
     expect(result.diagnostics).toHaveLength(1);
-    expect(result.context).toEqual(session.snapshot().context);
     expect(result.context.size).toBe(0);
     expect(result.bindings).toEqual([]);
     expect(result.output).toBe('');
+    expect(session.execute('(add1 n)').success).toBe(false);
+    expect(session.execute('(claim n Nat) (define n 4)').success).toBe(true);
   });
 
-  it('returns pre-existing committed state after declaration and syntax errors', () => {
+  it('does not reuse an earlier result after declaration or syntax errors', () => {
     const session = new ProgramSession();
     const before = session.execute('(claim saved Nat) (define saved 2)');
-    for (const source of [
-      '(claim extra Nat) (claim Nat Nat)',
-      '(claim extra Nat',
-    ]) {
+    for (const source of ['(claim extra Nat) (claim Nat Nat)', '(claim extra Nat']) {
       const result = session.execute(source);
       expect(result.success).toBe(false);
       expect(result.diagnostics[0].source).toBe('parser');
-      expect(result.context).toEqual(before.context);
-      expect(result.context).toEqual(session.snapshot().context);
-      expect(result.bindings).toEqual(before.bindings);
-      expect(result.output).toBe(before.output);
+      expect(result.context.size).toBe(0);
+      expect(result.bindings).toEqual([]);
+      expect(result.output).toBe('');
     }
+    expect(before.context.get('saved')).toBeInstanceOf(Define);
+    expect(before.output).toBe('saved : Nat\nsaved = 2\n');
+    expect(session.execute('saved').success).toBe(false);
   });
 
-  it('can explicitly retain successful declarations in a failed input', () => {
+  it('reports partial analysis in checked fields and recovers between declarations', () => {
     const session = new ProgramSession();
-    const result = session.execute('(claim n Nat) (define n sole)', { atomic: false });
-    expect(result.success).toBe(false);
-    expect(session.snapshot().context.get('n')).toBeInstanceOf(Claim);
-    expect(result.context).toEqual(session.snapshot().context);
-    expect(result.bindings).toEqual([{ name: 'n', type: 'Nat', kind: 'claim' }]);
-  });
-
-  it('returns committed prefix output and state when partial execution is requested', () => {
-    const session = new ProgramSession();
-    const result = session.execute(
-      '(claim n Nat) (define n 3) (add1 n) (claim bad missing-type)',
-      { atomic: false },
-    );
-    expect(result.success).toBe(false);
-    expect(result.context).toEqual(session.snapshot().context);
-    expect(result.context.get('n')).toBeInstanceOf(Define);
-    expect(result.bindings).toEqual([{ name: 'n', type: 'Nat', kind: 'definition' }]);
-    expect(result.output).toBe('4: Nat\nn : Nat\nn = 3\n');
-  });
-
-  it('analyzes on a copy and recovers after a failed declaration', () => {
-    const session = new ProgramSession();
-    session.execute('(claim n Nat)');
-    const result = session.analyze('(define n sole) (claim m Nat) (define m 2)');
+    const result = session.analyze('(claim n Nat) (define n sole) (claim m Nat) (define m 2)');
     expect(result.diagnostics).toHaveLength(1);
     expect(result.checkedContext.get('n')).toBeInstanceOf(Claim);
     expect(result.checkedContext.get('m')).toBeInstanceOf(Define);
@@ -97,63 +70,53 @@ describe('ProgramSession', () => {
     expect(result).not.toHaveProperty('context');
     expect(result).not.toHaveProperty('bindings');
     expect(result).not.toHaveProperty('output');
-    expect(session.snapshot().context.has('m')).toBe(false);
-    expect(session.analyze('(define n 1)').success).toBe(true);
-    expect(session.snapshot().context.get('n')).toBeInstanceOf(Claim);
+    expect(session.analyze('(define m 1)').success).toBe(false);
+    expect(session.execute('m').success).toBe(false);
   });
 
-  it('retains multiple diagnostics and partial analysis without committing declarations', () => {
+  it('retains multiple diagnostics, including cascades, without retaining declarations', () => {
     const session = new ProgramSession();
     const result = session.analyze('(claim n missing-type) (define n 3) (claim m Nat)');
     expect(result.success).toBe(false);
     expect(result.diagnostics).toHaveLength(2);
     expect([...result.checkedContext.keys()]).toEqual(['m']);
     expect(result.checkedBindings).toEqual([{ name: 'm', type: 'Nat', kind: 'claim' }]);
-    expect(session.snapshot().context.size).toBe(0);
+    expect(session.analyze('m').success).toBe(false);
   });
 
-  it('retains datatype constructors and renaming across inputs and resets them', () => {
+  it('makes datatypes available within the input but not in a later call', () => {
     const session = new ProgramSession();
-    expect(session.execute(boolSource).success).toBe(true);
-    expect(session.snapshot().renaming.get('true')).toBe('true');
-    expect(session.execute('(claim b (Bool () ())) (define b (true))').success).toBe(true);
-    session.reset();
-    expect(session.snapshot().context.size).toBe(0);
-    expect(session.snapshot().renaming.size).toBe(0);
+    const source = boolSource + '\n(claim b (Bool () ())) (define b (true))';
+    const result = session.execute(source);
+    expect(result.success).toBe(true);
+    expect(result.bindings).toContainEqual(expect.objectContaining({ name: 'Bool', kind: 'datatype' }));
+    expect(result.bindings).toContainEqual(expect.objectContaining({ name: 'true', kind: 'constructor' }));
+    expect(session.execute(source).success).toBe(true);
     expect(session.execute('(claim b (Bool () ()))').success).toBe(false);
   });
 
-  it('can fork a checkpoint without a later definition changing the checkpoint', () => {
+  it('does not share returned binder objects across independent runs', () => {
     const session = new ProgramSession();
-    session.execute('(claim n Nat)');
-    const snapshot = session.snapshot();
-    const fork = new ProgramSession(snapshot);
-    fork.execute('(define n 7)');
-    expect(snapshot.context.get('n')).toBeInstanceOf(Claim);
-    expect(session.snapshot().context.get('n')).toBeInstanceOf(Claim);
-    expect(fork.snapshot().context.get('n')).toBeInstanceOf(Define);
-    const returned = fork.execute('n').context;
-    returned.clear();
-    expect(fork.snapshot().context.has('n')).toBe(true);
+    const source = '(claim n Nat) (define n 3) n';
+    const first = session.execute(source);
+    const second = session.execute(source);
+    const binder = first.context.get('n');
+    expect(binder).toBeInstanceOf(Define);
+    expect(binder).not.toBe(second.context.get('n'));
+    if (!(binder instanceof Define)) throw new Error('Expected a definition');
+    binder.value = new Zero();
+    expect(second.output).toBe('3: Nat\nn : Nat\nn = 3\n');
+    const secondBinder = second.context.get('n');
+    if (!(secondBinder instanceof Define)) throw new Error('Expected a definition');
+    expect(secondBinder.value).not.toBe(binder.value);
+    expect(session.execute(source).output).toBe(second.output);
   });
 
-  it('dispatches a parsed declaration through the same checker', () => {
+  it('provides no snapshot, reset or incremental declaration API', () => {
     const session = new ProgramSession();
-    const declaration = pieDeclarationParser.parseDeclaration(schemeParse('(claim n Nat)')[0]);
-    expect(session.applyDeclaration(declaration).success).toBe(true);
-    expect(session.execute('(define n 2)').success).toBe(true);
-  });
-
-  it('returns committed state when applying a single declaration fails', () => {
-    const session = new ProgramSession();
-    session.execute('(claim n Nat)');
-    const declaration = pieDeclarationParser.parseDeclaration(schemeParse('(define n sole)')[0]);
-    const result = session.applyDeclaration(declaration);
-    expect(result.success).toBe(false);
-    expect(result.context).toEqual(session.snapshot().context);
-    expect(result.context.get('n')).toBeInstanceOf(Claim);
-    expect(result.bindings).toEqual([{ name: 'n', type: 'Nat', kind: 'claim' }]);
-    expect(result.output).toBe('n : Nat\n');
+    expect(session).not.toHaveProperty('snapshot');
+    expect(session).not.toHaveProperty('reset');
+    expect(session).not.toHaveProperty('applyDeclaration');
   });
 
   it('checks check-same and ordinary expressions as well as declarations', () => {
@@ -192,12 +155,12 @@ describe('ProgramSession', () => {
     expect(() => structuredClone(diagnostic)).not.toThrow();
   });
 
-  it('reports syntax errors without throwing or modifying the session', () => {
+  it('reports syntax errors without throwing or retaining partial state', () => {
     const session = new ProgramSession();
     const result = session.execute('(claim n Nat');
     expect(result.success).toBe(false);
     expect(result.diagnostics[0].source).toBe('parser');
-    expect(session.snapshot().context.size).toBe(0);
+    expect(session.execute('').context.size).toBe(0);
   });
 
   it('reports mixed type and declaration-parse errors in source order', () => {
@@ -211,10 +174,12 @@ describe('ProgramSession', () => {
     expect(analysis.checkedContext.has('m')).toBe(true);
   });
 
-  it('retains a checked prefix on a later declaration parse error only when requested', () => {
+  it('exposes a checked prefix after a declaration parse error only in analysis', () => {
     const session = new ProgramSession();
-    expect(session.execute('(claim n Nat) (claim Nat Nat)', { atomic: false }).success).toBe(false);
-    expect(session.snapshot().context.get('n')).toBeInstanceOf(Claim);
+    const source = '(claim n Nat) (claim Nat Nat)';
+    expect(session.execute(source).context.size).toBe(0);
+    expect(session.analyze(source).checkedContext.get('n')).toBeInstanceOf(Claim);
+    expect(session.execute('n').success).toBe(false);
   });
 
   it('limits proof context to the target and skips unrelated unimplemented claims', () => {
@@ -226,7 +191,7 @@ describe('ProgramSession', () => {
     const result = session.prepareProof(source, 'goal');
     expect(result.diagnostics).toEqual([]);
     expect([...result.checkedContext.keys()]).toEqual(['before', 'goal']);
-    expect(session.snapshot().context.size).toBe(0);
+    expect(session.execute('').context.size).toBe(0);
     expect(new ProgramSession().analyze(source).success).toBe(false);
   });
 
