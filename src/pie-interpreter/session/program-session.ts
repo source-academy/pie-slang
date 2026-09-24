@@ -77,6 +77,8 @@ export class ProgramSession {
    * Build the context visible at a target claim in the current source.
    * Preserve the proof editor's policy: unrelated, unimplemented claims are omitted,
    * and declarations after the target cannot contribute definitions to its proof.
+   * Standalone expressions and check-same do not build this context and are skipped;
+   * execute/analyze still check them when processing the complete program.
    */
   prepareProof(source: string, claimName: string): SessionAnalysisResult {
     return new ProgramRun().run(source, false, false, claimName);
@@ -129,7 +131,12 @@ class ProgramRun {
       selected = entries.slice(0, targetIndex + 1).filter(entry => {
         if (!('declaration' in entry)) return true;
         const declaration = entry.declaration;
-        return !(declaration instanceof Claim) || declaration.name === proofTarget || definedNames.has(declaration.name);
+        if (declaration instanceof Claim) {
+          return declaration.name === proofTarget || definedNames.has(declaration.name);
+        }
+        // Proof setup checks bindings, not independent computations/assertions.
+        return declaration instanceof Definition || declaration instanceof DefineTactically ||
+          declaration instanceof TypeDefinition;
       });
     }
 

@@ -195,12 +195,32 @@ describe('ProgramSession', () => {
     expect(new ProgramSession().analyze(source).success).toBe(false);
   });
 
-  it('checks datatypes and check-same in the visible proof context', () => {
+  it('checks datatypes in the visible proof context', () => {
     const result = new ProgramSession().prepareProof(`${boolSource}\n(claim goal (Bool () ()))`, 'goal');
     expect(result.success).toBe(true);
     expect(result.checkedContext.has('true')).toBe(true);
-    const invalid = new ProgramSession().prepareProof('(check-same Nat 0 1) (claim goal Nat)', 'goal');
-    expect(invalid.success).toBe(false);
+  });
+
+  it.each(['(check-same Nat 0 1)', '(add1 sole)', 'unknown-value'])(
+    'skips independent %s only when preparing a proof', expression => {
+      const source = `${expression}\n(claim goal Nat)`;
+      const session = new ProgramSession();
+      const proof = session.prepareProof(source, 'goal');
+      expect(proof.success).toBe(true);
+      expect([...proof.checkedContext.keys()]).toEqual(['goal']);
+      expect(session.execute(source).success).toBe(false);
+      expect(session.analyze(source).success).toBe(false);
+      expect(analyzePieDocument(source).diagnostics.length).toBeGreaterThan(0);
+    },
+  );
+
+  it.each([
+    '(claim n Nat) (define n sole) (claim goal Nat)',
+    '(claim goal missing-type)',
+    '(claim before (-> Nat Nat)) (define-tactically before ((intro x))) (claim goal Nat)',
+    '(claim goal Nat) (claim malformed',
+  ])('still rejects invalid declarations or malformed syntax during proof preparation: %s', source => {
+    expect(new ProgramSession().prepareProof(source, 'goal').success).toBe(false);
   });
 
   it('keeps the existing whole-program output and returned-context API', () => {

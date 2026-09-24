@@ -67,8 +67,31 @@ describe('workers using ProgramSession', () => {
     proofWorkerAPI.closeSession(result.sessionId);
   });
 
-  it('rejects failed checks before a proof target, but does not execute later definitions', async () => {
-    await expect(proofWorkerAPI.startSession('(check-same Nat 0 1) (claim goal Nat)', 'goal')).rejects.toThrow();
+  it.each(['(check-same Nat 0 1)', '(add1 sole)'])(
+    'ignores independent %s for proof setup but reports it during document checking', async expression => {
+      const source = `${expression}\n(claim goal Nat)`;
+      const result = await proofWorkerAPI.startSession(source, 'goal');
+      try {
+        expect((await diagnosticsWorkerAPI.checkSource(source)).typeCheckSuccessful).toBe(false);
+        expect((await proofWorkerAPI.scanFile(source)).diagnostics?.length).toBeGreaterThan(0);
+        const completed = await proofWorkerAPI.applyTactic(
+          result.sessionId, result.proofTree.currentGoalId!, 'exact', { expression: '0' },
+        );
+        expect(completed.success).toBe(true);
+        expect(completed.proofTree.isComplete).toBe(true);
+      } finally {
+        proofWorkerAPI.closeSession(result.sessionId);
+      }
+    },
+  );
+
+  it('rejects invalid preceding definitions and includes their position in the error text', async () => {
+    await expect(proofWorkerAPI.startSession(
+      '(claim n Nat)\n(define n sole)\n(claim goal Nat)', 'goal',
+    )).rejects.toThrow(/line 2, column \d+/);
+  });
+
+  it('does not execute later definitions', async () => {
     const result = await proofWorkerAPI.startSession('(claim goal Nat) (define goal sole)', 'goal');
     expect(result.proofTree.isComplete).toBe(false);
     proofWorkerAPI.closeSession(result.sessionId);
