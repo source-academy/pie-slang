@@ -59,7 +59,7 @@ export function useProofSession() {
         saveSnapshot();
 
         // Store metadata
-        setAvailableLemmas(result.availableLemmas);
+        setAvailableLemmas(result.globalContext.theorems.filter(entry => entry.kind === 'theorem'));
         setClaimType(result.claimType);
         setGlobalContext(result.globalContext);
         setMetadataClaimName(claimName); // Store claim name in metadata store
@@ -184,6 +184,7 @@ export function useProofSession() {
         return {
           claims: result.claims,
           theorems: result.theorems,
+          diagnostics: result.diagnostics,
         };
       } catch (e) {
         const errorMessage = e instanceof Error ? e.message : String(e);

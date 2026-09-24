@@ -1,4 +1,8 @@
 import * as Comlink from 'comlink';
+import { ProgramSession } from '@pie/session';
+import type { Diagnostic, DiagnosticRange } from '@pie/protocol';
+export type { Diagnostic } from '@pie/protocol';
+export type Range = DiagnosticRange;
 
 /**
  * Diagnostics Worker API
@@ -38,20 +42,6 @@ export interface DiagnosticsResult {
   typeCheckSuccessful: boolean;
 }
 
-export interface Diagnostic {
-  severity: 'error' | 'warning' | 'info' | 'hint';
-  message: string;
-  range: Range;
-  source: 'parser' | 'typechecker';
-}
-
-export interface Range {
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-}
-
 export interface HoverInfo {
   type: string;
   documentation?: string;
@@ -64,14 +54,13 @@ export interface CompletionItem {
   insertText?: string;
 }
 
-// Stub implementation - to be replaced with actual Pie integration
-const diagnosticsWorkerAPI: DiagnosticsWorkerAPI = {
-  async checkSource(_sourceCode) {
-    // TODO: Integrate with Pie interpreter
+export const diagnosticsWorkerAPI: DiagnosticsWorkerAPI = {
+  async checkSource(sourceCode) {
+    const result = new ProgramSession().analyze(sourceCode);
     return {
-      diagnostics: [],
-      parseSuccessful: true,
-      typeCheckSuccessful: true,
+      diagnostics: result.diagnostics,
+      parseSuccessful: !result.diagnostics.some(diagnostic => diagnostic.source === 'parser'),
+      typeCheckSuccessful: result.success,
     };
   },
 

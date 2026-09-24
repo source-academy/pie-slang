@@ -1,5 +1,6 @@
 import * as Comlink from "comlink";
 import { nanoid } from "nanoid";
+import type { SessionResult } from "@pie/session";
 import {
   type TacticType,
   type TacticParams,
@@ -116,6 +117,20 @@ function emptyProofTree(): ProofTree {
   };
 }
 
+/** Render checked bindings once; declarations no longer have a worker-specific checker. */
+function toScanFileResponse(result: SessionResult): ScanFileResponse {
+  const definitions: GlobalEntry[] = [];
+  const theorems: GlobalEntry[] = [];
+  const claims: GlobalEntry[] = [];
+  for (const binding of result.bindings) {
+    const { name, type, kind } = binding;
+    if (kind === "claim") claims.push({ name, type, kind });
+    else if (kind === "theorem") theorems.push({ name, type, kind });
+    else definitions.push({ name, type, kind: "definition" });
+  }
+  return { definitions, theorems, claims, diagnostics: result.diagnostics };
+}
+
 // ============================================
 // Worker API
 // ============================================
@@ -143,122 +158,15 @@ export interface ProofWorkerAPI {
   scanFile: (sourceCode: string) => Promise<ScanFileResponse>;
 }
 
-const proofWorkerAPI: ProofWorkerAPI = {
+export const proofWorkerAPI: ProofWorkerAPI = {
   test() {
     console.log("[ProofWorker] test() called");
     return "Proof worker is responding!";
   },
 
   async scanFile(sourceCode: string) {
-    console.log("[ProofWorker] scanFile() called");
-    try {
-      // Dynamically import Pie modules
-      const {
-        schemeParse,
-        pieDeclarationParser,
-        Claim,
-        Definition,
-        DefineTactically,
-      } = await import("@pie/parser/parser");
-      const {
-        initCtx,
-        addClaimToContext,
-        addDefineToContext,
-        addDefineTacticallyToContext,
-      } = await import("@pie/utils/context");
-      const { go } = await import("@pie/types/utils");
-      await import("@scheme/transpiler/types/location");
-
-      // Parse source code
-      const astList = schemeParse(sourceCode);
-      if (!astList || !Array.isArray(astList)) {
-        throw new Error("Failed to parse source code");
-      }
-
-      let ctx = initCtx;
-      const definitions: GlobalEntry[] = [];
-      const theorems: GlobalEntry[] = [];
-      const claims: GlobalEntry[] = [];
-      const pendingClaims: Array<{ name: string; type: string }> = [];
-
-      for (let i = 0; i < astList.length; i++) {
-        const src = pieDeclarationParser.parseDeclaration(astList[i]);
-        if (src instanceof Claim) {
-          const result = addClaimToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.type,
-          );
-          if (result instanceof go) {
-            ctx = result.result;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const srcType = src.type as any;
-            const typeStr = srcType.readBackType
-              ? srcType.readBackType(ctx).prettyPrint()
-              : String(src.type);
-            pendingClaims.push({ name: src.name, type: typeStr });
-          }
-        } else if (src instanceof Definition) {
-          const result = addDefineToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.expr,
-          );
-          if (result instanceof go) {
-            ctx = result.result;
-            const binding = ctx.get(src.name);
-            const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
-              : "unknown";
-            definitions.push({
-              name: src.name,
-              type: typeStr,
-              kind: "definition",
-            });
-          }
-        } else if (src instanceof DefineTactically) {
-          const result = addDefineTacticallyToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.tactics,
-          );
-          if (result instanceof go) {
-            ctx = result.result.context;
-            const binding = ctx.get(src.name);
-            const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
-              : "unknown";
-            theorems.push({
-              name: src.name,
-              type: typeStr,
-              kind: "theorem",
-            });
-            // Remove from pending claims if it was there
-            const claimIdx = pendingClaims.findIndex(
-              (c) => c.name === src.name,
-            );
-            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
-          }
-        }
-      }
-
-      // Add remaining unproved claims
-      for (const claim of pendingClaims) {
-        claims.push({
-          name: claim.name,
-          type: claim.type,
-          kind: "claim",
-        });
-      }
-
-      return { definitions, theorems, claims };
-    } catch (e) {
-      console.error("[ProofWorker] scanFile error:", e);
-      return { definitions: [], theorems: [], claims: [] };
-    }
+    const { ProgramSession } = await import("@pie/session");
+    return toScanFileResponse(new ProgramSession().analyze(sourceCode));
   },
 
   async testImports() {
@@ -295,239 +203,40 @@ const proofWorkerAPI: ProofWorkerAPI = {
     sourceCode: string,
     claimName: string,
   ): Promise<StartSessionResponse> {
-    console.log("[ProofWorker] startSession() called for:", claimName);
+    const { ProgramSession, ProgramSessionError } = await import("@pie/session");
+    const { ProofManager } = await import("@pie/tactics/proof-manager");
+    const { stop } = await import("@pie/types/utils");
+    const { Location, Syntax } = await import("@pie/utils/locations");
+    const { Position } = await import("@scheme/transpiler/types/location");
 
-    try {
-      // Dynamically import Pie modules
-      console.log("[ProofWorker] Importing modules...");
-      const {
-        schemeParse,
-        pieDeclarationParser,
-        Claim,
-        Definition,
-        DefineTactically,
-      } = await import("@pie/parser/parser");
-      const {
-        initCtx,
-        addClaimToContext,
-        addDefineToContext,
-        addDefineTacticallyToContext,
-      } = await import("@pie/utils/context");
-      const { go, stop } = await import("@pie/types/utils");
-      const { ProofManager } = await import("@pie/tactics/proof-manager");
-      const { Location, Syntax } = await import("@pie/utils/locations");
-      const { Position } = await import("@scheme/transpiler/types/location");
+    const result = new ProgramSession().prepareProof(sourceCode, claimName);
+    if (!result.success) throw new ProgramSessionError(result.diagnostics);
 
-      // Create a dummy location
-      const pos = new Position(1, 0);
-      const syntax = new Syntax(pos, pos, "");
-      const dummyLoc = new Location(syntax, false);
-
-      // Parse source code
-      console.log("[ProofWorker] Parsing source code...");
-      const astList = schemeParse(sourceCode);
-      if (!astList || !Array.isArray(astList)) {
-        throw new Error("Failed to parse source code");
-      }
-      console.log("[ProofWorker] Parsed", astList.length, "AST nodes");
-
-      // Build context and track definitions/claims for globalContext
-      console.log("[ProofWorker] Building context...");
-      // Pre-scan for valid definitions and theorems to filter the context
-      console.log("[ProofWorker] Pre-scanning for definitions...");
-      const validNames = new Set<string>();
-
-      for (const node of astList) {
-        const src = pieDeclarationParser.parseDeclaration(node);
-        if (src instanceof Definition || src instanceof DefineTactically) {
-          validNames.add(src.name);
-        }
-      }
-
-      // Add the target claim to valid names so it's included (it won't have a definition yet)
-      validNames.add(claimName);
-
-      console.log(
-        "[ProofWorker] Found valid definitions:",
-        Array.from(validNames),
-      );
-
-      // Build context and track definitions/claims for globalContext
-      console.log("[ProofWorker] Building context...");
-      let ctx = initCtx;
-      const globalDefinitions: GlobalEntry[] = [];
-      const globalTheorems: GlobalEntry[] = [];
-      const pendingClaims: Array<{ name: string; type: string }> = [];
-
-      for (let i = 0; i < astList.length; i++) {
-        const src = pieDeclarationParser.parseDeclaration(astList[i]);
-
-        // Skip SamenessCheck or other non-declaration types if they don't have a name
-        if (!("name" in src)) continue;
-
-        // STOP CONDITION: If we've reached the target claim, we're done building context
-        // The target claim itself should be added, but nothing after it
-        const isTargetClaim = src.name === claimName;
-
-        if (src instanceof Claim) {
-          // FILTER: Only add claim to context if it is proven (has a definition) OR is the target claim
-          if (!validNames.has(src.name)) {
-            // Skip unproven claims (unless it's the target, but target is in validNames)
-            continue;
-          }
-
-          const result = addClaimToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.type,
-          );
-
-          if (result instanceof go) {
-            ctx = result.result;
-            // Track claim for later - will become theorem if proved
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const srcType = src.type as any;
-            const typeStr = srcType.readBackType
-              ? srcType.readBackType(ctx).prettyPrint()
-              : String(src.type);
-
-            // If this is the target claim, we don't treat it as "pending" for the global list
-            // (or maybe we do? It doesn't matter for the proof session, but for the returned globalContext)
-            // Actually, we should probably treat it as a claim to prove.
-            if (!isTargetClaim) {
-              pendingClaims.push({ name: src.name, type: typeStr });
-            }
-          } else if (result instanceof stop) {
-            throw new Error(`Claim error: ${result.message}`);
-          }
-        } else if (src instanceof Definition) {
-          // Definitions are always valid if their claim was valid (which we filtered above)
-          // But strict check: is it in validNames? Yes by definition.
-
-          const result = addDefineToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.expr,
-          );
-          if (result instanceof go) {
-            ctx = result.result;
-            // Track definition
-            const binding = ctx.get(src.name);
-            const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
-              : "unknown";
-            globalDefinitions.push({
-              name: src.name,
-              type: typeStr,
-              kind: "definition",
-            });
-          } else if (result instanceof stop) {
-            throw new Error(`Definition error: ${result.message}`);
-          }
-        } else if (src instanceof DefineTactically) {
-          const result = addDefineTacticallyToContext(
-            ctx,
-            src.name,
-            src.location,
-            src.tactics,
-          );
-          if (result instanceof go) {
-            ctx = result.result.context;
-            // This is a proved theorem
-            const binding = ctx.get(src.name);
-            const typeStr = binding
-              ? binding.type.readBackType(ctx).prettyPrint()
-              : "unknown";
-            globalTheorems.push({
-              name: src.name,
-              type: typeStr,
-              kind: "theorem",
-            });
-            // Remove from pending claims if it was there
-            const claimIdx = pendingClaims.findIndex(
-              (c) => c.name === src.name,
-            );
-            if (claimIdx >= 0) pendingClaims.splice(claimIdx, 1);
-          } else if (result instanceof stop) {
-            throw new Error(`DefineTactically error: ${result.message}`);
-          }
-        }
-
-        // If we just processed the target claim, STOP building context.
-        // We don't want anything declared *after* the claim to be available.
-        if (isTargetClaim) {
-          console.log(
-            `[ProofWorker] Reached target claim '${claimName}', stopping context build.`,
-          );
-          break;
-        }
-      }
-
-      // Add remaining unproved claims to theorems list (as claims)
-      for (const claim of pendingClaims) {
-        globalTheorems.push({
-          name: claim.name,
-          type: claim.type,
-          kind: "claim",
-        });
-      }
-
-      // Start proof
-      console.log("[ProofWorker] Starting proof for:", claimName);
-      const pm = new ProofManager();
-      const startResult = pm.startProof(claimName, ctx, dummyLoc);
-
-      if (startResult instanceof stop) {
-        throw new Error(`Failed to start proof: ${startResult.message}`);
-      }
-      console.log("[ProofWorker] Proof started successfully");
-
-      // Get proof tree data from the ProofManager
-      const rawProofTreeData = pm.getProofTreeData();
-      if (!rawProofTreeData) {
-        throw new Error("ProofManager returned null proof tree data");
-      }
-      console.log("[ProofWorker] Got raw proof tree data");
-
-      const proofTree = buildProofTree(rawProofTreeData);
-
-      // Get claim type
-      const binding = ctx.get(claimName);
-      const claimType = binding
-        ? binding.type.readBackType(ctx).prettyPrint()
-        : "unknown";
-
-      // Save session
-      const sessionId = nanoid();
-      sessions.set(sessionId, {
-        id: sessionId,
-        proofManager: pm,
-        ctx,
-        claimName,
-        claimType,
-      });
-
-      console.log("[ProofWorker] Session created:", sessionId);
-      console.log("[ProofWorker] Global context:", {
-        definitions: globalDefinitions.length,
-        theorems: globalTheorems.length,
-      });
-
-      return {
-        sessionId,
-        proofTree,
-        globalContext: {
-          definitions: globalDefinitions,
-          theorems: globalTheorems,
-        },
-        claimType,
-      } satisfies StartSessionResponse;
-    } catch (error) {
-      console.error("[ProofWorker] Error:", error);
-      throw error;
+    const ctx = result.context;
+    const pos = new Position(1, 0);
+    const pm = new ProofManager();
+    const startResult = pm.startProof(claimName, ctx, new Location(new Syntax(pos, pos, ""), false));
+    if (startResult instanceof stop) {
+      throw new Error(`Failed to start proof: ${startResult.message}`);
     }
+    const rawProofTreeData = pm.getProofTreeData();
+    if (!rawProofTreeData) throw new Error("ProofManager returned null proof tree data");
+
+    const binding = ctx.get(claimName);
+    const claimType = binding ? binding.type.readBackType(ctx).prettyPrint() : "unknown";
+    const sessionId = nanoid();
+    sessions.set(sessionId, { id: sessionId, proofManager: pm, ctx, claimName, claimType });
+
+    const scan = toScanFileResponse(result);
+    return {
+      sessionId,
+      proofTree: buildProofTree(rawProofTreeData),
+      globalContext: {
+        definitions: scan.definitions,
+        theorems: [...scan.theorems, ...scan.claims.filter(claim => claim.name !== claimName)],
+      },
+      claimType,
+    };
   },
 
   async applyTactic(

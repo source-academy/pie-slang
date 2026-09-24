@@ -1,28 +1,21 @@
 import { BasicEvaluator } from "conductor/dist/conductor/runner";
-import { IRunnerPlugin } from "conductor/dist/conductor/runner/types";
-import { evaluatePie } from "./main";
+import type { IRunnerPlugin } from "conductor/dist/conductor/runner/types";
+import { ProgramSession, ProgramSessionError } from "./session";
 
 export class PieEvaluator extends BasicEvaluator {
-  private executionCount: number;
+  private readonly session = new ProgramSession();
 
   constructor(conductor: IRunnerPlugin) {
     super(conductor);
-    this.executionCount = 0;
   }
 
   async evaluateChunk(chunk: string): Promise<void> {
-    this.executionCount++;
     try {
-      const result = evaluatePie(chunk);
-      this.conductor.sendOutput(`Result of expression: execution ${result}`);
+      const result = this.session.execute(chunk);
+      if (!result.success) throw new ProgramSessionError(result.diagnostics);
+      this.conductor.sendOutput(`Result of expression: execution ${result.output}`);
     } catch (error) {
-      // Handle errors and send them to the REPL
-      if (error instanceof Error) {
-        this.conductor.sendOutput(`Error: ${error.message}`);
-      } else {
-        this.conductor.sendOutput(`Error: ${String(error)}`);
-      }
+      this.conductor.sendOutput(`Error: ${error instanceof Error ? error.message : `${error}`}`);
     }
-
   }
 }
