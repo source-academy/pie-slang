@@ -1,6 +1,6 @@
 import * as Comlink from "comlink";
 import { nanoid } from "nanoid";
-import type { SessionAnalysisResult } from "@pie/session";
+import type { FrontendAnalysisResult } from "@pie/frontend";
 import {
   type TacticType,
   type TacticParams,
@@ -118,7 +118,7 @@ function emptyProofTree(): ProofTree {
 }
 
 /** Render checked bindings once; declarations no longer have a worker-specific checker. */
-function toScanFileResponse(result: SessionAnalysisResult): ScanFileResponse {
+function toScanFileResponse(result: FrontendAnalysisResult): ScanFileResponse {
   const definitions: GlobalEntry[] = [];
   const theorems: GlobalEntry[] = [];
   const claims: GlobalEntry[] = [];
@@ -165,8 +165,8 @@ export const proofWorkerAPI: ProofWorkerAPI = {
   },
 
   async scanFile(sourceCode: string) {
-    const { ProgramSession } = await import("@pie/session");
-    return toScanFileResponse(new ProgramSession().analyze(sourceCode));
+    const { PieFrontend } = await import("@pie/frontend");
+    return toScanFileResponse(new PieFrontend().analyze(sourceCode));
   },
 
   async testImports() {
@@ -203,14 +203,14 @@ export const proofWorkerAPI: ProofWorkerAPI = {
     sourceCode: string,
     claimName: string,
   ): Promise<StartSessionResponse> {
-    const { ProgramSession, ProgramSessionError } = await import("@pie/session");
+    const { PieFrontend, PieFrontendError } = await import("@pie/frontend");
     const { ProofManager } = await import("@pie/tactics/proof-manager");
     const { stop } = await import("@pie/types/utils");
     const { Location, Syntax } = await import("@pie/utils/locations");
     const { Position } = await import("@scheme/transpiler/types/location");
 
-    const result = new ProgramSession().prepareProof(sourceCode, claimName);
-    if (!result.success) throw new ProgramSessionError(result.diagnostics);
+    const result = new PieFrontend().prepareProof(sourceCode, claimName);
+    if (!result.success) throw new PieFrontendError(result.diagnostics);
 
     const ctx = result.checkedContext;
     const pos = new Position(1, 0);

@@ -1,5 +1,5 @@
 import * as Comlink from 'comlink';
-import { ProgramSession } from '@pie/session';
+import { PieFrontend } from '@pie/frontend';
 import type { Diagnostic, DiagnosticRange } from '@pie/protocol';
 export type { Diagnostic } from '@pie/protocol';
 export type Range = DiagnosticRange;
@@ -56,7 +56,7 @@ export interface CompletionItem {
 
 export const diagnosticsWorkerAPI: DiagnosticsWorkerAPI = {
   async checkSource(sourceCode) {
-    const result = new ProgramSession().analyze(sourceCode);
+    const result = new PieFrontend().analyze(sourceCode);
     return {
       diagnostics: result.diagnostics,
       parseSuccessful: !result.diagnostics.some(diagnostic => diagnostic.source === 'parser'),

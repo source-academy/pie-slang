@@ -1,15 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ProgramSession } from '@pie/session';
+import { PieFrontend } from '@pie/frontend';
 import { diagnosticsWorkerAPI } from '../diagnostics-worker';
 import { proofWorkerAPI } from '../proof-worker';
 import { EXAMPLES } from '../../features/proof-editor/data/examples';
 
 vi.mock('comlink', () => ({ expose: vi.fn() }));
 
-describe('workers using ProgramSession', () => {
+describe('workers using PieFrontend', () => {
   it('reports the same type error as the execution entry point', async () => {
     const source = '\n(claim n Nat)\n(define n sole)';
-    const expected = new ProgramSession().execute(source);
+    const expected = new PieFrontend().execute(source);
     const actual = await diagnosticsWorkerAPI.checkSource(source);
     expect(actual.diagnostics).toEqual(expected.diagnostics);
     expect(actual.parseSuccessful).toBe(true);

@@ -1,9 +1,9 @@
-import { ProgramSession, ProgramSessionError } from './session';
+import { PieFrontend, PieFrontendError } from './frontend';
 import type { Context } from './utils/context';
 
 function evaluatePieInternal(source: string, verbose: boolean): { output: string; context: Context } {
-  const result = new ProgramSession().execute(source, { verbose });
-  if (!result.success) throw new ProgramSessionError(result.diagnostics);
+  const result = new PieFrontend().execute(source, { verbose });
+  if (!result.success) throw new PieFrontendError(result.diagnostics);
   return { output: result.output, context: result.context };
 }
 
@@ -15,9 +15,9 @@ export function evaluatePieVerbose(source: string): string {
   return evaluatePieInternal(source, true).output;
 }
 
-/** Evaluate a complete program in a fresh session, preserving the existing API. */
+/** Evaluate a complete program with a fresh context, preserving the existing API. */
 export function evaluatePieAndGetContext(source: string): { output: string; context: Context } {
   return evaluatePieInternal(source, false);
 }
 
-export { ProgramSession, ProgramSessionError } from './session';
+export { PieFrontend, PieFrontendError } from './frontend';

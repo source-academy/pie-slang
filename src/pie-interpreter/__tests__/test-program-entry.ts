@@ -1,6 +1,6 @@
 import 'jest';
 import { evaluatePie } from '../main';
-import { ProgramSession, ProgramSessionError } from '../session';
+import { PieFrontend, PieFrontendError } from '../frontend';
 import { analyzePieDocument } from '../../language-server/server/src/pie-analysis';
 
 // The Conductor adapter calls this whole-input entry point once per chunk.
@@ -23,15 +23,15 @@ describe('independent whole-program executions', () => {
   });
 
   it.each(['\n(claim bad missing-type)', '\n(claim n Nat'])('keeps positions visible to message-only consumers for %s', source => {
-    const diagnostic = new ProgramSession().analyze(source).diagnostics[0];
+    const diagnostic = new PieFrontend().analyze(source).diagnostics[0];
     const location = `line ${diagnostic.range.startLine + 1}, column ${diagnostic.range.startColumn + 1}`;
     expect(diagnostic.range.startLine).toBe(1);
     try {
       evaluatePie(source);
       throw new Error('Expected evaluation to fail');
     } catch (error) {
-      expect(error).toBeInstanceOf(ProgramSessionError);
-      if (!(error instanceof ProgramSessionError)) throw error;
+      expect(error).toBeInstanceOf(PieFrontendError);
+      if (!(error instanceof PieFrontendError)) throw error;
       expect(error.message).toContain(diagnostic.message);
       expect(error.message).toContain(location);
       expect(error.diagnostics).toEqual([diagnostic]);
@@ -49,7 +49,7 @@ describe('independent whole-program executions', () => {
       { severity: 'error' as const, source: 'parser' as const, message: 'second',
         range: { startLine: 2, startColumn: 4, endLine: 2, endColumn: 5 } },
     ];
-    expect(new ProgramSessionError(diagnostics).message).toBe(
+    expect(new PieFrontendError(diagnostics).message).toBe(
       'first (line 1, column 1)\nsecond (line 3, column 5)',
     );
     expect(diagnostics.map(diagnostic => diagnostic.message)).toEqual(['first', 'second']);

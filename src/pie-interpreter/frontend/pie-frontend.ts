@@ -17,30 +17,30 @@ import { diagnosticFromError, type Diagnostic } from './diagnostic';
 
 export type BindingKind = 'claim' | 'definition' | 'theorem' | 'datatype' | 'constructor';
 
-export interface SessionBinding {
+export interface FrontendBinding {
   name: string;
   type: string;
   kind: BindingKind;
 }
 
-export interface SessionResult {
+export interface FrontendResult {
   success: boolean;
   diagnostics: Diagnostic[];
   /** Output of a successful complete program; empty on failure. */
   output: string;
   /** Context of a successful complete program; empty on failure. Never reused by later calls. */
   context: Context;
-  bindings: SessionBinding[];
+  bindings: FrontendBinding[];
 }
 
-/** Partial checking results, not a successfully executed program or reusable session state. */
-export interface SessionAnalysisResult {
+/** Partial checking results, not a successfully executed program or reusable execution state. */
+export interface FrontendAnalysisResult {
   success: boolean;
   diagnostics: Diagnostic[];
   checkedOutput: string;
   /** May include valid declarations before and after errors when analysis recovers. */
   checkedContext: Context;
-  checkedBindings: SessionBinding[];
+  checkedBindings: FrontendBinding[];
 }
 
 export interface ExecutionOptions {
@@ -56,8 +56,8 @@ function unwrap<T>(result: Perhaps<T>): T {
 }
 
 /** Shared whole-source entry points. Every call starts with a fresh program context. */
-export class ProgramSession {
-  execute(source: string, options: ExecutionOptions = {}): SessionResult {
+export class PieFrontend {
+  execute(source: string, options: ExecutionOptions = {}): FrontendResult {
     const result = new ProgramRun().run(source, false, options.verbose ?? false);
     return {
       success: result.success,
@@ -69,7 +69,7 @@ export class ProgramSession {
   }
 
   /** Analyze the current source independently, recovering between declarations. */
-  analyze(source: string): SessionAnalysisResult {
+  analyze(source: string): FrontendAnalysisResult {
     return new ProgramRun().run(source, true, false);
   }
 
@@ -80,18 +80,18 @@ export class ProgramSession {
    * Standalone expressions and check-same do not build this context and are skipped;
    * execute/analyze still check them when processing the complete program.
    */
-  prepareProof(source: string, claimName: string): SessionAnalysisResult {
+  prepareProof(source: string, claimName: string): FrontendAnalysisResult {
     return new ProgramRun().run(source, false, false, claimName);
   }
 }
 
-/** Internal state for exactly one source-processing call; never retained by ProgramSession. */
+/** Internal state for exactly one source-processing call; never retained by PieFrontend. */
 class ProgramRun {
   private context: Context = new Map();
   private renaming: Renaming = new Map();
   private bindingKinds = new Map<string, BindingKind>();
 
-  run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): SessionAnalysisResult {
+  run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): FrontendAnalysisResult {
     const diagnostics: Diagnostic[] = [];
     const entries: ParsedEntry[] = [];
     try {
@@ -160,7 +160,7 @@ class ProgramRun {
 
   private apply(declaration: Declaration, verbose: boolean): string {
     // Keep the checked prefix intact if a declaration fails during error recovery.
-    // addDefineToContext may delete a claim in-place; this is not a session snapshot.
+    // addDefineToContext may delete a claim in-place; this is not a program snapshot.
     let context = new Map(this.context);
     let renaming = new Map(this.renaming);
     const kinds = new Map(this.bindingKinds);
@@ -196,8 +196,8 @@ class ProgramRun {
     return output;
   }
 
-  private result(output: string, diagnostics: Diagnostic[]): SessionAnalysisResult {
-    const bindings: SessionBinding[] = [];
+  private result(output: string, diagnostics: Diagnostic[]): FrontendAnalysisResult {
+    const bindings: FrontendBinding[] = [];
     for (const [name, binder] of this.context) {
       const type = prettyPrintCore(binder.type.readBackType(this.context));
       bindings.push({ name, type, kind: this.bindingKinds.get(name) ?? 'claim' });

@@ -1,5 +1,5 @@
 import 'jest';
-import { ProgramSession, ProgramSessionError } from '../session';
+import { PieFrontend, PieFrontendError } from '../frontend';
 import { evaluatePie, evaluatePieAndGetContext } from '../main';
 import { Claim, Define, initCtx } from '../utils/context';
 import { Zero } from '../types/value';
@@ -10,44 +10,44 @@ const boolSource = `(data Bool () ()
   (false () (Bool () ()))
   ind-Bool)`;
 
-describe('ProgramSession', () => {
+describe('PieFrontend', () => {
   it('shares declarations only within the current input, without modifying initCtx', () => {
-    const session = new ProgramSession();
+    const frontend = new PieFrontend();
     const source = '(claim n Nat) (define n 3) (add1 n)';
-    const first = session.execute(source);
+    const first = frontend.execute(source);
     expect(first.success).toBe(true);
     expect(first.output).toBe('4: Nat\nn : Nat\nn = 3\n');
     expect(first.bindings).toEqual([{ name: 'n', type: 'Nat', kind: 'definition' }]);
-    expect(session.execute(source).output).toBe(first.output);
-    expect(session.execute('(add1 n)').success).toBe(false);
+    expect(frontend.execute(source).output).toBe(first.output);
+    expect(frontend.execute('(add1 n)').success).toBe(false);
     expect(initCtx.has('n')).toBe(false);
   });
 
   it('uses edited or deleted declarations from the current source only', () => {
-    const session = new ProgramSession();
-    session.execute('(claim n Nat) (define n 3)');
-    expect(session.execute('(claim n Nat) (define n 7) n').output).toBe('7: Nat\nn : Nat\nn = 7\n');
-    expect(session.analyze('(add1 n)').success).toBe(false);
-    expect(session.execute('(define n 1)').success).toBe(false);
+    const frontend = new PieFrontend();
+    frontend.execute('(claim n Nat) (define n 3)');
+    expect(frontend.execute('(claim n Nat) (define n 7) n').output).toBe('7: Nat\nn : Nat\nn = 7\n');
+    expect(frontend.analyze('(add1 n)').success).toBe(false);
+    expect(frontend.execute('(define n 1)').success).toBe(false);
   });
 
   it('does not expose a successful execution context for a failed input', () => {
-    const session = new ProgramSession();
-    const result = session.execute('(claim n Nat) (define n 3) (add1 n) (claim bad missing-type)');
+    const frontend = new PieFrontend();
+    const result = frontend.execute('(claim n Nat) (define n 3) (add1 n) (claim bad missing-type)');
     expect(result.success).toBe(false);
     expect(result.diagnostics).toHaveLength(1);
     expect(result.context.size).toBe(0);
     expect(result.bindings).toEqual([]);
     expect(result.output).toBe('');
-    expect(session.execute('(add1 n)').success).toBe(false);
-    expect(session.execute('(claim n Nat) (define n 4)').success).toBe(true);
+    expect(frontend.execute('(add1 n)').success).toBe(false);
+    expect(frontend.execute('(claim n Nat) (define n 4)').success).toBe(true);
   });
 
   it('does not reuse an earlier result after declaration or syntax errors', () => {
-    const session = new ProgramSession();
-    const before = session.execute('(claim saved Nat) (define saved 2)');
+    const frontend = new PieFrontend();
+    const before = frontend.execute('(claim saved Nat) (define saved 2)');
     for (const source of ['(claim extra Nat) (claim Nat Nat)', '(claim extra Nat']) {
-      const result = session.execute(source);
+      const result = frontend.execute(source);
       expect(result.success).toBe(false);
       expect(result.diagnostics[0].source).toBe('parser');
       expect(result.context.size).toBe(0);
@@ -56,12 +56,12 @@ describe('ProgramSession', () => {
     }
     expect(before.context.get('saved')).toBeInstanceOf(Define);
     expect(before.output).toBe('saved : Nat\nsaved = 2\n');
-    expect(session.execute('saved').success).toBe(false);
+    expect(frontend.execute('saved').success).toBe(false);
   });
 
   it('reports partial analysis in checked fields and recovers between declarations', () => {
-    const session = new ProgramSession();
-    const result = session.analyze('(claim n Nat) (define n sole) (claim m Nat) (define m 2)');
+    const frontend = new PieFrontend();
+    const result = frontend.analyze('(claim n Nat) (define n sole) (claim m Nat) (define m 2)');
     expect(result.diagnostics).toHaveLength(1);
     expect(result.checkedContext.get('n')).toBeInstanceOf(Claim);
     expect(result.checkedContext.get('m')).toBeInstanceOf(Define);
@@ -70,36 +70,36 @@ describe('ProgramSession', () => {
     expect(result).not.toHaveProperty('context');
     expect(result).not.toHaveProperty('bindings');
     expect(result).not.toHaveProperty('output');
-    expect(session.analyze('(define m 1)').success).toBe(false);
-    expect(session.execute('m').success).toBe(false);
+    expect(frontend.analyze('(define m 1)').success).toBe(false);
+    expect(frontend.execute('m').success).toBe(false);
   });
 
   it('retains multiple diagnostics, including cascades, without retaining declarations', () => {
-    const session = new ProgramSession();
-    const result = session.analyze('(claim n missing-type) (define n 3) (claim m Nat)');
+    const frontend = new PieFrontend();
+    const result = frontend.analyze('(claim n missing-type) (define n 3) (claim m Nat)');
     expect(result.success).toBe(false);
     expect(result.diagnostics).toHaveLength(2);
     expect([...result.checkedContext.keys()]).toEqual(['m']);
     expect(result.checkedBindings).toEqual([{ name: 'm', type: 'Nat', kind: 'claim' }]);
-    expect(session.analyze('m').success).toBe(false);
+    expect(frontend.analyze('m').success).toBe(false);
   });
 
   it('makes datatypes available within the input but not in a later call', () => {
-    const session = new ProgramSession();
+    const frontend = new PieFrontend();
     const source = boolSource + '\n(claim b (Bool () ())) (define b (true))';
-    const result = session.execute(source);
+    const result = frontend.execute(source);
     expect(result.success).toBe(true);
     expect(result.bindings).toContainEqual(expect.objectContaining({ name: 'Bool', kind: 'datatype' }));
     expect(result.bindings).toContainEqual(expect.objectContaining({ name: 'true', kind: 'constructor' }));
-    expect(session.execute(source).success).toBe(true);
-    expect(session.execute('(claim b (Bool () ()))').success).toBe(false);
+    expect(frontend.execute(source).success).toBe(true);
+    expect(frontend.execute('(claim b (Bool () ()))').success).toBe(false);
   });
 
   it('does not share returned binder objects across independent runs', () => {
-    const session = new ProgramSession();
+    const frontend = new PieFrontend();
     const source = '(claim n Nat) (define n 3) n';
-    const first = session.execute(source);
-    const second = session.execute(source);
+    const first = frontend.execute(source);
+    const second = frontend.execute(source);
     const binder = first.context.get('n');
     expect(binder).toBeInstanceOf(Define);
     expect(binder).not.toBe(second.context.get('n'));
@@ -109,28 +109,28 @@ describe('ProgramSession', () => {
     const secondBinder = second.context.get('n');
     if (!(secondBinder instanceof Define)) throw new Error('Expected a definition');
     expect(secondBinder.value).not.toBe(binder.value);
-    expect(session.execute(source).output).toBe(second.output);
+    expect(frontend.execute(source).output).toBe(second.output);
   });
 
   it('provides no snapshot, reset or incremental declaration API', () => {
-    const session = new ProgramSession();
-    expect(session).not.toHaveProperty('snapshot');
-    expect(session).not.toHaveProperty('reset');
-    expect(session).not.toHaveProperty('applyDeclaration');
+    const frontend = new PieFrontend();
+    expect(frontend).not.toHaveProperty('snapshot');
+    expect(frontend).not.toHaveProperty('reset');
+    expect(frontend).not.toHaveProperty('applyDeclaration');
   });
 
   it('checks check-same and ordinary expressions as well as declarations', () => {
-    const session = new ProgramSession();
-    expect(session.analyze('(check-same Nat 2 (add1 1)) (add1 2)').success).toBe(true);
-    expect(session.analyze('(check-same Nat 0 1)').success).toBe(false);
-    expect(session.analyze('(add1 sole)').success).toBe(false);
+    const frontend = new PieFrontend();
+    expect(frontend.analyze('(check-same Nat 2 (add1 1)) (add1 2)').success).toBe(true);
+    expect(frontend.analyze('(check-same Nat 0 1)').success).toBe(false);
+    expect(frontend.analyze('(add1 sole)').success).toBe(false);
   });
 
   it('makes completed tactical definitions available to later checks', () => {
     const source = `(claim identity (Pi ((A U) (x A)) A))
       (define-tactically identity ((intro A) (intro x) (exact x)))
       (check-same Nat (identity Nat 5) 5)`;
-    const result = new ProgramSession().analyze(source);
+    const result = new PieFrontend().analyze(source);
     expect(result.diagnostics).toEqual([]);
     expect(result.checkedBindings).toContainEqual(expect.objectContaining({ name: 'identity', kind: 'theorem' }));
     expect(analyzePieDocument(source).diagnostics).toEqual([]);
@@ -138,15 +138,15 @@ describe('ProgramSession', () => {
 
   it('reports an incomplete proof consistently in execution and LSP analysis', () => {
     const source = '(claim f (-> Nat Nat)) (define-tactically f ((intro x)))';
-    const result = new ProgramSession().analyze(source);
+    const result = new PieFrontend().analyze(source);
     expect(result.diagnostics[0].message).toContain('Proof incomplete');
     expect(analyzePieDocument(source).diagnostics[0].message).toBe(result.diagnostics[0].message);
-    expect(() => evaluatePie(source)).toThrow(ProgramSessionError);
+    expect(() => evaluatePie(source)).toThrow(PieFrontendError);
   });
 
   it('uses zero-based diagnostic positions and passes them unchanged to LSP', () => {
     const source = '\n(claim bad unknown-type)';
-    const diagnostic = new ProgramSession().analyze(source).diagnostics[0];
+    const diagnostic = new PieFrontend().analyze(source).diagnostics[0];
     expect(diagnostic.source).toBe('typechecker');
     expect(diagnostic.range.startLine).toBe(1);
     const lsp = analyzePieDocument(source).diagnostics[0];
@@ -156,30 +156,30 @@ describe('ProgramSession', () => {
   });
 
   it('reports syntax errors without throwing or retaining partial state', () => {
-    const session = new ProgramSession();
-    const result = session.execute('(claim n Nat');
+    const frontend = new PieFrontend();
+    const result = frontend.execute('(claim n Nat');
     expect(result.success).toBe(false);
     expect(result.diagnostics[0].source).toBe('parser');
-    expect(session.execute('').context.size).toBe(0);
+    expect(frontend.execute('').context.size).toBe(0);
   });
 
   it('reports mixed type and declaration-parse errors in source order', () => {
     const source = '(claim n unknown-type)\n(claim Nat Nat)\n(claim m Nat)';
-    const session = new ProgramSession();
-    const executed = session.execute(source);
+    const frontend = new PieFrontend();
+    const executed = frontend.execute(source);
     expect(executed.diagnostics).toHaveLength(1);
     expect(executed.diagnostics[0].source).toBe('typechecker');
-    const analysis = session.analyze(source);
+    const analysis = frontend.analyze(source);
     expect(analysis.diagnostics.map(diagnostic => diagnostic.source)).toEqual(['typechecker', 'parser']);
     expect(analysis.checkedContext.has('m')).toBe(true);
   });
 
   it('exposes a checked prefix after a declaration parse error only in analysis', () => {
-    const session = new ProgramSession();
+    const frontend = new PieFrontend();
     const source = '(claim n Nat) (claim Nat Nat)';
-    expect(session.execute(source).context.size).toBe(0);
-    expect(session.analyze(source).checkedContext.get('n')).toBeInstanceOf(Claim);
-    expect(session.execute('n').success).toBe(false);
+    expect(frontend.execute(source).context.size).toBe(0);
+    expect(frontend.analyze(source).checkedContext.get('n')).toBeInstanceOf(Claim);
+    expect(frontend.execute('n').success).toBe(false);
   });
 
   it('limits proof context to the target and skips unrelated unimplemented claims', () => {
@@ -187,16 +187,16 @@ describe('ProgramSession', () => {
       (claim before Nat) (define before 1)
       (claim goal Nat)
       (claim after Nat) (define after sole)`;
-    const session = new ProgramSession();
-    const result = session.prepareProof(source, 'goal');
+    const frontend = new PieFrontend();
+    const result = frontend.prepareProof(source, 'goal');
     expect(result.diagnostics).toEqual([]);
     expect([...result.checkedContext.keys()]).toEqual(['before', 'goal']);
-    expect(session.execute('').context.size).toBe(0);
-    expect(new ProgramSession().analyze(source).success).toBe(false);
+    expect(frontend.execute('').context.size).toBe(0);
+    expect(new PieFrontend().analyze(source).success).toBe(false);
   });
 
   it('checks datatypes in the visible proof context', () => {
-    const result = new ProgramSession().prepareProof(`${boolSource}\n(claim goal (Bool () ()))`, 'goal');
+    const result = new PieFrontend().prepareProof(`${boolSource}\n(claim goal (Bool () ()))`, 'goal');
     expect(result.success).toBe(true);
     expect(result.checkedContext.has('true')).toBe(true);
   });
@@ -204,12 +204,12 @@ describe('ProgramSession', () => {
   it.each(['(check-same Nat 0 1)', '(add1 sole)', 'unknown-value'])(
     'skips independent %s only when preparing a proof', expression => {
       const source = `${expression}\n(claim goal Nat)`;
-      const session = new ProgramSession();
-      const proof = session.prepareProof(source, 'goal');
+      const frontend = new PieFrontend();
+      const proof = frontend.prepareProof(source, 'goal');
       expect(proof.success).toBe(true);
       expect([...proof.checkedContext.keys()]).toEqual(['goal']);
-      expect(session.execute(source).success).toBe(false);
-      expect(session.analyze(source).success).toBe(false);
+      expect(frontend.execute(source).success).toBe(false);
+      expect(frontend.analyze(source).success).toBe(false);
       expect(analyzePieDocument(source).diagnostics.length).toBeGreaterThan(0);
     },
   );
@@ -220,7 +220,7 @@ describe('ProgramSession', () => {
     '(claim before (-> Nat Nat)) (define-tactically before ((intro x))) (claim goal Nat)',
     '(claim goal Nat) (claim malformed',
   ])('still rejects invalid declarations or malformed syntax during proof preparation: %s', source => {
-    expect(new ProgramSession().prepareProof(source, 'goal').success).toBe(false);
+    expect(new PieFrontend().prepareProof(source, 'goal').success).toBe(false);
   });
 
   it('keeps the existing whole-program output and returned-context API', () => {
