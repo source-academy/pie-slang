@@ -12,8 +12,8 @@
  * - Frontend code imports from here. Interpreter code exports conforming to here.
  */
 
-import type { Diagnostic } from './frontend/diagnostic';
-export type { Diagnostic, DiagnosticRange } from './frontend/diagnostic';
+import type { Diagnostic } from './processor/diagnostic';
+export type { Diagnostic, DiagnosticRange } from './processor/diagnostic';
 
 // ============================================================================
 // Proof State (what the prover sees)

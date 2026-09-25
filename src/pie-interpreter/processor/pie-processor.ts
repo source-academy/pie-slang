@@ -17,30 +17,30 @@ import { diagnosticFromError, type Diagnostic } from './diagnostic';
 
 export type BindingKind = 'claim' | 'definition' | 'theorem' | 'datatype' | 'constructor';
 
-export interface FrontendBinding {
+export interface ProcessorBinding {
   name: string;
   type: string;
   kind: BindingKind;
 }
 
-export interface FrontendResult {
+export interface ProcessorResult {
   success: boolean;
   diagnostics: Diagnostic[];
   /** Output of a successful complete program; empty on failure. */
   output: string;
   /** Context of a successful complete program; empty on failure. Never reused by later calls. */
   context: Context;
-  bindings: FrontendBinding[];
+  bindings: ProcessorBinding[];
 }
 
 /** Partial checking results, not a successfully executed program or reusable execution state. */
-export interface FrontendAnalysisResult {
+export interface ProcessorAnalysisResult {
   success: boolean;
   diagnostics: Diagnostic[];
   checkedOutput: string;
   /** May include valid declarations before and after errors when analysis recovers. */
   checkedContext: Context;
-  checkedBindings: FrontendBinding[];
+  checkedBindings: ProcessorBinding[];
 }
 
 export interface ExecutionOptions {
@@ -56,8 +56,8 @@ function unwrap<T>(result: Perhaps<T>): T {
 }
 
 /** Shared whole-source entry points. Every call starts with a fresh program context. */
-export class PieFrontend {
-  execute(source: string, options: ExecutionOptions = {}): FrontendResult {
+export class PieProcessor {
+  execute(source: string, options: ExecutionOptions = {}): ProcessorResult {
     const result = new ProgramRun().run(source, false, options.verbose ?? false);
     return {
       success: result.success,
@@ -69,7 +69,7 @@ export class PieFrontend {
   }
 
   /** Analyze the current source independently, recovering between declarations. */
-  analyze(source: string): FrontendAnalysisResult {
+  analyze(source: string): ProcessorAnalysisResult {
     return new ProgramRun().run(source, true, false);
   }
 
@@ -80,18 +80,18 @@ export class PieFrontend {
    * Standalone expressions and check-same do not build this context and are skipped;
    * execute/analyze still check them when processing the complete program.
    */
-  prepareProof(source: string, claimName: string): FrontendAnalysisResult {
+  prepareProof(source: string, claimName: string): ProcessorAnalysisResult {
     return new ProgramRun().run(source, false, false, claimName);
   }
 }
 
-/** Internal state for exactly one source-processing call; never retained by PieFrontend. */
+/** Internal state for exactly one source-processing call; never retained by PieProcessor. */
 class ProgramRun {
   private context: Context = new Map();
   private renaming: Renaming = new Map();
   private bindingKinds = new Map<string, BindingKind>();
 
-  run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): FrontendAnalysisResult {
+  run(source: string, recover: boolean, verbose: boolean, proofTarget?: string): ProcessorAnalysisResult {
     const diagnostics: Diagnostic[] = [];
     const entries: ParsedEntry[] = [];
     try {
@@ -196,8 +196,8 @@ class ProgramRun {
     return output;
   }
 
-  private result(output: string, diagnostics: Diagnostic[]): FrontendAnalysisResult {
-    const bindings: FrontendBinding[] = [];
+  private result(output: string, diagnostics: Diagnostic[]): ProcessorAnalysisResult {
+    const bindings: ProcessorBinding[] = [];
     for (const [name, binder] of this.context) {
       const type = prettyPrintCore(binder.type.readBackType(this.context));
       bindings.push({ name, type, kind: this.bindingKinds.get(name) ?? 'claim' });

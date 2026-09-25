@@ -1,9 +1,9 @@
-import { PieFrontend, PieFrontendError } from './frontend';
+import { PieProcessor, PieProcessorError } from './processor';
 import type { Context } from './utils/context';
 
 function evaluatePieInternal(source: string, verbose: boolean): { output: string; context: Context } {
-  const result = new PieFrontend().execute(source, { verbose });
-  if (!result.success) throw new PieFrontendError(result.diagnostics);
+  const result = new PieProcessor().execute(source, { verbose });
+  if (!result.success) throw new PieProcessorError(result.diagnostics);
   return { output: result.output, context: result.context };
 }
 
@@ -20,4 +20,4 @@ export function evaluatePieAndGetContext(source: string): { output: string; cont
   return evaluatePieInternal(source, false);
 }
 
-export { PieFrontend, PieFrontendError } from './frontend';
+export { PieProcessor, PieProcessorError } from './processor';

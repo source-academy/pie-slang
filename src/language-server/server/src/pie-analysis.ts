@@ -1,8 +1,8 @@
-import { PieFrontend } from '../../../pie-interpreter/frontend';
+import { PieProcessor } from '../../../pie-interpreter/processor';
 
 /** LSP only translates the shared diagnostic coordinates and severity. */
 export function analyzePieDocument(source: string) {
-  const result = new PieFrontend().analyze(source);
+  const result = new PieProcessor().analyze(source);
   const severity = { error: 1, warning: 2, info: 3, hint: 4 } as const;
   return {
     context: result.checkedContext,

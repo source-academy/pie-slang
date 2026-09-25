@@ -1,6 +1,6 @@
 import * as Comlink from "comlink";
 import { nanoid } from "nanoid";
-import type { FrontendAnalysisResult } from "@pie/frontend";
+import type { ProcessorAnalysisResult } from "@pie/processor";
 import {
   type TacticType,
   type TacticParams,
@@ -118,7 +118,7 @@ function emptyProofTree(): ProofTree {
 }
 
 /** Render checked bindings once; declarations no longer have a worker-specific checker. */
-function toScanFileResponse(result: FrontendAnalysisResult): ScanFileResponse {
+function toScanFileResponse(result: ProcessorAnalysisResult): ScanFileResponse {
   const definitions: GlobalEntry[] = [];
   const theorems: GlobalEntry[] = [];
   const claims: GlobalEntry[] = [];
@@ -165,8 +165,8 @@ export const proofWorkerAPI: ProofWorkerAPI = {
   },
 
   async scanFile(sourceCode: string) {
-    const { PieFrontend } = await import("@pie/frontend");
-    return toScanFileResponse(new PieFrontend().analyze(sourceCode));
+    const { PieProcessor } = await import("@pie/processor");
+    return toScanFileResponse(new PieProcessor().analyze(sourceCode));
   },
 
   async testImports() {
@@ -203,14 +203,14 @@ export const proofWorkerAPI: ProofWorkerAPI = {
     sourceCode: string,
     claimName: string,
   ): Promise<StartSessionResponse> {
-    const { PieFrontend, PieFrontendError } = await import("@pie/frontend");
+    const { PieProcessor, PieProcessorError } = await import("@pie/processor");
     const { ProofManager } = await import("@pie/tactics/proof-manager");
     const { stop } = await import("@pie/types/utils");
     const { Location, Syntax } = await import("@pie/utils/locations");
     const { Position } = await import("@scheme/transpiler/types/location");
 
-    const result = new PieFrontend().prepareProof(sourceCode, claimName);
-    if (!result.success) throw new PieFrontendError(result.diagnostics);
+    const result = new PieProcessor().prepareProof(sourceCode, claimName);
+    if (!result.success) throw new PieProcessorError(result.diagnostics);
 
     const ctx = result.checkedContext;
     const pos = new Position(1, 0);

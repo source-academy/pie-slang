@@ -66,12 +66,12 @@ export function diagnosticFromError(
   };
 }
 
-export class PieFrontendError extends Error {
+export class PieProcessorError extends Error {
   constructor(public readonly diagnostics: readonly Diagnostic[]) {
     // Message-only hosts need a readable location; editor ranges stay zero-based.
     super(diagnostics.map(({ message, range }) =>
       `${message} (line ${range.startLine + 1}, column ${range.startColumn + 1})`,
     ).join('\n'));
-    this.name = 'PieFrontendError';
+    this.name = 'PieProcessorError';
   }
 }
