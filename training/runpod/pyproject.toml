@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pie-tactic-lora"
+version = "0.1.0"
+description = "Runpod Flash serverless endpoint for the Pie tactic-prediction LoRA model"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = ["runpod-flash"]
