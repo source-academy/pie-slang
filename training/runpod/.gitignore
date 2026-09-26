@@ -1,0 +1,5 @@
+# Secrets & local flash state — never commit
+.env
+.flash/
+__pycache__/
+*.pyc
