@@ -987,6 +987,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
           goal.goal.type,
           goal.goal.context,
           session,
+          request.loraApiKey,
         )) ?? undefined;
         if (loraPrediction) {
           loraPredictions.set(request.goalId, loraPrediction);
@@ -1109,8 +1110,74 @@ const proofWorkerAPI: ProofWorkerAPI = {
 };
 
 /**
- * Fetch a tactic prediction from the local LoRA server and validate it
- * by dry-running the tactic against the proof state.
+ * Call a Runpod serverless endpoint and return the handler's `output` object
+ * (which follows the same shape as the local /predict response), or null.
+ *
+ * Runpod protocol: POST {base}/runsync with `Authorization: Bearer <key>` and a
+ * body of `{ input: <requestBody> }`. When a worker is warm this returns
+ * `{ status: "COMPLETED", output: {...} }` in ~1-2s. On a cold start the 7B
+ * model reload can exceed runsync's ~60s ceiling, in which case the response is
+ * `{ id, status: "IN_PROGRESS" }` and we poll {base}/status/{id} until done.
+ *
+ * `url` may be given as the endpoint base (…/v2/<id>) or with a trailing
+ * /runsync or /run — both are normalized here.
+ */
+async function fetchRunpodPrediction(
+  url: string,
+  input: unknown,
+  apiKey: string | undefined,
+): Promise<{ tactic?: string; tactic_head?: string; category?: string } | null> {
+  const base = url.replace(/\/(runsync|run|status)$/, "");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
+  const syncResp = await fetch(`${base}/runsync`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ input }),
+  });
+  if (!syncResp.ok) {
+    console.warn(
+      "[ProofWorker] Runpod runsync returned",
+      syncResp.status,
+      syncResp.statusText,
+      syncResp.status === 401 ? "(check the LoRA API key)" : "",
+    );
+    return null;
+  }
+
+  let job: { id?: string; status?: string; output?: { tactic?: string; tactic_head?: string; category?: string } } =
+    await syncResp.json();
+
+  // Poll for completion if the job did not finish within runsync's window.
+  const deadlineMs = Date.now() + 180_000; // 3 min cap covers a cold 7B reload
+  while (job.status !== "COMPLETED") {
+    if (job.status === "FAILED" || job.status === "CANCELLED" || job.status === "TIMED_OUT") {
+      console.warn("[ProofWorker] Runpod job did not complete:", job);
+      return null;
+    }
+    if (!job.id) {
+      console.warn("[ProofWorker] Runpod job has no id to poll:", job);
+      return null;
+    }
+    if (Date.now() > deadlineMs) {
+      console.warn("[ProofWorker] Runpod job timed out after 3 min (cold start?)");
+      return null;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+    const st = await fetch(`${base}/status/${job.id}`, { headers });
+    if (!st.ok) {
+      console.warn("[ProofWorker] Runpod status poll returned", st.status, st.statusText);
+      return null;
+    }
+    job = await st.json();
+  }
+  return job.output ?? null;
+}
+
+/**
+ * Fetch a tactic prediction from the LoRA server (local serve.py or Runpod
+ * serverless) and validate it by parsing the tactic against the proof state.
  *
  * Returns null if the server is unreachable or the prediction is invalid.
  */
@@ -1121,6 +1188,7 @@ async function fetchAndValidateLoraPrediction(
   goalType: string,
   goalContext: ContextEntry[],
   session: ProofSession,
+  loraApiKey?: string,
 ): Promise<LoraPrediction | null> {
   // 1. Fetch prediction from LoRA server
   let tactic: string;
@@ -1162,29 +1230,48 @@ async function fetchAndValidateLoraPrediction(
       JSON.stringify(requestBody, null, 2),
     );
 
-    const resp = await fetch(`${url}/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    });
+    // Runpod serverless (api.runpod.ai) speaks a different protocol than the
+    // local serve.py: POST .../runsync with a Bearer token, the body wrapped in
+    // { input }, and the tactic returned under `output`. A local server exposes
+    // POST /predict directly. Detect by host.
+    let data: {
+      tactic?: string;
+      tactic_head?: string;
+      category?: string;
+    } | null;
 
-    if (!resp.ok) {
-      console.warn(
-        "[ProofWorker] LoRA server returned",
-        resp.status,
-        resp.statusText,
-      );
-      return null;
+    if (url.includes("runpod.ai")) {
+      data = await fetchRunpodPrediction(url, requestBody, loraApiKey);
+      if (!data) return null;
+    } else {
+      const resp = await fetch(`${url}/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!resp.ok) {
+        console.warn(
+          "[ProofWorker] LoRA server returned",
+          resp.status,
+          resp.statusText,
+        );
+        return null;
+      }
+
+      data = await resp.json();
     }
-
-    const data = await resp.json();
     console.log(
       "[ProofWorker] 📥 LoRA response:",
       JSON.stringify(data, null, 2),
     );
+    if (!data || typeof data.tactic !== "string") {
+      console.warn("[ProofWorker] LoRA response missing 'tactic':", data);
+      return null;
+    }
     tactic = data.tactic.trim();
-    tacticHead = data.tactic_head;
-    category = data.category;
+    tacticHead = data.tactic_head ?? "";
+    category = data.category ?? "unknown";
 
     // Sanitize: if the model produced multi-line output or a very long
     // "exact" expression (full proof term), it's not a useful single-step

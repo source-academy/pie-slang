@@ -17,15 +17,23 @@ export function AISettingsPanel() {
   const setApiKey = useHintStore((s) => s.setApiKey);
   const loraServerUrl = useHintStore((s) => s.loraServerUrl);
   const setLoraServerUrl = useHintStore((s) => s.setLoraServerUrl);
+  const loraApiKey = useHintStore((s) => s.loraApiKey);
+  const setLoraApiKey = useHintStore((s) => s.setLoraApiKey);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [inputValue, setInputValue] = useState(apiKey || '');
   const [loraInput, setLoraInput] = useState(loraServerUrl || 'http://localhost:8000');
+  const [loraKeyInput, setLoraKeyInput] = useState(loraApiKey || '');
+  const [showLoraKey, setShowLoraKey] = useState(false);
+
+  // A Runpod serverless URL needs a Bearer token; a local server does not.
+  const isRunpodUrl = loraInput.includes('runpod.ai');
 
   // Sync input fields when store values change (e.g., loaded from localStorage)
   useEffect(() => { setInputValue(apiKey || ''); }, [apiKey]);
   useEffect(() => { setLoraInput(loraServerUrl || 'http://localhost:8000'); }, [loraServerUrl]);
+  useEffect(() => { setLoraKeyInput(loraApiKey || ''); }, [loraApiKey]);
   const [loraHealth, setLoraHealth] = useState<'unknown' | 'checking' | 'ok' | 'error'>('unknown');
 
   const handleSaveKey = useCallback(() => {
@@ -54,11 +62,26 @@ export function AISettingsPanel() {
     setLoraHealth('unknown');
   }, [setLoraServerUrl]);
 
+  const handleSaveLoraKey = useCallback(() => {
+    const trimmed = loraKeyInput.trim();
+    setLoraApiKey(trimmed || null);
+  }, [loraKeyInput, setLoraApiKey]);
+
+  const handleClearLoraKey = useCallback(() => {
+    setLoraKeyInput('');
+    setLoraApiKey(null);
+  }, [setLoraApiKey]);
+
   const checkLoraHealth = useCallback(async (url: string) => {
     setLoraHealth('checking');
     try {
+      // Runpod's /health requires the Bearer token; a local server ignores it.
+      const key = useHintStore.getState().loraApiKey;
+      const headers: Record<string, string> = {};
+      if (key && url.includes('runpod.ai')) headers['Authorization'] = `Bearer ${key}`;
       const resp = await fetch(`${url.replace(/\/+$/, '')}/health`, {
-        signal: AbortSignal.timeout(3000),
+        headers,
+        signal: AbortSignal.timeout(5000),
       });
       if (resp.ok) {
         setLoraHealth('ok');
@@ -158,9 +181,54 @@ export function AISettingsPanel() {
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Run <code className="rounded bg-gray-100 px-1">python training/serve.py --adapter &lt;path&gt;</code> to start
+              Local: <code className="rounded bg-gray-100 px-1">python training/serve.py --adapter &lt;path&gt;</code>.
+              Cloud: paste your Runpod endpoint <code className="rounded bg-gray-100 px-1">https://api.runpod.ai/v2/&lt;id&gt;</code>.
             </p>
           </div>
+
+          {/* LoRA server Bearer token — only relevant for Runpod serverless */}
+          {isRunpodUrl && (
+            <div className="mb-4">
+              <label className="mb-1 flex items-center gap-1.5 text-sm font-medium">
+                <Cpu className="h-3.5 w-3.5" />
+                Runpod API Key
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showLoraKey ? 'text' : 'password'}
+                    className="w-full rounded-md border bg-background px-3 py-2 pr-10 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="rpa_..."
+                    value={loraKeyInput}
+                    onChange={(e) => setLoraKeyInput(e.target.value)}
+                    onBlur={handleSaveLoraKey}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveLoraKey();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowLoraKey(!showLoraKey)}
+                  >
+                    {showLoraKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {!!loraApiKey && (
+                  <button
+                    className="rounded-md bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300"
+                    onClick={handleClearLoraKey}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Sent as <code className="rounded bg-gray-100 px-1">Authorization: Bearer</code>.
+                Stored only in your browser. First hint after idle may take ~30-60s (cold start).
+              </p>
+            </div>
+          )}
 
           {/* API Key input */}
           <div className="mb-3">

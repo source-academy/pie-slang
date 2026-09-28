@@ -206,6 +206,11 @@ export interface HintRequest {
   apiKey?: string;
   /** URL of the local LoRA tactic prediction server (optional). */
   loraServerUrl?: string;
+  /**
+   * Bearer token for the LoRA server (optional). Only used when loraServerUrl
+   * is a Runpod serverless host (api.runpod.ai); ignored for a local server.
+   */
+  loraApiKey?: string;
 }
 
 export interface HintResponse {

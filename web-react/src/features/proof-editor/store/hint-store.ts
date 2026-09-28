@@ -38,8 +38,12 @@ export interface HintState {
   // API key for AI-powered hints (optional)
   apiKey: string | null;
 
-  // URL of the local LoRA tactic prediction server (optional)
+  // URL of the LoRA tactic prediction server (local or Runpod serverless; optional)
   loraServerUrl: string | null;
+
+  // Bearer token for the LoRA server. Only sent when loraServerUrl is a Runpod
+  // serverless host (api.runpod.ai); ignored for a local server.
+  loraApiKey: string | null;
 }
 
 /**
@@ -73,8 +77,11 @@ export interface HintActions {
   // Set API key
   setApiKey: (key: string | null) => void;
 
-  // Set local LoRA server URL
+  // Set LoRA server URL (local or Runpod serverless)
   setLoraServerUrl: (url: string | null) => void;
+
+  // Set LoRA server Bearer token (for Runpod serverless)
+  setLoraApiKey: (key: string | null) => void;
 
   // Clear all hints
   clearAllHints: () => void;
@@ -91,6 +98,7 @@ export type HintStore = HintState & HintActions;
 // Persist API key and LoRA URL to localStorage
 const STORAGE_KEY_API = 'pie-slang:gemini-api-key';
 const STORAGE_KEY_LORA = 'pie-slang:lora-server-url';
+const STORAGE_KEY_LORA_API = 'pie-slang:lora-api-key';
 
 function loadFromStorage(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -110,6 +118,7 @@ const initialState: HintState = {
   activeGhostNodeId: null,
   apiKey: loadFromStorage(STORAGE_KEY_API) || envApiKey,
   loraServerUrl: loadFromStorage(STORAGE_KEY_LORA),
+  loraApiKey: loadFromStorage(STORAGE_KEY_LORA_API),
 };
 
 /**
@@ -276,6 +285,11 @@ export const useHintStore = create<HintStore>()(
     setLoraServerUrl: (url: string | null) => {
       saveToStorage(STORAGE_KEY_LORA, url);
       set({ loraServerUrl: url });
+    },
+
+    setLoraApiKey: (key: string | null) => {
+      saveToStorage(STORAGE_KEY_LORA_API, key);
+      set({ loraApiKey: key });
     },
 
     clearAllHints: () => {

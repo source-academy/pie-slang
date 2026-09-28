@@ -162,6 +162,29 @@ conda run -n pie-train --no-capture-output python training/serve.py \
     --adapter training/output/adapter --port 8000
 ```
 
+#### Cloud serving — Runpod serverless (scale-to-zero)
+
+To serve the same adapter in the cloud instead of on this laptop, deploy the
+**flash** serverless endpoint in `training/runpod/` (cheapest 16 GB GPU pool,
+`workers=(0,1)` so it costs ~$0 when idle). The worker reuses the exact
+`LocalPredictor` load path (transformers + PEFT + bitsandbytes NF4) — not GGUF —
+so it reproduces the same predictions. Full walkthrough:
+[`training/runpod/README.md`](runpod/README.md). In short:
+
+```bash
+cd training/runpod
+flash login                          # Runpod browser OAuth (saves a key, unlocks flash+runpodctl)
+hf auth login                        # HF token (write, to push the adapter)
+./push-adapter.sh <hf-username>      # adapter → private HF repo
+cp .env.example .env                 # set PIE_ADAPTER_REF + HF_TOKEN, then: set -a; source .env; set +a
+flash deploy                         # → prints the endpoint id
+```
+
+Then point the frontend's **AI Settings → Local Model Server** at
+`https://api.runpod.ai/v2/<endpoint-id>` and paste your Runpod API key in the
+**Runpod API Key** field that appears (the worker bridge auto-switches to the
+serverless protocol for `runpod.ai` hosts).
+
 ### Step 4: Verify — Even-or-Odd Agent Test (REQUIRED)
 
 **Every new model MUST pass this test.** It proves the theorem
