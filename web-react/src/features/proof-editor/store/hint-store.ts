@@ -110,15 +110,23 @@ function saveToStorage(key: string, value: string | null) {
   } catch { /* ignore */ }
 }
 
-// Priority: localStorage > .env > null
-const envApiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_API_KEY) || null;
+// Built-in default LoRA endpoint so the tactic model works one-click, with no
+// manual setup in AI Settings. This is the Runpod serverless endpoint; the
+// Bearer token comes from the VITE_LORA_API_KEY build-time env (see .env.local).
+const DEFAULT_LORA_SERVER_URL = 'https://api.runpod.ai/v2/ogahfdvehdgq04';
+
+// Priority: localStorage (user override) > build-time env > built-in default.
+const env = (typeof import.meta !== 'undefined' && import.meta.env) || ({} as Record<string, string | undefined>);
+const envApiKey = env.VITE_GOOGLE_API_KEY || null;
+const envLoraUrl = env.VITE_LORA_SERVER_URL || null;
+const envLoraApiKey = env.VITE_LORA_API_KEY || null;
 
 const initialState: HintState = {
   goalHints: new Map(),
   activeGhostNodeId: null,
   apiKey: loadFromStorage(STORAGE_KEY_API) || envApiKey,
-  loraServerUrl: loadFromStorage(STORAGE_KEY_LORA),
-  loraApiKey: loadFromStorage(STORAGE_KEY_LORA_API),
+  loraServerUrl: loadFromStorage(STORAGE_KEY_LORA) || envLoraUrl || DEFAULT_LORA_SERVER_URL,
+  loraApiKey: loadFromStorage(STORAGE_KEY_LORA_API) || envLoraApiKey,
 };
 
 /**
