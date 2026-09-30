@@ -72,16 +72,35 @@ map to the handler's fields. `runsync`/`run` wrap the body in `input`:
   "tactic_head": "elim-Nat", "category": "elimination", "elapsed_ms": 812.3 }
 ```
 
-## Frontend wiring
+## Frontend wiring (per-developer config)
 
-Set the endpoint in the app's **AI Settings** panel:
-- **LoRA server URL:** `https://api.runpod.ai/v2/<endpoint-id>` (or `.../runsync`)
-- **LoRA API key:** your `RUNPOD_API_KEY`
+The endpoint + Bearer token are **never hardcoded** in the frontend. Each
+developer supplies their own via a gitignored env file, baked into their build
+by Vite:
+
+```bash
+cd web-react
+cp .env.example .env.local          # .env.local is gitignored
+# edit .env.local:
+#   VITE_LORA_SERVER_URL=https://api.runpod.ai/v2/<endpoint-id>
+#   VITE_LORA_API_KEY=rpa_...        # your Runpod key (readable in the built JS)
+yarn dev   # or yarn build
+```
+
+Precedence (see `web-react/.../store/hint-store.ts`):
+**localStorage (runtime override in the AI Settings panel) > build-time env > off.**
+Leave `VITE_LORA_API_KEY` unset and LoRA hints are simply disabled (the Gemini
+explanation fallback still works). A developer can also skip the env file and
+paste a URL + key directly into the app's **AI Settings** panel at runtime.
 
 When the URL is a `runpod.ai` host, the worker bridge switches to the serverless
 protocol automatically: `POST .../runsync`, `Authorization: Bearer <key>`, body wrapped
 in `input`, and it reads the tactic out of `response.output`. See
-`web-react/src/workers/proof-worker.ts` (`fetchAndValidateLoraPrediction`).
+`web-react/src/workers/proof-worker.ts` (`fetchRunpodPrediction`).
+
+> **Key exposure:** `VITE_*` vars are inlined into the shipped JS bundle, so
+> whatever key you build with is readable by anyone who loads that build. Use a
+> rotatable key scoped to this endpoint, not your primary Runpod account key.
 
 > **Cold start:** after idle scale-to-zero, the first hint reloads the 7B model
 > (~30-60s). `idle_timeout=120` keeps a worker warm for 2 min of active proving.
