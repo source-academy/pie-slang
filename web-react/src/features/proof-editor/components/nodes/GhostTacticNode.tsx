@@ -100,7 +100,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
   return (
     <div
       className={cn(
-        'min-w-[180px] max-w-[280px] rounded-lg border-2 border-dashed',
+        'min-w-[180px] max-w-[280px] rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing select-none',
         'border-purple-400 bg-purple-50/80 backdrop-blur-sm',
         'shadow-lg shadow-purple-200/50',
         'transition-all duration-200',
@@ -209,7 +209,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
               <button
                 onClick={handleAccept}
                 className={cn(
-                  'flex items-center gap-1 rounded px-2 py-1',
+                  'nodrag cursor-pointer flex items-center gap-1 rounded px-2 py-1',
                   'bg-green-500 text-white text-xs font-medium',
                   'hover:bg-green-600 transition-colors'
                 )}
@@ -224,7 +224,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
               <button
                 onClick={handleMoreDetail}
                 className={cn(
-                  'flex items-center gap-1 rounded px-2 py-1',
+                  'nodrag cursor-pointer flex items-center gap-1 rounded px-2 py-1',
                   'bg-purple-500 text-white text-xs font-medium',
                   'hover:bg-purple-600 transition-colors'
                 )}
@@ -237,9 +237,10 @@ export const GhostTacticNode = memo(function GhostTacticNode({
 
           {/* Dismiss button */}
           <button
+            aria-label="Dismiss hint"
             onClick={handleDismiss}
             className={cn(
-              'flex items-center gap-1 rounded px-2 py-1',
+              'nodrag cursor-pointer flex items-center gap-1 rounded px-2 py-1',
               'bg-gray-200 text-gray-600 text-xs',
               'hover:bg-gray-300 transition-colors'
             )}

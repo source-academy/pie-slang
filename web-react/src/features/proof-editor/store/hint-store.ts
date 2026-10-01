@@ -74,6 +74,8 @@ export interface HintActions {
   // Get more detail (next hint level)
   requestMoreDetail: (goalId: string) => void;
 
+  moveGhostNode: (nodeId: string, position: { x: number; y: number }) => void;
+
   // Set API key
   setApiKey: (key: string | null) => void;
 
@@ -237,6 +239,18 @@ export const useHintStore = create<HintStore>()(
           goalHints: newGoalHints,
           activeGhostNodeId: ghostNode?.id || null,
         };
+      });
+    },
+
+    moveGhostNode: (nodeId, position) => {
+      if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
+      set((state) => {
+        const match = [...state.goalHints].find(([, hint]) => hint.ghostNode?.id === nodeId);
+        if (!match) return state;
+        const [goalId, hint] = match;
+        const goalHints = new Map(state.goalHints);
+        goalHints.set(goalId, { ...hint, ghostNode: { ...hint.ghostNode!, position: { ...position } } });
+        return { goalHints };
       });
     },
 

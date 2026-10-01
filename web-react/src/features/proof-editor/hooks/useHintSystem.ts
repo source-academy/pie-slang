@@ -151,9 +151,10 @@ export function useHintSystem() {
       hintStore.updateHint(goalId, hint);
 
       // Update ghost node with new hint
-      if (existingState.ghostNode) {
+      const currentGhost = useHintStore.getState().goalHints.get(goalId)?.ghostNode;
+      if (currentGhost && currentGhost.id === existingState.ghostNode?.id) {
         hintStore.setGhostNode(goalId, {
-          ...existingState.ghostNode,
+          ...currentGhost,
           hint,
           isLoading: false,
         });

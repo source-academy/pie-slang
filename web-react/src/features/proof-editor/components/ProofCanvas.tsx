@@ -28,6 +28,7 @@ import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import type { GhostTacticNodeData } from "./nodes/GhostTacticNode";
 import { useDemoData } from "../hooks/useDemoData";
 import { useHintSystem } from "../hooks/useHintSystem";
+import { useHintStore } from "../store/hint-store";
 import { TACTICS } from "../data/tactics";
 import { applyTactic as triggerApplyTactic } from "../utils/tactic-callback";
 import { extractParameters } from "./nodes/LemmaNode";
@@ -136,6 +137,18 @@ export function ProofCanvas() {
    */
   const handleNodesChange = useCallback(
     (changes: NodeChange<ProofNode>[]) => {
+      // Hint positions live in hint-store, not proof-store.
+      const hintStore = useHintStore.getState();
+      const ghosts = new Map([...hintStore.goalHints.values()]
+        .filter(h => h.ghostNode)
+        .map(h => [h.ghostNode!.id, h.goalId]));
+      for (const change of changes) {
+        if (!('id' in change) || !ghosts.has(change.id)) continue;
+        if (change.type === 'position' && change.position) hintStore.moveGhostNode(change.id, change.position);
+        if (change.type === 'remove') hintStore.dismissGhostNode(ghosts.get(change.id)!);
+      }
+      changes = changes.filter(change => !('id' in change) || !ghosts.has(change.id));
+      if (changes.length === 0) return;
       // Check if any of the changes are removing an applied tactic
       const removeChanges = changes.filter((c) => c.type === "remove");
 
@@ -523,6 +536,7 @@ export function ProofCanvas() {
         ghosts.push({
           id: hintState.ghostNode.id,
           type: "ghost",
+          draggable: true,
           position: hintState.ghostNode.position,
           data: {
             kind: "ghost",
