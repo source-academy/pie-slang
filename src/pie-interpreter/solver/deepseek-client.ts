@@ -1,8 +1,9 @@
+import { loggedAiFetch, type AiCallMeta } from "./ai-call-log";
 /** Shared by browser goal translation and worker hint explanations. */
 export const DEEPSEEK_MODEL = "deepseek-flash";
 const ENDPOINT = "https://api.deepseek.com/chat/completions";
 
-export async function callDeepSeek(apiKey: string, prompt: string): Promise<string> {
+export async function callDeepSeek(apiKey: string, prompt: string, operation: AiCallMeta['operation'] = 'hint'): Promise<string> {
   const key = apiKey.trim();
   if (!key) throw new Error("DeepSeek API key is not set.");
 
@@ -13,7 +14,7 @@ export async function callDeepSeek(apiKey: string, prompt: string): Promise<stri
     let response: Response;
     let payload: unknown;
     try {
-      response = await fetch(ENDPOINT, {
+      response = await loggedAiFetch({ provider: 'deepseek', operation }, ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

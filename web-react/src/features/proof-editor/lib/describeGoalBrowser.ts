@@ -104,5 +104,5 @@ export async function describeGoalBrowser(
   context: Array<{ name: string; type: string }>,
   apiKey: string,
 ): Promise<string> {
-  return callDeepSeek(apiKey, buildPrompt(goalType, context));
+  return callDeepSeek(apiKey, buildPrompt(goalType, context), 'translation');
 }

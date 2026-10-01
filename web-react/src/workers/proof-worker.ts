@@ -1,3 +1,4 @@
+import { loggedAiFetch } from "@pie/solver/ai-call-log";
 import * as Comlink from "comlink";
 import { nanoid } from "nanoid";
 import {
@@ -906,12 +907,6 @@ const proofWorkerAPI: ProofWorkerAPI = {
   },
 
   async getHint(request: HintRequest): Promise<HintResponse> {
-    console.log(
-      "[ProofWorker] getHint() called for goal:",
-      request.goalId,
-      "level:",
-      request.currentLevel,
-    );
 
     const session = sessions.get(request.sessionId);
     if (!session) {
@@ -991,12 +986,6 @@ const proofWorkerAPI: ProofWorkerAPI = {
         )) ?? undefined;
         if (loraPrediction) {
           loraPredictions.set(request.goalId, loraPrediction);
-          console.log(
-            "[ProofWorker] LoRA prediction cached:",
-            loraPrediction.tactic,
-            "validated:",
-            loraPrediction.validated,
-          );
         }
       }
 
@@ -1014,26 +1003,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
             level: request.currentLevel,
             proofStateText,
           };
-          console.log(
-            "[ProofWorker] 📤 Sending to DeepSeek explainTactic:",
-            JSON.stringify(explainRequest, null, 2),
-          );
           const hint = await explainTactic(request.apiKey, explainRequest);
-          console.log(
-            "[ProofWorker] 📥 DeepSeek explainTactic returned:",
-            JSON.stringify(hint, null, 2),
-          );
           const finalHint = { ...hint, source: "lora" as const };
-          console.log(
-            "[ProofWorker] 🎯 Final hint to frontend:",
-            JSON.stringify(finalHint, null, 2),
-          );
           return finalHint;
-        } catch (explainError) {
-          console.warn(
-            "[ProofWorker] DeepSeek explanation failed, using fallback:",
-            explainError,
-          );
+        } catch {
           // Fall through to LoRA-without-DeepSeek path
         }
       }
@@ -1050,15 +1023,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
           level: request.currentLevel,
           proofStateText,
         };
-        console.log(
-          "[ProofWorker] 📤 Sending to fallback explainTactic (no API key):",
-          JSON.stringify(explainRequest, null, 2),
-        );
         const hint = await explainTactic("", explainRequest);
-        console.log(
-          "[ProofWorker] 📥 Fallback explainTactic returned:",
-          JSON.stringify(hint, null, 2),
-        );
         return { ...hint, source: "lora" };
       }
 
@@ -1084,22 +1049,16 @@ const proofWorkerAPI: ProofWorkerAPI = {
             request.apiKey,
             hintRequest,
           );
-          console.log("[ProofWorker] DeepSeek-only hint generated:", hint);
           return { ...hint, source: "deepseek" };
-        } catch (aiError) {
-          console.warn(
-            "[ProofWorker] AI hint failed, falling back to rule-based:",
-            aiError,
-          );
+        } catch {
+          // Preserve the rule fallback without logging provider error contents.
         }
       }
 
       // Fallback to rule-based hints
       const hint = generateRuleBasedHint(hintRequest);
-      console.log("[ProofWorker] Rule-based hint generated:", hint);
       return { ...hint, source: "rule-based" };
     } catch (error) {
-      console.error("[ProofWorker] Error generating hint:", error);
       return {
         level: request.currentLevel,
         explanation: `Error generating hint: ${String(error)}`,
@@ -1131,18 +1090,12 @@ async function fetchRunpodPrediction(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
 
-  const syncResp = await fetch(`${base}/runsync`, {
+  const syncResp = await loggedAiFetch({ provider: 'runpod', operation: 'prediction' }, `${base}/runsync`, {
     method: "POST",
     headers,
     body: JSON.stringify({ input }),
   });
   if (!syncResp.ok) {
-    console.warn(
-      "[ProofWorker] Runpod runsync returned",
-      syncResp.status,
-      syncResp.statusText,
-      syncResp.status === 401 ? "(check the LoRA API key)" : "",
-    );
     return null;
   }
 
@@ -1153,21 +1106,17 @@ async function fetchRunpodPrediction(
   const deadlineMs = Date.now() + 180_000; // 3 min cap covers a cold 7B reload
   while (job.status !== "COMPLETED") {
     if (job.status === "FAILED" || job.status === "CANCELLED" || job.status === "TIMED_OUT") {
-      console.warn("[ProofWorker] Runpod job did not complete:", job);
       return null;
     }
     if (!job.id) {
-      console.warn("[ProofWorker] Runpod job has no id to poll:", job);
       return null;
     }
     if (Date.now() > deadlineMs) {
-      console.warn("[ProofWorker] Runpod job timed out after 3 min (cold start?)");
       return null;
     }
     await new Promise((r) => setTimeout(r, 2000));
-    const st = await fetch(`${base}/status/${job.id}`, { headers });
+    const st = await loggedAiFetch({ provider: 'runpod', operation: 'poll' }, `${base}/status/${job.id}`, { headers });
     if (!st.ok) {
-      console.warn("[ProofWorker] Runpod status poll returned", st.status, st.statusText);
       return null;
     }
     job = await st.json();
@@ -1225,10 +1174,6 @@ async function fetchAndValidateLoraPrediction(
       globalContext: globalCtx,
       localContext: localCtx,
     };
-    console.log(
-      "[ProofWorker] 📤 LoRA request:",
-      JSON.stringify(requestBody, null, 2),
-    );
 
     // Runpod serverless (api.runpod.ai) speaks a different protocol than the
     // local serve.py: POST .../runsync with a Bearer token, the body wrapped in
@@ -1244,29 +1189,19 @@ async function fetchAndValidateLoraPrediction(
       data = await fetchRunpodPrediction(url, requestBody, loraApiKey);
       if (!data) return null;
     } else {
-      const resp = await fetch(`${url}/predict`, {
+      const resp = await loggedAiFetch({ provider: 'lora', operation: 'prediction' }, `${url}/predict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
 
       if (!resp.ok) {
-        console.warn(
-          "[ProofWorker] LoRA server returned",
-          resp.status,
-          resp.statusText,
-        );
         return null;
       }
 
       data = await resp.json();
     }
-    console.log(
-      "[ProofWorker] 📥 LoRA response:",
-      JSON.stringify(data, null, 2),
-    );
     if (!data || typeof data.tactic !== "string") {
-      console.warn("[ProofWorker] LoRA response missing 'tactic':", data);
       return null;
     }
     tactic = data.tactic.trim();
@@ -1277,14 +1212,9 @@ async function fetchAndValidateLoraPrediction(
     // "exact" expression (full proof term), it's not a useful single-step
     // tactic hint. Reject it so we fall back to DeepSeek.
     if (tactic.includes("\n") || tactic.length > 100) {
-      console.warn(
-        "[ProofWorker] LoRA output too complex for hint, rejecting:",
-        tactic.slice(0, 80) + "...",
-      );
       return null;
     }
-  } catch (error) {
-    console.warn("[ProofWorker] LoRA server unreachable:", error);
+  } catch {
     return null;
   }
 
@@ -1304,9 +1234,7 @@ async function fetchAndValidateLoraPrediction(
 
     // If parsing succeeded, the tactic is structurally valid
     validated = true;
-    console.log("[ProofWorker] LoRA prediction parsed successfully:", tactic);
-  } catch (error) {
-    console.warn("[ProofWorker] LoRA prediction parse error:", error);
+  } catch {
     validated = false;
   }
 
@@ -1331,4 +1259,3 @@ function findGoalById(
 }
 
 Comlink.expose(proofWorkerAPI);
-console.log("[ProofWorker] API exposed");

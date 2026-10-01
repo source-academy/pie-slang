@@ -1,3 +1,5 @@
+import { loggedAiFetch } from '@pie/solver/ai-call-log';
+import { AiCallLogPanel } from './AiCallLogPanel';
 import { useState, useCallback, useEffect } from 'react';
 import { useHintStore } from '../../store';
 import { Sparkles, Eye, EyeOff, Check, AlertCircle, Cpu } from 'lucide-react';
@@ -79,7 +81,7 @@ export function AISettingsPanel() {
       const key = useHintStore.getState().loraApiKey;
       const headers: Record<string, string> = {};
       if (key && url.includes('runpod.ai')) headers['Authorization'] = `Bearer ${key}`;
-      const resp = await fetch(`${url.replace(/\/+$/, '')}/health`, {
+      const resp = await loggedAiFetch({ provider: url.includes('runpod.ai') ? 'runpod' : 'lora', operation: 'health' }, `${url.replace(/\/+$/, '')}/health`, {
         headers,
         signal: AbortSignal.timeout(5000),
       });
@@ -229,6 +231,8 @@ export function AISettingsPanel() {
               </p>
             </div>
           )}
+
+          <AiCallLogPanel />
 
           {/* API Key input */}
           <div className="mb-3">

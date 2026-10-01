@@ -758,17 +758,13 @@ export async function explainTactic(
       : "No context variables";
 
   const prompt = buildExplainPrompt(request, contextSummary);
-  console.log("[HintGenerator] 📤 DeepSeek explain prompt:\n", prompt);
 
   try {
-    const text = await callDeepSeek(apiKey, prompt);
+    const text = await callDeepSeek(apiKey, prompt, 'explanation');
 
-    console.log("[HintGenerator] 📥 DeepSeek raw response:", text);
     const parsed = parseExplainResponse(text, request);
-    console.log("[HintGenerator] 📦 Parsed hint:", JSON.stringify(parsed, null, 2));
     return parsed;
-  } catch (error: unknown) {
-    console.warn("[HintGenerator] ⚠️ DeepSeek failed, using fallback:", error);
+  } catch {
     // Fall back to a simple explanation without DeepSeek
     return buildFallbackExplanation(request);
   }
