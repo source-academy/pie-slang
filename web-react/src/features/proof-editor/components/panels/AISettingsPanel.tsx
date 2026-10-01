@@ -1,5 +1,4 @@
 import { loggedAiFetch } from '@pie/solver/ai-call-log';
-import { AiCallLogPanel } from './AiCallLogPanel';
 import { useState, useCallback, useEffect } from 'react';
 import { useHintStore } from '../../store';
 import { Sparkles, Eye, EyeOff, Check, AlertCircle, Cpu } from 'lucide-react';
@@ -231,8 +230,6 @@ export function AISettingsPanel() {
               </p>
             </div>
           )}
-
-          <AiCallLogPanel />
 
           {/* API Key input */}
           <div className="mb-3">
