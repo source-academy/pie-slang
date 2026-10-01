@@ -948,7 +948,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         type: c.type,
       }));
 
-      // Build proof state text matching LoRA training format for Gemini context
+      // Build proof state text matching LoRA training format for DeepSeek context
       const globalNames = new Set<string>();
       const defLines: string[] = [];
       for (const entry of [
@@ -973,7 +973,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
       proofStateParts.push(`Goal: ${goal.goal.type}`);
       const proofStateText = proofStateParts.join("\n");
 
-      // ── LoRA path: predict → validate → cache → Gemini explain ──
+      // ── LoRA path: predict → validate → cache → DeepSeek explain ──
 
       // Try to get LoRA prediction (only on first hint request for this goal)
       let loraPrediction: LoraPrediction | undefined =
@@ -1000,7 +1000,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         }
       }
 
-      // If we have a validated LoRA prediction, use Gemini to explain it
+      // If we have a validated LoRA prediction, use DeepSeek to explain it
       if (loraPrediction?.validated && request.apiKey) {
         try {
           const { explainTactic } = await import(
@@ -1015,12 +1015,12 @@ const proofWorkerAPI: ProofWorkerAPI = {
             proofStateText,
           };
           console.log(
-            "[ProofWorker] 📤 Sending to Gemini explainTactic:",
+            "[ProofWorker] 📤 Sending to DeepSeek explainTactic:",
             JSON.stringify(explainRequest, null, 2),
           );
           const hint = await explainTactic(request.apiKey, explainRequest);
           console.log(
-            "[ProofWorker] 📥 Gemini explainTactic returned:",
+            "[ProofWorker] 📥 DeepSeek explainTactic returned:",
             JSON.stringify(hint, null, 2),
           );
           const finalHint = { ...hint, source: "lora" as const };
@@ -1031,14 +1031,14 @@ const proofWorkerAPI: ProofWorkerAPI = {
           return finalHint;
         } catch (explainError) {
           console.warn(
-            "[ProofWorker] Gemini explanation failed, using fallback:",
+            "[ProofWorker] DeepSeek explanation failed, using fallback:",
             explainError,
           );
-          // Fall through to LoRA-without-Gemini path
+          // Fall through to LoRA-without-DeepSeek path
         }
       }
 
-      // If we have a validated LoRA prediction but no Gemini API key (or Gemini failed),
+      // If we have a validated LoRA prediction but no DeepSeek API key (or DeepSeek failed),
       // provide a simple structured hint from the prediction using the built-in fallback
       if (loraPrediction?.validated) {
         const { explainTactic } = await import("@pie/solver/hint-generator");
@@ -1062,7 +1062,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
         return { ...hint, source: "lora" };
       }
 
-      // ── Legacy path: Gemini-only or rule-based ──
+      // ── Legacy path: DeepSeek-only or rule-based ──
 
       const hintRequest = {
         goalType: goal.goal.type,
@@ -1084,8 +1084,8 @@ const proofWorkerAPI: ProofWorkerAPI = {
             request.apiKey,
             hintRequest,
           );
-          console.log("[ProofWorker] Gemini-only hint generated:", hint);
-          return { ...hint, source: "gemini" };
+          console.log("[ProofWorker] DeepSeek-only hint generated:", hint);
+          return { ...hint, source: "deepseek" };
         } catch (aiError) {
           console.warn(
             "[ProofWorker] AI hint failed, falling back to rule-based:",
@@ -1275,7 +1275,7 @@ async function fetchAndValidateLoraPrediction(
 
     // Sanitize: if the model produced multi-line output or a very long
     // "exact" expression (full proof term), it's not a useful single-step
-    // tactic hint. Reject it so we fall back to Gemini.
+    // tactic hint. Reject it so we fall back to DeepSeek.
     if (tactic.includes("\n") || tactic.length > 100) {
       console.warn(
         "[ProofWorker] LoRA output too complex for hint, rejecting:",

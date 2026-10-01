@@ -7,7 +7,7 @@ import { cn } from '@/shared/lib/utils';
  * AISettingsPanel - Panel for configuring AI-powered hints
  *
  * Features:
- * - Input field for Gemini API key
+ * - Input field for DeepSeek API key
  * - Input field for local LoRA model server URL
  * - Health check indicator for local model
  * - Status indicator for AI availability
@@ -139,7 +139,7 @@ export function AISettingsPanel() {
           <div className="mb-3">
             <p className="text-sm text-muted-foreground">
               Configure AI-powered hints. The local model predicts tactics accurately,
-              and Gemini explains them educationally.
+              and DeepSeek explains them educationally.
             </p>
           </div>
 
@@ -233,14 +233,14 @@ export function AISettingsPanel() {
           {/* API Key input */}
           <div className="mb-3">
             <label className="mb-1 block text-sm font-medium">
-              Gemini API Key
+              DeepSeek API Key
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
                   type={showKey ? 'text' : 'password'}
                   className="w-full rounded-md border bg-background px-3 py-2 pr-10 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="AIza..."
+                  placeholder="sk-..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onBlur={handleSaveKey}
@@ -270,12 +270,12 @@ export function AISettingsPanel() {
           {/* Get API key link */}
           <div className="mb-3">
             <a
-              href="https://aistudio.google.com/app/apikey"
+              href="https://platform.deepseek.com/api_keys"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
             >
-              Get a free Gemini API key ���
+              Get a DeepSeek API key →
             </a>
           </div>
 
@@ -289,7 +289,7 @@ export function AISettingsPanel() {
                     Local Model + AI Explanation Active
                   </p>
                   <p className="text-xs text-green-600">
-                    The local model predicts the correct tactic, then Gemini explains
+                    The local model predicts the correct tactic, then DeepSeek explains
                     it educationally at each hint level.
                   </p>
                 </div>
@@ -307,7 +307,7 @@ export function AISettingsPanel() {
                   </p>
                   <p className="text-xs text-green-600">
                     Tactic predictions are powered by the local model.
-                    Add a Gemini API key for educational explanations.
+                    Add a DeepSeek API key for educational explanations.
                   </p>
                 </div>
               </div>
@@ -336,10 +336,10 @@ export function AISettingsPanel() {
                 <Sparkles className="mt-0.5 h-4 w-4 text-purple-500" />
                 <div>
                   <p className="text-sm font-medium text-purple-800">
-                    Gemini-Only Hints Active
+                    DeepSeek-Only Hints Active
                   </p>
                   <p className="text-xs text-purple-600">
-                    Using Gemini for both prediction and explanation.
+                    Using DeepSeek for both prediction and explanation.
                     Add a local model server for more accurate tactic predictions.
                   </p>
                 </div>

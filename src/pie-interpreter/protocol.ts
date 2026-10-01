@@ -221,7 +221,7 @@ export interface HintResponse {
   explanation: string;
   confidence: number;
   /** Where the tactic prediction came from. */
-  source?: "lora" | "gemini" | "rule-based";
+  source?: "lora" | "deepseek" | "rule-based";
 }
 
 // ============================================================================

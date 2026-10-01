@@ -51,7 +51,7 @@ export function GoalDetailPanel() {
 
   // ---------------------------------------------------------------------------
   // Description fetching — translates the specific subgoal type + context
-  // into plain English via Gemini.
+  // into plain English via DeepSeek.
   // ---------------------------------------------------------------------------
   const abortRef = useRef<AbortController | null>(null);
 
@@ -215,7 +215,7 @@ export function GoalDetailPanel() {
 
         {!apiKey ? (
           <p className="text-xs text-gray-400 italic">
-            Configure a Gemini API key in AI Settings to enable goal
+            Configure a DeepSeek API key in AI Settings to enable goal
             descriptions.
           </p>
         ) : !selectedNode ? (

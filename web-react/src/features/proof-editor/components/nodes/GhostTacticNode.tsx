@@ -71,8 +71,8 @@ export const GhostTacticNode = memo(function GhostTacticNode({
 }: NodeProps<GhostTacticNode>) {
   const { hint, isLoading, onAccept, onDismiss, onMoreDetail } = data as GhostTacticNodeData;
   const hasApiKey = useHintStore((s) => !!s.apiKey);
-  const hintSource = hint.source || (hasApiKey ? 'gemini' : 'rule-based');
-  const isAIPowered = hintSource === 'lora' || hintSource === 'gemini';
+  const hintSource = hint.source || (hasApiKey ? 'deepseek' : 'rule-based');
+  const isAIPowered = hintSource === 'lora' || hintSource === 'deepseek';
 
   const handleAccept = useCallback(() => {
     onAccept();
@@ -134,11 +134,11 @@ export const GhostTacticNode = memo(function GhostTacticNode({
             'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
             hintSource === 'lora'
               ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-              : hintSource === 'gemini'
+              : hintSource === 'deepseek'
                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                 : 'bg-gray-200 text-gray-600'
           )}>
-            {hintSource === 'lora' ? 'Local AI' : hintSource === 'gemini' ? 'AI' : 'Rule'}
+            {hintSource === 'lora' ? 'Local AI' : hintSource === 'deepseek' ? 'AI' : 'Rule'}
           </span>
         </div>
         <span className={cn('text-[10px] font-medium', confidenceColor)}>
