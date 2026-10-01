@@ -3,7 +3,6 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
 import { ChevronRight, Check, X, Loader2, Sparkles, Cpu } from 'lucide-react';
 import type { HintLevel, HintResponse } from '@pie/protocol';
-import { useHintStore } from '../../store';
 
 /**
  * Data for a ghost tactic node
@@ -70,8 +69,11 @@ export const GhostTacticNode = memo(function GhostTacticNode({
   selected,
 }: NodeProps<GhostTacticNode>) {
   const { hint, isLoading, onAccept, onDismiss, onMoreDetail } = data as GhostTacticNodeData;
-  const hasApiKey = useHintStore((s) => !!s.apiKey);
-  const hintSource = hint.source || (hasApiKey ? 'deepseek' : 'rule-based');
+  const hintSource = hint.source || 'rule-based';
+  const hasBothModels = hintSource === 'lora' && hint.explanationSource === 'deepseek';
+  const sourceLabel = hasBothModels ? 'Tactic LLM & General LLM'
+    : hintSource === 'lora' ? 'Tactic LLM'
+      : hintSource === 'deepseek' ? 'General LLM' : 'Rule';
   const isAIPowered = hintSource === 'lora' || hintSource === 'deepseek';
 
   const handleAccept = useCallback(() => {
@@ -100,7 +102,8 @@ export const GhostTacticNode = memo(function GhostTacticNode({
   return (
     <div
       className={cn(
-        'w-[340px] rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing select-none',
+        'rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing select-none',
+        hasBothModels ? 'w-[420px]' : 'w-[340px]',
         'border-purple-400 bg-purple-50/80 backdrop-blur-sm',
         'shadow-lg shadow-purple-200/50',
         'transition-all duration-200',
@@ -138,7 +141,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                 : 'bg-gray-200 text-gray-600'
           )}>
-            {hintSource === 'lora' ? 'Tactic LLM' : hintSource === 'deepseek' ? 'General LLM' : 'Rule'}
+            {sourceLabel}
           </span>
         </div>
         <span className={cn('min-w-[3ch] shrink-0 text-right text-[10px] font-medium tabular-nums', confidenceColor)}>

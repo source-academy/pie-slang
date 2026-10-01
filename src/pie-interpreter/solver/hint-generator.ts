@@ -28,6 +28,8 @@ export interface ProgressiveHint {
   parameters?: Record<string, string>;
   explanation: string;
   confidence: number; // 0-1, how confident the hint generator is
+  /** Present for LoRA explanations, including fallback templates. */
+  explanationSource?: "deepseek" | "template";
 }
 
 /**
@@ -863,6 +865,8 @@ function parseExplainResponse(
     const hint: ProgressiveHint = {
       level: request.level,
       explanation: parsed.explanation || "Consider this approach.",
+      explanationSource: typeof parsed.explanation === "string" && parsed.explanation.trim()
+        ? "deepseek" : "template",
       confidence:
         typeof parsed.confidence === "number" ? parsed.confidence : 0.9,
     };
@@ -912,6 +916,7 @@ function buildFallbackExplanation(
         level: "category",
         category,
         explanation: CATEGORY_DESCRIPTIONS[category] || `Consider a ${category} approach.`,
+        explanationSource: "template",
         confidence: 0.9,
       };
     case "tactic":
@@ -920,6 +925,7 @@ function buildFallbackExplanation(
         category,
         tacticType: protocolType,
         explanation: `Use the ${protocolType} tactic for this goal.`,
+        explanationSource: "template",
         confidence: 0.9,
       };
     case "full": {
@@ -937,6 +943,7 @@ function buildFallbackExplanation(
         tacticType: protocolType,
         parameters: params,
         explanation: `Apply ${request.predictedTactic}.`,
+        explanationSource: "template",
         confidence: 0.9,
       };
     }

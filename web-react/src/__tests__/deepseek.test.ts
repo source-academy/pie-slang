@@ -109,6 +109,7 @@ describe("Translation and More use DeepSeek", () => {
       goalType: "(Π (n Nat) (Either (Even n) (Odd n)))", context: [], level,
     });
     expect(hint.explanation).toContain("universal claim");
+    expect(hint.explanationSource).toBe("deepseek");
     expect(hint.level).toBe(level);
     if (level !== "category") expect(hint.tacticType).toBe("intro");
     if (level === "full") expect(hint.parameters).toEqual({ variableName: "n" });
@@ -134,6 +135,45 @@ describe("Translation and More use DeepSeek", () => {
       context: [], level: "tactic",
     });
     expect(hint.explanation).toBe("Use the intro tactic for this goal.");
+    expect(hint.explanationSource).toBe("template");
+  });
+
+  it("marks a no-key LoRA explanation as a template without calling the API", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const hint = await explainTactic("", {
+      predictedTactic: "intro n", tacticCategory: "introduction", goalType: "(Pi ((n Nat)) Nat)",
+      context: [], level: "full",
+    });
+    expect(hint.explanationSource).toBe("template");
+    expect(hint.parameters).toEqual({ variableName: "n" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(['not JSON', '{}', '{"explanation":""}'])(
+    "does not credit General LLM when its response supplies no usable explanation: %s", async content => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(content)));
+      const hint = await explainTactic(fakeKey, {
+        predictedTactic: "intro n", tacticCategory: "introduction", goalType: "(Pi ((n Nat)) Nat)",
+        context: [], level: "full",
+      });
+      expect(hint.explanationSource).toBe("template");
+      expect(hint.tacticType).toBe("intro");
+      expect(hint.parameters).toEqual({ variableName: "n" });
+    },
+  );
+
+  it("keeps the Tactic LLM suggestion authoritative when General LLM explains it", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(JSON.stringify({
+      tacticType: "exact", parameters: { expression: "zero" }, explanation: "Introduce n.",
+    }))));
+    const hint = await explainTactic(fakeKey, {
+      predictedTactic: "intro n", tacticCategory: "introduction", goalType: "(Pi ((n Nat)) Nat)",
+      context: [], level: "full",
+    });
+    expect(hint.explanationSource).toBe("deepseek");
+    expect(hint.tacticType).toBe("intro");
+    expect(hint.parameters).toEqual({ variableName: "n" });
   });
 });
 
