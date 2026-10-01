@@ -5,6 +5,7 @@ import { useHintStore, useProofStore } from '../store';
 import type { HintLevel, TacticType } from '@pie/protocol';
 import { TACTIC_REQUIREMENTS } from '@pie/protocol';
 import type { GhostNode } from '../store/hint-store';
+import { applyTactic as triggerApplyTactic } from '../utils/tactic-callback';
 
 /**
  * Hook for managing the hint system
@@ -151,9 +152,10 @@ export function useHintSystem() {
       hintStore.updateHint(goalId, hint);
 
       // Update ghost node with new hint
-      if (existingState.ghostNode) {
+      const currentGhost = useHintStore.getState().goalHints.get(goalId)?.ghostNode;
+      if (currentGhost && currentGhost.id === existingState.ghostNode?.id) {
         hintStore.setGhostNode(goalId, {
-          ...existingState.ghostNode,
+          ...currentGhost,
           hint,
           isLoading: false,
         });
@@ -182,7 +184,7 @@ export function useHintSystem() {
     const { hint } = hintState.ghostNode;
     const goalNode = nodes.find((n) => n.id === goalId);
 
-    if (!goalNode) return;
+    if (!goalNode || goalNode.type !== 'goal') return;
 
     // Determine initial status based on whether we have all parameters (derived from protocol)
     const tacticType = hint.tacticType!;
@@ -220,10 +222,16 @@ export function useHintSystem() {
       }
     );
 
-    console.log('[useHintSystem] Created tactic node from hint:', tacticNodeId);
+    // Use the same handles and edge kind as a manual goal-to-tactic connection.
+    proofStore.connectNodes(goalId, tacticNodeId, { kind: 'goal-to-tactic' });
 
-    // Dismiss the ghost node
+    // Consume the hint before scheduling application, so a second click cannot duplicate it.
     hintStore.dismissGhostNode(goalId);
+
+    // Match manual connection: apply ready tactics, or wait for missing parameters.
+    if (initialStatus === 'ready') {
+      void triggerApplyTactic(goalId, tacticType as TacticType, hint.parameters || {}, tacticNodeId);
+    }
   }, [getProofState, getHintState]);
 
   /**

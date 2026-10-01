@@ -221,7 +221,9 @@ export interface HintResponse {
   explanation: string;
   confidence: number;
   /** Where the tactic prediction came from. */
-  source?: "lora" | "gemini" | "rule-based";
+  source?: "lora" | "deepseek" | "rule-based";
+  /** Actual explanation origin, not merely whether a General LLM key is configured. */
+  explanationSource?: "deepseek" | "template";
 }
 
 // ============================================================================

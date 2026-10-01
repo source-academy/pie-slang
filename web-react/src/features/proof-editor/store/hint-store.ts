@@ -74,6 +74,8 @@ export interface HintActions {
   // Get more detail (next hint level)
   requestMoreDetail: (goalId: string) => void;
 
+  moveGhostNode: (nodeId: string, position: { x: number; y: number }) => void;
+
   // Set API key
   setApiKey: (key: string | null) => void;
 
@@ -96,7 +98,7 @@ export interface HintActions {
 export type HintStore = HintState & HintActions;
 
 // Persist API key and LoRA URL to localStorage
-const STORAGE_KEY_API = 'pie-slang:gemini-api-key';
+const STORAGE_KEY_API = 'pie-slang:deepseek-api-key';
 const STORAGE_KEY_LORA = 'pie-slang:lora-server-url';
 const STORAGE_KEY_LORA_API = 'pie-slang:lora-api-key';
 
@@ -113,11 +115,11 @@ function saveToStorage(key: string, value: string | null) {
 // The LoRA endpoint + Bearer token are NEVER hardcoded in the frontend. They
 // come from build-time env vars (VITE_LORA_SERVER_URL / VITE_LORA_API_KEY),
 // which a developer sets in web-react/.env.local (gitignored — see .env.example).
-// A developer who leaves them unset just gets no LoRA hints (Gemini fallback
+// A developer who leaves them unset just gets no LoRA hints (DeepSeek fallback
 // still works); nothing is baked into the shipped bundle by default.
 // Priority: localStorage (runtime override) > build-time env > null.
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || ({} as Record<string, string | undefined>);
-const envApiKey = env.VITE_GOOGLE_API_KEY || null;
+const envApiKey = env.VITE_DEEPSEEK_API_KEY || null;
 const envLoraUrl = env.VITE_LORA_SERVER_URL || null;
 const envLoraApiKey = env.VITE_LORA_API_KEY || null;
 
@@ -237,6 +239,18 @@ export const useHintStore = create<HintStore>()(
           goalHints: newGoalHints,
           activeGhostNodeId: ghostNode?.id || null,
         };
+      });
+    },
+
+    moveGhostNode: (nodeId, position) => {
+      if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
+      set((state) => {
+        const match = [...state.goalHints].find(([, hint]) => hint.ghostNode?.id === nodeId);
+        if (!match) return state;
+        const [goalId, hint] = match;
+        const goalHints = new Map(state.goalHints);
+        goalHints.set(goalId, { ...hint, ghostNode: { ...hint.ghostNode!, position: { ...position } } });
+        return { goalHints };
       });
     },
 

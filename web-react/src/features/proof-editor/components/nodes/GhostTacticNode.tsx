@@ -3,7 +3,6 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { cn } from '@/shared/lib/utils';
 import { ChevronRight, Check, X, Loader2, Sparkles, Cpu } from 'lucide-react';
 import type { HintLevel, HintResponse } from '@pie/protocol';
-import { useHintStore } from '../../store';
 
 /**
  * Data for a ghost tactic node
@@ -70,9 +69,12 @@ export const GhostTacticNode = memo(function GhostTacticNode({
   selected,
 }: NodeProps<GhostTacticNode>) {
   const { hint, isLoading, onAccept, onDismiss, onMoreDetail } = data as GhostTacticNodeData;
-  const hasApiKey = useHintStore((s) => !!s.apiKey);
-  const hintSource = hint.source || (hasApiKey ? 'gemini' : 'rule-based');
-  const isAIPowered = hintSource === 'lora' || hintSource === 'gemini';
+  const hintSource = hint.source || 'rule-based';
+  const hasBothModels = hintSource === 'lora' && hint.explanationSource === 'deepseek';
+  const sourceLabel = hasBothModels ? 'Tactic LLM & General LLM'
+    : hintSource === 'lora' ? 'Tactic LLM'
+      : hintSource === 'deepseek' ? 'General LLM' : 'Rule';
+  const isAIPowered = hintSource === 'lora' || hintSource === 'deepseek';
 
   const handleAccept = useCallback(() => {
     onAccept();
@@ -100,7 +102,8 @@ export const GhostTacticNode = memo(function GhostTacticNode({
   return (
     <div
       className={cn(
-        'min-w-[180px] max-w-[280px] rounded-lg border-2 border-dashed',
+        'rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing select-none',
+        hasBothModels ? 'w-[420px]' : 'w-[340px]',
         'border-purple-400 bg-purple-50/80 backdrop-blur-sm',
         'shadow-lg shadow-purple-200/50',
         'transition-all duration-200',
@@ -117,7 +120,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-purple-200 px-3 py-2">
+      <div className="flex items-center justify-between gap-4 border-b border-purple-200 px-3 py-2">
         <div className="flex items-center gap-2">
           {hintSource === 'lora' ? (
             <Cpu className="h-4 w-4 text-green-600" />
@@ -126,22 +129,22 @@ export const GhostTacticNode = memo(function GhostTacticNode({
           ) : (
             <Cpu className="h-4 w-4 text-gray-500" />
           )}
-          <span className="text-xs font-medium text-purple-700">
+          <span className="whitespace-nowrap text-xs font-medium text-purple-700">
             {getLevelDisplay(hint.level)}
           </span>
           {/* Source badge */}
           <span className={cn(
-            'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
+            'shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
             hintSource === 'lora'
               ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-              : hintSource === 'gemini'
+              : hintSource === 'deepseek'
                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                 : 'bg-gray-200 text-gray-600'
           )}>
-            {hintSource === 'lora' ? 'Local AI' : hintSource === 'gemini' ? 'AI' : 'Rule'}
+            {sourceLabel}
           </span>
         </div>
-        <span className={cn('text-[10px] font-medium', confidenceColor)}>
+        <span className={cn('min-w-[3ch] shrink-0 text-right text-[10px] font-medium tabular-nums', confidenceColor)}>
           {Math.round(hint.confidence * 100)}%
         </span>
       </div>
@@ -209,7 +212,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
               <button
                 onClick={handleAccept}
                 className={cn(
-                  'flex items-center gap-1 rounded px-2 py-1',
+                  'nodrag cursor-pointer flex items-center gap-1 rounded px-2 py-1',
                   'bg-green-500 text-white text-xs font-medium',
                   'hover:bg-green-600 transition-colors'
                 )}
@@ -224,7 +227,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
               <button
                 onClick={handleMoreDetail}
                 className={cn(
-                  'flex items-center gap-1 rounded px-2 py-1',
+                  'nodrag cursor-pointer flex items-center gap-1 rounded px-2 py-1',
                   'bg-purple-500 text-white text-xs font-medium',
                   'hover:bg-purple-600 transition-colors'
                 )}
@@ -237,9 +240,10 @@ export const GhostTacticNode = memo(function GhostTacticNode({
 
           {/* Dismiss button */}
           <button
+            aria-label="Dismiss hint"
             onClick={handleDismiss}
             className={cn(
-              'flex items-center gap-1 rounded px-2 py-1',
+              'nodrag cursor-pointer flex items-center gap-1 rounded px-2 py-1',
               'bg-gray-200 text-gray-600 text-xs',
               'hover:bg-gray-300 transition-colors'
             )}

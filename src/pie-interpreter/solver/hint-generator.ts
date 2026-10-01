@@ -2,52 +2,16 @@
 // Provides educational hints instead of direct solutions
 // Supports progressive hint levels: category → tactic → full
 
-import { GoogleGenAI } from "@google/genai";
+import { callDeepSeek } from "./deepseek-client";
 import { SerializableContext } from "../utils/context";
 import type { TacticCategory } from "./hint-types";
 import { Parser } from "../parser/parser";
 import { Pi } from "../types/source";
 
 const MISSING_API_KEY_ERROR = new Error(
-  "GOOGLE_API_KEY is not set. " +
+  "DEEPSEEK_API_KEY is not set. " +
     "Please provide an API key to use the hint system.",
 );
-
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
-
-function is503(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error);
-  return msg.includes("503") || msg.includes("overloaded") || msg.includes("UNAVAILABLE");
-}
-
-/**
- * Call Gemini with automatic model fallback on 503.
- * Each model is retried up to `retriesPerModel` times with exponential backoff.
- */
-async function callGemini(
-  genAI: GoogleGenAI,
-  contents: string,
-  retriesPerModel = 2,
-): Promise<string> {
-  let lastError: unknown;
-  for (const model of GEMINI_MODELS) {
-    for (let attempt = 0; attempt <= retriesPerModel; attempt++) {
-      try {
-        const result = await genAI.models.generateContent({ model, contents });
-        if (!result.text) throw new Error("No response from Gemini API");
-        return result.text.trim();
-      } catch (error: unknown) {
-        lastError = error;
-        if (!is503(error)) throw error;
-        if (attempt < retriesPerModel) {
-          await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)));
-        }
-      }
-    }
-    console.warn(`[hint-generator] ${model} unavailable (503), trying next model...`);
-  }
-  throw lastError;
-}
 
 /**
  * Progressive hint levels for educational scaffolding
@@ -64,6 +28,8 @@ export interface ProgressiveHint {
   parameters?: Record<string, string>;
   explanation: string;
   confidence: number; // 0-1, how confident the hint generator is
+  /** Present for LoRA explanations, including fallback templates. */
+  explanationSource?: "deepseek" | "template";
 }
 
 /**
@@ -102,8 +68,6 @@ export async function generateTodoHint(
     throw MISSING_API_KEY_ERROR;
   }
 
-  const genAI = new GoogleGenAI({ apiKey });
-
   const contextSummary =
     context.length > 0 ? context.join("\n") : "No context available";
 
@@ -140,7 +104,7 @@ Example hints:
 Your hint (1-2 sentences):`;
 
   try {
-    return await callGemini(genAI, prompt);
+    return await callDeepSeek(apiKey, prompt);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to generate hint: ${message}`);
@@ -159,8 +123,6 @@ export async function generateTacticHint(
   if (!apiKey) {
     throw MISSING_API_KEY_ERROR;
   }
-
-  const genAI = new GoogleGenAI({ apiKey });
 
   const hypothesesList =
     hypotheses.length > 0 ? hypotheses.join("\n") : "No hypotheses available";
@@ -200,7 +162,7 @@ Example hints:
 Your hint (1-2 sentences):`;
 
   try {
-    return await callGemini(genAI, prompt);
+    return await callDeepSeek(apiKey, prompt);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to generate hint: ${message}`);
@@ -290,8 +252,6 @@ export async function generateProgressiveHint(
     throw MISSING_API_KEY_ERROR;
   }
 
-  const genAI = new GoogleGenAI({ apiKey });
-
   const contextSummary =
     request.context.length > 0
       ? request.context.map((c) => `${c.name} : ${c.type}`).join("\n")
@@ -333,7 +293,7 @@ export async function generateProgressiveHint(
   }
 
   try {
-    const text = await callGemini(genAI, prompt);
+    const text = await callDeepSeek(apiKey, prompt);
 
     return parseProgressiveHintResponse(
       text,
@@ -726,7 +686,7 @@ export function getNextHintLevel(current: HintLevel): HintLevel {
 }
 
 // ============================================
-// LoRA-powered hint explanation (Gemini explains a known tactic)
+// LoRA-powered hint explanation (DeepSeek explains a known tactic)
 // ============================================
 
 /**
@@ -777,9 +737,9 @@ export interface ExplainTacticRequest {
 }
 
 /**
- * Explain a LoRA-predicted tactic using Gemini.
+ * Explain a LoRA-predicted tactic using DeepSeek.
  *
- * Gemini sees the full prediction at every level but is prompted to
+ * DeepSeek sees the full prediction at every level but is prompted to
  * reveal information progressively:
  * - category: explain why this category of approach is appropriate
  * - tactic: reveal and explain the specific tactic type
@@ -794,26 +754,20 @@ export async function explainTactic(
     return buildFallbackExplanation(request);
   }
 
-  const genAI = new GoogleGenAI({ apiKey });
-
   const contextSummary =
     request.context.length > 0
       ? request.context.map((c) => `${c.name} : ${c.type}`).join("\n")
       : "No context variables";
 
   const prompt = buildExplainPrompt(request, contextSummary);
-  console.log("[HintGenerator] 📤 Gemini explain prompt:\n", prompt);
 
   try {
-    const text = await callGemini(genAI, prompt);
+    const text = await callDeepSeek(apiKey, prompt, 'explanation');
 
-    console.log("[HintGenerator] 📥 Gemini raw response:", text);
     const parsed = parseExplainResponse(text, request);
-    console.log("[HintGenerator] 📦 Parsed hint:", JSON.stringify(parsed, null, 2));
     return parsed;
-  } catch (error: unknown) {
-    console.warn("[HintGenerator] ⚠️ Gemini failed, using fallback:", error);
-    // Fall back to a simple explanation without Gemini
+  } catch {
+    // Fall back to a simple explanation without DeepSeek
     return buildFallbackExplanation(request);
   }
 }
@@ -911,11 +865,13 @@ function parseExplainResponse(
     const hint: ProgressiveHint = {
       level: request.level,
       explanation: parsed.explanation || "Consider this approach.",
+      explanationSource: typeof parsed.explanation === "string" && parsed.explanation.trim()
+        ? "deepseek" : "template",
       confidence:
         typeof parsed.confidence === "number" ? parsed.confidence : 0.9,
     };
 
-    // Always set category (derived from LoRA, not from Gemini's text)
+    // Always set category (derived from LoRA, not from DeepSeek's text)
     hint.category = request.tacticCategory as TacticCategory;
 
     if (request.level === "tactic" || request.level === "full") {
@@ -924,7 +880,7 @@ function parseExplainResponse(
 
     if (request.level === "full" && tacticArgs) {
       // Always derive parameters from the LoRA tactic string (authoritative),
-      // not from Gemini's JSON which may use arbitrary key names like "proofTerm".
+      // not from DeepSeek's JSON which may use arbitrary key names like "proofTerm".
       // The protocol expects "expression" for exact/exists, "variableName" for others.
       if (tacticHead === "exact" || tacticHead === "exists") {
         hint.parameters = { expression: tacticArgs };
@@ -943,7 +899,7 @@ function parseExplainResponse(
 }
 
 /**
- * Build a simple explanation when Gemini is unavailable.
+ * Build a simple explanation when DeepSeek is unavailable.
  * Uses the LoRA prediction to provide a structured hint.
  */
 function buildFallbackExplanation(
@@ -960,6 +916,7 @@ function buildFallbackExplanation(
         level: "category",
         category,
         explanation: CATEGORY_DESCRIPTIONS[category] || `Consider a ${category} approach.`,
+        explanationSource: "template",
         confidence: 0.9,
       };
     case "tactic":
@@ -968,6 +925,7 @@ function buildFallbackExplanation(
         category,
         tacticType: protocolType,
         explanation: `Use the ${protocolType} tactic for this goal.`,
+        explanationSource: "template",
         confidence: 0.9,
       };
     case "full": {
@@ -985,6 +943,7 @@ function buildFallbackExplanation(
         tacticType: protocolType,
         parameters: params,
         explanation: `Apply ${request.predictedTactic}.`,
+        explanationSource: "template",
         confidence: 0.9,
       };
     }
