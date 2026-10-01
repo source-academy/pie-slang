@@ -10,8 +10,8 @@ import { cn } from '@/shared/lib/utils';
  *
  * Features:
  * - Input field for DeepSeek API key
- * - Input field for local LoRA model server URL
- * - Health check indicator for local model
+ * - Input field for LoRA model server URL
+ * - Health check indicator for Tactic LLM
  * - Status indicator for AI availability
  */
 export function AISettingsPanel() {
@@ -118,7 +118,7 @@ export function AISettingsPanel() {
           {hasLoraUrl && loraHealth === 'ok' ? (
             <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
               <Cpu className="h-3 w-3" />
-              Local Model
+              Tactic LLM
             </span>
           ) : hasApiKey ? (
             <span className="flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
@@ -140,16 +140,16 @@ export function AISettingsPanel() {
         <div className="border-t px-4 pb-4 pt-3">
           <div className="mb-3">
             <p className="text-sm text-muted-foreground">
-              Configure AI-powered hints. The local model predicts tactics accurately,
-              and DeepSeek explains them educationally.
+              Configure AI-powered hints. The Tactic LLM suggests tactics,
+              and General LLM explains them educationally.
             </p>
           </div>
 
-          {/* Local Model URL */}
+          {/* Tactic LLM URL */}
           <div className="mb-4">
             <label className="mb-1 flex items-center gap-1.5 text-sm font-medium">
               <Cpu className="h-3.5 w-3.5" />
-              Local Model Server
+              Tactic LLM Server
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -237,7 +237,7 @@ export function AISettingsPanel() {
           {/* API Key input */}
           <div className="mb-3">
             <label className="mb-1 block text-sm font-medium">
-              DeepSeek API Key
+              General LLM API Key (DeepSeek)
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -279,7 +279,7 @@ export function AISettingsPanel() {
               rel="noopener noreferrer"
               className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
             >
-              Get a DeepSeek API key →
+              Get a General LLM API key (DeepSeek) →
             </a>
           </div>
 
@@ -290,10 +290,10 @@ export function AISettingsPanel() {
                 <Cpu className="mt-0.5 h-4 w-4 text-green-600" />
                 <div>
                   <p className="text-sm font-medium text-green-800">
-                    Local Model + AI Explanation Active
+                    Tactic LLM + General LLM Active
                   </p>
                   <p className="text-xs text-green-600">
-                    The local model predicts the correct tactic, then DeepSeek explains
+                    The Tactic LLM suggests a tactic, then General LLM explains
                     it educationally at each hint level.
                   </p>
                 </div>
@@ -307,11 +307,11 @@ export function AISettingsPanel() {
                 <Cpu className="mt-0.5 h-4 w-4 text-green-600" />
                 <div>
                   <p className="text-sm font-medium text-green-800">
-                    Local Model Active (no explanation)
+                    Tactic LLM Active (no explanation)
                   </p>
                   <p className="text-xs text-green-600">
-                    Tactic predictions are powered by the local model.
-                    Add a DeepSeek API key for educational explanations.
+                    Tactic predictions are powered by the Tactic LLM.
+                    Add a General LLM API key (DeepSeek) for educational explanations.
                   </p>
                 </div>
               </div>
@@ -324,7 +324,7 @@ export function AISettingsPanel() {
                 <AlertCircle className="mt-0.5 h-4 w-4 text-red-500" />
                 <div>
                   <p className="text-sm font-medium text-red-800">
-                    Local Model Unreachable
+                    Tactic LLM Unreachable
                   </p>
                   <p className="text-xs text-red-600">
                     Cannot connect to {loraServerUrl}. Is the server running?
@@ -340,11 +340,11 @@ export function AISettingsPanel() {
                 <Sparkles className="mt-0.5 h-4 w-4 text-purple-500" />
                 <div>
                   <p className="text-sm font-medium text-purple-800">
-                    DeepSeek-Only Hints Active
+                    General LLM Hints Active
                   </p>
                   <p className="text-xs text-purple-600">
-                    Using DeepSeek for both prediction and explanation.
-                    Add a local model server for more accurate tactic predictions.
+                    Using General LLM for both prediction and explanation.
+                    Add a Tactic LLM server for tactic predictions.
                   </p>
                 </div>
               </div>

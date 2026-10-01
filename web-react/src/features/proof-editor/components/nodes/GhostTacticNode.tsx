@@ -138,7 +138,7 @@ export const GhostTacticNode = memo(function GhostTacticNode({
                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                 : 'bg-gray-200 text-gray-600'
           )}>
-            {hintSource === 'lora' ? 'Local AI' : hintSource === 'deepseek' ? 'AI' : 'Rule'}
+            {hintSource === 'lora' ? 'Tactic LLM' : hintSource === 'deepseek' ? 'General LLM' : 'Rule'}
           </span>
         </div>
         <span className={cn('text-[10px] font-medium', confidenceColor)}>

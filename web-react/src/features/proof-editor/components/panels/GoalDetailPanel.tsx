@@ -215,7 +215,7 @@ export function GoalDetailPanel() {
 
         {!apiKey ? (
           <p className="text-xs text-gray-400 italic">
-            Configure a DeepSeek API key in AI Settings to enable goal
+            Configure a General LLM API key (DeepSeek) in AI Settings to enable goal
             descriptions.
           </p>
         ) : !selectedNode ? (
