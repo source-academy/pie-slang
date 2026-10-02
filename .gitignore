@@ -52,3 +52,7 @@ unsloth_compiled_cache/
 # Claude Code config (per-user, not shared)
 CLAUDE.md
 .claude/
+
+# Cloudflare Worker local secrets and state
+proxy/.dev.vars
+proxy/.wrangler/

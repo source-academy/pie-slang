@@ -1,0 +1,19 @@
+name = "rapid-mud-6dea"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+RUNPOD_ENDPOINT_URL = "https://api.runpod.ai/v2/ogahfdvehdgq04"
+ALLOWED_ORIGINS = "https://source-academy.github.io,http://localhost:3000"
+
+# Secrets (set with `npx wrangler secret put <NAME>`, never committed):
+#   RUNPOD_API_KEY, DEEPSEEK_API_KEY
+
+# 30 requests per minute per client IP.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60

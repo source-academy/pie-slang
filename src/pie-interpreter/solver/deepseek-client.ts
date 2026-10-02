@@ -3,9 +3,27 @@ import { loggedAiFetch, type AiCallMeta } from "./ai-call-log";
 export const DEEPSEEK_MODEL = "deepseek-flash";
 const ENDPOINT = "https://api.deepseek.com/chat/completions";
 
-export async function callDeepSeek(apiKey: string, prompt: string, operation: AiCallMeta['operation'] = 'hint'): Promise<string> {
-  const key = apiKey.trim();
-  if (!key) throw new Error("DeepSeek API key is not set.");
+/**
+ * How to reach the General LLM: the user's own DeepSeek key (a plain string,
+ * or `apiKey`), or a proxy that holds the key server-side (`proxyUrl`). A
+ * user's own key takes priority over the proxy.
+ */
+export type GeneralLlmAccess = string | { apiKey?: string | null; proxyUrl?: string | null };
+
+function resolveAccess(access: GeneralLlmAccess | undefined): { key: string; proxyUrl: string } {
+  const key = (typeof access === "string" ? access : access?.apiKey ?? "").trim();
+  const proxyUrl = typeof access === "string" ? "" : (access?.proxyUrl ?? "").trim().replace(/\/+$/, "");
+  return { key, proxyUrl };
+}
+
+export function hasGeneralLlm(access: GeneralLlmAccess | undefined): boolean {
+  const { key, proxyUrl } = resolveAccess(access);
+  return !!(key || proxyUrl);
+}
+
+export async function callDeepSeek(access: GeneralLlmAccess, prompt: string, operation: AiCallMeta['operation'] = 'hint'): Promise<string> {
+  const { key, proxyUrl } = resolveAccess(access);
+  if (!key && !proxyUrl) throw new Error("DeepSeek API key is not set.");
 
   // Preserve the previous transient-503 retry policy, without switching providers.
   for (let attempt = 0; attempt <= 2; attempt++) {
@@ -14,21 +32,30 @@ export async function callDeepSeek(apiKey: string, prompt: string, operation: Ai
     let response: Response;
     let payload: unknown;
     try {
-      response = await loggedAiFetch({ provider: 'deepseek', operation }, ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          messages: [{ role: "user", content: prompt }],
-          stream: false,
-          thinking: { type: "disabled" },
-          max_tokens: 2048,
-        }),
-        signal: controller.signal,
-      });
+      // The proxy adds the key, model and limits itself; it returns the same
+      // `choices` shape as DeepSeek.
+      response = key
+        ? await loggedAiFetch({ provider: 'deepseek', operation }, ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            model: DEEPSEEK_MODEL,
+            messages: [{ role: "user", content: prompt }],
+            stream: false,
+            thinking: { type: "disabled" },
+            max_tokens: 2048,
+          }),
+          signal: controller.signal,
+        })
+        : await loggedAiFetch({ provider: 'deepseek', operation }, `${proxyUrl}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, operation }),
+          signal: controller.signal,
+        });
       // Never expose raw error bodies: upstream errors may echo request data.
       if (response.ok) payload = await response.json();
     } catch {

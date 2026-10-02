@@ -2,7 +2,7 @@
 // Takes a specific goal type + context (not source code), produces a short
 // literal translation for beginners who can't read Pie syntax.
 
-import { callDeepSeek } from "@pie/solver/deepseek-client";
+import { callDeepSeek, type GeneralLlmAccess } from "@pie/solver/deepseek-client";
 
 // ---------------------------------------------------------------------------
 // Prompt
@@ -96,13 +96,13 @@ Translation:`;
  *
  * @param goalType  - The goal's type string (sugared Pie syntax).
  * @param context   - Variables in scope for this goal.
- * @param apiKey    - DeepSeek API key.
+ * @param apiKey    - DeepSeek API key, or the General LLM proxy.
  * @returns A short literal translation of the goal type.
  */
 export async function describeGoalBrowser(
   goalType: string,
   context: Array<{ name: string; type: string }>,
-  apiKey: string,
+  apiKey: GeneralLlmAccess,
 ): Promise<string> {
   return callDeepSeek(apiKey, buildPrompt(goalType, context), 'translation');
 }

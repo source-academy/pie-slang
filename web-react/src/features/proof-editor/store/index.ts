@@ -105,6 +105,7 @@ export {
   useGoalHintState,
   useActiveGhostNode,
   useHintApiKey,
+  useGeneralLlmAccess,
   type GhostNode,
   type GoalHintState,
   type HintState,

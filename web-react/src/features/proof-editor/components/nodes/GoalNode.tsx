@@ -11,7 +11,7 @@ import { TACTIC_REQUIREMENTS } from "@pie/protocol";
 import {
   useUIStore,
   useGoalHintState,
-  useHintStore,
+  useGeneralLlmAccess,
   useProofStore,
 } from "../../store";
 import { useGoalDescriptionStore } from "../../store/goal-description-store";
@@ -66,8 +66,8 @@ export const GoalNode = memo(function GoalNode({
   const selectNode = useUIStore((s) => s.selectNode);
   const selectedNodeId = useUIStore((s) => s.selectedNodeId);
   const hintState = useGoalHintState(id);
-  const hasApiKey = useHintStore((s) => !!s.apiKey);
-  const apiKey = useHintStore((s) => s.apiKey);
+  const generalLlm = useGeneralLlmAccess();
+  const hasApiKey = !!generalLlm;
 
   // Goal description (translation) state
   const descEntry = useGoalDescriptionStore((s) => s.descriptions.get(id));
@@ -118,7 +118,7 @@ export const GoalNode = memo(function GoalNode({
   const handleTranslateClick = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!apiKey) return;
+      if (!generalLlm) return;
 
       // If already translated, just toggle the view
       if (descEntry?.text) {
@@ -142,7 +142,7 @@ export const GoalNode = memo(function GoalNode({
         const text = await describeGoalBrowser(
           data.goalType,
           contextEntries,
-          apiKey,
+          generalLlm,
         );
         // Don't update state if this request was aborted (component unmounted or new request started)
         if (abortController.signal.aborted) return;
@@ -152,7 +152,7 @@ export const GoalNode = memo(function GoalNode({
         setDescError(id, err instanceof Error ? err.message : String(err));
       }
     },
-    [apiKey, id, data.goalType, data.context, descEntry?.text, setDescLoading, setDescText, setDescError],
+    [generalLlm, id, data.goalType, data.context, descEntry?.text, setDescLoading, setDescText, setDescError],
   );
 
   // Handle drag over

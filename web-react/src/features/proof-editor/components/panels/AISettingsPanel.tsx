@@ -15,6 +15,7 @@ import { cn } from '@/shared/lib/utils';
  */
 export function AISettingsPanel() {
   const apiKey = useHintStore((s) => s.apiKey);
+  const generalLlmProxyUrl = useHintStore((s) => s.generalLlmProxyUrl);
   const setApiKey = useHintStore((s) => s.setApiKey);
   const loraServerUrl = useHintStore((s) => s.loraServerUrl);
   const setLoraServerUrl = useHintStore((s) => s.setLoraServerUrl);
@@ -101,7 +102,7 @@ export function AISettingsPanel() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasApiKey = !!apiKey;
+  const hasApiKey = !!apiKey || !!generalLlmProxyUrl;
   const hasLoraUrl = !!loraServerUrl;
 
   return (
@@ -257,7 +258,7 @@ export function AISettingsPanel() {
                   {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {hasApiKey && (
+              {!!apiKey && (
                 <button
                   className="rounded-md bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300"
                   onClick={handleClearKey}
@@ -267,6 +268,12 @@ export function AISettingsPanel() {
               )}
             </div>
           </div>
+
+          {generalLlmProxyUrl && !apiKey && (
+            <p className="mb-3 text-xs text-gray-500">
+              Provided by the course server. A key entered here is used instead.
+            </p>
+          )}
 
           {/* Get API key link */}
           <div className="mb-3">

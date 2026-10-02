@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { callDeepSeek, DEEPSEEK_MODEL } from "@pie/solver/deepseek-client";
+import { callDeepSeek, DEEPSEEK_MODEL, hasGeneralLlm } from "@pie/solver/deepseek-client";
 import { describeGoalBrowser } from "../features/proof-editor/lib/describeGoalBrowser";
 import { explainTactic, generateProgressiveHint } from "@pie/solver/hint-generator";
 
@@ -192,5 +192,50 @@ describe("Provider key isolation", () => {
     useHintStore.getState().setApiKey(null);
     expect(localStorage.getItem("pie-slang:deepseek-api-key")).toBeNull();
     expect(localStorage.getItem("pie-slang:gemini-api-key")).toBe("old-google-test-key");
+  });
+});
+
+describe("General LLM proxy", () => {
+  const proxyUrl = "https://pie-ai-proxy.example.workers.dev/";
+
+  it("sends only the prompt to the proxy, without any key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response("From the proxy."));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await callDeepSeek({ proxyUrl }, "goal", "translation")).toBe("From the proxy.");
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://pie-ai-proxy.example.workers.dev/chat");
+    expect(options.headers.Authorization).toBeUndefined();
+    expect(JSON.parse(options.body)).toEqual({ prompt: "goal", operation: "translation" });
+  });
+
+  it("prefers the user's own key over the proxy", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response("Direct."));
+    vi.stubGlobal("fetch", fetchMock);
+    await callDeepSeek({ apiKey: fakeKey, proxyUrl }, "goal");
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.deepseek.com/chat/completions");
+  });
+
+  it("counts a proxy as an available General LLM", () => {
+    expect(hasGeneralLlm({ proxyUrl })).toBe(true);
+    expect(hasGeneralLlm({ apiKey: " ", proxyUrl: null })).toBe(false);
+    expect(hasGeneralLlm(undefined)).toBe(false);
+  });
+
+  it("explains a Tactic LLM prediction through the proxy", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(JSON.stringify({ explanation: "Induct on n." }))));
+    const hint = await explainTactic({ proxyUrl }, {
+      predictedTactic: "elim-Nat n", tacticCategory: "elimination",
+      goalType: "(= Nat (+ n 0) n)", context: [{ name: "n", type: "Nat" }], level: "category",
+    });
+    expect(hint.explanationSource).toBe("deepseek");
+  });
+});
+
+describe("General LLM failure attribution", () => {
+  it("throws instead of returning a rule-based hint the caller would label General LLM", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 429 })));
+    await expect(generateProgressiveHint({ proxyUrl: "https://proxy.example" }, {
+      goalType: "(Π (n Nat) Nat)", context: [], availableTactics: ["intro"], currentLevel: "category",
+    })).rejects.toThrow("HTTP 429");
   });
 });

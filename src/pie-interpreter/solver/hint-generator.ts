@@ -2,7 +2,7 @@
 // Provides educational hints instead of direct solutions
 // Supports progressive hint levels: category → tactic → full
 
-import { callDeepSeek } from "./deepseek-client";
+import { callDeepSeek, hasGeneralLlm, type GeneralLlmAccess } from "./deepseek-client";
 import { SerializableContext } from "../utils/context";
 import type { TacticCategory } from "./hint-types";
 import { Parser } from "../parser/parser";
@@ -59,12 +59,12 @@ export interface ProgressiveHintRequest {
  * Generate an educational hint for a TODO expression
  */
 export async function generateTodoHint(
-  apiKey: string,
+  apiKey: GeneralLlmAccess,
   expectedType: string,
   context: string[],
   availableDefinitions: string[],
 ): Promise<string> {
-  if (!apiKey) {
+  if (!hasGeneralLlm(apiKey)) {
     throw MISSING_API_KEY_ERROR;
   }
 
@@ -115,12 +115,12 @@ Your hint (1-2 sentences):`;
  * Generate an educational hint for a tactical proof goal
  */
 export async function generateTacticHint(
-  apiKey: string,
+  apiKey: GeneralLlmAccess,
   goalType: string,
   hypotheses: string[],
   availableDefinitions: string[],
 ): Promise<string> {
-  if (!apiKey) {
+  if (!hasGeneralLlm(apiKey)) {
     throw MISSING_API_KEY_ERROR;
   }
 
@@ -173,7 +173,7 @@ Your hint (1-2 sentences):`;
  * General hint generation function that routes based on request type
  */
 export async function generateHint(
-  apiKey: string,
+  apiKey: GeneralLlmAccess,
   request: HintRequest,
 ): Promise<string> {
   if (request.type === "todo") {
@@ -245,10 +245,10 @@ import { CATEGORY_DESCRIPTIONS } from "./hint-types";
  * Level 3 (full): Suggests tactic with parameters
  */
 export async function generateProgressiveHint(
-  apiKey: string,
+  apiKey: GeneralLlmAccess,
   request: ProgressiveHintRequest,
 ): Promise<ProgressiveHint> {
-  if (!apiKey) {
+  if (!hasGeneralLlm(apiKey)) {
     throw MISSING_API_KEY_ERROR;
   }
 
@@ -292,18 +292,14 @@ export async function generateProgressiveHint(
       break;
   }
 
-  try {
-    const text = await callDeepSeek(apiKey, prompt);
-
-    return parseProgressiveHintResponse(
-      text,
-      request.currentLevel,
-      responseFormat,
-    );
-  } catch {
-    // Fallback to rule-based hints if API fails
-    return generateRuleBasedHint(request);
-  }
+  // Let failures propagate: the caller falls back to rule-based hints and
+  // labels them as such, instead of attributing them to the General LLM.
+  const text = await callDeepSeek(apiKey, prompt);
+  return parseProgressiveHintResponse(
+    text,
+    request.currentLevel,
+    responseFormat,
+  );
 }
 
 /**
@@ -746,10 +742,10 @@ export interface ExplainTacticRequest {
  * - full: reveal and explain the complete tactic with parameters
  */
 export async function explainTactic(
-  apiKey: string,
+  apiKey: GeneralLlmAccess,
   request: ExplainTacticRequest,
 ): Promise<ProgressiveHint> {
-  if (!apiKey) {
+  if (!hasGeneralLlm(apiKey)) {
     // No API key — return a simple fallback explanation
     return buildFallbackExplanation(request);
   }

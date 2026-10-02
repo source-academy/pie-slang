@@ -989,8 +989,11 @@ const proofWorkerAPI: ProofWorkerAPI = {
         }
       }
 
+      const generalLlm = { apiKey: request.apiKey, proxyUrl: request.generalLlmProxyUrl };
+      const { hasGeneralLlm } = await import("@pie/solver/deepseek-client");
+
       // If we have a validated LoRA prediction, use DeepSeek to explain it
-      if (loraPrediction?.validated && request.apiKey) {
+      if (loraPrediction?.validated && hasGeneralLlm(generalLlm)) {
         try {
           const { explainTactic } = await import(
             "@pie/solver/hint-generator"
@@ -1003,7 +1006,7 @@ const proofWorkerAPI: ProofWorkerAPI = {
             level: request.currentLevel,
             proofStateText,
           };
-          const hint = await explainTactic(request.apiKey, explainRequest);
+          const hint = await explainTactic(generalLlm, explainRequest);
           const finalHint = { ...hint, source: "lora" as const };
           return finalHint;
         } catch {
@@ -1043,10 +1046,10 @@ const proofWorkerAPI: ProofWorkerAPI = {
         await import("@pie/solver/hint-generator");
 
       // Try AI-powered hint if API key is provided
-      if (request.apiKey) {
+      if (hasGeneralLlm(generalLlm)) {
         try {
           const hint = await generateProgressiveHint(
-            request.apiKey,
+            generalLlm,
             hintRequest,
           );
           return { ...hint, source: "deepseek" };

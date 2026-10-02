@@ -34,6 +34,7 @@ export function useHintSystem() {
     const sessionId = proofStore.sessionId;
     const nodes = proofStore.nodes;
     const apiKey = hintStore.apiKey;
+    const generalLlmProxyUrl = hintStore.generalLlmProxyUrl;
     const loraServerUrl = hintStore.loraServerUrl;
     const loraApiKey = hintStore.loraApiKey;
 
@@ -83,6 +84,7 @@ export function useHintSystem() {
         currentLevel,
         previousHint,
         apiKey: apiKey || undefined,
+        generalLlmProxyUrl: generalLlmProxyUrl || undefined,
         loraServerUrl: loraServerUrl || undefined,
         loraApiKey: loraApiKey || undefined,
       });
@@ -120,6 +122,7 @@ export function useHintSystem() {
 
     const sessionId = proofStore.sessionId;
     const apiKey = hintStore.apiKey;
+    const generalLlmProxyUrl = hintStore.generalLlmProxyUrl;
     const loraServerUrl = hintStore.loraServerUrl;
     const loraApiKey = hintStore.loraApiKey;
 
@@ -144,6 +147,7 @@ export function useHintSystem() {
         currentLevel: nextLevel,
         previousHint,
         apiKey: apiKey || undefined,
+        generalLlmProxyUrl: generalLlmProxyUrl || undefined,
         loraServerUrl: loraServerUrl || undefined,
         loraApiKey: loraApiKey || undefined,
       });

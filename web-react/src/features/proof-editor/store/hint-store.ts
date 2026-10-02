@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { HintLevel, HintResponse } from '@pie/protocol';
+import { hasGeneralLlm, type GeneralLlmAccess } from '@pie/solver/deepseek-client';
 
 /**
  * Ghost node representing a hint suggestion
@@ -37,6 +39,10 @@ export interface HintState {
 
   // API key for AI-powered hints (optional)
   apiKey: string | null;
+
+  // Proxy holding the General LLM key server-side. Build-time only; a user's
+  // own apiKey takes priority.
+  generalLlmProxyUrl: string | null;
 
   // URL of the LoRA tactic prediction server (local or Runpod serverless; optional)
   loraServerUrl: string | null;
@@ -120,6 +126,7 @@ function saveToStorage(key: string, value: string | null) {
 // Priority: localStorage (runtime override) > build-time env > null.
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || ({} as Record<string, string | undefined>);
 const envApiKey = env.VITE_DEEPSEEK_API_KEY || null;
+const envGeneralLlmProxyUrl = env.VITE_GENERAL_LLM_PROXY_URL || null;
 const envLoraUrl = env.VITE_LORA_SERVER_URL || null;
 const envLoraApiKey = env.VITE_LORA_API_KEY || null;
 
@@ -127,6 +134,7 @@ const initialState: HintState = {
   goalHints: new Map(),
   activeGhostNodeId: null,
   apiKey: loadFromStorage(STORAGE_KEY_API) || envApiKey,
+  generalLlmProxyUrl: envGeneralLlmProxyUrl,
   loraServerUrl: loadFromStorage(STORAGE_KEY_LORA) || envLoraUrl,
   loraApiKey: loadFromStorage(STORAGE_KEY_LORA_API) || envLoraApiKey,
 };
@@ -352,3 +360,13 @@ export const useActiveGhostNode = () =>
   });
 
 export const useHintApiKey = () => useHintStore((s) => s.apiKey);
+
+/** The user's own General LLM key, or the build-time proxy; null when neither is set. */
+export function useGeneralLlmAccess(): GeneralLlmAccess | null {
+  const apiKey = useHintStore((s) => s.apiKey);
+  const proxyUrl = useHintStore((s) => s.generalLlmProxyUrl);
+  return useMemo(
+    () => (hasGeneralLlm({ apiKey, proxyUrl }) ? { apiKey, proxyUrl } : null),
+    [apiKey, proxyUrl],
+  );
+}

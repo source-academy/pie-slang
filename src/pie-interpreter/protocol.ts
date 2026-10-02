@@ -204,6 +204,8 @@ export interface HintRequest {
   previousHint?: HintResponse;
   /** API key for AI-powered hints (optional). */
   apiKey?: string;
+  /** Proxy that holds the General LLM key server-side; used when apiKey is unset. */
+  generalLlmProxyUrl?: string;
   /** URL of the local LoRA tactic prediction server (optional). */
   loraServerUrl?: string;
   /**

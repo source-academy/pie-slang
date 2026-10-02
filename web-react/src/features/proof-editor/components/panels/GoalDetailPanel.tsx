@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useProofStore, useUIStore } from "../../store";
-import { useHintStore } from "../../store/hint-store";
+import { useGeneralLlmAccess } from "../../store/hint-store";
 import { useGoalDescriptionStore } from "../../store/goal-description-store";
 import { describeGoalBrowser } from "../../lib/describeGoalBrowser";
 import type { GoalNode } from "../../store/types";
@@ -36,7 +36,7 @@ export function GoalDetailPanel() {
   const selectNode = useUIStore((s) => s.selectNode);
 
   // AI / description state
-  const apiKey = useHintStore((s) => s.apiKey);
+  const generalLlm = useGeneralLlmAccess();
   const setLoading = useGoalDescriptionStore((s) => s.setLoading);
   const setDescription = useGoalDescriptionStore((s) => s.setDescription);
   const setError = useGoalDescriptionStore((s) => s.setError);
@@ -64,7 +64,7 @@ export function GoalDetailPanel() {
 
   const fetchDescription = useCallback(
     async (nodeId: string) => {
-      if (!apiKey || !selectedNode) return;
+      if (!generalLlm || !selectedNode) return;
 
       abortRef.current?.abort();
       const abortController = new AbortController();
@@ -79,7 +79,7 @@ export function GoalDetailPanel() {
         const text = await describeGoalBrowser(
           selectedNode.data.goalType,
           contextEntries,
-          apiKey,
+          generalLlm,
         );
         if (abortController.signal.aborted) return;
         setDescription(nodeId, text);
@@ -88,13 +88,13 @@ export function GoalDetailPanel() {
         setError(nodeId, e instanceof Error ? e.message : String(e));
       }
     },
-    [apiKey, selectedNode, setLoading, setDescription, setError],
+    [generalLlm, selectedNode, setLoading, setDescription, setError],
   );
 
   // Lazily trigger on first open of this goal's panel
   useEffect(() => {
     if (!selectedNodeId || !selectedNode) return;
-    if (!apiKey) return;
+    if (!generalLlm) return;
     // Only auto-fetch if we have no cached entry for this node yet
     if (!descEntry) {
       fetchDescription(selectedNodeId);
@@ -102,7 +102,7 @@ export function GoalDetailPanel() {
   }, [
     selectedNodeId,
     selectedNode,
-    apiKey,
+    generalLlm,
     descEntry,
     fetchDescription,
   ]);
@@ -190,7 +190,7 @@ export function GoalDetailPanel() {
             <Sparkles className="h-3.5 w-3.5 text-purple-500" />
             <span className="text-xs font-medium text-gray-500">Overview</span>
           </div>
-          {apiKey && (
+          {generalLlm && (
             <button
               onClick={() => selectedNodeId && fetchDescription(selectedNodeId)}
               disabled={descEntry?.isLoading}
@@ -213,7 +213,7 @@ export function GoalDetailPanel() {
           )}
         </div>
 
-        {!apiKey ? (
+        {!generalLlm ? (
           <p className="text-xs text-gray-400 italic">
             Configure a General LLM API key (DeepSeek) in AI Settings to enable goal
             descriptions.
