@@ -27,6 +27,11 @@ jobs:
 
       - name: Build React App
         working-directory: web-react
+        # Both models go through the Cloudflare Worker in proxy/, which holds
+        # the keys; no key is baked into the public bundle.
+        env:
+          VITE_LORA_SERVER_URL: https://rapid-mud-6dea.e1264831.workers.dev
+          VITE_GENERAL_LLM_PROXY_URL: https://rapid-mud-6dea.e1264831.workers.dev
         run: npx vite build
 
       - name: Deploy to GitHub Pages
