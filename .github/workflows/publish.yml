@@ -6,6 +6,10 @@ on:
     types: [published]
   workflow_dispatch:
 
+# This workflow does not write with the built-in token (see the pull request that added this); read is enough.
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
